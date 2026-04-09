@@ -1,0 +1,982 @@
+/* MeetingDetailsPage.css Redesign */
+
+:root {
+    --bg: #f0efe9;
+    --surface: #fafaf7;
+    --white: #ffffff;
+    --green: #16a34a;
+    --amber: #92400e;
+    --amber-mid: #fcd34d;
+    --blue: #2b5ce6;
+    --ink3: #5f5e5b;
+}
+
+.meeting-details-wrapper {
+    background-color: var(--bg);
+    min-height: 100%;
+    padding: 2.5rem;
+    font-family: 'DM Sans', sans-serif;
+    color: #1a1a1a;
+}
+
+.dashboard-container {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Motion Rules */
+.stagger-item {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: cardIn 0.4s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+}
+
+@keyframes cardIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hero Card */
+.hero-section {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.radar-dot {
+    width: 7px;
+    height: 7px;
+    background: var(--blue);
+    border-radius: 50%;
+    position: relative;
+}
+
+.radar-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1.5px solid var(--blue);
+    animation: radarPing 2.4s infinite;
+}
+
+@keyframes radarPing {
+    0% {
+        width: 100%;
+        height: 100%;
+        opacity: 0.8;
+    }
+
+    100% {
+        width: 400%;
+        height: 400%;
+        opacity: 0;
+    }
+}
+
+.separator {
+    width: 1px;
+    height: 12px;
+    background: #e5e4e0;
+    margin: 0 0.5rem;
+}
+
+.platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #f4f3ef;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.hero-title {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+}
+
+.hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn-join {
+    background: var(--blue);
+    color: white;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.btn-join:hover {
+    transform: translateY(-1px);
+}
+
+.btn-join:active {
+    transform: scale(0.97);
+}
+
+.btn-join::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 80%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transform: skewX(-20deg);
+    animation: sheen 3.8s infinite;
+}
+
+@keyframes sheen {
+    0% {
+        left: -150%;
+    }
+
+    25%,
+    100% {
+        left: 250%;
+    }
+}
+
+.timer-text {
+    font-family: 'DM Mono', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+    color: var(--ink3);
+}
+
+/* Live Indicator */
+.live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: #16a34a;
+    font-family: 'DM Mono', monospace;
+}
+
+.live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+    animation: livePulse 1.5s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes livePulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.45;
+        transform: scale(1.5);
+    }
+}
+
+.btn-copy-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: 0.5px solid #e5e4e0;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+}
+
+.btn-copy-link:hover {
+    background: #f9f8f4;
+    border-color: #d8d7d0;
+    transform: translateY(-1px);
+}
+
+.btn-copy-link:active {
+    transform: scale(0.97);
+}
+
+/* Grid Layout */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 288px;
+    gap: 1.5rem;
+}
+
+/* Cards */
+.card-glass {
+    background: var(--white);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+}
+
+.card-label-header {
+    background: var(--surface);
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-title-sm {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink3);
+}
+
+.card-content {
+    padding: 1.25rem;
+}
+
+/* Agenda Box */
+.agenda-placeholder {
+    border: 1.5px dashed #e5e4e0;
+    border-radius: 8px;
+    padding: 2.5rem;
+    text-align: center;
+    color: var(--ink3);
+    cursor: default;
+    transition: all 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.agenda-empty-icon {
+    width: 24px;
+    height: 24px;
+    color: #c8c7c3;
+    margin-bottom: 0.4rem;
+}
+
+.agenda-empty-add-btn {
+    margin-top: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 8px;
+    border: 0.5px solid var(--blue);
+    background: transparent;
+    color: var(--blue);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.agenda-empty-add-btn:hover {
+    background: rgba(43, 92, 230, 0.05);
+    transform: translateY(-1px);
+}
+
+.agenda-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+}
+
+.agenda-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--blue);
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+.agenda-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.btn-delete-item {
+    color: #d1d1cf;
+    padding: 2px;
+    transition: color 0.2s;
+}
+
+.btn-delete-item:hover {
+    color: #ef4444;
+}
+
+/* Attendees */
+.attendee-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+}
+
+.avatar-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #f4f3ef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink3);
+    text-transform: uppercase;
+}
+
+.attendee-info {
+    flex: 1;
+}
+
+.attendee-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    display: block;
+}
+
+.attendee-email {
+    font-size: 11px;
+    color: var(--ink3);
+}
+
+.status-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 0.5px solid transparent;
+}
+
+.tag-blue {
+    background: #eff6ff;
+    color: #2b5ce6;
+    border-color: #bfdbfe;
+}
+
+.tag-amber {
+    background: #fffbeb;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+/* Readiness Card */
+.readiness-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.55s cubic-bezier(.2, .8, .4, 1);
+}
+
+.progress-bar-container {
+    height: 2.5px;
+    background: #f4f3ef;
+    border-radius: 2px;
+    margin: 0.5rem 0 1rem;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    transition: width 0.55s cubic-bezier(.2, .8, .4, 1), background-color 0.4s;
+}
+
+.readiness-check-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 0.4rem 0;
+    cursor: pointer;
+}
+
+.check-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+/* Filled icon circles for health checklist */
+.check-icon-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.check-icon-circle--green {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.check-icon-circle--amber {
+    background: #fef9c3;
+    color: #92400e;
+}
+
+.check-icon-circle--red {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+/* Inline action links next to health items */
+.health-action-link {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.15s;
+}
+
+.health-action-link:hover {
+    opacity: 0.7;
+}
+
+/* Connection Card */
+.kv-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.kv-label {
+    width: 86px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink3);
+}
+
+.kv-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.value-text {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-copy-pill {
+    padding: 0.25rem 0.65rem;
+    border-radius: 8px;
+    border: 0.5px solid #e5e4e0;
+    background: #f4f3ef;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink3);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-copy-pill:hover {
+    background: #eeedea;
+    transform: translateY(-1px);
+}
+
+.btn-copy-pill.copied {
+    background: var(--green);
+    color: white;
+    border-color: transparent;
+}
+
+/* Danger Zone */
+.btn-danger {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1.5px solid #fee2e2;
+    color: #ef4444;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-danger:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.countdown-span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+}
+
+/* Post-meeting disabled state */
+.disabled-post {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Toast System */
+.toast-pill {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1a1a1a;
+    color: white;
+    padding: 0.6rem 1.25rem;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+.toast-pill.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Modal Styling */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-card {
+    background: white;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    animation: modalSlideUp 0.3s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #f4f3ef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f4f3ef;
+    background: #fafaf7;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.input-minimal {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid #e5e4e0;
+    padding: 0.5rem 0;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.input-minimal:focus {
+    border-color: var(--blue);
+}
+
+.btn-minimal {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.btn-minimal.primary {
+    background: var(--blue);
+    color: white;
+}
+
+.btn-minimal.secondary {
+    color: var(--ink3);
+    background: #f4f3ef;
+}
+
+/* Tooltip (simplified) */
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: #1a1a1a;
+    color: white;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 10;
+}
+
+/* ── Status variants ─────────────────────────────────────────────────────── */
+.ended-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.6rem;
+    background: #f1f1ee;
+    color: #999;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+/* ── Reschedule inline ───────────────────────────────────────────────────── */
+.date-reschedule-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    color: inherit;
+    transition: color 0.15s;
+}
+.date-reschedule-btn:hover { color: var(--blue); }
+
+.reschedule-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.75rem 0;
+    padding: 0.75rem 1rem;
+    background: #f8f8f5;
+    border-radius: 8px;
+    border: 0.5px solid #e5e4e0;
+}
+
+.reschedule-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    outline: none;
+    color: #1a1a1a;
+}
+
+/* ── Agenda rich items ───────────────────────────────────────────────────── */
+.agenda-drag-handle {
+    width: 13px;
+    height: 13px;
+    color: #ccc;
+    cursor: grab;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+.agenda-item:hover .agenda-drag-handle { opacity: 1; }
+.agenda-item:active .agenda-drag-handle { cursor: grabbing; }
+
+.agenda-item--drag-over {
+    background: rgba(43, 92, 230, 0.04);
+    border-radius: 6px;
+}
+
+.agenda-duration {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink3);
+    background: #f4f3ef;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.agenda-assignee {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--blue);
+    background: #eff6ff;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+/* Agenda add form */
+.agenda-add-form {
+    margin-top: 0.75rem;
+    border: 0.5px solid #e5e4e0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: #fafaf7;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.agenda-add-form-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.agenda-input-field {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid #e5e4e0;
+    background: transparent;
+    padding: 0.4rem 0;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.agenda-input-field:focus { border-color: var(--blue); }
+
+.agenda-duration-input {
+    width: 52px;
+    border: 0.5px solid #e5e4e0;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font-size: 12px;
+    outline: none;
+    background: white;
+}
+
+.agenda-assignee-select {
+    flex: 1;
+    border: 0.5px solid #e5e4e0;
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font-size: 12px;
+    outline: none;
+    background: white;
+    color: var(--ink3);
+}
+
+/* ── Attendee section ───────────────────────────────────────────────────── */
+.attendee-add-form {
+    margin-top: 1rem;
+    border: 0.5px solid #e5e4e0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    background: #fafaf7;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.attendee-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.resend-link {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--blue);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+}
+.resend-link:hover { opacity: 1; }
+
+.attendee-invited-time {
+    font-size: 10px;
+    color: #aaa;
+}
+
+/* New RSVP status colours */
+.tag-green {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #bbf7d0;
+}
+.tag-red {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+/* ── Access key ─────────────────────────────────────────────────────────── */
+.access-key-masked {
+    letter-spacing: 0.15em;
+    color: #aaa;
+}
+
+.btn-reveal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 8px;
+    border: 0.5px solid #e5e4e0;
+    background: #f4f3ef;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink3);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+.btn-reveal:hover { background: #eeedea; transform: translateY(-1px); }
+
+/* ── MOM / notes ────────────────────────────────────────────────────────── */
+.mom-textarea {
+    width: 100%;
+    border: 0.5px solid #e5e4e0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: 'DM Mono', monospace;
+    color: #1a1a1a;
+    background: #fafaf7;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.mom-textarea:focus { border-color: var(--blue); }
+
+.mom-generate-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+}
+
+/* ── Toast enhancements ─────────────────────────────────────────────────── */
+.toast-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.toast-undo-btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 6px;
+    padding: 0.2rem 0.6rem;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+.toast-undo-btn:hover { background: rgba(255,255,255,0.3); }
+
+/* ── Cancel modal danger button ─────────────────────────────────────────── */
+.btn-minimal.danger {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 0.5px solid #fecaca;
+}
+.btn-minimal.danger:hover { background: #fee2e2; }

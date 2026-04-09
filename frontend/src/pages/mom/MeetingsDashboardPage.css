@@ -1,0 +1,76 @@
+/* MeetingsDashboardPage.css */
+
+.meetings-dashboard-page {
+  background-color: #f8fafc;
+  min-height: 100%;
+}
+
+.live-card {
+  position: relative;
+  background-color: white;
+  border: 1px solid #fee2e2;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(254, 226, 226, 0.5), 0 2px 4px -1px rgba(254, 226, 226, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.live-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(254, 226, 226, 0.6), 0 4px 6px -2px rgba(254, 226, 226, 0.4);
+  border-color: #fca5a5;
+}
+
+.upcoming-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.upcoming-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background-color: transparent;
+  transition: background-color 0.3s ease;
+}
+
+.upcoming-card:hover::before {
+  background-color: #4f46e5;
+}
+
+@keyframes pulse-red {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.animate-pulse {
+  animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes fade-in {
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.animate-fadeIn {
+  animation: fade-in 0.3s ease forwards;
+}

@@ -1,0 +1,474 @@
+/* ScheduleMeetingSidebar.css */
+
+:root {
+  --primary-color: #378ADD;
+  --success-color: #0F6E56;
+  --danger-color: #E24B4A;
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f9fafb;
+  --color-background-tertiary: #f3f4f6;
+  --color-background-info: #eff6ff;
+  --color-background-success: #ecfdf5;
+  --color-background-danger: #fef2f2;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-tertiary: #9ca3af;
+  --color-text-info: #1d4ed8;
+  --color-text-success: #047857;
+  --color-text-danger: #b91c1c;
+  --color-border-primary: #d1d5db;
+  --color-border-secondary: #e5e7eb;
+  --color-border-tertiary: #f3f4f6;
+  --color-border-info: #3b82f6;
+  --color-border-success: #10b981;
+  --color-border-danger: #ef4444;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.schedule-meeting-toggle {
+  padding: 0.75rem 1rem;
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.schedule-meeting-toggle:hover {
+  box-shadow: 0 4px 12px rgba(55, 138, 221, 0.25);
+  transform: translateY(-1px);
+}
+
+.schedule-meeting-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: var(--color-background-primary);
+  border-left: 0.5px solid var(--color-border-tertiary);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(100%);
+  transition: transform 0.3s var(--easing-standard);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.schedule-meeting-sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sidebar-header h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+
+.close-button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s var(--easing-standard);
+}
+
+.close-button:hover {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+}
+
+.sidebar-content {
+  flex: 1;
+  padding: 1.5rem 1.25rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-primary);
+}
+
+.form-group {
+  margin-bottom: 1.75rem;
+  text-align: left;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  display: block;
+  margin-bottom: 0.875rem;
+  letter-spacing: -0.2px;
+}
+
+.form-label .badge {
+  display: inline-block;
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 500;
+}
+
+.input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+input[type="date"],
+input[type="time"],
+.form-select,
+.form-textarea {
+  flex: 1;
+  padding: 0.75rem;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  transition: all 0.2s var(--easing-standard);
+}
+
+input[type="date"]:hover,
+input[type="time"]:hover,
+.form-select:hover,
+.form-textarea:hover {
+  border-color: var(--color-border-secondary);
+  background: var(--color-background-secondary);
+}
+
+input[type="date"]:focus,
+input[type="time"]:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-border-info);
+  box-shadow: 0 0 0 3px rgba(55, 138, 221, 0.1);
+}
+
+input[type="date"].error,
+input[type="time"].error,
+.form-select.error,
+.form-textarea.error {
+  border-color: var(--color-border-danger);
+  box-shadow: 0 0 0 3px rgba(226, 75, 74, 0.1);
+}
+
+.form-select {
+  width: 100%;
+}
+
+.form-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.platform-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.platform-button {
+  position: relative;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--border-radius-md);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.2s var(--easing-standard);
+  font-family: var(--font-sans);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: visible; /* Changed from hidden so tooltip can show outside */
+}
+
+.platform-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background-tertiary);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.platform-button:hover {
+  border-color: var(--color-border-secondary);
+  background: var(--color-background-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.platform-button:active {
+  transform: scale(0.98);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.platform-button.selected {
+  border-color: var(--color-border-info);
+  background: rgba(55, 138, 221, 0.05);
+  box-shadow: 0 0 0 3px rgba(55, 138, 221, 0.1);
+}
+
+.platform-button .checkmark {
+  margin-left: auto;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s var(--easing-spring);
+  font-size: 16px;
+  color: var(--color-text-info);
+}
+
+.platform-button.selected .checkmark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.button-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(55, 138, 221, 0.4);
+  pointer-events: none;
+  transform: scale(0);
+}
+
+@keyframes ripple-animation {
+  0% { transform: scale(0); opacity: 1; }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.button-ripple {
+  animation: ripple-animation 0.6s ease-out forwards;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 40px;
+  background: var(--color-text-primary);
+  color: var(--color-background-primary);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: all 0.2s var(--easing-standard);
+  z-index: 10;
+}
+
+.platform-button:hover .tooltip {
+  opacity: 1;
+  transform: translateY(-8px);
+}
+
+.timezone-info {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--color-background-secondary);
+  border-radius: 4px;
+  border-left: 2px solid var(--color-border-secondary);
+}
+
+.error-text {
+  font-size: 12px;
+  color: var(--color-text-danger);
+  margin: 0.5rem 0 0;
+}
+
+.error-banner {
+  padding: 0.75rem;
+  background: var(--color-background-danger);
+  color: var(--color-text-danger);
+  border-radius: var(--border-radius-md);
+  font-size: 13px;
+  margin-bottom: 1rem;
+  border-left: 2px solid var(--color-border-danger);
+}
+
+.sidebar-footer {
+  padding: 1rem 1.25rem;
+  border-top: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-secondary);
+  flex-shrink: 0;
+}
+
+.primary-button {
+  width: 100%;
+  padding: 0.875rem;
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  border: none;
+  border-radius: var(--border-radius-md);
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.2s var(--easing-standard);
+  position: relative;
+  overflow: hidden;
+}
+
+.primary-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(55, 138, 221, 0.25);
+  transform: translateY(-1px);
+}
+
+.primary-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(55, 138, 221, 0.15);
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-button.loading {
+  animation: button-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes button-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0px rgba(55, 138, 221, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(55, 138, 221, 0);
+  }
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 0.75rem;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-background-tertiary);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+.status-dot.connected {
+  background: var(--color-background-success);
+  animation: none;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.success-message {
+  padding: 0.75rem;
+  background: var(--color-background-success);
+  color: var(--color-text-success);
+  border-radius: var(--border-radius-md);
+  font-size: 13px;
+  margin-bottom: 0.75rem;
+  border-left: 2px solid var(--color-border-success);
+}
+
+/* Backdrop */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  animation: fade-in 0.3s var(--easing-standard);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .schedule-meeting-sidebar {
+    width: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .schedule-meeting-sidebar {
+    width: 100%;
+    height: 100vh;
+  }
+  .sidebar-backdrop {
+    animation: fade-in 0.2s ease-out;
+  }
+}

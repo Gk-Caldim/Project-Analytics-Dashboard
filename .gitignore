@@ -1,0 +1,107 @@
+# =========================
+# Python / FastAPI
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# text files
+*.log
+*.out
+*.txt
+
+# Virtual environments
+venv/
+.env/
+.env.*/
+.venv/
+ENV/
+env/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# FastAPI / Uvicorn
+*.log
+uvicorn.log
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# =========================
+# Node / React / Vite
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vite build output
+dist/
+dist-ssr/
+
+# Vite cache
+.vite/
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+*.db
+backend/test.db
+
+
+# =========================
+# Misc
+# =========================
+logs/
+*.tmp
+*.bak
+
+# =========================
+# Secrets
+# =========================
+backend/google_service_account.json
+
+
+# =========================
+# Antigravity / Skills
+# =========================
+skills/
+full-stack-orchestration-full-stack-feature/
+senior-fullstack/
+
+# Microsoft Teams delegated OAuth token — contains refresh token, never commit
+ms_token.json
+backend/ms_token.json
+
+
