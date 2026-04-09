@@ -33,6 +33,7 @@ from app.schemas.issue import (
     IssueCommentCreate, IssueCommentOut,
     IssueCreate, IssueOut, IssueUpdate,
     IssueEscalationOut,
+    IssueAuditLogOut,
     MOMIssueCreate, MOMIssueResponse,
     IssueAnalytics,
 )

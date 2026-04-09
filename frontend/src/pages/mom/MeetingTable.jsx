@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown } from 'lucide-react';
 import API from '../../utils/api';
 
 const CRITICALITY_STYLES = {
@@ -15,17 +15,59 @@ const STATUS_STYLES = {
   'Closed': 'text-gray-400 font-medium line-through',
 };
 
-const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
+const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
+  // ── Project selector state ──────────────────────────────────────
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    // Pre-seed from first meeting row if it already has a project_id
+    return lockedProjectId || (meetings?.[0]?.project_id ? String(meetings[0].project_id) : '');
+  });
+
+  useEffect(() => {
+    API.get('/projects')
+      .then(resp => {
+        const data = resp.data.success
+          ? resp.data.projects
+          : Array.isArray(resp.data) ? resp.data : [];
+        setProjects(data);
+      })
+      .catch(err => console.error('Failed to fetch projects', err));
+  }, []);
+
+  // If first meeting row already carries a project_id (e.g. from ScheduleMeetingPage
+  // navigate context), use it as the default once projects have loaded.
+  useEffect(() => {
+    if (!selectedProjectId) {
+      const pid = lockedProjectId || meetings?.[0]?.project_id;
+      if (pid) setSelectedProjectId(String(pid));
+    }
+  }, [meetings, lockedProjectId, selectedProjectId]);
+
+  // Helper: resolve project name from id for display
+  const resolveProjectName = (pid) => {
+    if (!pid) return '—';
+    const p = projects.find(pr => String(pr.id ?? pr.project_id) === String(pid));
+    return p ? (p.name ?? p.project_name) : `#${pid}`;
+  };
+
   // ── Sync High-priority MOM rows → Issue Engine ─────────────────
   const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null); // { created, skipped }
+  const [syncResult, setSyncResult] = useState(null);
   const [copied, setCopied] = useState(false);
 
   const handleSyncIssues = async () => {
+    // ── Step 1: Validate project selection FIRST ───────────────────
+    if (!selectedProjectId) {
+      setSyncResult({ error: 'Please select a valid project before syncing.' });
+      setTimeout(() => setSyncResult(null), 5000);
+      return;
+    }
+
+    // ── Step 2: Validate rows ──────────────────────────────────────
     const highRows = meetings.filter(m => m.criticality === 'High' || m.criticality === 'Critical');
 
     if (highRows.length === 0) {
-      setSyncResult({ error: 'No High-criticality rows to sync.' });
+      setSyncResult({ error: 'No High or Critical-criticality rows to sync.' });
       setTimeout(() => setSyncResult(null), 4000);
       return;
     }
@@ -35,8 +77,8 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
     const localSkipped = [];
 
     highRows.forEach((m, idx) => {
-      const owner   = (m.responsibility || '').trim();
-      const target  = (m.target || '').trim();
+      const owner      = (m.responsibility || '').trim();
+      const target     = (m.target || '').trim();
       const actionText = (m.discussion_point || '').trim();
 
       if (!owner) {
@@ -48,16 +90,13 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
         return;
       }
 
-      // Parse target date — try ISO first, then dd-Mon-yyyy (e.g. "10-Apr-2026")
-      let parsedDate = null;
+      // Parse target date — ISO first, then any parseable string
       const iso = Date.parse(target);
-      if (!isNaN(iso)) {
-        parsedDate = new Date(iso).toISOString().split('T')[0];
-      }
-      if (!parsedDate) {
+      if (isNaN(iso)) {
         localSkipped.push(`Row ${idx + 1}: unrecognisable date format '${target}'`);
         return;
       }
+      const parsedDate = new Date(iso).toISOString().split('T')[0];
 
       const title50 = actionText.slice(0, 50) || `MOM Action ${idx + 1}`;
 
@@ -74,26 +113,26 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
 
     if (actions.length === 0) {
       setSyncResult({
-        error: `All ${highRows.length} High row(s) were skipped.`,
+        error:   `All ${highRows.length} High row(s) were skipped — check Responsibility and Target Date fields.`,
         skipLog: localSkipped,
       });
-      setTimeout(() => setSyncResult(null), 6000);
+      setTimeout(() => setSyncResult(null), 7000);
       return;
     }
 
+    // ── Step 3: POST to backend ────────────────────────────────────
     setSyncing(true);
     try {
-      // Use project_name from the first row — backend resolves to project_id
-      const projectName = (meetings[0]?.project_name || '').trim();
       const resp = await API.post('/mom/issues', {
-        project_name: projectName || undefined,
+        project_id: Number(selectedProjectId),
         actions,
       });
       const data = resp.data;
+      // Backend returns: { total_rows, issues_created, issues_skipped, reasons, issues }
       setSyncResult({
-        created:  data.created,
-        skipped:  (data.skipped || 0) + localSkipped.length,
-        skipLog:  [...(data.skip_log || []).map(s => s.reason || JSON.stringify(s)), ...localSkipped],
+        created:  data.issues_created ?? 0,
+        skipped:  (data.issues_skipped ?? 0) + localSkipped.length,
+        skipLog:  [...(data.reasons || []), ...localSkipped],
       });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
@@ -162,35 +201,73 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
       )}
 
       {/* ── Action Toolbar (Hidden in Print) ── */}
-      <div className="flex justify-between items-center print:hidden">
-        <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">Form MOM-202</h2>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Industrial Analytics Standard</p>
+      <div className="flex flex-col gap-3 print:hidden">
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Form MOM-202</h2>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Industrial Analytics Standard</p>
+          </div>
+          <div className="flex gap-3 items-center">
+            {/* ── Project Dropdown (Hidden if locked) ── */}
+            {!lockedProjectId && (
+              <div className="relative">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  Project <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                    className={`appearance-none pl-3 pr-8 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 transition-all cursor-pointer min-w-[180px] ${
+                      selectedProjectId
+                        ? 'border-indigo-300 bg-indigo-50 text-indigo-900 focus:ring-indigo-200'
+                        : 'border-red-300 bg-red-50 text-red-500 focus:ring-red-200'
+                    }`}
+                  >
+                    <option value="">— Select Project —</option>
+                    {projects.map(p => (
+                      <option key={p.id ?? p.project_id} value={p.id ?? p.project_id}>
+                        {p.name ?? p.project_name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 items-end pb-0.5">
+              <button
+                onClick={handleSyncIssues}
+                disabled={syncing || !selectedProjectId}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md active:scale-95"
+              >
+                <Zap className="w-4 h-4" />
+                {syncing ? 'Syncing…' : 'Sync Issues'}
+              </button>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Clipboard className="w-4 h-4" />}
+                {copied ? 'Copied' : 'Copy CSV'}
+              </button>
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                Download PDF / Print
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleSyncIssues}
-            disabled={syncing}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 transition-all shadow-md active:scale-95"
-          >
-            <Zap className="w-4 h-4" />
-            {syncing ? 'Syncing…' : 'Sync Issues'}
-          </button>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Clipboard className="w-4 h-4" />}
-            {copied ? 'Copied' : 'Copy CSV'}
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF / Print
-          </button>
-        </div>
+        {!selectedProjectId && (
+          <p className="text-xs text-red-500 font-semibold flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" />
+            Select a project above before syncing issues to the Issue Engine.
+          </p>
+        )}
       </div>
 
       {/* ── FORM TEMPLATE START ── */}
@@ -244,7 +321,9 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
                       {m.function || 'General'}
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-bold text-gray-900">
-                      {m.project_name || '—'}
+                      {resolveProjectName(m.project_id) !== '—'
+                        ? resolveProjectName(m.project_id)
+                        : resolveProjectName(selectedProjectId)}
                     </td>
                     <td className="border border-gray-300 px-3 py-4 text-center">
                       <span className={`px-2 py-1 rounded-[4px] text-[9px] font-black border text-center block ${critStyle}`}>

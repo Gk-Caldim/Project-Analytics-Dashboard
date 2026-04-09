@@ -5,6 +5,8 @@ import {
   CheckCircle, Edit2, Sparkles, Download, Clipboard
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import API from '../../utils/api';
+import { Target } from 'lucide-react';
 
 // ── Speaker colour palette ──────────────────────────────────────────
 const SPEAKER_COLORS = [
@@ -105,7 +107,7 @@ function parseTranscriptFile(rawText) {
 }
 
 // ════════════════════════════════════════════════════════════════════
-const SpeechToText = ({ onProcessSpeech, switchToTable }) => {
+const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectId }) => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -123,13 +125,29 @@ const SpeechToText = ({ onProcessSpeech, switchToTable }) => {
 
   // ── Config state ────────────────────────────────────────────────
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [projects, setProjects] = useState([]);
 
   useEffect(() => {
-    const id = searchParams.get('meetingId');
+    const fetchProjects = async () => {
+      try {
+        const resp = await API.get('/projects');
+        const data = resp.data.success ? resp.data.projects : (Array.isArray(resp.data) ? resp.data : []);
+        setProjects(data);
+      } catch (err) {
+        console.error('Failed to fetch projects', err);
+      }
+    };
+    fetchProjects();
+
+    const pid = lockedProjectId || searchParams.get('projectId');
     if (id) {
       setMeetingTitle(`Meeting #${id}`);
     }
-  }, [searchParams]);
+    if (pid) {
+      setProjectId(pid);
+    }
+  }, [searchParams, lockedProjectId]);
 
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
@@ -527,6 +545,8 @@ const SpeechToText = ({ onProcessSpeech, switchToTable }) => {
           discussion_point: fullText || 'No context recorded.',
           responsibility: attendees.join(', ') || currentUser.name,
           target: new Date().toLocaleDateString(),
+          // Wait, passing it as project_id here:
+          project_id: projectId ? Number(projectId) : undefined,
           status: 'Pending',
           action_taken: additionalText ? `Additional: ${additionalText}` : 'None',
           // pass through structured entries for rich table
@@ -725,9 +745,26 @@ const SpeechToText = ({ onProcessSpeech, switchToTable }) => {
           placeholder="Untitled meeting"
           value={meetingTitle}
           onChange={(e) => setMeetingTitle(e.target.value)}
-          className="w-full sm:w-1/3 px-4 py-3 text-xs focus:outline-none placeholder-gray-400"
+          className="w-full sm:w-1/4 px-4 py-3 text-xs focus:outline-none placeholder-gray-400"
         />
-        <div className="w-full sm:w-1/4 px-4 py-3 text-xs text-gray-500 whitespace-nowrap bg-gray-50/50">
+        {!lockedProjectId && (
+          <div className="w-full sm:w-1/4 px-2 py-2 text-xs flex items-center">
+              <Target className="w-3.5 h-3.5 text-gray-400 mr-2 ml-2" />
+              <select
+                  className="w-full bg-transparent focus:outline-none appearance-none cursor-pointer text-gray-700"
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+              >
+                  <option value="">Select Project...</option>
+                  {projects.map(p => (
+                      <option key={p.id || p.project_id} value={p.id || p.project_id}>
+                          {p.name || p.project_name}
+                      </option>
+                  ))}
+              </select>
+          </div>
+        )}
+        <div className="w-full sm:w-[15%] px-4 py-3 text-xs text-gray-500 whitespace-nowrap bg-gray-50/50">
           {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
         <div className="w-full flex-1 px-4 py-2 flex items-center flex-wrap gap-2">

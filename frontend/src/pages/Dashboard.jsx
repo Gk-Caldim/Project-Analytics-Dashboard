@@ -901,7 +901,20 @@ const Dashboard = () => {
         <div
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => handleModuleClick('mom-module')}
+          onClick={() => {
+            if (activeProjectName) {
+              const project = projectDashboardModules.find(p => p.name === activeProjectName);
+              const pid = project?.dbProjectId || project?.id;
+              if (pid) {
+                navigate(`/dashboard/mom?projectId=${pid}`);
+                dispatch(setActiveModule('mom-module'));
+              } else {
+                handleModuleClick('mom-module');
+              }
+            } else {
+              handleModuleClick('mom-module');
+            }
+          }}
           className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
             } rounded-xl ${isActive
               ? 'bg-white/20 shadow-md text-white'

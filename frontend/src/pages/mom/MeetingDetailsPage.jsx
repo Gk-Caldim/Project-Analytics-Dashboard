@@ -455,7 +455,9 @@ const MeetingDetailsPage = () => {
                             <div className="card-content flex flex-col gap-3">
                                 <div className="flex gap-2">
                                     <button disabled className="btn-minimal secondary disabled-post relative" data-tooltip="Upload a transcript first"><FileText className="w-3.5 h-3.5" /> Generate notes</button>
-                                    <button className="btn-minimal secondary"><Plus className="w-3.5 h-3.5" /> Upload transcript</button>
+                                    <button className="btn-minimal secondary" onClick={() => navigate(`/dashboard/mom?meetingId=${id}&projectId=${meeting.project_id || ''}`)}>
+                                        <Plus className="w-3.5 h-3.5" /> Upload transcript
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -12,6 +12,8 @@ const ScheduleMeetingPage = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
 
   // --- Form State ---
   const [platform, setPlatform] = useState('meet'); // default: Google Meet
@@ -90,6 +92,20 @@ const ScheduleMeetingPage = () => {
       }
     }
   }, []); // run once on mount
+
+  // --- Fetch Projects ---
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const resp = await API.get('/projects');
+        const data = resp.data.success ? resp.data.projects : (Array.isArray(resp.data) ? resp.data : []);
+        setProjects(data);
+      } catch (err) {
+        console.error('Failed to fetch projects', err);
+      }
+    };
+    fetchProjects();
+  }, []);
 
   // --- Auth Intercept Effects ---
   useEffect(() => {
@@ -343,7 +359,7 @@ const ScheduleMeetingPage = () => {
     const hasTime = useCustomTime
       ? (startTime && endTime && computedDuration && !timeError)
       : selectedTime !== null;
-    return selectedDate && hasTime && platform && attendees.length > 0;
+    return selectedDate && hasTime && platform && attendees.length > 0 && selectedProjectId;
   };
 
   // --- Teams platform click handler ---
@@ -424,7 +440,8 @@ const ScheduleMeetingPage = () => {
       agenda_text: agenda.join('\n'),
       reason: meetingType === 'custom' ? customReasonInput : (meetingTypes.find(t => t.id === meetingType)?.label || ''),
       timezone: tz,
-      organizer_email: 'noreply@antigravity.com'
+      organizer_email: 'noreply@antigravity.com',
+      project_id: Number(selectedProjectId)
     };
 
     try {
@@ -453,6 +470,7 @@ const ScheduleMeetingPage = () => {
     setPresetDuration(60);
     setMeetingType('quickSync');
     setCustomReasonInput('');
+    setSelectedProjectId('');
     setAgenda([]);
     setAttendees([]);
     setDescription('');
@@ -633,10 +651,36 @@ const ScheduleMeetingPage = () => {
                 <span className="text-indigo-700 flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" /> Type</span>
                 <span className="text-xs truncate max-w-[55%] text-right">{effectiveTitle}</span>
               </div>
+              <div className="flex justify-between items-center pt-1 mt-1 border-t border-indigo-100">
+                <span className="text-indigo-700 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Project</span>
+                <span className="text-xs truncate max-w-[55%] text-right font-bold">
+                  {selectedProjectId ? projects.find(p => String(p.id || p.project_id) === String(selectedProjectId))?.name || 'Selected' : '--'}
+                </span>
+              </div>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* Project Selector */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                Project <span className="text-red-500">*</span>
+              </label>
+              <select
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all appearance-none bg-white cursor-pointer"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+                required
+              >
+                <option value="">Select Project...</option>
+                {projects.map(p => (
+                  <option key={p.id || p.project_id} value={p.id || p.project_id}>
+                    {p.name || p.project_name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Attendees Field */}
             <div>

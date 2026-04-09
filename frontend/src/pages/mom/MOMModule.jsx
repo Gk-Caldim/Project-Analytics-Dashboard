@@ -47,6 +47,8 @@ const MOMModule = () => {
     setMeetings((prev) => prev.filter((meeting) => meeting.id !== id));
   };
 
+  const lockedProjectId = searchParams.get('projectId');
+
   return (
     <div className="mom-page min-h-full bg-gray-50 p-4 text-slate-800 relative">
       <button
@@ -85,6 +87,7 @@ const MOMModule = () => {
           onProcessSpeech={handleProcessSpeech}
           meetings={meetings}
           switchToTable={() => setActiveTab('table')}
+          lockedProjectId={lockedProjectId}
         />
       )}
 
@@ -93,6 +96,7 @@ const MOMModule = () => {
           meetings={meetings}
           onUpdateMeeting={handleUpdateMeeting}
           onDeleteMeeting={handleDeleteMeeting}
+          lockedProjectId={lockedProjectId}
         />
       )}
     </div>

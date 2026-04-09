@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { setProjects, updateProjectConfig } from '../store/slices/projectSlice';
 import { setSelectedProjectFileId } from '../store/slices/navSlice';
@@ -10,8 +9,9 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import { 
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, 
   ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare
 } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import PdfPreviewModal from '../components/PdfPreviewModal';
@@ -163,6 +163,7 @@ const getDiversePalette = () => [
 
 const ProjectTitleDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { format, symbol } = useCurrency();
   const selectedFileId = useSelector(state => state.nav.selectedProjectFileId);
@@ -3606,6 +3607,39 @@ const ProjectTitleDashboard = () => {
                         {projectHealthEmoji} {dashboardData?.project_health?.toUpperCase() || 'UNKNOWN'}
                       </div>
                     </div>
+
+                    {/* NEW: Record MOM Button */}
+                    {activeProject?.dbProjectId && (
+                      <button
+                        onClick={() => navigate(`/dashboard/mom?projectId=${activeProject.dbProjectId}`)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          backgroundColor: '#1e3a5f',
+                          color: 'white',
+                          padding: '6px 16px',
+                          borderRadius: '20px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          border: 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor = '#334155';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1e3a5f';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <MessageSquare size={14} />
+                        Record Meeting MOM
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
