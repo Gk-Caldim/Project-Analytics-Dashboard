@@ -53,7 +53,7 @@ def _serialize(issue) -> IssueOut:
         id=issue.id,
         project_id=issue.project_id,
         upload_id=issue.upload_id,
-        source_type=issue.source_type,
+        source=issue.source,
         title=issue.title,
         description=issue.description,
         owner=issue.owner,
@@ -62,9 +62,7 @@ def _serialize(issue) -> IssueOut:
         priority=issue.priority,
         severity_score=issue.severity_score,
         status=issue.status,
-        derived_status=getattr(
-            issue, "derived_status", issue_service.compute_derived_status(issue)
-        ),
+        health_status=getattr(issue, "health_status", issue_service.compute_health_status(issue)),
         due_date=issue.due_date,
         meeting_id=issue.meeting_id,
         created_at=issue.created_at,
@@ -99,12 +97,18 @@ def _serialize(issue) -> IssueOut:
             )
             for e in (issue.escalations or [])
         ],
+        audit_logs=[
+            IssueAuditLogOut(
+                id=l.id, issue_id=l.issue_id, field_changed=l.field_changed,
+                old_value=l.old_value, new_value=l.new_value,
+                changed_by=l.changed_by, timestamp=l.timestamp,
+            ) for l in (issue.audit_logs or [])
+        ],
     )
 
 
-# ---------------------------------------------------------------------------
-# CREATE issue (manual)
-# ---------------------------------------------------------------------------
+
+# ─── CREATE issue (manual) ───────────────────────────────────────────────────
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=IssueOut)
 def create_issue(
@@ -122,25 +126,25 @@ def create_issue(
 # LIST issues for a project
 # ---------------------------------------------------------------------------
 
-@router.get("/project/{project_id}", response_model=List[IssueOut])
+@router.get("", response_model=List[IssueOut])
 def list_issues(
-    project_id: int,
+    project_id:        Optional[int] = Query(None),
     status_filter:     Optional[str] = Query(None, alias="status"),
+    owner_filter:      Optional[str] = Query(None, alias="owner"),
     priority_filter:   Optional[str] = Query(None, alias="priority"),
     department_filter: Optional[str] = Query(None, alias="department"),
     db: Session = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
-    """List all issues for a project with optional filters."""
+    """List issues with optional filters: project_id, status, owner, priority."""
     issues = issue_service.list_issues(
-        db, project_id, status_filter, priority_filter, department_filter
+        db, project_id, status_filter, owner_filter, priority_filter, department_filter
     )
     return [_serialize(i) for i in issues]
 
 
-# ---------------------------------------------------------------------------
-# GET critical issues
-# ---------------------------------------------------------------------------
+
+# ─── GET critical issues ─────────────────────────────────────────────────────
 
 @router.get("/project/{project_id}/critical", response_model=List[IssueOut])
 def get_critical_issues(
@@ -182,16 +186,18 @@ def update_issue(
     issue_id: int,
     payload: IssueUpdate,
     db: Session = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
 ):
-    """Partial update. Every change is timestamped via updated_at."""
-    issue = issue_service.update_issue(db, issue_id, payload)
+    """Partial update. Every change is timestamped and audit-logged."""
+    # Assuming user dict has 'email' or 'username'. I'll check user_information if possible, 
+    # but generic 'user["email"]' is common. Using 'user.get("email", "Unknown")'.
+    changed_by = user.get("email", "System User")
+    issue = issue_service.update_issue(db, issue_id, payload, changed_by=changed_by)
     return _serialize(issue)
 
 
-# ---------------------------------------------------------------------------
-# DELETE (soft-close) issue
-# ---------------------------------------------------------------------------
+
+# ─── DELETE (close) issue ────────────────────────────────────────────────────
 
 @router.delete("/{issue_id}", status_code=status.HTTP_200_OK)
 def close_issue(

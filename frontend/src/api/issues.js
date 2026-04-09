@@ -28,16 +28,17 @@ export const getIssue = (issueId) =>
 
 /**
  * List all issues for a project with optional filters.
- * @param {number} projectId
- * @param {Object} filters - { status, priority, department }
+ * @param {Object} filters - { project_id, status, owner, priority, department }
  */
-export const listIssues = (projectId, filters = {}) => {
+export const listIssues = (filters = {}) => {
   const params = new URLSearchParams();
+  if (filters.project_id) params.append('project_id', filters.project_id);
   if (filters.status)     params.append('status',     filters.status);
+  if (filters.owner)      params.append('owner',      filters.owner);
   if (filters.priority)   params.append('priority',   filters.priority);
   if (filters.department) params.append('department', filters.department);
   const qs = params.toString() ? `?${params.toString()}` : '';
-  return API.get(`${BASE}/project/${projectId}${qs}`).then(r => r.data);
+  return API.get(`${BASE}${qs}`).then(r => r.data);
 };
 
 /**
@@ -123,6 +124,9 @@ export const createMOMIssues = (payload) =>
 
 export const derivedStatus = (issue) => {
   if (issue.status === 'Closed') return 'Closed';
+  // Use backend provided health_status if available
+  if (issue.health_status) return issue.health_status;
+  
   if (!issue.due_date) return 'On Track';
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -135,10 +139,11 @@ export const derivedStatus = (issue) => {
 };
 
 export const STATUS_COLORS = {
-  Overdue:  { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', dot: '#ef4444' },
-  'At Risk':{ bg: '#fff7ed', text: '#9a3412', border: '#fdba74', dot: '#f97316' },
-  'On Track':{ bg: '#f0fdf4', text: '#166534', border: '#86efac', dot: '#22c55e' },
-  Closed:   { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db', dot: '#9ca3af' },
+  Overdue:    { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', dot: '#ef4444' },
+  'At Risk':  { bg: '#fff7ed', text: '#9a3412', border: '#fdba74', dot: '#f97316' },
+  'On Track': { bg: '#f0fdf4', text: '#166534', border: '#86efac', dot: '#22c55e' },
+  Closed:     { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db', dot: '#9ca3af' },
+  Open:       { bg: '#f0fdf4', text: '#166534', border: '#86efac', dot: '#22c55e' },
 };
 
 export const PRIORITY_COLORS = {
