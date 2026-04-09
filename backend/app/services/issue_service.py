@@ -21,7 +21,10 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation, IssueAuditLog
 from app.models.project import Project
 from app.schemas.issue import IssueCreate, IssueUpdate, MOMActionItem
 
@@ -61,7 +64,33 @@ _ESCALATION_RULES: List[Tuple[int, int, str]] = [
 ]
 
 
-# ─── Status & scoring ────────────────────────────────────────────────────────
+# ─── Status & health ─────────────────────────────────────────────────────────
+
+
+def compute_health_status(issue: Issue) -> str:
+    """
+    Dynamic health calculation:
+      IF today > due_date → "Overdue"
+      IF due_date within 2 days → "At Risk"
+      ELSE → "On Track"
+    """
+    # Note: Closed issues also get a health status based on their due_date? 
+    # Usually health status is for open items, but the prompt says "for each issue".
+    # However, if it's closed, it's technically "On Track" or "Closed".
+    # I'll stick to the exact rules provided.
+    
+    if issue.due_date is None:
+        return "On Track"
+    
+    today = date.today()
+    delta = (issue.due_date - today).days
+    
+    if delta < 0:
+        return "Overdue"
+    if delta <= 2:
+        return "At Risk"
+    return "On Track"
+
 
 def _days_overdue(issue: Issue) -> int:
     """Positive int if overdue, 0 otherwise."""
@@ -70,27 +99,6 @@ def _days_overdue(issue: Issue) -> int:
     today = date.today()
     delta = (today - issue.due_date).days
     return max(delta, 0)
-
-
-def compute_derived_status(issue: Issue) -> str:
-    """
-    Runtime (non-stored) status label:
-      Closed   → Closed
-      today > due_date (and not Closed) → Overdue
-      due_date within 2 days → At Risk
-      else → On Track
-    """
-    if issue.status == "Closed":
-        return "Closed"
-    if issue.due_date is None:
-        return "On Track"
-    today = date.today()
-    delta = (issue.due_date - today).days
-    if delta < 0:
-        return "Overdue"
-    if delta <= 2:
-        return "At Risk"
-    return "On Track"
 
 
 def compute_urgency_score(issue: Issue) -> int:
@@ -109,7 +117,7 @@ def compute_urgency_score(issue: Issue) -> int:
 
 def enrich_issue(issue: Issue) -> Issue:
     """Attach derived attributes directly onto the ORM object for serialisation."""
-    issue.derived_status = compute_derived_status(issue)          # type: ignore[attr-defined]
+    issue.health_status = compute_health_status(issue)          # type: ignore[attr-defined]
     issue.days_overdue   = _days_overdue(issue)                   # type: ignore[attr-defined]
     issue.urgency_score  = compute_urgency_score(issue)           # type: ignore[attr-defined]
     issue.is_escalated   = any(                                   # type: ignore[attr-defined]
@@ -121,15 +129,22 @@ def enrich_issue(issue: Issue) -> Issue:
 def rank_issues(issues: List[Issue]) -> List[Issue]:
     """
     Sort order:
-      1. Overdue High priority (highest urgency_score first)
-      2. At Risk High priority
-      3. Medium priority
-      4. Low priority
-      5. Closed last
+      1. Overdue issues first
+      2. Then nearest due_date
     """
     for iss in issues:
         enrich_issue(iss)
-    return sorted(issues, key=lambda i: -i.urgency_score)  # type: ignore[attr-defined]
+    
+    # Sort criteria: 
+    # 1. Overdue (health_status == "Overdue") -> boolean (inverse)
+    # 2. due_date (ascending)
+    return sorted(
+        issues, 
+        key=lambda i: (
+            0 if i.health_status == "Overdue" else 1,    # Overdue (0) comes before others (1)
+            i.due_date or date.max                        # nearest due_date first
+        )
+    )
 
 
 # ─── CRUD helpers ────────────────────────────────────────────────────────────
@@ -143,10 +158,32 @@ def get_or_404(db: Session, issue_id: int) -> Issue:
 
 
 def create_issue(db: Session, payload: IssueCreate) -> Issue:
+    # ── Duplicate Prevention ──
+    # Check: same title, owner, due_date, project_id
+    duplicate = db.query(Issue).filter(
+        Issue.title == payload.title,
+        Issue.owner == payload.owner,
+        Issue.due_date == payload.due_date,
+        Issue.project_id == payload.project_id
+    ).first()
+    
+    if duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Duplicate issue detected"
+        )
+
+    # ── Validation Rule: High priority must have due_date ──
+    if payload.priority == "High" and payload.due_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="High priority issues must always have a due_date"
+        )
+
     issue = Issue(
         project_id=payload.project_id,
         upload_id=payload.upload_id,
-        source_type=payload.source_type,
+        source=payload.source,
         title=payload.title,
         description=payload.description,
         owner=payload.owner,
@@ -165,18 +202,56 @@ def create_issue(db: Session, payload: IssueCreate) -> Issue:
     return enrich_issue(issue)
 
 
-def update_issue(db: Session, issue_id: int, payload: IssueUpdate) -> Issue:
+def update_issue(db: Session, issue_id: int, payload: IssueUpdate, changed_by: str = "System") -> Issue:
     issue = get_or_404(db, issue_id)
 
+    # ── Validation: Cannot close issue without owner ──
+    new_status = payload.status or issue.status
+    new_owner = payload.owner or issue.owner
+    if new_status == "Closed" and (not new_owner or not new_owner.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot close issue without owner"
+        )
+    
+    # ── Validation: High priority must have due_date ──
+    new_priority = payload.priority or issue.priority
+    new_due_date = payload.due_date if payload.due_date is not None else issue.due_date
+    if new_priority == "High" and new_due_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="High priority must always have due_date"
+        )
+
     update_data = payload.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(issue, field, value)
+    
+    # ── Audit Logging ──
+    logs = []
+    for field, new_val in update_data.items():
+        old_val = getattr(issue, field)
+        
+        # Convert values to string for logging
+        str_old = str(old_val) if old_val is not None else None
+        str_new = str(new_val) if new_val is not None else None
+        
+        if str_old != str_new:
+            logs.append(IssueAuditLog(
+                issue_id=issue.id,
+                field_changed=field,
+                old_value=str_old,
+                new_value=str_new,
+                changed_by=changed_by
+            ))
+            setattr(issue, field, new_val)
 
     # Auto-set resolved_at when closing
     if payload.status == "Closed" and issue.resolved_at is None:
         issue.resolved_at = datetime.now(timezone.utc)
     elif payload.status and payload.status != "Closed":
         issue.resolved_at = None  # re-opened
+
+    if logs:
+        db.add_all(logs)
 
     db.commit()
     db.refresh(issue)
@@ -186,22 +261,34 @@ def update_issue(db: Session, issue_id: int, payload: IssueUpdate) -> Issue:
 
 def list_issues(
     db: Session,
-    project_id: int,
+    project_id: Optional[int] = None,
     status_filter: Optional[str] = None,
+    owner_filter: Optional[str] = None,
     priority_filter: Optional[str] = None,
     department_filter: Optional[str] = None,
 ) -> List[Issue]:
-    q = db.query(Issue).filter(Issue.project_id == project_id)
+    """
+    List issues with filters and sorting.
+    Filter support: project_id, status, owner, priority.
+    Sort order: Overdue first, then nearest due_date.
+    """
+    q = db.query(Issue)
+    
+    if project_id is not None:
+        q = q.filter(Issue.project_id == project_id)
     if status_filter:
         q = q.filter(Issue.status == status_filter)
+    if owner_filter:
+        q = q.filter(Issue.owner == owner_filter)
     if priority_filter:
         q = q.filter(Issue.priority == priority_filter)
     if department_filter:
         q = q.filter(Issue.department == department_filter)
+    
     issues = q.all()
-    for iss in issues:
-        enrich_issue(iss)
-    return issues
+    
+    # Dynamic health status calculation and sorting
+    return rank_issues(issues)
 
 
 def get_critical_issues(
@@ -242,7 +329,7 @@ def create_issue_from_mom_action(
     """Map a single MOM action item → Issue record."""
     payload = IssueCreate(
         project_id=project_id,
-        source_type="MOM",
+        source="MOM",
         title=action.title,
         description=action.description,
         owner=action.owner,
@@ -263,8 +350,8 @@ def compute_analytics(db: Session, project_id: int) -> dict:
         enrich_issue(iss)
 
     total_open        = sum(1 for i in all_issues if i.status != "Closed")
-    total_overdue     = sum(1 for i in all_issues if i.derived_status == "Overdue")  # type: ignore
-    total_at_risk     = sum(1 for i in all_issues if i.derived_status == "At Risk")  # type: ignore
+    total_overdue     = sum(1 for i in all_issues if i.health_status == "Overdue")  # type: ignore
+    total_at_risk     = sum(1 for i in all_issues if i.health_status == "At Risk")  # type: ignore
     total_closed      = sum(1 for i in all_issues if i.status == "Closed")
     total_in_progress = sum(1 for i in all_issues if i.status == "In Progress")
 
@@ -279,7 +366,7 @@ def compute_analytics(db: Session, project_id: int) -> dict:
 
     # Top 5 overdue
     overdue_issues = sorted(
-        [i for i in all_issues if i.derived_status == "Overdue"],  # type: ignore
+        [i for i in all_issues if i.health_status == "Overdue"],  # type: ignore
         key=lambda i: -i.urgency_score,  # type: ignore
     )[:5]
 
@@ -359,3 +446,4 @@ def run_escalation_engine(db: Session, project_id: int) -> int:
         db.commit()
 
     return new_count
+

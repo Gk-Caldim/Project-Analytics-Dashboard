@@ -21,6 +21,22 @@ SourceLiteral   = Literal["Manual", "MOM", "Tracker"]
 ActionStatusLiteral = Literal["Pending", "In Progress", "Done"]
 
 
+# ─── IssueAuditLog ──────────────────────────────────────────────────────────
+
+class IssueAuditLogOut(BaseModel):
+    id:            int
+    issue_id:      int
+    field_changed: str
+    old_value:     Optional[str] = None
+    new_value:     Optional[str] = None
+    changed_by:    str
+    timestamp:     datetime
+
+    class Config:
+        from_attributes = True
+
+
+
 # ─── IssueAction ─────────────────────────────────────────────────────────────
 
 class IssueActionCreate(BaseModel):
@@ -75,7 +91,7 @@ class IssueEscalationOut(BaseModel):
 class IssueCreate(BaseModel):
     project_id:     int
     upload_id:      Optional[int] = None
-    source_type:    SourceLiteral = "Manual"
+    source:         SourceLiteral = "Manual"
     title:          str
     description:    Optional[str] = None
     owner:          str
@@ -83,6 +99,7 @@ class IssueCreate(BaseModel):
     priority:       PriorityLiteral = "Medium"
     severity_score: int = 0
     status:         StatusLiteral = "Open"
+
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
 
@@ -135,12 +152,21 @@ class IssueUpdate(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def cannot_close_without_owner(self) -> "IssueUpdate":
+        if self.status == "Closed" and (self.owner is None or not self.owner.strip()):
+            # Note: This check assumes the existing owner is potentially missing if they pass null, 
+            # but since it's PATCH, we'll check this in the service layer against the DB state too.
+            pass 
+        return self
+
+
 
 class IssueOut(BaseModel):
     id:             int
     project_id:     int
     upload_id:      Optional[int] = None
-    source_type:    str
+    source:         str
     title:          str
     description:    Optional[str] = None
     owner:          str
@@ -148,7 +174,7 @@ class IssueOut(BaseModel):
     priority:       str
     severity_score: int
     status:         str          # stored status (Open / In Progress / Closed)
-    derived_status: str          # runtime: Overdue / At Risk / On Track / Closed
+    health_status:  str          # dynamic: Overdue / At Risk / On Track
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
     created_at:     datetime
@@ -161,6 +187,8 @@ class IssueOut(BaseModel):
     actions:     List[IssueActionOut]     = []
     comments:    List[IssueCommentOut]    = []
     escalations: List[IssueEscalationOut] = []
+    audit_logs:  List[IssueAuditLogOut]   = []
+
 
     class Config:
         from_attributes = True

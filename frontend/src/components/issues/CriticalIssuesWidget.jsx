@@ -1,425 +1,363 @@
-/**
- * CriticalIssuesWidget.jsx
- * ─────────────────────────
- * VP-grade critical issues panel for the Project Dashboard.
- * - Fetches top 5 critical issues from the live DB
- * - Shows analytics summary bar (Open / Overdue / At Risk / Closed)
- * - Status-color coded pills
- * - Escalation 🚨 marker
- * - Clicking a card opens IssueDetailModal
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  AlertTriangle, AlertCircle, CheckCircle2, Clock,
-  Plus, RefreshCw, ChevronRight, Flame, User, Building2,
-  Calendar, TrendingUp, Shield, ArrowUpRight
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  AlertCircle, Clock, ChevronRight, Filter, Search, 
+  User, Calendar, TrendingDown, TrendingUp, Minus,
+  CheckCircle2, AlertTriangle, ListFilter
 } from 'lucide-react';
-import { getCriticalIssues, getIssueAnalytics, STATUS_COLORS, PRIORITY_COLORS } from '../../api/issues';
+import { listIssues, STATUS_COLORS } from '../../api/issues';
 import IssueDetailModal from './IssueDetailModal';
-import CreateIssueModal from './CreateIssueModal';
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
+const CriticalIssuesWidget = ({ projectId }) => {
+  const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedIssue, setSelectedIssue] = useState(null);
+  
+  // Filter States
+  const [statusFilter, setStatusFilter] = useState('Open'); // Default to Open
+  const [priorityFilter, setPriorityFilter] = useState('High'); // Default to High
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
-const StatusPill = ({ status }) => {
-  const c = STATUS_COLORS[status] || STATUS_COLORS['On Track'];
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '5px',
-      padding: '2px 10px', borderRadius: '999px',
-      fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em',
-      backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}`,
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: c.dot, display: 'inline-block' }} />
-      {status}
-    </span>
-  );
-};
-
-const PriorityBadge = ({ priority }) => {
-  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low;
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: '4px',
-      fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-      backgroundColor: c.bg, color: c.text, border: `1px solid ${c.border}`,
-    }}>
-      {priority}
-    </span>
-  );
-};
-
-const MetricBubble = ({ label, value, color, icon: Icon }) => (
-  <div style={{
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    padding: '10px 16px', borderRadius: '10px',
-    backgroundColor: color + '15', border: `1px solid ${color}30`,
-    minWidth: 80, flex: 1,
-  }}>
-    {Icon && <Icon size={14} color={color} style={{ marginBottom: 4 }} />}
-    <span style={{ fontSize: '22px', fontWeight: 800, color, lineHeight: 1 }}>{value}</span>
-    <span style={{ fontSize: '10px', color: '#6b7280', marginTop: 3, fontWeight: 600, textAlign: 'center' }}>{label}</span>
-  </div>
-);
-
-// ─── Main Widget ─────────────────────────────────────────────────────────────
-
-const CriticalIssuesWidget = ({ projectId, onDataChange }) => {
-  const [issues, setIssues]       = useState([]);
-  const [analytics, setAnalytics] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState(null);
-  const [selectedIssue, setSelectedIssue]   = useState(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!projectId) return;
+  const fetchIssues = async () => {
     try {
       setLoading(true);
+      // Fetch issues based on filters
+      // Backend handles sorting (Overdue first)
+      const data = await listIssues({ 
+        project_id: projectId,
+        status: statusFilter === 'All' ? undefined : statusFilter,
+        priority: priorityFilter === 'All' ? undefined : priorityFilter
+      });
+      setIssues(data);
       setError(null);
-      const [crit, anal] = await Promise.all([
-        getCriticalIssues(projectId, 5),
-        getIssueAnalytics(projectId),
-      ]);
-      setIssues(Array.isArray(crit) ? crit : []);
-      setAnalytics(anal);
     } catch (err) {
-      console.error('[CriticalIssuesWidget] load error:', err);
-      setError('Failed to load critical issues');
+      console.error('[CriticalIssuesWidget] Fetch error:', err);
+      setError('Failed to load critical issues.');
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const handleIssueCreated = () => {
-    setShowCreateModal(false);
-    load();
-    onDataChange?.();
   };
 
-  const handleIssueUpdated = () => {
-    setSelectedIssue(null);
-    load();
-    onDataChange?.();
+  useEffect(() => {
+    if (projectId) fetchIssues();
+  }, [projectId, statusFilter, priorityFilter]);
+
+  const filteredIssues = useMemo(() => {
+    let result = issues;
+    if (searchQuery) {
+      result = result.filter(iss => 
+        iss.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        iss.owner?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    return result.slice(0, 5); // Limit to top 5 as per executive requirement
+  }, [issues, searchQuery]);
+
+  const getStatusIcon = (health) => {
+    switch (health) {
+      case 'Overdue': return <AlertCircle size={14} color="#ef4444" />;
+      case 'At Risk': return <AlertTriangle size={14} color="#f59e0b" />;
+      case 'On Track': return <CheckCircle2 size={14} color="#10b981" />;
+      default: return <Clock size={14} color="#64748b" />;
+    }
   };
 
-  // ─── Loading ──────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <Flame size={18} color="#ef4444" />
-          <span style={styles.headerTitle}>Critical Issues</span>
+  const StatusIcon = ({ health }) => {
+    const colors = STATUS_COLORS[health] || STATUS_COLORS['On Track'];
+    return (
+      <div style={{
+        width: 24, height: 24, borderRadius: '6px',
+        backgroundColor: colors.bg, display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        border: `1px solid ${colors.border}`,
+      }}>
+        {getStatusIcon(health)}
+      </div>
+    );
+  };
+
+  if (loading && issues.length === 0) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <div style={styles.title}>Critical Issues</div>
+        </div>
+        <div style={styles.loadingState}>
+          <div style={styles.skeletonRow} />
+          <div style={styles.skeletonRow} />
+          <div style={styles.skeletonRow} />
         </div>
       </div>
-      <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>
-        <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite', marginBottom: 8 }} />
-        <div style={{ fontSize: '13px' }}>Loading critical issues…</div>
-      </div>
-    </div>
-  );
-
-  // ─── Error ────────────────────────────────────────────────────────────────
-  if (error) return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <Flame size={18} color="#ef4444" />
-          <span style={styles.headerTitle}>Critical Issues</span>
-        </div>
-        <button onClick={load} style={styles.iconBtn} title="Retry">
-          <RefreshCw size={14} />
-        </button>
-      </div>
-      <div style={{ padding: '32px', textAlign: 'center', color: '#ef4444', fontSize: '13px' }}>
-        {error}
-      </div>
-    </div>
-  );
-
-  const hasIssues = issues.length > 0;
+    );
+  }
 
   return (
-    <>
-      <div style={styles.container}>
-        {/* ── Header ── */}
-        <div style={styles.header}>
-          <div style={styles.headerLeft}>
-            <Flame size={18} color="#ef4444" />
-            <span style={styles.headerTitle}>Critical Issues</span>
-            {analytics?.total_overdue > 0 && (
-              <span style={styles.overdueChip}>
-                <AlertTriangle size={10} style={{ marginRight: 3 }} />
-                {analytics.total_overdue} Overdue
-              </span>
-            )}
+    <div style={styles.container}>
+      {/* ── Header & Toolbar ── */}
+      <div style={styles.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AlertCircle size={18} color="#ef4444" />
+          <div style={styles.title}>Critical Issues</div>
+          <span style={styles.countBadge}>{issues.length}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            style={{ 
+              ...styles.iconBtn, 
+              backgroundColor: showFilters ? '#eff6ff' : 'transparent',
+              border: showFilters ? '1px solid #bfdbfe' : '1px solid transparent'
+            }}
+          >
+            <ListFilter size={16} color={showFilters ? '#2563eb' : '#64748b'} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Filter Bar ── */}
+      {showFilters && (
+        <div style={styles.filterBar}>
+          <div style={styles.searchBox}>
+            <Search size={14} color="#94a3b8" />
+            <input 
+              placeholder="Search title or owner..." 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={styles.searchInput}
+            />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={load} style={styles.iconBtn} title="Refresh">
-              <RefreshCw size={13} />
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              style={styles.createBtn}
-              id="create-issue-btn"
+            <select 
+              value={statusFilter} 
+              onChange={e => setStatusFilter(e.target.value)}
+              style={styles.select}
             >
-              <Plus size={13} />
-              <span>New Issue</span>
-            </button>
+              <option value="All">All Status</option>
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Closed">Closed</option>
+            </select>
+            <select 
+              value={priorityFilter} 
+              onChange={e => setPriorityFilter(e.target.value)}
+              style={styles.select}
+            >
+              <option value="All">All Priorities</option>
+              <option value="High">High Priority</option>
+              <option value="Medium">Medium Priority</option>
+              <option value="Low">Low Priority</option>
+            </select>
           </div>
         </div>
+      )}
 
-        {/* ── Analytics Banner ── */}
-        {analytics && (
-          <div style={styles.analyticsBanner}>
-            <MetricBubble label="Open"     value={analytics.total_open}        color="#3b82f6" icon={AlertCircle} />
-            <MetricBubble label="Overdue"  value={analytics.total_overdue}     color="#ef4444" icon={AlertTriangle} />
-            <MetricBubble label="At Risk"  value={analytics.total_at_risk}     color="#f97316" icon={Clock} />
-            <MetricBubble label="Closed"   value={analytics.total_closed}      color="#22c55e" icon={CheckCircle2} />
-          </div>
-        )}
-
-        {/* ── Empty State ── */}
-        {!hasIssues && (
+      {/* ── Issues List ── */}
+      <div style={styles.list}>
+        {filteredIssues.length === 0 ? (
           <div style={styles.emptyState}>
-            <Shield size={36} color="#22c55e" style={{ marginBottom: 10 }} />
-            <div style={{ fontWeight: 700, color: '#166534', fontSize: '14px' }}>No Critical Issues</div>
-            <div style={{ color: '#6b7280', fontSize: '12px', marginTop: 4 }}>
-              All tracked items are under control for this project.
+            <CheckCircle2 size={32} color="#10b981" style={{ marginBottom: 12, opacity: 0.5 }} />
+            <div style={styles.emptyText}>
+              {searchQuery || statusFilter !== 'Open' || priorityFilter !== 'High' 
+                ? "No issues match these filters." 
+                : "No critical issues. Project is on track."}
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              style={{ ...styles.createBtn, marginTop: 14 }}
-            >
-              <Plus size={12} /> Log New Issue
-            </button>
           </div>
-        )}
-
-        {/* ── Issue Cards ── */}
-        {hasIssues && (
-          <div style={styles.issueList}>
-            {issues.map((issue, idx) => {
-              const ds = issue.derived_status || 'On Track';
-              const sc = STATUS_COLORS[ds] || STATUS_COLORS['On Track'];
-              const isEscalated = issue.is_escalated;
-              const isOverdue   = ds === 'Overdue';
-
-              return (
-                <div
-                  key={issue.id}
-                  onClick={() => setSelectedIssue(issue)}
-                  style={{
-                    ...styles.issueCard,
-                    borderLeft: `4px solid ${sc.dot}`,
-                    backgroundColor: isEscalated ? '#fff7f7' : '#fff',
-                    cursor: 'pointer',
-                  }}
-                  id={`issue-card-${issue.id}`}
-                >
-                  {/* Rank + Escalation */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={styles.rankBadge}>#{idx + 1}</span>
-                      {isEscalated && (
-                        <span style={styles.escalationChip}>
-                          <AlertTriangle size={9} style={{ marginRight: 2 }} /> ESCALATED
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <PriorityBadge priority={issue.priority} />
-                      <StatusPill status={ds} />
-                    </div>
-                  </div>
-
-                  {/* Title */}
+        ) : (
+          filteredIssues.map(issue => (
+            <div 
+              key={issue.id} 
+              style={styles.row}
+              onClick={() => setSelectedIssue(issue)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                <StatusIcon health={issue.health_status} />
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={styles.issueTitle}>{issue.title}</div>
-
-                  {/* Meta row */}
-                  <div style={styles.metaRow}>
-                    <span style={styles.metaItem}>
-                      <User size={11} color="#6b7280" />
-                      <span>{issue.owner}</span>
+                  <div style={styles.issueMeta}>
+                    <span style={styles.metaItem}><User size={10} /> {issue.owner}</span>
+                    <span style={styles.separator} />
+                    <span style={{ 
+                      ...styles.metaItem, 
+                      color: issue.health_status === 'Overdue' ? '#ef4444' : '#64748b',
+                      fontWeight: issue.health_status === 'Overdue' ? 700 : 500
+                    }}>
+                      <Calendar size={10} /> 
+                      {issue.due_date ? new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'No Due Date'}
                     </span>
-                    {issue.department && (
-                      <span style={styles.metaItem}>
-                        <Building2 size={11} color="#6b7280" />
-                        <span>{issue.department}</span>
-                      </span>
-                    )}
-                    {issue.due_date && (
-                      <span style={{
-                        ...styles.metaItem,
-                        color: isOverdue ? '#ef4444' : '#6b7280',
-                        fontWeight: isOverdue ? 700 : 400,
-                      }}>
-                        <Calendar size={11} color={isOverdue ? '#ef4444' : '#6b7280'} />
-                        <span>
-                          {isOverdue
-                            ? `${issue.days_overdue}d overdue`
-                            : new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-                          }
-                        </span>
-                      </span>
-                    )}
-                    <span style={styles.metaItem}>
-                      <TrendingUp size={11} color="#6b7280" />
-                      <span>Score {issue.urgency_score}</span>
-                    </span>
-                  </div>
-
-                  {/* Arrow CTA */}
-                  <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }}>
-                    <ChevronRight size={16} />
                   </div>
                 </div>
-              );
-            })}
-
-            {/* View All Link */}
-            {analytics && analytics.total_open > 5 && (
-              <div style={{ textAlign: 'center', paddingTop: 6 }}>
-                <span style={{ fontSize: '12px', color: '#3b82f6', fontWeight: 600, cursor: 'pointer' }}>
-                  +{analytics.total_open - 5} more open issues <ArrowUpRight size={11} style={{ verticalAlign: 'middle' }} />
-                </span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Department Breakdown ── */}
-        {analytics && Object.keys(analytics.by_department || {}).length > 0 && (
-          <div style={styles.deptSection}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: '#374151', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              By Department
+              <ChevronRight size={16} color="#cbd5e1" style={{ marginLeft: 8 }} />
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.entries(analytics.by_department).map(([dept, count]) => (
-                <span key={dept} style={styles.deptChip}>
-                  {dept} <strong>{count}</strong>
-                </span>
-              ))}
-            </div>
-          </div>
+          ))
         )}
       </div>
 
-      {/* ── Modals ── */}
+      {/* ── Details Panel ── */}
       {selectedIssue && (
-        <IssueDetailModal
-          issue={selectedIssue}
+        <IssueDetailModal 
+          issue={selectedIssue} 
           onClose={() => setSelectedIssue(null)}
-          onUpdated={handleIssueUpdated}
+          onUpdated={fetchIssues}
         />
       )}
-      {showCreateModal && (
-        <CreateIssueModal
-          projectId={projectId}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={handleIssueCreated}
-        />
-      )}
-
-      {/* Spin animation */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-    </>
+    </div>
   );
 };
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = {
   container: {
     backgroundColor: '#fff',
-    borderRadius: '14px',
-    border: '1px solid #e5e7eb',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    borderRadius: '16px',
+    border: '1px solid #f1f5f9',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+    display: 'flex',
+    flexDirection: 'column',
     overflow: 'hidden',
-    marginBottom: 24,
+    height: '100%',
   },
   header: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 18px',
-    borderBottom: '1px solid #f3f4f6',
-    backgroundColor: '#fafafa',
+    padding: '16px 20px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
   },
-  headerLeft: {
-    display: 'flex', alignItems: 'center', gap: 8,
+  title: {
+    fontSize: '15px',
+    fontWeight: 800,
+    color: '#1e3a5f',
+    letterSpacing: '-0.01em',
   },
-  headerTitle: {
-    fontSize: '15px', fontWeight: 700, color: '#111827',
-  },
-  overdueChip: {
-    display: 'inline-flex', alignItems: 'center',
-    padding: '2px 8px', borderRadius: '999px',
-    backgroundColor: '#fee2e2', color: '#991b1b',
-    fontSize: '10px', fontWeight: 700,
+  countBadge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#64748b',
+    backgroundColor: '#f1f5f9',
+    padding: '2px 8px',
+    borderRadius: '999px',
   },
   iconBtn: {
-    background: 'none', border: '1px solid #e5e7eb',
-    borderRadius: '6px', padding: '5px 7px',
-    cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center',
+    border: 'none',
+    padding: '6px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
   },
-  createBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 5,
-    padding: '6px 12px', borderRadius: '7px',
-    backgroundColor: '#1e3a5f', color: '#fff',
-    fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer',
+  filterBar: {
+    padding: '16px 20px',
+    backgroundColor: '#f8fafc',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
   },
-  analyticsBanner: {
-    display: 'flex', gap: 10, padding: '14px 18px',
-    borderBottom: '1px solid #f3f4f6',
-    flexWrap: 'wrap',
+  searchBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
-  emptyState: {
-    padding: '40px', textAlign: 'center',
+  searchInput: {
+    border: 'none',
+    outline: 'none',
+    fontSize: '13px',
+    color: '#1e293b',
+    width: '100%',
+    fontWeight: 500,
   },
-  issueList: {
-    display: 'flex', flexDirection: 'column', gap: 0,
+  select: {
+    flex: 1,
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#475569',
+    backgroundColor: '#fff',
+    outline: 'none',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
-  issueCard: {
-    position: 'relative',
-    padding: '14px 40px 14px 14px',
-    borderBottom: '1px solid #f3f4f6',
-    transition: 'background 0.15s',
+  list: {
+    flex: 1,
+    overflowY: 'auto',
   },
-  rankBadge: {
-    fontSize: '10px', fontWeight: 800, color: '#9ca3af',
-    backgroundColor: '#f3f4f6', padding: '1px 6px', borderRadius: '4px',
-  },
-  escalationChip: {
-    display: 'inline-flex', alignItems: 'center',
-    padding: '1px 7px', borderRadius: '4px',
-    backgroundColor: '#fee2e2', color: '#b91c1c',
-    fontSize: '9px', fontWeight: 800, letterSpacing: '0.06em',
-    border: '1px solid #fca5a5',
+  row: {
+    padding: '16px 20px',
+    borderBottom: '1px solid #f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
+    transition: 'background 0.2s',
+    '&:hover': {
+      backgroundColor: '#f8fafc',
+    }
   },
   issueTitle: {
-    fontSize: '13px', fontWeight: 600, color: '#111827',
-    marginBottom: 6, lineHeight: '1.4',
-    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-    maxWidth: 'calc(100% - 20px)',
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#1e293b',
+    lineHeight: 1.4,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
-  metaRow: {
-    display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center',
+  issueMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 4,
   },
   metaItem: {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    fontSize: '11px', color: '#6b7280',
+    fontSize: '11px',
+    color: '#64748b',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
+    fontWeight: 600,
   },
-  deptSection: {
-    padding: '12px 18px',
-    borderTop: '1px solid #f3f4f6',
-    backgroundColor: '#fafafa',
+  separator: {
+    width: 3,
+    height: 3,
+    borderRadius: '50%',
+    backgroundColor: '#cbd5e1',
   },
-  deptChip: {
-    padding: '3px 10px', borderRadius: '999px',
-    backgroundColor: '#f3f4f6', color: '#374151',
-    fontSize: '11px', border: '1px solid #e5e7eb',
+  emptyState: {
+    padding: '48px 24px',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  emptyText: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#64748b',
+    maxWidth: '220px',
+    lineHeight: 1.6,
+  },
+  loadingState: {
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  skeletonRow: {
+    height: '56px',
+    backgroundColor: '#f1f5f9',
+    borderRadius: '12px',
+    opacity: 0.6,
+  }
 };
 
 export default CriticalIssuesWidget;
