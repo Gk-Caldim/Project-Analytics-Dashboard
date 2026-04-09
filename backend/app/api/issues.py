@@ -291,24 +291,95 @@ def create_issues_from_mom(
     _user: dict = Depends(get_current_user),
 ):
     """
-    Batch-create Issue records from MOM meeting action items.
-    Each action in the list maps to one Issue with source_type='MOM'.
+    Convert MOM action items into structured Issue records.
+
+    Field mapping (MOM → Issue):
+      Function       → department
+      Action Points  → description  (+ first 50 chars → title)
+      Responsibility → owner
+      Target Date    → due_date
+      Criticality    → priority
+
+    Auto-filter:
+      - ONLY rows where priority == 'High' are created
+      - Rows missing owner or due_date are SKIPPED and logged
+
+    Project binding:
+      - project_id (if provided) is used directly
+      - project_name (if provided) is resolved via case-insensitive DB lookup
+      - If neither resolves, the entire batch is rejected (400)
     """
+    # ── 1. Resolve project_id ──────────────────────────────────
+    project_id = payload.project_id
+    if project_id is None and payload.project_name:
+        project_id = issue_service.resolve_project_id(db, payload.project_name)
+
+    if project_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Project '{payload.project_name}' was not found in the database. "
+                "Create the project first, or supply a valid project_id."
+            ),
+        )
+
+    # ── 2. Process each action row ────────────────────────────
     created = []
-    for action in payload.actions:
+    skipped = []
+
+    for i, action in enumerate(payload.actions):
+        row_ref = f"Row {i + 1} ('{(action.title or '')[:40]}')"  # for logging
+
+        # ── Filter: only High priority ──
+        if action.priority != "High":
+            skipped.append({"row": row_ref, "reason": f"priority='{action.priority}' — only High is auto-created"})
+            continue
+
+        # ── Validate owner ──
+        if not action.owner or not action.owner.strip():
+            skipped.append({"row": row_ref, "reason": "missing owner (Responsibility)"})
+            logger.warning("MOM sync skipped %s — no owner", row_ref)
+            continue
+
+        # ── Validate due_date (required for High) ──
+        if action.due_date is None:
+            skipped.append({"row": row_ref, "reason": "missing due_date (Target Date) — required for High priority"})
+            logger.warning("MOM sync skipped %s — no due_date", row_ref)
+            continue
+
+        # ── Build title: first 50 chars of description / title ──
+        source_text = (action.description or action.title or "").strip()
+        title_50    = source_text[:50] if source_text else action.title[:50]
+
         issue = issue_service.create_issue_from_mom_action(
             db=db,
-            project_id=payload.project_id,
+            project_id=project_id,
             meeting_id=payload.meeting_id,
-            action=action,
+            action=action.__class__(
+                title=title_50,
+                description=action.description or action.title,
+                owner=action.owner.strip(),
+                department=action.department,
+                priority=action.priority,
+                status=action.status,
+                due_date=action.due_date,
+            ),
         )
         created.append(_serialize(issue))
 
     logger.info(
-        "MOM issue batch: project=%d meeting=%s created=%d",
-        payload.project_id, payload.meeting_id, len(created),
+        "MOM issue sync ─ project_id=%d meeting=%s created=%d skipped=%d",
+        project_id, payload.meeting_id, len(created), len(skipped),
     )
-    return {"created": len(created), "issues": created}
+
+    return {
+        "success": True,
+        "project_id": project_id,
+        "created": len(created),
+        "skipped": len(skipped),
+        "issues": created,
+        "skip_log": skipped,   # transparent audit trail for VP-level reporting
+    }
 
 
 # ─── GET single issue ────────────────────────────────────────────────────────

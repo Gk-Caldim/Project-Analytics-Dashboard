@@ -5,6 +5,7 @@ Transforms raw trackers_data records into structured analytics for a given proje
 from sqlalchemy.orm import Session
 from app.models.tracker import TrackerData
 from app.models.project import Project
+from app.services.issue_service import compute_analytics
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +119,11 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     # -----------------------------------------------------------------------
     # 5. Health + percentages
     # -----------------------------------------------------------------------
-    health             = _determine_health(delayed)
+    # Fetch issue analytics for project health
+    issue_metrics = compute_analytics(db, project_id)
+    overdue_issues_count = issue_metrics.get("total_overdue", 0)
+
+    health             = _determine_health(overdue_issues_count)
     on_track_pct       = _safe_pct(completed, total)
     delay_pct          = _safe_pct(delayed,   total)
     pending_pct        = _safe_pct(pending,   total)

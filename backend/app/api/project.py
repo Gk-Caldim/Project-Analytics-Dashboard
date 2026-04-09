@@ -300,8 +300,8 @@ def delete_column(column_id: int, db: Session = Depends(get_db)):
 
 # ---------------------------------------------------------------------------
 # GET /projects/{project_id}/structure
-# Real hierarchy: Project → Uploads → Modules → milestone counts
-# Used by the sidebar to build the dynamic tree without hardcoding.
+# Real hierarchy: Project → Modules → milestone count
+# Modules come ONLY from DB — never hardcoded.
 # ---------------------------------------------------------------------------
 @router.get("/{project_id}/structure")
 def get_project_structure(
@@ -309,6 +309,18 @@ def get_project_structure(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Returns the project structure with all modules and their milestone counts.
+    Modules are derived exclusively from the trackers_data table — no hardcoding.
+
+    Response:
+    {
+        "project_id": 1,
+        "project_name": "...",
+        "modules": [{ "module_name": "...", "milestones_count": N }],
+        "uploads": [...]
+    }
+    """
     from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
     from app.models.tracker import TrackerData
@@ -316,6 +328,24 @@ def get_project_structure(
     project = db.query(crud_project.Project).filter(crud_project.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Flat distinct modules for this project (deduped across all uploads)
+    flat_modules_rows = (
+        db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
+        .filter(
+            TrackerData.project_id == project_id,
+            TrackerData.module != None,
+            TrackerData.module != "",
+        )
+        .group_by(TrackerData.module)
+        .order_by(TrackerData.module)
+        .all()
+    )
+    flat_modules = [
+        {"module_name": r.module, "milestones_count": r.cnt}
+        for r in flat_modules_rows
+        if r.module
+    ]
 
     uploads = (
         db.query(Upload)
@@ -326,14 +356,22 @@ def get_project_structure(
 
     uploads_out = []
     for u in uploads:
-        # Group milestones by module for this upload
+        # Group milestones by module for this specific upload
         rows = (
             db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-            .filter(TrackerData.upload_id == u.id)
+            .filter(
+                TrackerData.upload_id == u.id,
+                TrackerData.module != None,
+                TrackerData.module != "",
+            )
             .group_by(TrackerData.module)
             .all()
         )
-        modules = [{"module_name": r.module, "milestones_count": r.cnt} for r in rows]
+        upload_modules = [
+            {"module_name": r.module, "milestones_count": r.cnt}
+            for r in rows
+            if r.module
+        ]
 
         uploads_out.append({
             "upload_id":         u.id,
@@ -343,12 +381,13 @@ def get_project_structure(
             "row_count":         u.row_count,
             "valid_row_count":   u.valid_row_count,
             "invalid_row_count": u.invalid_row_count,
-            "modules":           modules,
+            "modules":           upload_modules,
         })
 
     return {
         "project_id":   project_id,
         "project_name": project.name,
+        "modules":      flat_modules,   # ← flat list — sidebar uses this
         "uploads":      uploads_out,
     }
 
@@ -358,31 +397,67 @@ def get_all_project_structures(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Returns structure for ALL projects that have tracker data.
+    Each project entry contains a flat deduplicated module list
+    (across all uploads) so the sidebar can render without any hardcoding.
+    """
     from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
     from app.models.tracker import TrackerData
 
     projects = db.query(crud_project.Project).all()
     all_uploads = db.query(Upload).all()
+
+    # Build per-upload module map
     all_rows = (
         db.query(TrackerData.upload_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
+        .filter(
+            TrackerData.module != None,
+            TrackerData.module != "",
+        )
         .group_by(TrackerData.upload_id, TrackerData.module)
         .all()
     )
 
-    # Map rows to uploads
-    upload_modules = {}
+    upload_modules: dict = {}
     for r in all_rows:
         if r.upload_id not in upload_modules:
             upload_modules[r.upload_id] = []
-        upload_modules[r.upload_id].append({"module_name": r.module, "milestones_count": r.cnt})
+        if r.module:
+            upload_modules[r.upload_id].append({"module_name": r.module, "milestones_count": r.cnt})
+
+    # Build flat project → modules map (deduplicated across all uploads)
+    flat_rows = (
+        db.query(TrackerData.project_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
+        .filter(
+            TrackerData.project_id != None,
+            TrackerData.module != None,
+            TrackerData.module != "",
+        )
+        .group_by(TrackerData.project_id, TrackerData.module)
+        .order_by(TrackerData.module)
+        .all()
+    )
+
+    project_flat_modules: dict = {}
+    for r in flat_rows:
+        if r.project_id not in project_flat_modules:
+            project_flat_modules[r.project_id] = []
+        if r.module:
+            project_flat_modules[r.project_id].append(
+                {"module_name": r.module, "milestones_count": r.cnt}
+            )
 
     result = []
     for p in projects:
         proj_uploads = [u for u in all_uploads if u.project_id == p.id]
-        if not proj_uploads:
+        flat_mods = project_flat_modules.get(p.id, [])
+
+        # Only include projects that actually have tracker data
+        if not proj_uploads and not flat_mods:
             continue
-            
+
         uploads_out = []
         for u in proj_uploads:
             uploads_out.append({
@@ -399,6 +474,7 @@ def get_all_project_structures(
         result.append({
             "project_id":   p.id,
             "project_name": p.name,
+            "modules":      flat_mods,      # ← flat deduplicated module list
             "uploads":      uploads_out,
         })
 

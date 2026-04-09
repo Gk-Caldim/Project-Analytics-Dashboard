@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Download, Clipboard, Check, Tag, Trash2, Edit2, AlertCircle } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap } from 'lucide-react';
+import API from '../../utils/api';
 
 const CRITICALITY_STYLES = {
   'High': 'bg-red-50 text-red-700 border-red-200 uppercase',
@@ -15,7 +16,94 @@ const STATUS_STYLES = {
 };
 
 const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
+  // ── Sync High-priority MOM rows → Issue Engine ─────────────────
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null); // { created, skipped }
   const [copied, setCopied] = useState(false);
+
+  const handleSyncIssues = async () => {
+    const highRows = meetings.filter(m => m.criticality === 'High' || m.criticality === 'Critical');
+
+    if (highRows.length === 0) {
+      setSyncResult({ error: 'No High-criticality rows to sync.' });
+      setTimeout(() => setSyncResult(null), 4000);
+      return;
+    }
+
+    // Build action items, skip rows missing owner or target date
+    const actions = [];
+    const localSkipped = [];
+
+    highRows.forEach((m, idx) => {
+      const owner   = (m.responsibility || '').trim();
+      const target  = (m.target || '').trim();
+      const actionText = (m.discussion_point || '').trim();
+
+      if (!owner) {
+        localSkipped.push(`Row ${idx + 1}: missing Responsibility (owner)`);
+        return;
+      }
+      if (!target) {
+        localSkipped.push(`Row ${idx + 1}: missing Target Date`);
+        return;
+      }
+
+      // Parse target date — try ISO first, then dd-Mon-yyyy (e.g. "10-Apr-2026")
+      let parsedDate = null;
+      const iso = Date.parse(target);
+      if (!isNaN(iso)) {
+        parsedDate = new Date(iso).toISOString().split('T')[0];
+      }
+      if (!parsedDate) {
+        localSkipped.push(`Row ${idx + 1}: unrecognisable date format '${target}'`);
+        return;
+      }
+
+      const title50 = actionText.slice(0, 50) || `MOM Action ${idx + 1}`;
+
+      actions.push({
+        title:       title50,
+        description: actionText || title50,
+        owner,
+        department:  m.function || undefined,
+        priority:    'High',
+        due_date:    parsedDate,
+        status:      m.status === 'Done' || m.status === 'Closed' ? 'Closed' : 'Open',
+      });
+    });
+
+    if (actions.length === 0) {
+      setSyncResult({
+        error: `All ${highRows.length} High row(s) were skipped.`,
+        skipLog: localSkipped,
+      });
+      setTimeout(() => setSyncResult(null), 6000);
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      // Use project_name from the first row — backend resolves to project_id
+      const projectName = (meetings[0]?.project_name || '').trim();
+      const resp = await API.post('/mom/issues', {
+        project_name: projectName || undefined,
+        actions,
+      });
+      const data = resp.data;
+      setSyncResult({
+        created:  data.created,
+        skipped:  (data.skipped || 0) + localSkipped.length,
+        skipLog:  [...(data.skip_log || []).map(s => s.reason || JSON.stringify(s)), ...localSkipped],
+      });
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err.message || 'Unknown error';
+      setSyncResult({ error: `Sync failed: ${detail}` });
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncResult(null), 7000);
+    }
+  };
+
 
   // Copy to clipboard
   const handleCopy = () => {
@@ -47,6 +135,32 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
   return (
     <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
 
+      {/* ── Sync Result Toast ── */}
+      {syncResult && (
+        <div className={`fixed top-6 right-6 z-50 max-w-sm rounded-2xl shadow-2xl border px-5 py-4 text-sm font-semibold animate-slideUp ${
+          syncResult.error
+            ? 'bg-red-50 border-red-200 text-red-700'
+            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        }`}>
+          {syncResult.error ? (
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{syncResult.error}</span>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>{syncResult.created} issue{syncResult.created !== 1 ? 's' : ''} synced to Issue Engine</span>
+              </div>
+              {syncResult.skipped > 0 && (
+                <div className="text-xs text-emerald-600 opacity-70">{syncResult.skipped} row(s) skipped (non-High or missing fields)</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Action Toolbar (Hidden in Print) ── */}
       <div className="flex justify-between items-center print:hidden">
         <div>
@@ -54,6 +168,14 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting }) => {
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Industrial Analytics Standard</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={handleSyncIssues}
+            disabled={syncing}
+            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 transition-all shadow-md active:scale-95"
+          >
+            <Zap className="w-4 h-4" />
+            {syncing ? 'Syncing…' : 'Sync Issues'}
+          </button>
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"

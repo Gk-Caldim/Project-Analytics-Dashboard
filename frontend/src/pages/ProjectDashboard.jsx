@@ -214,6 +214,7 @@ const ProjectTitleDashboard = () => {
               uniqueProjectsMap.set(capitalizedName, {
                 id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
                 name: capitalizedName,
+                dbProjectId: struct.project_id,
                 code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
                 status: 'In Progress', // Default status
                 submodules: [],
@@ -223,25 +224,49 @@ const ProjectTitleDashboard = () => {
             }
 
             const existingProject = uniqueProjectsMap.get(capitalizedName);
+            existingProject.dbProjectId = struct.project_id;
 
-            // Group modules across uploads
-            const moduleSet = new Set();
-            struct.uploads.forEach(upload => {
-              upload.modules.forEach(mod => {
-                if (!moduleSet.has(mod.module_name)) {
-                  moduleSet.add(mod.module_name);
+            // PREFERRED: use flat top-level modules[] (deduplicated by server)
+            const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
+            const moduleSet = new Set(existingProject.submodules.map(s => s.name));
+
+            if (flatModules.length > 0) {
+              flatModules.forEach(mod => {
+                const modName = mod.module_name;
+                if (modName && !moduleSet.has(modName)) {
+                  moduleSet.add(modName);
                   existingProject.submodules.push({
-                    id: `module-${struct.project_id}-${mod.module_name}`,
-                    trackerId: upload.upload_id, // roughly associate with upload
-                    name: mod.module_name,
-                    displayName: mod.module_name,
-                    department: upload.department, // optional field map
+                    id: `module-${struct.project_id}-${modName}`,
+                    dbProjectId: struct.project_id,
+                    name: modName,
+                    displayName: modName,
+                    milestones_count: mod.milestones_count,
                     type: 'module',
                     projectName: capitalizedName
                   });
                 }
               });
-            });
+            } else {
+              // Fallback: iterate uploads for older API shape
+              (struct.uploads || []).forEach(upload => {
+                (upload.modules || []).forEach(mod => {
+                  const modName = mod.module_name;
+                  if (modName && !moduleSet.has(modName)) {
+                    moduleSet.add(modName);
+                    existingProject.submodules.push({
+                      id: `module-${struct.project_id}-${modName}`,
+                      trackerId: upload.upload_id,
+                      dbProjectId: struct.project_id,
+                      name: modName,
+                      displayName: modName,
+                      department: upload.department,
+                      type: 'module',
+                      projectName: capitalizedName
+                    });
+                  }
+                });
+              });
+            }
           });
 
           return Array.from(uniqueProjectsMap.values());
@@ -249,7 +274,7 @@ const ProjectTitleDashboard = () => {
 
         dispatch(setProjects(newProjects));
       } catch (error) {
-        console.error('Error loading project dashboard modules:', error);
+        console.error('[ProjectDashboard] Error loading project modules:', error);
       }
     };
 
@@ -412,8 +437,8 @@ const ProjectTitleDashboard = () => {
 
   // New state for dashboard visibility
   const [visibleSections, setVisibleSections] = useState({
-    milestones: false,
-    criticalIssues: false,
+    milestones: true,
+    criticalIssues: true,
     budget: false,
     resource: false,
     quality: false,
@@ -455,10 +480,10 @@ const ProjectTitleDashboard = () => {
         }));
       }
     } else {
-      // Reset to default (all false) if no config found or no active project
+      // Reset to default if no config found or no active project
       setVisibleSections({
-        milestones: false,
-        criticalIssues: false,
+        milestones: true,
+        criticalIssues: true,
         budget: false,
         resource: false,
         quality: false,

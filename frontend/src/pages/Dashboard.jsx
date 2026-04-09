@@ -146,7 +146,10 @@ const Dashboard = () => {
   };
 
   // ==========================================================================
-  // LOAD MODULES FROM API
+  // LOAD MODULES FROM API — sidebar source of truth
+  // Uses /projects/all/structures which returns:
+  //   { project_id, project_name, modules: [{module_name, milestones_count}], uploads: [...] }
+  // modules[] is flat & deduplicated across all uploads on the server side.
   // ==========================================================================
   const loadDynamicModules = async () => {
     try {
@@ -157,7 +160,7 @@ const Dashboard = () => {
 
       const dashProjectsMap = new Map();
 
-      // Ensure projects with budget are in the map first
+      // Ensure projects with budget are in the map first (so they appear even without tracker data)
       projectsWithBudget.forEach(projectName => {
         const projectId = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
         if (!dashProjectsMap.has(projectName)) {
@@ -166,16 +169,18 @@ const Dashboard = () => {
             moduleId: `project-dashboard-${projectId}`,
             name: projectName,
             projectName: projectName,
-            dbProjectId: null, // To be filled if exists
+            dbProjectId: null,
             type: 'project',
             context: 'project-dashboard',
             isExpanded: false,
-            submodules: [] // Modules go here
+            submodules: []
           });
         }
       });
 
-      // Parse structures to build module tree
+      // Parse structures to build the sidebar tree
+      // PREFERRED PATH: use the flat top-level `modules` array (deduplicated, server-side)
+      // FALLBACK: iterate upload.modules for compatibility with older API responses
       structures.forEach(struct => {
         const projectName = capitalizeFirstLetter(struct.project_name);
         const projectIdStr = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -197,29 +202,53 @@ const Dashboard = () => {
         const dashProject = dashProjectsMap.get(projectName);
         dashProject.dbProjectId = struct.project_id;
 
-        // Group modules across multiple uploads for a cleaner tree
-        const moduleSet = new Set();
+        // Use flat top-level modules (deduplicated by server) when available
+        const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
+        const moduleSet = new Set(dashProject.submodules.map(s => s.name));
 
-        struct.uploads.forEach(upload => {
-          upload.modules.forEach(mod => {
-            if (!moduleSet.has(mod.module_name)) {
-              moduleSet.add(mod.module_name);
+        if (flatModules.length > 0) {
+          // Preferred: use the server-deduplicated flat list
+          flatModules.forEach(mod => {
+            const modName = mod.module_name;
+            if (modName && !moduleSet.has(modName)) {
+              moduleSet.add(modName);
               dashProject.submodules.push({
-                id: `module-${struct.project_id}-${mod.module_name}`,
-                moduleId: `module-${struct.project_id}-${mod.module_name}`,
+                id: `module-${struct.project_id}-${modName}`,
+                moduleId: `module-${struct.project_id}-${modName}`,
                 dbProjectId: struct.project_id,
-                name: mod.module_name,
-                displayName: mod.module_name,
+                name: modName,
+                displayName: modName,
+                milestones_count: mod.milestones_count,
                 type: 'module',
                 projectName: projectName,
                 context: 'project-dashboard'
               });
             }
           });
-        });
+        } else {
+          // Fallback: iterate uploads to collect modules (older API)
+          (struct.uploads || []).forEach(upload => {
+            (upload.modules || []).forEach(mod => {
+              const modName = mod.module_name;
+              if (modName && !moduleSet.has(modName)) {
+                moduleSet.add(modName);
+                dashProject.submodules.push({
+                  id: `module-${struct.project_id}-${modName}`,
+                  moduleId: `module-${struct.project_id}-${modName}`,
+                  dbProjectId: struct.project_id,
+                  name: modName,
+                  displayName: modName,
+                  type: 'module',
+                  projectName: projectName,
+                  context: 'project-dashboard'
+                });
+              }
+            });
+          });
+        }
       });
 
-      // Ensure projects with budget have a Budget Summary submodule
+      // Add Budget Summary submodule for projects that have budget data
       for (const project of dashProjectsMap.values()) {
         const hasBudget = project.submodules.some(sub => sub.type === 'budget');
         if (!hasBudget && projectsWithBudget.has(project.name)) {
@@ -236,15 +265,17 @@ const Dashboard = () => {
       }
 
       const finalList = Array.from(dashProjectsMap.values());
+
+      // Project Dashboard sidebar — shows projects with their modules from DB
       setProjectDashboardModules(finalList);
-      
-      // Upload tracker menu no longer duplicates this tree, 
-      // it just handles the flat structure or uses same structure
+
+      // Upload Trackers sidebar — same tree (projects+modules)
       setUploadTrackerModules(finalList);
     } catch (error) {
-      console.error('Error loading dynamic modules from API:', error);
+      console.error('[Dashboard] Error loading dynamic modules from API:', error);
     }
   };
+
 
   useEffect(() => {
     loadDynamicModules();

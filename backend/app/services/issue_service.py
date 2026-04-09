@@ -18,12 +18,36 @@ from datetime import date, datetime, timezone
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation
+from app.models.project import Project
 from app.schemas.issue import IssueCreate, IssueUpdate, MOMActionItem
 
 logger = logging.getLogger(__name__)
+
+
+# ─── Project name resolver ────────────────────────────────────────────────────
+
+def resolve_project_id(db: Session, project_name: str) -> Optional[int]:
+    """
+    Case-insensitive lookup of a project by name.
+    Returns the integer PK (id) or None if no match is found.
+    Never raises — callers decide whether to skip or error.
+    """
+    if not project_name or not project_name.strip():
+        return None
+    project = (
+        db.query(Project)
+        .filter(func.lower(Project.name) == project_name.strip().lower())
+        .first()
+    )
+    if project:
+        logger.info("resolve_project_id: '%s' → id=%d", project_name.strip(), project.id)
+        return project.id
+    logger.warning("resolve_project_id: no project matched name='%s'", project_name.strip())
+    return None
 
 # ─── Priority weights for urgency scoring ────────────────────────────────────
 _PRIORITY_WEIGHT = {"High": 100, "Medium": 50, "Low": 10}
@@ -193,11 +217,18 @@ def get_critical_issues(
 
     issues = (
         db.query(Issue)
-        .filter(Issue.project_id == project_id, Issue.status != "Closed")
+        .filter(
+            Issue.project_id == project_id, 
+            Issue.status == "Open", 
+            Issue.priority == "High"
+        )
+        .order_by(Issue.due_date.asc())
+        .limit(limit)
         .all()
     )
-    ranked = rank_issues(issues)
-    return ranked[:limit]
+    for iss in issues:
+        enrich_issue(iss)
+    return issues
 
 
 # ─── MOM Integration ─────────────────────────────────────────────────────────

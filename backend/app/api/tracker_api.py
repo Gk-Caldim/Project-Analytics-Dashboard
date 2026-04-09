@@ -1,10 +1,15 @@
 """
 tracker_api.py
 Endpoints:
-  POST /upload-tracker          — upload an Excel tracker file
-  GET  /uploads                 — list all uploads (for UploadTrackers page)
-  GET  /uploads/{project_id}    — list uploads for one project
+  POST /upload-tracker            — upload an Excel tracker file
+  GET  /uploads                   — list all uploads (for UploadTrackers page)
+  GET  /uploads/{project_id}      — list uploads for one project
   GET  /import-errors/{upload_id} — list failed rows for an upload
+  GET  /trackers/{project_id}/modules — list distinct modules for a project (DB only)
+
+Strict rules:
+  - Upload REJECTED if project not found (no orphan rows with project_id=NULL)
+  - Every Excel row must have Module and Milestone; invalid rows logged to import_errors
 """
 
 import datetime
@@ -31,8 +36,12 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 def _resolve_project_id(db: Session, project_name: str | None) -> int | None:
-    """Case-insensitive project name lookup. Returns None if not found."""
-    if not project_name:
+    """
+    Case-insensitive project name lookup.
+    Returns project.id if found, None otherwise.
+    NEVER silently swallows a lookup failure — callers must check the return value.
+    """
+    if not project_name or not project_name.strip():
         return None
     match = (
         db.query(Project)
@@ -40,8 +49,12 @@ def _resolve_project_id(db: Session, project_name: str | None) -> int | None:
         .first()
     )
     if match:
+        logger.info("[tracker_api] Resolved project %r → id=%s", project_name, match.id)
         return match.id
-    logger.warning("[tracker_api] Project not found for name=%r — upload will have project_id=None", project_name)
+    logger.warning(
+        "[tracker_api] Project not found in DB for name=%r — upload will be REJECTED",
+        project_name,
+    )
     return None
 
 
@@ -57,14 +70,33 @@ async def upload_tracker(
     employeeName: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
+    # ── 1. File type validation ────────────────────────────────────────────
     if not file.filename.lower().endswith((".xls", ".xlsx")):
-        raise HTTPException(status_code=400, detail="Invalid file format. Please upload an Excel (.xlsx/.xls) file.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file format. Please upload an Excel (.xlsx/.xls) file.",
+        )
+
+    # ── 2. Resolve project (MANDATORY) ────────────────────────────────────
+    if not project or not project.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Project name is required. Please select a project before uploading.",
+        )
 
     project_id = _resolve_project_id(db, project)
+    if project_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Project '{project}' not found in the database. "
+                "Please create the project in Project Master first."
+            ),
+        )
 
     logger.info(
-        "[tracker_api] Upload started  file=%s  project=%r  project_id=%s",
-        file.filename, project, project_id,
+        "[tracker_api] Upload started  file=%s  project=%r  project_id=%s  uploaded_by=%s",
+        file.filename, project, project_id, employeeName,
     )
 
     try:
@@ -78,6 +110,7 @@ async def upload_tracker(
     except ValueError as ve:
         raise HTTPException(status_code=422, detail=str(ve))
     except Exception as e:
+        logger.exception("[tracker_api] Upload pipeline failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
     return {
@@ -186,3 +219,49 @@ async def get_import_errors(upload_id: int, db: Session = Depends(get_db)):
         }
         for e in errors
     ]
+
+
+# ---------------------------------------------------------------------------
+# GET /trackers/{project_id}/modules
+# Returns distinct module names from DB for a given project
+# ONLY from DB — never hardcoded
+# ---------------------------------------------------------------------------
+
+@router.get("/trackers/{project_id}/modules")
+async def get_project_modules(project_id: int, db: Session = Depends(get_db)):
+    """
+    Returns distinct module names for a project from trackers_data table.
+    Used by sidebar and frontend to build dynamic module lists.
+    Only returns modules that have actual data — no hardcoded entries.
+    """
+    from app.models.tracker import TrackerData as TrackerDataModel
+    from sqlalchemy import distinct
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+    rows = (
+        db.query(distinct(TrackerDataModel.module))
+        .filter(
+            TrackerDataModel.project_id == project_id,
+            TrackerDataModel.module != None,
+            TrackerDataModel.module != "",
+        )
+        .order_by(TrackerDataModel.module)
+        .all()
+    )
+
+    modules = [r[0] for r in rows if r[0]]
+
+    logger.info(
+        "[tracker_api] project_id=%s modules=%s",
+        project_id, modules,
+    )
+
+    return {
+        "project_id":   project_id,
+        "project_name": project.name,
+        "modules":      modules,
+        "module_count": len(modules),
+    }

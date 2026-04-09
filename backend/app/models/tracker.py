@@ -7,7 +7,7 @@ class TrackerData(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    upload_id = Column(Integer, ForeignKey("uploads.id", ondelete="CASCADE"), nullable=True)
+    upload_id = Column(Integer, ForeignKey("uploads.id", ondelete="CASCADE"), nullable=False)
     module = Column(String, nullable=False)
     milestone_name = Column(String, nullable=False)
     planned_date = Column(DateTime, nullable=True)

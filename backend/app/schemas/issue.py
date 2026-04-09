@@ -193,10 +193,28 @@ class MOMActionItem(BaseModel):
 
 
 class MOMIssueCreate(BaseModel):
-    """Batch create issues from a MOM session."""
-    project_id: int
-    meeting_id: Optional[str] = None   # FK to meetings.id (string UUID)
-    actions:    List[MOMActionItem]
+    """
+    Batch create issues from a MOM session.
+
+    Accepts EITHER:
+      - project_id  (int)  → direct FK — used by programmatic callers
+      - project_name (str) → backend resolves to project_id via DB lookup
+    If both are supplied, project_id takes precedence.
+    If neither is supplied, validation will fail.
+    """
+    project_id:   Optional[int] = None
+    project_name: Optional[str] = None   # human-readable name → resolved to ID by backend
+    meeting_id:   Optional[str] = None   # FK to meetings.id (string UUID or int)
+    actions:      List[MOMActionItem]
+
+    @model_validator(mode="after")
+    def requires_project_reference(self) -> "MOMIssueCreate":
+        if self.project_id is None and (self.project_name is None or not self.project_name.strip()):
+            raise ValueError(
+                "Either project_id or project_name is required — "
+                "every MOM sync must be linked to a project."
+            )
+        return self
 
     @field_validator("actions")
     @classmethod

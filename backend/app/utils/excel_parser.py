@@ -14,10 +14,20 @@ Rules:
 - Every skipped row produces an entry in errors[] — nothing disappears silently
 - actual_date is optional; if missing: status=Pending, delay_days=None
 - source_row_number = 0-based pandas index (so row 0 = first data row)
+- All logging uses the Python logging module (no bare print calls)
+
+Validation:
+- If required columns are missing → raise ValueError with exact message:
+  "Missing required columns: Module, Milestone"
+- If a row has empty Module → row is invalid, logged to errors
+- If a row has empty Milestone → row is invalid, logged to errors
 """
 
 import json
+import logging
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Column alias maps: first match wins
@@ -58,19 +68,27 @@ def parse_tracker_excel(file_path: str) -> dict:
     col_planned  = _resolve_column(cols, "planned_date")
     col_actual   = _resolve_column(cols, "actual_date")   # optional
 
-    missing = []
+    # Collect human-readable missing column names for the error message
+    missing_labels = []
     if not col_module:
-        missing.append(f"Module (accepted: {ALIASES['module']})")
+        missing_labels.append("Module")
     if not col_mile:
-        missing.append(f"Milestone (accepted: {ALIASES['milestone']})")
+        missing_labels.append("Milestone")
     if not col_planned:
-        missing.append(f"Planned Date (accepted: {ALIASES['planned_date']})")
+        missing_labels.append("Planned Date")
 
-    if missing:
-        raise ValueError(
-            f"Missing required columns: {'; '.join(missing)}. "
-            f"Found columns: {cols}"
+    if missing_labels:
+        # Return the exact format required: "Missing required columns: Module, Milestone"
+        joined = ", ".join(missing_labels)
+        detail = (
+            f"Missing required columns: {joined}. "
+            f"Accepted aliases — Module: {ALIASES['module']}, "
+            f"Milestone: {ALIASES['milestone']}, "
+            f"Planned Date: {ALIASES['planned_date']}. "
+            f"Found columns in file: {cols}"
         )
+        logger.error("[parser] %s", detail)
+        raise ValueError(detail)
 
     # ------------------------------------------------------------------
     # 3. Process rows
@@ -79,9 +97,12 @@ def parse_tracker_excel(file_path: str) -> dict:
     errors  = []
 
     total_rows = len(df)
-    print(f"[parser] File loaded: {total_rows} data rows, "
-          f"columns resolved → module={col_module}, milestone={col_mile}, "
-          f"planned={col_planned}, actual={col_actual or 'NOT FOUND (optional)'}")
+    logger.info(
+        "[parser] File loaded: %d data rows, columns resolved → "
+        "module=%s, milestone=%s, planned=%s, actual=%s",
+        total_rows, col_module, col_mile, col_planned,
+        col_actual or "NOT FOUND (optional)",
+    )
 
     for index, row in df.iterrows():
         raw = {}
@@ -98,13 +119,17 @@ def parse_tracker_excel(file_path: str) -> dict:
             planned   = row.get(col_planned)
             actual    = row.get(col_actual) if col_actual else None
 
-            # ---- Mandatory field check ----
-            if pd.isna(module) or str(module).strip() == "":
-                raise ValueError("Module is empty")
-            if pd.isna(milestone) or str(milestone).strip() == "":
-                raise ValueError("Milestone is empty")
-            if pd.isna(planned) or str(planned).strip() == "":
-                raise ValueError("Planned Date is empty")
+            # ---- Mandatory field check: Module ----
+            if module is None or (hasattr(module, '__class__') and str(type(module).__name__) == 'float') or pd.isna(module) or str(module).strip() == "":
+                raise ValueError("Module is empty — row skipped (required field)")
+
+            # ---- Mandatory field check: Milestone ----
+            if milestone is None or pd.isna(milestone) or str(milestone).strip() == "":
+                raise ValueError("Milestone is empty — row skipped (required field)")
+
+            # ---- Mandatory field check: Planned Date ----
+            if planned is None or pd.isna(planned) or str(planned).strip() == "":
+                raise ValueError("Planned Date is empty — row skipped (required field)")
 
             # ---- Date parsing ----
             planned_date = pd.to_datetime(planned, dayfirst=False, errors="raise").date()
@@ -130,12 +155,25 @@ def parse_tracker_excel(file_path: str) -> dict:
 
         except Exception as e:
             err_msg = str(e)
-            print(f"[parser] Row {index} FAILED: {err_msg}")
+            logger.warning("[parser] Row %d FAILED: %s | raw=%s", index, err_msg, raw)
             errors.append({
                 "row_number":    int(index),
                 "error_message": err_msg,
                 "raw_payload":   json.dumps(raw, default=str),
             })
 
-    print(f"[parser] Done — valid={len(records)}, invalid={len(errors)}, total={total_rows}")
+    # ------------------------------------------------------------------
+    # 4. Summary audit log
+    # ------------------------------------------------------------------
+    logger.info(
+        "[parser] DONE — total_rows=%d | inserted=%d | skipped=%d",
+        total_rows, len(records), len(errors),
+    )
+
+    if errors:
+        logger.warning(
+            "[parser] Skipped row reasons: %s",
+            [{"row": e["row_number"], "reason": e["error_message"]} for e in errors],
+        )
+
     return {"records": records, "errors": errors}
