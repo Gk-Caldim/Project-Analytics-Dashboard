@@ -42,6 +42,7 @@ class Issue(Base):
     description    = Column(Text, nullable=True)
     owner          = Column(String(100), nullable=False)
     department     = Column(String(100), nullable=True)
+    created_by     = Column(String(100), nullable=True, default="System")  # user email or 'MOM-Auto'
 
     # Priority & severity
     priority       = Column(String(10), nullable=False, default="Medium")

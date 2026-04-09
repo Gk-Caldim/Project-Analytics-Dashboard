@@ -81,6 +81,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
             "project_name": project_name,
             "project_health": "Green",
             "total_milestones": 0,
+            "submodules": 0,
             "completed": 0,
             "delayed": 0,
             "pending": 0,
@@ -98,6 +99,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     # 3. Compute counts
     # -----------------------------------------------------------------------
     total     = len(records)
+    submodules = len({r.module for r in records if r.module})
     completed = sum(1 for r in records if r.status == STATUS_ON_TRACK)
     delayed   = sum(1 for r in records if r.status == STATUS_DELAYED)
     pending   = sum(1 for r in records if r.status == STATUS_PENDING)
@@ -175,6 +177,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
         "project_name":   project_name,
         "project_health": health,
         "total_milestones": total,
+        "submodules": submodules,
         "completed": completed,
         "delayed":   delayed,
         "pending":   pending,

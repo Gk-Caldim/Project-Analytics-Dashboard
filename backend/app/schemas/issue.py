@@ -85,6 +85,7 @@ class IssueCreate(BaseModel):
     status:         StatusLiteral = "Open"
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
+    created_by:     Optional[str] = "System"
 
     @field_validator("title")
     @classmethod
@@ -145,6 +146,7 @@ class IssueOut(BaseModel):
     description:    Optional[str] = None
     owner:          str
     department:     Optional[str] = None
+    created_by:     Optional[str] = "System"
     priority:       str
     severity_score: int
     status:         str          # stored status (Open / In Progress / Closed)
@@ -192,29 +194,9 @@ class MOMActionItem(BaseModel):
         return self
 
 
-class MOMIssueCreate(BaseModel):
-    """
-    Batch create issues from a MOM session.
-
-    Accepts EITHER:
-      - project_id  (int)  → direct FK — used by programmatic callers
-      - project_name (str) → backend resolves to project_id via DB lookup
-    If both are supplied, project_id takes precedence.
-    If neither is supplied, validation will fail.
-    """
-    project_id:   Optional[int] = None
-    project_name: Optional[str] = None   # human-readable name → resolved to ID by backend
+    project_id:   int
     meeting_id:   Optional[str] = None   # FK to meetings.id (string UUID or int)
     actions:      List[MOMActionItem]
-
-    @model_validator(mode="after")
-    def requires_project_reference(self) -> "MOMIssueCreate":
-        if self.project_id is None and (self.project_name is None or not self.project_name.strip()):
-            raise ValueError(
-                "Either project_id or project_name is required — "
-                "every MOM sync must be linked to a project."
-            )
-        return self
 
     @field_validator("actions")
     @classmethod
@@ -225,8 +207,11 @@ class MOMIssueCreate(BaseModel):
 
 
 class MOMIssueResponse(BaseModel):
-    created: int
-    issues:  List[IssueOut]
+    total_rows:     int
+    issues_created: int
+    issues_skipped: int
+    reasons:        List[str]       = []
+    issues:         List[IssueOut]  = []
 
 
 # ─── Analytics ───────────────────────────────────────────────────────────────

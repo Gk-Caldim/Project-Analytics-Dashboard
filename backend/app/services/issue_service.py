@@ -151,6 +151,7 @@ def create_issue(db: Session, payload: IssueCreate) -> Issue:
         description=payload.description,
         owner=payload.owner,
         department=payload.department,
+        created_by=payload.created_by or "System",
         priority=payload.priority,
         severity_score=payload.severity_score,
         status=payload.status,
@@ -231,6 +232,34 @@ def get_critical_issues(
     return issues
 
 
+# ─── Duplicate detection ─────────────────────────────────────────────────────
+
+def find_duplicate_issue(
+    db: Session,
+    project_id: int,
+    title: str,
+    owner: str,
+    due_date,
+) -> Optional[Issue]:
+    """
+    Returns an existing open issue if it matches on all four identity keys:
+      project_id + title (first 50 chars) + owner + due_date
+    Returns None when no duplicate is found.
+    """
+    title_key = (title or "").strip()[:50]
+    return (
+        db.query(Issue)
+        .filter(
+            Issue.project_id == project_id,
+            Issue.title == title_key,
+            Issue.owner == (owner or "").strip(),
+            Issue.due_date == due_date,
+            Issue.status != "Closed",
+        )
+        .first()
+    )
+
+
 # ─── MOM Integration ─────────────────────────────────────────────────────────
 
 def create_issue_from_mom_action(
@@ -238,6 +267,7 @@ def create_issue_from_mom_action(
     project_id: int,
     meeting_id: Optional[str],
     action: MOMActionItem,
+    created_by: str = "MOM-Auto",
 ) -> Issue:
     """Map a single MOM action item → Issue record."""
     payload = IssueCreate(
@@ -251,6 +281,7 @@ def create_issue_from_mom_action(
         status=action.status,
         due_date=action.due_date,
         meeting_id=meeting_id,
+        created_by=created_by,
     )
     return create_issue(db, payload)
 

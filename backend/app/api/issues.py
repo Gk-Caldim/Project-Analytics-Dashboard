@@ -11,15 +11,18 @@ POST   /api/issues/{issue_id}/actions           — Add action item to issue
 POST   /api/issues/{issue_id}/comments          — Add comment to issue
 GET    /api/issues/{issue_id}/escalations       — View escalation history
 POST   /api/issues/project/{project_id}/run-escalation — Trigger escalation engine
-POST   /api/mom/issues                          — Batch create from MOM actions
+POST   /api/mom/issues                          — Batch auto-create from MOM (High-only + dedup)
+POST   /api/mom/issues/manual                   — Manual override: create one issue from any MOM row
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import date as date_type
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -37,11 +40,13 @@ from app.services import issue_service
 
 logger = logging.getLogger(__name__)
 
-router  = APIRouter(prefix="/issues", tags=["Issues"])
-mom_router = APIRouter(prefix="/mom",  tags=["MOM Issues"])
+router     = APIRouter(prefix="/issues", tags=["Issues"])
+mom_router = APIRouter(prefix="/mom",   tags=["MOM Issues"])
 
 
-# ─── Helper: serialize Issue ORM → IssueOut ──────────────────────────────────
+# ---------------------------------------------------------------------------
+# Helper: serialize Issue ORM -> IssueOut
+# ---------------------------------------------------------------------------
 
 def _serialize(issue) -> IssueOut:
     return IssueOut(
@@ -53,10 +58,13 @@ def _serialize(issue) -> IssueOut:
         description=issue.description,
         owner=issue.owner,
         department=issue.department,
+        created_by=getattr(issue, "created_by", "System"),
         priority=issue.priority,
         severity_score=issue.severity_score,
         status=issue.status,
-        derived_status=getattr(issue, "derived_status", issue_service.compute_derived_status(issue)),
+        derived_status=getattr(
+            issue, "derived_status", issue_service.compute_derived_status(issue)
+        ),
         due_date=issue.due_date,
         meeting_id=issue.meeting_id,
         created_at=issue.created_at,
@@ -64,46 +72,55 @@ def _serialize(issue) -> IssueOut:
         resolved_at=issue.resolved_at,
         days_overdue=getattr(issue, "days_overdue", 0),
         urgency_score=getattr(issue, "urgency_score", 0),
-        is_escalated=getattr(issue, "is_escalated", bool(
-            any(e.is_active for e in (issue.escalations or []))
-        )),
+        is_escalated=getattr(
+            issue, "is_escalated",
+            bool(any(e.is_active for e in (issue.escalations or [])))
+        ),
         actions=[
             IssueActionOut(
                 id=a.id, issue_id=a.issue_id, action_text=a.action_text,
                 responsible_person=a.responsible_person, target_date=a.target_date,
                 status=a.status, created_at=a.created_at,
-            ) for a in (issue.actions or [])
+            )
+            for a in (issue.actions or [])
         ],
         comments=[
             IssueCommentOut(
                 id=c.id, issue_id=c.issue_id, comment_text=c.comment_text,
                 created_by=c.created_by, created_at=c.created_at,
-            ) for c in (issue.comments or [])
+            )
+            for c in (issue.comments or [])
         ],
         escalations=[
             IssueEscalationOut(
                 id=e.id, issue_id=e.issue_id, escalation_level=e.escalation_level,
                 escalated_to=e.escalated_to, escalated_at=e.escalated_at,
                 reason=e.reason, is_active=e.is_active,
-            ) for e in (issue.escalations or [])
+            )
+            for e in (issue.escalations or [])
         ],
     )
 
 
-# ─── CREATE issue (manual) ───────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# CREATE issue (manual)
+# ---------------------------------------------------------------------------
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=IssueOut)
 def create_issue(
     payload: IssueCreate,
     db: Session = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    user: dict = Depends(get_current_user),
 ):
     """Create a new issue manually. High priority issues must include due_date."""
+    payload.created_by = user.get("email") or user.get("employee_id") or "System"
     issue = issue_service.create_issue(db, payload)
     return _serialize(issue)
 
 
-# ─── LIST issues for project ─────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# LIST issues for a project
+# ---------------------------------------------------------------------------
 
 @router.get("/project/{project_id}", response_model=List[IssueOut])
 def list_issues(
@@ -121,7 +138,9 @@ def list_issues(
     return [_serialize(i) for i in issues]
 
 
-# ─── GET critical issues ─────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# GET critical issues
+# ---------------------------------------------------------------------------
 
 @router.get("/project/{project_id}/critical", response_model=List[IssueOut])
 def get_critical_issues(
@@ -138,7 +157,9 @@ def get_critical_issues(
     return [_serialize(i) for i in issues]
 
 
-# ─── GET analytics ───────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# GET analytics
+# ---------------------------------------------------------------------------
 
 @router.get("/project/{project_id}/analytics")
 def get_analytics(
@@ -148,12 +169,13 @@ def get_analytics(
 ):
     """Summary metrics: open/overdue/at-risk/closed counts, by dept, by priority."""
     data = issue_service.compute_analytics(db, project_id)
-    # Serialize top_overdue list
     data["top_overdue"] = [_serialize(i) for i in data["top_overdue"]]
     return data
 
 
-# ─── UPDATE issue ────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# UPDATE issue
+# ---------------------------------------------------------------------------
 
 @router.patch("/{issue_id}", response_model=IssueOut)
 def update_issue(
@@ -167,7 +189,9 @@ def update_issue(
     return _serialize(issue)
 
 
-# ─── DELETE (close) issue ────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# DELETE (soft-close) issue
+# ---------------------------------------------------------------------------
 
 @router.delete("/{issue_id}", status_code=status.HTTP_200_OK)
 def close_issue(
@@ -182,9 +206,15 @@ def close_issue(
     return {"success": True, "issue_id": issue.id, "status": issue.status}
 
 
-# ─── ADD action to issue ─────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# ADD action to issue
+# ---------------------------------------------------------------------------
 
-@router.post("/{issue_id}/actions", status_code=status.HTTP_201_CREATED, response_model=IssueActionOut)
+@router.post(
+    "/{issue_id}/actions",
+    status_code=status.HTTP_201_CREATED,
+    response_model=IssueActionOut,
+)
 def add_action(
     issue_id: int,
     payload: IssueActionCreate,
@@ -192,7 +222,7 @@ def add_action(
     _user: dict = Depends(get_current_user),
 ):
     """Add a tracked action item to an issue."""
-    issue_service.get_or_404(db, issue_id)  # 404 guard
+    issue_service.get_or_404(db, issue_id)
     action = IssueAction(
         issue_id=issue_id,
         action_text=payload.action_text,
@@ -210,9 +240,15 @@ def add_action(
     )
 
 
-# ─── ADD comment to issue ────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# ADD comment to issue
+# ---------------------------------------------------------------------------
 
-@router.post("/{issue_id}/comments", status_code=status.HTTP_201_CREATED, response_model=IssueCommentOut)
+@router.post(
+    "/{issue_id}/comments",
+    status_code=status.HTTP_201_CREATED,
+    response_model=IssueCommentOut,
+)
 def add_comment(
     issue_id: int,
     payload: IssueCommentCreate,
@@ -235,7 +271,9 @@ def add_comment(
     )
 
 
-# ─── GET escalation history ──────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# GET escalation history
+# ---------------------------------------------------------------------------
 
 @router.get("/{issue_id}/escalations", response_model=List[IssueEscalationOut])
 def get_escalations(
@@ -261,7 +299,9 @@ def get_escalations(
     ]
 
 
-# ─── TRIGGER escalation engine ───────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# TRIGGER escalation engine
+# ---------------------------------------------------------------------------
 
 @router.post("/project/{project_id}/run-escalation")
 def trigger_escalation(
@@ -277,112 +317,15 @@ def trigger_escalation(
         "new_escalations_created": new_escalations,
         "message": (
             f"{new_escalations} new escalation(s) created"
-            if new_escalations else "No new escalations required"
+            if new_escalations
+            else "No new escalations required"
         ),
     }
 
 
-# ─── MOM — batch create issues ───────────────────────────────────────────────
-
-@mom_router.post("/issues", status_code=status.HTTP_201_CREATED)
-def create_issues_from_mom(
-    payload: MOMIssueCreate,
-    db: Session = Depends(get_db),
-    _user: dict = Depends(get_current_user),
-):
-    """
-    Convert MOM action items into structured Issue records.
-
-    Field mapping (MOM → Issue):
-      Function       → department
-      Action Points  → description  (+ first 50 chars → title)
-      Responsibility → owner
-      Target Date    → due_date
-      Criticality    → priority
-
-    Auto-filter:
-      - ONLY rows where priority == 'High' are created
-      - Rows missing owner or due_date are SKIPPED and logged
-
-    Project binding:
-      - project_id (if provided) is used directly
-      - project_name (if provided) is resolved via case-insensitive DB lookup
-      - If neither resolves, the entire batch is rejected (400)
-    """
-    # ── 1. Resolve project_id ──────────────────────────────────
-    project_id = payload.project_id
-    if project_id is None and payload.project_name:
-        project_id = issue_service.resolve_project_id(db, payload.project_name)
-
-    if project_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"Project '{payload.project_name}' was not found in the database. "
-                "Create the project first, or supply a valid project_id."
-            ),
-        )
-
-    # ── 2. Process each action row ────────────────────────────
-    created = []
-    skipped = []
-
-    for i, action in enumerate(payload.actions):
-        row_ref = f"Row {i + 1} ('{(action.title or '')[:40]}')"  # for logging
-
-        # ── Filter: only High priority ──
-        if action.priority != "High":
-            skipped.append({"row": row_ref, "reason": f"priority='{action.priority}' — only High is auto-created"})
-            continue
-
-        # ── Validate owner ──
-        if not action.owner or not action.owner.strip():
-            skipped.append({"row": row_ref, "reason": "missing owner (Responsibility)"})
-            logger.warning("MOM sync skipped %s — no owner", row_ref)
-            continue
-
-        # ── Validate due_date (required for High) ──
-        if action.due_date is None:
-            skipped.append({"row": row_ref, "reason": "missing due_date (Target Date) — required for High priority"})
-            logger.warning("MOM sync skipped %s — no due_date", row_ref)
-            continue
-
-        # ── Build title: first 50 chars of description / title ──
-        source_text = (action.description or action.title or "").strip()
-        title_50    = source_text[:50] if source_text else action.title[:50]
-
-        issue = issue_service.create_issue_from_mom_action(
-            db=db,
-            project_id=project_id,
-            meeting_id=payload.meeting_id,
-            action=action.__class__(
-                title=title_50,
-                description=action.description or action.title,
-                owner=action.owner.strip(),
-                department=action.department,
-                priority=action.priority,
-                status=action.status,
-                due_date=action.due_date,
-            ),
-        )
-        created.append(_serialize(issue))
-
-    logger.info(
-        "MOM issue sync ─ project_id=%d meeting=%s created=%d skipped=%d",
-        project_id, payload.meeting_id, len(created), len(skipped),
-    )
-
-    return {
-        "success": True,
-        "project_id": project_id,
-        "created": len(created),
-        "skipped": len(skipped),
-        "issues": created,
-        "skip_log": skipped,   # transparent audit trail for VP-level reporting
-    }
-
-
-# ─── GET single issue ────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# GET single issue
+# ---------------------------------------------------------------------------
 
 @router.get("/{issue_id}", response_model=IssueOut)
 def get_issue(
@@ -393,4 +336,242 @@ def get_issue(
     """Fetch a single issue with all related actions, comments and escalations."""
     issue = issue_service.get_or_404(db, issue_id)
     issue_service.enrich_issue(issue)
+    return _serialize(issue)
+
+
+# ===========================================================================
+# MOM -> ISSUE INTELLIGENCE LAYER
+# ===========================================================================
+
+@mom_router.post("/issues", status_code=status.HTTP_201_CREATED)
+def create_issues_from_mom(
+    payload: MOMIssueCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    AUTO-CREATE issues from MOM action rows.
+
+    Business rules enforced (none can be bypassed here):
+      1. Only priority == 'High' rows are processed
+      2. owner must be non-empty (Responsibility column)
+      3. due_date must be present (Target Date column)
+      4. Duplicate guard: title[:50] + owner + due_date + project_id must
+         be unique among open issues — duplicates are skipped with a reason logged
+
+    Field mapping (MOM -> Issue):
+      Function       -> department
+      Action Points  -> description  (first 50 chars -> title)
+      Responsibility -> owner
+      Target Date    -> due_date
+      Criticality    -> priority
+      Project        -> project_id
+
+    Response:
+      {
+        "total_rows":     <int>,
+        "issues_created": <int>,
+        "issues_skipped": <int>,
+        "reasons":        [<human-readable skip reason>, ...],
+        "issues":         [<IssueOut>, ...]
+      }
+    """
+    # 1. We now strictly require project_id from the caller
+    project_id = payload.project_id
+
+    created_by = user.get("email") or user.get("employee_id") or "MOM-Auto"
+    total_rows = len(payload.actions)
+    created: List[IssueOut] = []
+    reasons: List[str]      = []
+
+    # 2. Process each action row
+    for i, action in enumerate(payload.actions):
+        row_ref = f"Row {i + 1}"
+
+        # Rule 1 — High priority only
+        if action.priority != "High":
+            reason = (
+                f"{row_ref}: skipped — priority='{action.priority}' "
+                "(only 'High' rows are auto-created)"
+            )
+            reasons.append(reason)
+            logger.info("MOM auto-create skipped %s — low priority", row_ref)
+            continue
+
+        # Rule 2 — owner required
+        if not action.owner or not action.owner.strip():
+            reason = f"{row_ref}: skipped — missing owner (Responsibility field is empty)"
+            reasons.append(reason)
+            logger.warning("MOM auto-create skipped %s — no owner", row_ref)
+            continue
+
+        # Rule 3 — due_date required
+        if action.due_date is None:
+            reason = (
+                f"{row_ref}: skipped — missing due_date "
+                "(Target Date is required for High priority)"
+            )
+            reasons.append(reason)
+            logger.warning("MOM auto-create skipped %s — no due_date", row_ref)
+            continue
+
+        # Build canonical title (first 50 chars of action point / description)
+        source_text = (action.description or action.title or "").strip()
+        title_50    = source_text[:50] or (action.title or "")[:50]
+
+        # Rule 4 — duplicate guard
+        duplicate = issue_service.find_duplicate_issue(
+            db, project_id, title_50, action.owner.strip(), action.due_date
+        )
+        if duplicate:
+            reason = (
+                f"{row_ref}: skipped — duplicate issue already exists "
+                f"(id={duplicate.id}, title='{title_50[:30]}', "
+                f"owner='{action.owner}', due={action.due_date})"
+            )
+            reasons.append(reason)
+            logger.info("MOM duplicate skipped %s → existing issue id=%d", row_ref, duplicate.id)
+            continue
+
+        # Create the issue — catch per-row errors so the batch never fails entirely
+        try:
+            issue = issue_service.create_issue_from_mom_action(
+                db=db,
+                project_id=project_id,
+                meeting_id=payload.meeting_id,
+                action=action.__class__(
+                    title=title_50,
+                    description=action.description or action.title,
+                    owner=action.owner.strip(),
+                    department=action.department,
+                    priority=action.priority,
+                    status=action.status,
+                    due_date=action.due_date,
+                ),
+                created_by=created_by,
+            )
+            created.append(_serialize(issue))
+            logger.info(
+                "MOM auto-create SUCCESS %s -> issue_id=%d project=%d",
+                row_ref, issue.id, project_id,
+            )
+        except Exception as exc:
+            reason = f"{row_ref}: error during creation — {exc}"
+            reasons.append(reason)
+            logger.error("MOM auto-create ERROR %s: %s", row_ref, exc)
+
+    logger.info(
+        "MOM sync complete — project_id=%d meeting=%s "
+        "total=%d created=%d skipped=%d",
+        project_id, payload.meeting_id,
+        total_rows, len(created), total_rows - len(created),
+    )
+
+    return {
+        "total_rows":     total_rows,
+        "issues_created": len(created),
+        "issues_skipped": total_rows - len(created),
+        "reasons":        reasons,
+        "issues":         created,
+    }
+
+
+# ---------------------------------------------------------------------------
+# MANUAL OVERRIDE — promote any MOM row to an issue (bypasses priority filter)
+# POST /api/mom/issues/manual
+# ---------------------------------------------------------------------------
+
+class ManualMOMIssueRequest(BaseModel):
+    """
+    Payload for the 'Create Issue' button click in the MOM UI.
+    Bypasses the High-only filter — any row can be manually promoted.
+    Duplicate check still applies.
+    """
+    project_id:   int
+    meeting_id:   Optional[str]       = None
+    title:        str
+    description:  Optional[str]       = None
+    owner:        str
+    department:   Optional[str]       = None
+    priority:     str                 = "Medium"
+    due_date:     Optional[date_type] = None
+
+
+@mom_router.post(
+    "/issues/manual",
+    status_code=status.HTTP_201_CREATED,
+    response_model=IssueOut,
+)
+def create_issue_manually_from_mom(
+    payload: ManualMOMIssueRequest,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Manual override: promote a single MOM row to an Issue.
+
+    Unlike the auto-create batch endpoint this:
+      - Accepts ANY priority level (not just High)
+      - Still enforces owner presence
+      - Still runs the duplicate check (returns 409 on match)
+      - Requires due_date only when priority == 'High' (schema enforcement)
+
+    This is the backend handler for the 'Create Issue' button
+    shown per-row in the MOM action table.
+    """
+    # Project ID is now mandated by schema
+    project_id = payload.project_id
+
+    # Validate owner
+    if not payload.owner or not payload.owner.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="owner is required — cannot create an issue without an owner.",
+        )
+
+    # Build canonical title
+    source_text = (payload.description or payload.title or "").strip()
+    title_50    = source_text[:50] or payload.title[:50]
+
+    # Duplicate check — hard reject (not a background skip)
+    duplicate = issue_service.find_duplicate_issue(
+        db, project_id, title_50, payload.owner.strip(), payload.due_date
+    )
+    if duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Duplicate issue already exists (id={duplicate.id}). "
+                "The same title, owner, and due_date are already open for this project."
+            ),
+        )
+
+    created_by = user.get("email") or user.get("employee_id") or "MOM-Manual"
+
+    # Build IssueCreate — schema validators enforce due_date for High priority
+    try:
+        issue_payload = IssueCreate(
+            project_id=project_id,
+            source_type="MOM",
+            title=title_50,
+            description=payload.description or payload.title,
+            owner=payload.owner.strip(),
+            department=payload.department,
+            priority=payload.priority,   # type: ignore[arg-type]
+            status="Open",
+            due_date=payload.due_date,
+            meeting_id=payload.meeting_id,
+            created_by=created_by,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+
+    issue = issue_service.create_issue(db, issue_payload)
+    logger.info(
+        "MOM manual issue created: id=%d project=%d priority=%s owner=%s meeting=%s",
+        issue.id, project_id, payload.priority, payload.owner, payload.meeting_id,
+    )
     return _serialize(issue)

@@ -61,6 +61,7 @@ class ScheduleRequest(BaseModel):
     agenda_text: Optional[str] = None
     timezone: Optional[str] = "UTC"
     organizer_email: Optional[str] = "unknown@example.com"
+    project_id: Optional[int] = None
 
 class MeetingUpdateRequest(BaseModel):
     date: Optional[str] = None
@@ -272,7 +273,9 @@ async def list_meetings(db: Session = Depends(get_db)):
             "action_item_count": m.action_item_count,
             "actual_duration_minutes": m.actual_duration_minutes,
             "attendance_rate": m.attendance_rate,
+            "attendance_rate": m.attendance_rate,
             "mom_generated": m.mom_generated,
+            "project_id":    m.project_id,
         })
     return {"success": True, "meetings": results}
 
@@ -348,6 +351,7 @@ async def publish_meeting(
         agenda_text=req.agenda_text,
         status="scheduled",
         invites_sent=True,
+        project_id=req.project_id,
     )
     db.add(meeting)
     db.commit()
@@ -368,6 +372,7 @@ async def publish_meeting(
             "meetingCode":  meeting_code,
             "attendees":    req.attendees,
             "invites_sent": meeting.invites_sent,
+            "project_id":   meeting.project_id,
         },
     }
 
@@ -413,6 +418,7 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "cancellation_reason": meeting.cancellation_reason,
             "cancellation_note": meeting.cancellation_note,
             "cancelled_by": meeting.cancelled_by,
+            "project_id":   meeting.project_id,
         },
     }
 
