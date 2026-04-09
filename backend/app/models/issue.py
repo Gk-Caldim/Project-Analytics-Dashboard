@@ -34,7 +34,7 @@ class Issue(Base):
     upload_id      = Column(Integer, nullable=True)   # optional — links to an upload batch
 
     # Source traceability
-    source_type    = Column(String(20), nullable=False, default="Manual")
+    source         = Column(String(20), nullable=False, default="Manual")
     # Allowed: 'Manual' | 'MOM' | 'Tracker'
 
     # Core fields
@@ -50,11 +50,10 @@ class Issue(Base):
     # 0–100 manual input; higher = worse
 
     # Lifecycle
-    status         = Column(String(20), nullable=False, default="Open")
+    status         = Column(String(20), nullable=False, default="Open", index=True)
     # Stored status: 'Open' | 'In Progress' | 'Closed'
-    # Derived (runtime) status: 'Overdue' | 'At Risk' | 'On Track' | 'Closed'
 
-    due_date       = Column(Date, nullable=True)
+    due_date       = Column(Date, nullable=True, index=True)
     meeting_id     = Column(String(100), nullable=True)  # links to meetings table if MOM-derived
 
     # Timestamps
@@ -66,11 +65,31 @@ class Issue(Base):
     actions        = relationship("IssueAction",     back_populates="issue", cascade="all, delete-orphan")
     comments       = relationship("IssueComment",    back_populates="issue", cascade="all, delete-orphan")
     escalations    = relationship("IssueEscalation", back_populates="issue", cascade="all, delete-orphan")
+    audit_logs     = relationship("IssueAuditLog",   back_populates="issue", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_issues_project_status", "project_id", "status"),
         Index("ix_issues_project_priority", "project_id", "priority"),
     )
+
+
+# ---------------------------------------------------------------------------
+# issue_audit_logs
+# ---------------------------------------------------------------------------
+
+class IssueAuditLog(Base):
+    __tablename__ = "issue_audit_logs"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    issue_id      = Column(Integer, ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True)
+    field_changed = Column(String(100), nullable=False)
+    old_value     = Column(Text, nullable=True)
+    new_value     = Column(Text, nullable=True)
+    changed_by    = Column(String(100), nullable=False)
+    timestamp     = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    issue = relationship("Issue", back_populates="audit_logs")
+
 
 
 # ---------------------------------------------------------------------------

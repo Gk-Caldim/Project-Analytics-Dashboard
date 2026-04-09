@@ -106,6 +106,38 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
     }
   };
 
+  const [editOwner, setEditOwner] = useState(false);
+  const [newOwner, setNewOwner]   = useState(issue.owner);
+  const handleOwnerSave = async () => {
+    try {
+      setSaving(true);
+      const updated = await updateIssue(issue.id, { owner: newOwner });
+      setIssue(prev => ({ ...prev, ...updated }));
+      setEditOwner(false);
+      onUpdated?.();
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Failed to update owner');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const [editDue, setEditDue] = useState(false);
+  const [newDue, setNewDue]   = useState(issue.due_date || '');
+  const handleDueSave = async () => {
+    try {
+      setSaving(true);
+      const updated = await updateIssue(issue.id, { due_date: newDue });
+      setIssue(prev => ({ ...prev, ...updated }));
+      setEditDue(false);
+      onUpdated?.();
+    } catch (e) {
+      alert(e?.response?.data?.detail || 'Failed to update due date');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     try {
@@ -147,8 +179,8 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
         <div style={styles.panelHeader}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 600 }}>
-                #{issue.id} · {issue.source_type}
+              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em' }}>
+                ISSUE #{issue.id} · {issue.source?.toUpperCase() || 'MANUAL'}
               </span>
               {issue.is_escalated && (
                 <span style={styles.escBadge}>
@@ -159,18 +191,18 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
             <div style={styles.panelTitle}>{issue.title}</div>
           </div>
           <button onClick={onClose} style={styles.closeBtn}>
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         <div style={styles.body}>
           {/* ── Status + Priority Row ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
             <StatusPill status={ds} />
             <PriorityBadge priority={issue.priority} />
             {!editStatus && (
               <button onClick={() => setEditStatus(true)} style={styles.ghostBtn}>
-                <Edit2 size={11} /> Change Status
+                <Edit2 size={11} /> Update Status
               </button>
             )}
           </div>
@@ -187,49 +219,89 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                 <option value="In Progress">In Progress</option>
                 <option value="Closed">Closed</option>
               </select>
-              <button onClick={handleStatusSave} disabled={saving} style={styles.saveBtn}>
-                <Save size={12} /> {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button onClick={() => setEditStatus(false)} style={styles.cancelBtn}>
-                <RotateCcw size={12} /> Cancel
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={handleStatusSave} disabled={saving} style={styles.saveBtn}>
+                  <Save size={12} /> {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button onClick={() => setEditStatus(false)} style={styles.cancelBtn}>
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
           {/* ── Meta Grid ── */}
           <div style={styles.metaGrid}>
             <div style={styles.metaCell}>
-              <User size={13} color="#6b7280" />
-              <div>
-                <div style={styles.metaLabel}>Owner</div>
-                <div style={styles.metaValue}>{issue.owner}</div>
+              <User size={14} color="#64748b" style={{ marginTop: 2 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={styles.metaLabel}>Owner</div>
+                  {!editOwner && (
+                    <button onClick={() => setEditOwner(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                      <Edit2 size={10} color="#3b82f6" />
+                    </button>
+                  )}
+                </div>
+                {editOwner ? (
+                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    <input 
+                      value={newOwner} 
+                      onChange={e => setNewOwner(e.target.value)}
+                      style={styles.inlineInput} 
+                    />
+                    <button onClick={handleOwnerSave} style={styles.inlineSave} disabled={saving}>✓</button>
+                    <button onClick={() => setEditOwner(false)} style={styles.inlineCancel}>✕</button>
+                  </div>
+                ) : (
+                  <div style={styles.metaValue}>{issue.owner}</div>
+                )}
               </div>
             </div>
-            {issue.department && (
-              <div style={styles.metaCell}>
-                <Building2 size={13} color="#6b7280" />
-                <div>
-                  <div style={styles.metaLabel}>Department</div>
-                  <div style={styles.metaValue}>{issue.department}</div>
-                </div>
-              </div>
-            )}
-            {issue.due_date && (
-              <div style={styles.metaCell}>
-                <Calendar size={13} color={ds === 'Overdue' ? '#ef4444' : '#6b7280'} />
-                <div>
-                  <div style={styles.metaLabel}>Due Date</div>
-                  <div style={{ ...styles.metaValue, color: ds === 'Overdue' ? '#ef4444' : '#111827', fontWeight: ds === 'Overdue' ? 700 : 500 }}>
-                    {new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    {ds === 'Overdue' && ` (${issue.days_overdue}d overdue)`}
-                  </div>
-                </div>
-              </div>
-            )}
+
             <div style={styles.metaCell}>
-              <Zap size={13} color="#6b7280" />
+              <Calendar size={14} color={ds === 'Overdue' ? '#ef4444' : '#64748b'} style={{ marginTop: 2 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={styles.metaLabel}>Due Date</div>
+                  {!editDue && (
+                    <button onClick={() => setEditDue(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                      <Edit2 size={10} color="#3b82f6" />
+                    </button>
+                  )}
+                </div>
+                {editDue ? (
+                  <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                    <input 
+                      type="date"
+                      value={newDue ? newDue.split('T')[0] : ''} 
+                      onChange={e => setNewDue(e.target.value)}
+                      style={styles.inlineInput} 
+                    />
+                    <button onClick={handleDueSave} style={styles.inlineSave} disabled={saving}>✓</button>
+                    <button onClick={() => setEditDue(false)} style={styles.inlineCancel}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{ ...styles.metaValue, color: ds === 'Overdue' ? '#ef4444' : '#1e3a5f', fontWeight: ds === 'Overdue' ? 700 : 600 }}>
+                    {issue.due_date ? new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No date set'}
+                    {ds === 'Overdue' && <span style={{ fontSize: '10px', marginLeft: 4 }}>({issue.days_overdue}d overdue)</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={styles.metaCell}>
+              <Building2 size={14} color="#64748b" style={{ marginTop: 2 }} />
               <div>
-                <div style={styles.metaLabel}>Urgency Score</div>
+                <div style={styles.metaLabel}>Department</div>
+                <div style={styles.metaValue}>{issue.department || '—'}</div>
+              </div>
+            </div>
+
+            <div style={styles.metaCell}>
+              <Zap size={14} color="#f59e0b" style={{ marginTop: 2 }} />
+              <div>
+                <div style={styles.metaLabel}>Urgency</div>
                 <div style={styles.metaValue}>{issue.urgency_score}</div>
               </div>
             </div>
@@ -239,30 +311,55 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
           {issue.description && (
             <div style={styles.section}>
               <SectionTitle>Description</SectionTitle>
-              <p style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6', margin: 0 }}>
+              <div style={styles.descriptionBox}>
                 {issue.description}
-              </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Audit Logs ── */}
+          {issue.audit_logs?.length > 0 && (
+            <div style={styles.section}>
+              <SectionTitle>History & Audit Trail</SectionTitle>
+              <div style={styles.auditContainer}>
+                {issue.audit_logs.map(log => (
+                  <div key={log.id} style={styles.auditRow}>
+                    <div style={styles.auditDot} />
+                    <div style={{ flex: 1 }}>
+                      <div style={styles.auditText}>
+                        <span style={{ fontWeight: 700, color: '#1e3a5f' }}>{log.changed_by}</span> updated 
+                        <span style={{ fontWeight: 700, margin: '0 4px' }}>{log.field_changed}</span> 
+                        from <span style={styles.oldVal}>{log.old_value || 'None'}</span> 
+                        to <span style={styles.newVal}>{log.new_value}</span>
+                      </div>
+                      <div style={styles.auditTime}>
+                        {new Date(log.timestamp).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* ── Escalations ── */}
           {issue.escalations?.length > 0 && (
             <div style={styles.section}>
-              <SectionTitle>Escalation History</SectionTitle>
+              <SectionTitle>Escalations</SectionTitle>
               {issue.escalations.map(e => (
                 <div key={e.id} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 10,
-                  padding: '8px 12px', borderRadius: 8, marginBottom: 6,
-                  backgroundColor: `${ESCALATION_COLOR[e.escalation_level]}10`,
-                  border: `1px solid ${ESCALATION_COLOR[e.escalation_level]}30`,
+                  display: 'flex', alignItems: 'flex-start', gap: 12,
+                  padding: '12px', borderRadius: 10, marginBottom: 8,
+                  backgroundColor: `${ESCALATION_COLOR[e.escalation_level]}08`,
+                  border: `1px solid ${ESCALATION_COLOR[e.escalation_level]}20`,
                 }}>
-                  <AlertTriangle size={14} color={ESCALATION_COLOR[e.escalation_level]} style={{ marginTop: 2, flexShrink: 0 }} />
+                  <AlertTriangle size={16} color={ESCALATION_COLOR[e.escalation_level]} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: ESCALATION_COLOR[e.escalation_level] }}>
-                      Level {e.escalation_level} — {ESCALATION_LABEL[e.escalation_level]}
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: ESCALATION_COLOR[e.escalation_level] }}>
+                      LEVEL {e.escalation_level} — {ESCALATION_LABEL[e.escalation_level]?.toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#6b7280', marginTop: 2 }}>{e.reason}</div>
-                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: 2 }}>
+                    <div style={{ fontSize: '12px', color: '#475569', marginTop: 4, fontStyle: 'italic' }}>"{e.reason}"</div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: 6, fontWeight: 600 }}>
                       {new Date(e.escalated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
@@ -273,24 +370,24 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
 
           {/* ── Action Items ── */}
           <div style={styles.section}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <SectionTitle>Action Items</SectionTitle>
               <button onClick={() => setShowAddAction(!showAddAction)} style={styles.ghostBtn}>
-                <Plus size={11} /> Add Action
+                <Plus size={11} /> New Action
               </button>
             </div>
 
             {showAddAction && (
               <div style={styles.addActionBox}>
                 <input
-                  placeholder="Describe the action…"
+                  placeholder="What needs to be done?"
                   value={newAction.action_text}
                   onChange={e => setNewAction(p => ({ ...p, action_text: e.target.value }))}
-                  style={{ ...styles.input, marginBottom: 6 }}
+                  style={{ ...styles.input, marginBottom: 8, fontWeight: 500 }}
                 />
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <input
-                    placeholder="Responsible person"
+                    placeholder="Owner"
                     value={newAction.responsible_person}
                     onChange={e => setNewAction(p => ({ ...p, responsible_person: e.target.value }))}
                     style={{ ...styles.input, flex: 1 }}
@@ -299,80 +396,80 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                     type="date"
                     value={newAction.target_date}
                     onChange={e => setNewAction(p => ({ ...p, target_date: e.target.value }))}
-                    style={{ ...styles.input, width: 140 }}
+                    style={{ ...styles.input, width: 130 }}
                   />
                   <button onClick={handleAddAction} disabled={saving} style={styles.saveBtn}>
-                    {saving ? '…' : 'Add'}
+                    Add
                   </button>
                 </div>
               </div>
             )}
 
-            {(issue.actions || []).length === 0 && !showAddAction && (
-              <div style={{ fontSize: '12px', color: '#9ca3af', padding: '8px 0' }}>No action items yet.</div>
-            )}
-            {(issue.actions || []).map(action => (
-              <div key={action.id} style={styles.actionRow}>
-                <ChevronRight size={12} color="#9ca3af" style={{ flexShrink: 0, marginTop: 2 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', color: '#111827' }}>{action.action_text}</div>
-                  <div style={{ fontSize: '11px', color: '#6b7280', marginTop: 2 }}>
-                    {action.responsible_person && `Owner: ${action.responsible_person}`}
-                    {action.target_date && ` · Due: ${new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`}
+            <div style={styles.actionList}>
+              {(issue.actions || []).length === 0 && !showAddAction && (
+                <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '20px', backgroundColor: '#f9fafb', borderRadius: 8, border: '1px dashed #e2e8f0' }}>No action items recorded.</div>
+              )}
+              {(issue.actions || []).map(action => (
+                <div key={action.id} style={styles.actionRow}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600 }}>{action.action_text}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+                      {action.responsible_person && (
+                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                           <User size={10} /> {action.responsible_person}
+                         </div>
+                      )}
+                      {action.target_date && (
+                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                           <Clock size={10} /> {new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                         </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 800,
+                    backgroundColor: action.status === 'Done' ? '#dcfce7' : action.status === 'In Progress' ? '#dbeafe' : '#f1f5f9',
+                    color: action.status === 'Done' ? '#166534' : action.status === 'In Progress' ? '#1e40af' : '#475569',
+                    textTransform: 'uppercase'
+                  }}>
+                    {action.status}
                   </div>
                 </div>
-                <span style={{
-                  padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700,
-                  backgroundColor: action.status === 'Done' ? '#d1fae5' : action.status === 'In Progress' ? '#dbeafe' : '#f3f4f6',
-                  color: action.status === 'Done' ? '#065f46' : action.status === 'In Progress' ? '#1e40af' : '#374151',
-                }}>
-                  {action.status}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* ── Comments ── */}
           <div style={styles.section}>
-            <SectionTitle>Comments</SectionTitle>
-            {(issue.comments || []).length === 0 && (
-              <div style={{ fontSize: '12px', color: '#9ca3af', padding: '6px 0' }}>No comments yet.</div>
-            )}
-            {(issue.comments || []).map(c => (
-              <div key={c.id} style={styles.commentRow}>
-                <div style={styles.commentAvatar}>{(c.created_by || 'U')[0].toUpperCase()}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{c.created_by}</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: 2 }}>{c.comment_text}</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: 3 }}>
-                    {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            <SectionTitle>Discussion</SectionTitle>
+            <div style={styles.commentList}>
+              {(issue.comments || []).map(c => (
+                <div key={c.id} style={styles.commentRow}>
+                  <div style={styles.commentAvatar}>{(c.created_by || 'U')[0].toUpperCase()}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a5f' }}>{c.created_by}</span>
+                      <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                         {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#475569', marginTop: 3, lineHeight: 1.5 }}>{c.comment_text}</div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
-            {/* Comment input */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <div style={styles.commentInputBox}>
               <input
-                placeholder="Add a comment…"
+                placeholder="Post an update…"
                 value={newComment}
                 onChange={e => setNewComment(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                style={{ ...styles.input, flex: 1 }}
+                style={styles.commentInput}
               />
-              <button onClick={handleAddComment} disabled={commentSending || !newComment.trim()} style={styles.saveBtn}>
-                <Send size={13} />
+              <button onClick={handleAddComment} disabled={commentSending || !newComment.trim()} style={styles.commentBtn}>
+                <Send size={14} />
               </button>
-            </div>
-          </div>
-
-          {/* ── Timestamps ── */}
-          <div style={{ marginTop: 12, padding: '10px 0', borderTop: '1px solid #f3f4f6' }}>
-            <div style={{ fontSize: '10px', color: '#9ca3af' }}>
-              Created: {new Date(issue.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              {issue.updated_at && (
-                <span> · Updated: {new Date(issue.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-              )}
             </div>
           </div>
         </div>
@@ -384,104 +481,162 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
 const styles = {
   overlay: {
     position: 'fixed', inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backdropFilter: 'blur(4px)',
     zIndex: 3000, display: 'flex', justifyContent: 'flex-end',
   },
   panel: {
-    backgroundColor: '#fff', width: '480px', maxWidth: '95vw',
+    backgroundColor: '#fff', width: '500px', maxWidth: '95vw',
     height: '100vh', display: 'flex', flexDirection: 'column',
-    boxShadow: '-8px 0 32px rgba(0,0,0,0.15)',
-    animation: 'slideIn 0.22s ease-out',
+    boxShadow: '-20px 0 50px rgba(0,0,0,0.1)',
   },
   panelHeader: {
-    display: 'flex', alignItems: 'flex-start', gap: 12,
-    padding: '18px 20px', borderBottom: '1px solid #e5e7eb',
-    backgroundColor: '#1e3a5f',
+    padding: '24px 24px', borderBottom: '1px solid #f1f5f9',
+    backgroundColor: '#1e3a5f', color: '#fff',
   },
   panelTitle: {
-    fontSize: '16px', fontWeight: 700, color: '#fff', lineHeight: '1.35',
+    fontSize: '20px', fontWeight: 800, color: '#fff', lineHeight: '1.4',
+    letterSpacing: '-0.02em',
   },
   closeBtn: {
-    background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '6px',
-    padding: '6px', cursor: 'pointer', color: '#fff', flexShrink: 0,
-    display: 'flex', alignItems: 'center',
+    background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px',
+    width: 34, height: 34, cursor: 'pointer', color: '#fff', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'background 0.2s',
   },
   body: {
-    flex: 1, overflowY: 'auto', padding: '18px 20px',
+    flex: 1, overflowY: 'auto', padding: '24px',
   },
   escBadge: {
-    display: 'inline-flex', alignItems: 'center', gap: 3,
-    padding: '1px 7px', borderRadius: '4px',
-    backgroundColor: '#fee2e2', color: '#b91c1c',
-    fontSize: '9px', fontWeight: 800, letterSpacing: '0.06em',
-    border: '1px solid #fca5a5',
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    padding: '2px 8px', borderRadius: '4px',
+    backgroundColor: '#fee2e2', color: '#dc2626',
+    fontSize: '10px', fontWeight: 900, letterSpacing: '0.04em',
+    border: '1px solid #fecaca',
   },
   metaGrid: {
     display: 'grid', gridTemplateColumns: '1fr 1fr',
-    gap: 12, marginBottom: 18,
-    padding: 14, backgroundColor: '#f9fafb',
-    borderRadius: 10, border: '1px solid #f3f4f6',
+    gap: 20, marginBottom: 24,
+    padding: 16, backgroundColor: '#f8fafc',
+    borderRadius: 12, border: '1px solid #f1f5f9',
   },
   metaCell: {
-    display: 'flex', alignItems: 'flex-start', gap: 8,
+    display: 'flex', alignItems: 'flex-start', gap: 10,
   },
-  metaLabel: { fontSize: '10px', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' },
-  metaValue: { fontSize: '13px', color: '#111827', fontWeight: 500, marginTop: 1 },
-  section: { marginBottom: 18 },
+  metaLabel: { fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  metaValue: { fontSize: '14px', color: '#1e293b', fontWeight: 600, marginTop: 2 },
+  section: { marginBottom: 30 },
+  descriptionBox: {
+    fontSize: '14px', color: '#475569', lineHeight: '1.6', 
+    backgroundColor: '#fff', padding: '12px 16px', borderRadius: 8,
+    border: '1px solid #f1f5f9',
+  },
+  auditContainer: {
+    display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8,
+  },
+  auditRow: {
+    display: 'flex', gap: 12, position: 'relative',
+  },
+  auditDot: {
+    width: 8, height: 8, borderRadius: '50%', backgroundColor: '#cbd5e1',
+    marginTop: 6, flexShrink: 0,
+  },
+  auditText: {
+    fontSize: '12px', color: '#64748b', lineHeight: '1.4',
+  },
+  auditTime: {
+    fontSize: '10px', color: '#94a3b8', marginTop: 2, fontWeight: 600,
+  },
+  oldVal: { color: '#94a3b8', textDecoration: 'line-through', fontWeight: 600 },
+  newVal: { color: '#059669', fontWeight: 700, backgroundColor: '#ecfdf5', padding: '1px 4px', borderRadius: 4 },
+  actionList: {
+    display: 'flex', flexDirection: 'column', gap: 10,
+  },
   actionRow: {
-    display: 'flex', alignItems: 'flex-start', gap: 8,
-    padding: '8px 0', borderBottom: '1px solid #f9fafb',
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '12px', border: '1px solid #f1f5f9', borderRadius: 10,
+    transition: 'background 0.2s',
+  },
+  commentList: {
+    display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16,
   },
   commentRow: {
-    display: 'flex', gap: 10, padding: '8px 0',
-    borderBottom: '1px solid #f9fafb',
+    display: 'flex', gap: 12,
   },
   commentAvatar: {
-    width: 30, height: 30, borderRadius: '50%',
+    width: 32, height: 32, borderRadius: '50%',
     backgroundColor: '#1e3a5f', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '12px', fontWeight: 700, flexShrink: 0,
+    fontSize: '13px', fontWeight: 800, flexShrink: 0,
+    boxShadow: '0 2px 4px rgba(30, 58, 95, 0.1)',
   },
   input: {
-    border: '1px solid #d1d5db', borderRadius: '6px',
-    padding: '7px 10px', fontSize: '13px', color: '#111827',
+    border: '1px solid #e2e8f0', borderRadius: '8px',
+    padding: '10px 14px', fontSize: '13px', color: '#1e293b',
     outline: 'none', width: '100%',
+    transition: 'border-color 0.2s',
   },
   saveBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    padding: '7px 14px', borderRadius: '6px',
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '8px 16px', borderRadius: '8px',
     backgroundColor: '#1e3a5f', color: '#fff',
-    fontSize: '12px', fontWeight: 600, border: 'none', cursor: 'pointer',
-    whiteSpace: 'nowrap',
+    fontSize: '13px', fontWeight: 700, border: 'none', cursor: 'pointer',
+    transition: 'transform 0.1s, background 0.2s',
   },
   cancelBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    padding: '7px 12px', borderRadius: '6px',
-    backgroundColor: '#f3f4f6', color: '#374151',
-    fontSize: '12px', fontWeight: 600, border: '1px solid #e5e7eb', cursor: 'pointer',
+    padding: '8px 16px', borderRadius: '8px',
+    backgroundColor: '#f1f5f9', color: '#64748b',
+    fontSize: '13px', fontWeight: 600, border: '1px solid #e2e8f0', cursor: 'pointer',
   },
   ghostBtn: {
-    display: 'inline-flex', alignItems: 'center', gap: 4,
-    padding: '4px 10px', borderRadius: '6px',
-    backgroundColor: 'transparent', color: '#3b82f6',
-    fontSize: '11px', fontWeight: 600, border: '1px solid #bfdbfe', cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    padding: '6px 12px', borderRadius: '8px',
+    backgroundColor: '#eff6ff', color: '#2563eb',
+    fontSize: '11px', fontWeight: 700, border: '1px solid #dbeafe', cursor: 'pointer',
   },
   statusEditBox: {
-    display: 'flex', gap: 8, alignItems: 'center',
-    padding: '12px', borderRadius: '8px',
+    display: 'flex', gap: 12, alignItems: 'center',
+    padding: '16px', borderRadius: 12,
     backgroundColor: '#f0f9ff', border: '1px solid #bae6fd',
-    marginBottom: 14,
+    marginBottom: 20,
   },
   addActionBox: {
-    padding: '12px', borderRadius: '8px',
-    backgroundColor: '#f9fafb', border: '1px solid #e5e7eb',
-    marginBottom: 10,
+    padding: '16px', borderRadius: 12,
+    backgroundColor: '#f8fafc', border: '1px solid #e2e8f0',
+    marginBottom: 16,
   },
   select: {
-    border: '1px solid #d1d5db', borderRadius: '6px',
-    padding: '7px 10px', fontSize: '13px', color: '#111827',
-    outline: 'none', flex: 1,
+    flex: 1, border: '1px solid #cbd5e1', borderRadius: '8px',
+    padding: '10px', fontSize: '13px', color: '#1e293b',
+    outline: 'none', backgroundColor: '#fff',
   },
+  inlineInput: {
+    flex: 1, border: '1px solid #3b82f6', borderRadius: '4px',
+    padding: '2px 6px', fontSize: '12px', outline: 'none',
+  },
+  inlineSave: {
+    background: '#10b981', color: '#fff', border: 'none', 
+    borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
+  },
+  inlineCancel: {
+    background: '#ef4444', color: '#fff', border: 'none', 
+    borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
+  },
+  commentInputBox: {
+    display: 'flex', gap: 10,
+    backgroundColor: '#f8fafc', padding: 8, borderRadius: 12,
+    border: '1px solid #f1f5f9',
+  },
+  commentInput: {
+    flex: 1, background: 'transparent', border: 'none',
+    padding: '8px 12px', fontSize: '13px', outline: 'none',
+  },
+  commentBtn: {
+    width: 36, height: 36, borderRadius: '10px',
+    backgroundColor: '#1e3a5f', color: '#fff',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: 'none', cursor: 'pointer',
+  }
 };
 
 export default IssueDetailModal;

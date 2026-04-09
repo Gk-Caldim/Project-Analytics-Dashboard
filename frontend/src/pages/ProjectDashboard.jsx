@@ -7,7 +7,11 @@ import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
 import ExcelTableViewer from '../components/ExcelTableViewer';
-import { Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical } from 'lucide-react';
+import { 
+  Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, 
+  ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
+  TrendingUp, CheckCircle2, AlertCircle, Clock
+} from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import PdfPreviewModal from '../components/PdfPreviewModal';
@@ -165,6 +169,24 @@ const ProjectTitleDashboard = () => {
   const onClearSelection = () => dispatch(setSelectedProjectFileId(null));
   
   const [dashboardData, setDashboardData] = useState(null);
+
+  const milestoneStats = useMemo(() => {
+    const list = dashboardData?.milestones || [];
+    return {
+      total: list.length,
+      completed: list.filter(m => m.status === 'Completed' || m.status === 'Complete').length,
+      delayed: list.filter(m => m.status === 'Delayed').length,
+      pending: list.filter(m => m.status === 'In Progress' || m.status === 'On Track' || m.status === 'Pending' || m.status === 'Open').length
+    };
+  }, [dashboardData]);
+
+  const projectHealthEmoji = useMemo(() => {
+    const health = dashboardData?.project_health || 'Unknown';
+    if (health === 'Green') return '🟢';
+    if (health === 'Yellow') return '🟡';
+    if (health === 'Red') return '🔴';
+    return '⚪';
+  }, [dashboardData]);
 
   useEffect(() => {
     import('../api/dashboard').then(({ getDashboard }) => {
@@ -586,45 +608,35 @@ const ProjectTitleDashboard = () => {
   // --- EDITABLE DASHBOARD DATA ---
 
   // Milestones data with plan/actual
-  const [milestones, setMilestones] = useState([
-    {
-      plan: { a: 'April 26', b: 'May 26', c: 'Jan 26', d: 'April 26', e: 'May 26', f: 'Jan 26', implementation: 'On Track' },
-      actual: { a: 'Jan 26', b: 'April 26', c: 'July 26', d: 'July 26', e: 'Jan 26', f: 'May 26', implementation: 'In Progress' }
-    },
-  ]);
+  const [milestones, setMilestones] = useState([]);
 
   // SOP Data - Health and status information
   const [sopData, setSopData] = useState([
     {
       name: 'SOP Timeline',
-      daysToGo: 20,
-      status: 'Likely Delay',
-      health: 'At Risk'
+      daysToGo: 0,
+      status: 'On Track',
+      health: 'Green'
     }
   ]);
 
   // Critical issues data
-  const [criticalIssues, setCriticalIssues] = useState([
-    { id: 1, issue: 'Database connection timeout in production', responsibility: 'John Doe', function: 'Backend', targetDate: '2024-03-20', status: 'Open' },
-    { id: 2, issue: 'API rate limiting causing service disruption', responsibility: 'Jane Smith', function: 'API Team', targetDate: '2024-03-18', status: 'Open' },
-    { id: 3, issue: 'Memory leak in payment processing service', responsibility: 'Mike Johnson', function: 'Infra', targetDate: '2024-03-19', status: 'In Progress' },
-    { id: 4, issue: 'UI rendering issue on mobile devices', responsibility: 'Sarah Wilson', function: 'Frontend', targetDate: '2024-03-25', status: 'Closed' },
-  ]);
+  const [criticalIssues, setCriticalIssues] = useState([]);
 
   // Summary data
   const [summaryData, setSummaryData] = useState({
-    budgetApproved: 2500000,
-    budgetUtilized: 1850000,
-    budgetBalance: 650000,
-    budgetOutlook: '72%',
-    resourceDeployed: '24',
-    resourceUtilized: '18',
-    resourceShortage: '6',
-    resourceUnderUtilized: '3',
-    qualityTotal: '42',
-    qualityCompleted: '28',
-    qualityOpen: '14',
-    qualityCritical: '7'
+    budgetApproved: 0,
+    budgetUtilized: 0,
+    budgetBalance: 0,
+    budgetOutlook: '0%',
+    resourceDeployed: '0',
+    resourceUtilized: '0',
+    resourceShortage: '0',
+    resourceUnderUtilized: '0',
+    qualityTotal: '0',
+    qualityCompleted: '0',
+    qualityOpen: '0',
+    qualityCritical: '0'
   });
 
   // Budget Table Data (Array of Arrays to support Handsontable Excel-like editing natively)
@@ -3542,18 +3554,35 @@ const ProjectTitleDashboard = () => {
                   </div>
 
                   {/* Overall Project Health */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e3a5f' }}>Project Health:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ 
-                      padding: '6px 16px', 
-                      borderRadius: '20px', 
-                      fontWeight: 'bold', 
-                      color: 'white',
-                      backgroundColor: dashboardData?.project_health === 'Red' ? '#ef4444' : 
-                                       dashboardData?.project_health === 'Yellow' ? '#f59e0b' : 
-                                       dashboardData?.project_health === 'Green' ? '#10b981' : '#6b7280'
+                      padding: '8px 20px', 
+                      borderRadius: '12px', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)'
                     }}>
-                      {dashboardData?.project_health || 'Unknown'}
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Project Health
+                      </span>
+                      <div style={{ 
+                        height: '24px', 
+                        padding: '0 12px', 
+                        borderRadius: '6px', 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12px',
+                        fontWeight: 900,
+                        color: 'white',
+                        backgroundColor: dashboardData?.project_health === 'Red' ? '#ef4444' : 
+                                         dashboardData?.project_health === 'Yellow' ? '#f59e0b' : 
+                                         dashboardData?.project_health === 'Green' ? '#10b981' : '#64748b'
+                      }}>
+                        {projectHealthEmoji} {dashboardData?.project_health?.toUpperCase() || 'UNKNOWN'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3562,7 +3591,42 @@ const ProjectTitleDashboard = () => {
 
 
               {/* Dashboard Content */}
-              <div id="dashboard-printable-area" style={{ padding: '20px 25px 25px 25px' }}>
+              <div id="dashboard-printable-area" style={{ padding: '25px' }}>
+                
+                {/* Executive Summary Cards */}
+                {visibleSections.milestones && (
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                    gap: '20px', 
+                    marginBottom: '28px' 
+                  }}>
+                    {[
+                      { label: 'Total Milestones', value: milestoneStats.total, color: '#1e3a5f', icon: <TrendingUp size={16}/> },
+                      { label: 'Completed', value: milestoneStats.completed, color: '#10b981', icon: <CheckCircle2 size={16}/> },
+                      { label: 'Delayed', value: milestoneStats.delayed, color: '#ef4444', icon: <AlertCircle size={16}/> },
+                      { label: 'Pending', value: milestoneStats.pending, color: '#f59e0b', icon: <Clock size={16}/> }
+                    ].map((card, i) => (
+                      <div key={i} style={{
+                        backgroundColor: '#fff',
+                        padding: '20px',
+                        borderRadius: '16px',
+                        border: '1px solid #f1f5f9',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}>
+                          {card.icon}
+                          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{card.label}</span>
+                        </div>
+                        <div style={{ fontSize: '28px', fontWeight: 900, color: card.color }}>{card.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Milestones Section */}
                 {visibleSections.milestones && (
                   <div style={{
@@ -3601,36 +3665,43 @@ const ProjectTitleDashboard = () => {
                         <Edit className="h-4 w-4" />
                       </button>
                     </div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: '13px' }}>
                       <thead>
-                        <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: '#f1f5f9' }}>
-                          <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontWeight: 'bold' }}>Module</th>
-                          <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontWeight: 'bold' }}>Milestone</th>
-                          <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontWeight: 'bold' }}>Planned</th>
-                          <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontWeight: 'bold' }}>Actual</th>
-                          <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontWeight: 'bold' }}>Status</th>
+                        <tr style={{ backgroundColor: '#f8fafc' }}>
+                          <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Module</th>
+                          <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Milestone</th>
+                          <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Planned</th>
+                          <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Actual</th>
+                          <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         {dashboardData?.milestones?.length > 0 ? dashboardData.milestones.map((m, index) => (
-                          <tr key={index} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '12px 15px', color: '#1e3a5f', fontWeight: 'bold' }}>{m.module}</td>
-                            <td style={{ padding: '12px 15px', color: '#445164' }}>{m.milestone}</td>
-                            <td style={{ padding: '12px 15px', color: '#445164' }}>{m.planned_date}</td>
-                            <td style={{ padding: '12px 15px', color: '#445164' }}>{m.actual_date || "—"}</td>
-                            <td style={{ 
-                              padding: '12px 15px', 
-                              fontWeight: 'bold',
-                              color: m.status === 'Delayed' ? '#ef4444' : 
-                                     m.status === 'On Track' ? '#10b981' : '#f59e0b'
-                            }}>
-                              {m.status}
+                          <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
+                            <td style={{ padding: '14px 20px', color: '#1e3a5f', fontWeight: 700 }}>{m.module}</td>
+                            <td style={{ padding: '14px 20px', color: '#334155', fontWeight: 500 }}>{m.milestone}</td>
+                            <td style={{ padding: '14px 20px', color: '#64748b' }}>{m.planned_date}</td>
+                            <td style={{ padding: '14px 20px', color: '#64748b' }}>{m.actual_date || "—"}</td>
+                            <td style={{ padding: '14px 20px' }}>
+                              <span style={{ 
+                                padding: '4px 10px', 
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                backgroundColor: m.status === 'Delayed' ? '#fee2e2' : 
+                                               (m.status === 'On Track' || m.status === 'Complete' || m.status === 'Completed') ? '#dcfce7' : '#fef9c3',
+                                color: m.status === 'Delayed' ? '#991b1b' : 
+                                       (m.status === 'On Track' || m.status === 'Complete' || m.status === 'Completed') ? '#166534' : '#854d0e'
+                              }}>
+                                {m.status}
+                              </span>
                             </td>
                           </tr>
                         )) : (
                           <tr>
-                            <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                              No milestones data available.
+                            <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                              No milestones data available for this view.
                             </td>
                           </tr>
                         )}
