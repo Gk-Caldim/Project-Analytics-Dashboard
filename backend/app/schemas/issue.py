@@ -222,6 +222,7 @@ class MOMActionItem(BaseModel):
         return self
 
 
+class MOMIssueCreate(BaseModel):
     project_id:   int
     meeting_id:   Optional[str] = None   # FK to meetings.id (string UUID or int)
     actions:      List[MOMActionItem]

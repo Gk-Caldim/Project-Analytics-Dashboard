@@ -29,4 +29,4 @@ class EmployeeProjectResponse(EmployeeProjectBase):
     employee_role: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

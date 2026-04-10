@@ -141,6 +141,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     fetchProjects();
 
     const pid = lockedProjectId || searchParams.get('projectId');
+    const id = searchParams.get('id');
     if (id) {
       setMeetingTitle(`Meeting #${id}`);
     }
