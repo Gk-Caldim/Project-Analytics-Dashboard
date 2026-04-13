@@ -15,10 +15,15 @@ import io
 import json
 import re
 import logging
+from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.models.transcript import Transcript
+from app.schemas.transcript import TranscriptSave, TranscriptOut
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -296,3 +301,49 @@ async def upload_transcript(file: UploadFile = File(...)):
     )
 
     return _build_response(turns, fmt)
+
+
+@router.post("/save", response_model=TranscriptOut)
+async def save_transcript(
+    payload: TranscriptSave,
+    db: Session = Depends(get_db)
+):
+    """
+    Save or update a transcript for a specific meeting.
+    """
+    try:
+        # Check if transcript already exists for this meeting
+        db_transcript = db.query(Transcript).filter(Transcript.meeting_id == payload.meeting_id).first()
+        
+        if db_transcript:
+            db_transcript.transcript_data = payload.transcript_data
+            db_transcript.updated_at = datetime.now(timezone.utc)
+        else:
+            db_transcript = Transcript(
+                meeting_id=payload.meeting_id,
+                transcript_data=payload.transcript_data
+            )
+            db.add(db_transcript)
+        
+        db.commit()
+        db.refresh(db_transcript)
+        return db_transcript
+    except Exception as e:
+        db.rollback()
+        import traceback
+        logger.error(f"Error saving transcript: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Failed to save transcript: {str(e)}")
+
+
+@router.get("/{meeting_id}", response_model=TranscriptOut)
+async def get_transcript(
+    meeting_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch a persisted transcript by its meeting ID.
+    """
+    db_transcript = db.query(Transcript).filter(Transcript.meeting_id == meeting_id).first()
+    if not db_transcript:
+        raise HTTPException(status_code=404, detail="Transcript not found for this meeting.")
+    return db_transcript

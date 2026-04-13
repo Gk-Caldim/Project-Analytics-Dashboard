@@ -395,46 +395,40 @@ def create_issues_from_mom(
     for i, action in enumerate(payload.actions):
         row_ref = f"Row {i + 1}"
 
-        # Rule 1 — High priority only
-        if action.priority != "High":
-            reason = (
-                f"{row_ref}: skipped — priority='{action.priority}' "
-                "(only 'High' rows are auto-created)"
-            )
-            reasons.append(reason)
-            logger.info("MOM auto-create skipped %s — low priority", row_ref)
-            continue
-
-        # Rule 2 — owner required
+        # Rule 1 — owner required
         if not action.owner or not action.owner.strip():
             reason = f"{row_ref}: skipped — missing owner (Responsibility field is empty)"
             reasons.append(reason)
             logger.warning("MOM auto-create skipped %s — no owner", row_ref)
             continue
 
-        # Rule 3 — due_date required
-        if action.due_date is None:
-            reason = (
-                f"{row_ref}: skipped — missing due_date "
-                "(Target Date is required for High priority)"
-            )
-            reasons.append(reason)
-            logger.warning("MOM auto-create skipped %s — no due_date", row_ref)
-            continue
-
         # Build canonical title (first 50 chars of action point / description)
         source_text = (action.description or action.title or "").strip()
-        title_50    = source_text[:50] or (action.title or "")[:50]
+
+        # Keyword enforcement: only create issues for these flags
+        lower_text = source_text.lower()
+        if not any(k in lower_text for k in ["pending", "blocked", "delay"]):
+            reason = f"{row_ref}: skipped — does not contain issue triggers (pending, blocked, delay)"
+            reasons.append(reason)
+            logger.info("MOM auto-create skipped %s — missing keywords", row_ref)
+            continue
+
+        f_title_50 = source_text[:50]
+        f_desc = source_text
+        f_due_date = action.due_date
+        f_owner = action.owner.strip()
+        f_status = "Open"
+        f_priority = action.priority
 
         # Rule 4 — duplicate guard
         duplicate = issue_service.find_duplicate_issue(
-            db, project_id, title_50, action.owner.strip(), action.due_date
+            db, project_id, f_title_50, f_owner, f_due_date
         )
         if duplicate:
             reason = (
                 f"{row_ref}: skipped — duplicate issue already exists "
-                f"(id={duplicate.id}, title='{title_50[:30]}', "
-                f"owner='{action.owner}', due={action.due_date})"
+                f"(id={duplicate.id}, title='{f_title_50[:30]}', "
+                f"owner='{f_owner}', due={f_due_date})"
             )
             reasons.append(reason)
             logger.info("MOM duplicate skipped %s → existing issue id=%d", row_ref, duplicate.id)
@@ -447,13 +441,13 @@ def create_issues_from_mom(
                 project_id=project_id,
                 meeting_id=payload.meeting_id,
                 action=action.__class__(
-                    title=title_50,
-                    description=action.description or action.title,
-                    owner=action.owner.strip(),
+                    title=f_title_50,
+                    description=f_desc,
+                    owner=f_owner,
                     department=action.department,
-                    priority=action.priority,
-                    status=action.status,
-                    due_date=action.due_date,
+                    priority=f_priority,
+                    status=f_status,
+                    due_date=f_due_date,
                 ),
                 created_by=created_by,
             )
@@ -466,6 +460,7 @@ def create_issues_from_mom(
             reason = f"{row_ref}: error during creation — {exc}"
             reasons.append(reason)
             logger.error("MOM auto-create ERROR %s: %s", row_ref, exc)
+
 
     logger.info(
         "MOM sync complete — project_id=%d meeting=%s "

@@ -16,7 +16,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 # ─── Enums / literals ────────────────────────────────────────────────────────
 PriorityLiteral = Literal["High", "Medium", "Low"]
-StatusLiteral   = Literal["Open", "In Progress", "Closed"]
+StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned"]
 SourceLiteral   = Literal["Manual", "MOM", "Tracker"]
 ActionStatusLiteral = Literal["Pending", "In Progress", "Done"]
 
@@ -125,14 +125,14 @@ class IssueCreate(BaseModel):
             raise ValueError("severity_score must be between 0 and 100")
         return v
 
-    @model_validator(mode="after")
-    def high_priority_needs_due_date(self) -> "IssueCreate":
-        if self.priority == "High" and self.due_date is None:
-            raise ValueError(
-                "due_date is required for High priority issues — "
-                "governance policy forbids open-ended high priority issues"
-            )
-        return self
+    # @model_validator(mode="after")
+    # def high_priority_needs_due_date(self) -> "IssueCreate":
+    #     if self.priority == "High" and self.due_date is None:
+    #         raise ValueError(
+    #             "due_date is required for High priority issues — "
+    #             "governance policy forbids open-ended high priority issues"
+    #         )
+    #     return self
 
 
 class IssueUpdate(BaseModel):
@@ -145,13 +145,13 @@ class IssueUpdate(BaseModel):
     status:         Optional[StatusLiteral] = None
     due_date:       Optional[date] = None
 
-    @model_validator(mode="after")
-    def high_priority_needs_due_date(self) -> "IssueUpdate":
-        if self.priority == "High" and self.due_date is None:
-            raise ValueError(
-                "due_date is required when changing priority to High"
-            )
-        return self
+    # @model_validator(mode="after")
+    # def high_priority_needs_due_date(self) -> "IssueUpdate":
+    #     if self.priority == "High" and self.due_date is None:
+    #         raise ValueError(
+    #             "due_date is required when changing priority to High"
+    #         )
+    #     return self
 
     @model_validator(mode="after")
     def cannot_close_without_owner(self) -> "IssueUpdate":
@@ -215,11 +215,11 @@ class MOMActionItem(BaseModel):
             raise ValueError("owner is required for every MOM action item")
         return v.strip()
 
-    @model_validator(mode="after")
-    def high_priority_needs_due_date(self) -> "MOMActionItem":
-        if self.priority == "High" and self.due_date is None:
-            raise ValueError("due_date is required for High priority MOM actions")
-        return self
+    # @model_validator(mode="after")
+    # def high_priority_needs_due_date(self) -> "MOMActionItem":
+    #     if self.priority == "High" and self.due_date is None:
+    #         raise ValueError("due_date is required for High priority MOM actions")
+    #     return self
 
 
 class MOMIssueCreate(BaseModel):

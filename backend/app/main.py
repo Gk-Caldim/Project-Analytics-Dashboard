@@ -37,6 +37,8 @@ from app.models.tracker import TrackerData # noqa: F401
 from app.models.upload import Upload # noqa: F401
 from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
+from app.models.transcript import Transcript  # noqa: F401
+from app.models.mom import MOMSession  # noqa: F401
 
 # Import routers
 from app.api.auth import router as auth_router
@@ -128,6 +130,12 @@ app.include_router(project_team_router, prefix=API_PREFIX)
 app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
 app.include_router(application_access_router, prefix=API_PREFIX)
+
+from app.api.transcript import router as transcript_router
+app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])
+
+from app.api.mom import router as mom_router
+app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
 
 from app.api.tracker_api import router as tracker_router
 app.include_router(tracker_router, prefix=API_PREFIX, tags=["Tracker"])

@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import toast from 'react-hot-toast';
 import {
   Mic, Upload, X, Play, Pause, Square, FileText, FileUp, CornerDownLeft, Plus,
-  CheckCircle, Edit2, Sparkles, Download, Clipboard
+  CheckCircle, Edit2, Sparkles, Download, Clipboard, Target, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
-import { Target } from 'lucide-react';
+import { setMeetingContext, saveMOM } from '../../store/slices/momSlice';
 
 // ── Speaker colour palette ──────────────────────────────────────────
 const SPEAKER_COLORS = [
@@ -111,6 +113,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const currentUser = useMemo(() => {
     const name = user?.full_name || user?.name || user?.username || user?.email || '';
@@ -123,10 +126,64 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     };
   }, [user]);
 
-  // ── Config state ────────────────────────────────────────────────
   const [meetingTitle, setMeetingTitle] = useState('');
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState([]);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [lastSaved, setLastSaved] = useState(null);
+
+  // ── Transcript state ───────────────────────────────────────────────
+  const [entries, setEntries] = useState([]);
+  const [interimText, setInterimText] = useState('');
+  const [hasUploadedTranscript, setHasUploadedTranscript] = useState(false);
+  const [uploadPreviewLines, setUploadPreviewLines] = useState([]); // first 5 lines
+  const [speakersConfirmed, setSpeakersConfirmed] = useState(false);
+  const [isAddingPoints, setIsAddingPoints] = useState(false);
+  const transcriptRef = useRef(null);
+
+  const meetingId = useMemo(() => {
+    return searchParams.get('id') || searchParams.get('meetingId') || 'unscheduled-session';
+  }, [searchParams]);
+
+  const fetchTranscript = React.useCallback(async (id) => {
+    try {
+      setSaveStatus('loading');
+      const resp = await API.get(`/transcript/${id}`);
+      if (resp.data && resp.data.transcript_data) {
+        setEntries(resp.data.transcript_data);
+        if (resp.data.transcript_data.length > 0) {
+          setHasUploadedTranscript(true);
+          setSpeakersConfirmed(true);
+        }
+        setSaveStatus('saved');
+        setLastSaved(new Date(resp.data.updated_at));
+      }
+    } catch (err) {
+      if (err.response?.status !== 404) {
+        console.error('Failed to fetch transcript', err);
+        setSaveStatus('error');
+      } else {
+        setSaveStatus('idle');
+      }
+    }
+  }, []);
+
+  const saveTranscript = React.useCallback(async (dataToSave = entries) => {
+    if (!meetingId || (dataToSave.length === 0 && saveStatus === 'idle')) return;
+    
+    try {
+      setSaveStatus('saving');
+      const resp = await API.post('/transcript/save', {
+        meeting_id: meetingId,
+        transcript_data: dataToSave
+      });
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+    } catch (err) {
+      console.error('Failed to save transcript', err);
+      setSaveStatus('error');
+    }
+  }, [meetingId, entries, saveStatus]);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -141,14 +198,28 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     fetchProjects();
 
     const pid = lockedProjectId || searchParams.get('projectId');
-    const id = searchParams.get('id');
-    if (id) {
-      setMeetingTitle(`Meeting #${id}`);
+    
+    // Always fetch transcript for the current meetingId (includes unscheduled-session fallback)
+    if (meetingId) {
+      if (!meetingTitle && meetingId !== 'unscheduled-session') {
+        setMeetingTitle(`Meeting #${meetingId}`);
+      }
+      fetchTranscript(meetingId);
     }
+    
     if (pid) {
       setProjectId(pid);
     }
-  }, [searchParams, lockedProjectId]);
+  }, [searchParams, lockedProjectId, fetchTranscript, meetingId, meetingTitle]);
+
+  // Auto-save logic
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const timer = setTimeout(() => {
+      saveTranscript();
+    }, 4000); // Debounce save for 4 seconds
+    return () => clearTimeout(timer);
+  }, [entries, saveTranscript]);
 
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
@@ -160,21 +231,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
   const [timerVal, setTimerVal] = useState(0);
   const timerRef = useRef(null);
 
-  // ── Toast state ─────────────────────────────────────────────────
-  const [toastMsg, setToastMsg] = useState('');
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
-  };
 
-  // ── Transcript state ───────────────────────────────────────────────
-  const [entries, setEntries] = useState([]);
-  const [interimText, setInterimText] = useState('');
-  const [hasUploadedTranscript, setHasUploadedTranscript] = useState(false);
-  const [uploadPreviewLines, setUploadPreviewLines] = useState([]); // first 5 lines
-  const [speakersConfirmed, setSpeakersConfirmed] = useState(false);
-  const [isAddingPoints, setIsAddingPoints] = useState(false);
-  const transcriptRef = useRef(null);
 
   // ── Speaker rename state ─────────────────────────────────────────
   const [renamingSpeaker, setRenamingSpeaker] = useState(null); // name being renamed
@@ -239,12 +296,12 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
   };
 
   // ── Waveform (Web Audio API) ────────────────────────────────────
-  const [waveHeights, setWaveHeights] = useState(Array(30).fill(4));
+  const [waveHeights, setWaveHeights] = useState(Array(32).fill(4));
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const dataArrayRef = useRef(null);
   const animationFrameRef = useRef(null);
-  const targetWaveHeightsRef = useRef(Array(30).fill(4));
+  const targetWaveHeightsRef = useRef(Array(32).fill(4));
 
   useEffect(() => {
     let stream = null;
@@ -256,34 +313,60 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
         if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch(err => {
+
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        }).catch(err => {
           console.warn('Microphone visualization error:', err);
-          setMicError('Microphone access needed for visualizer.');
+          setMicError('Microphone active, but visualizer blocked.');
           return null;
         });
+
         if (!isActive || !stream) return;
+
         const source = audioContextRef.current.createMediaStreamSource(stream);
         analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
+        analyserRef.current.fftSize = 512;
+        analyserRef.current.smoothingTimeConstant = 0.3; // Low smoothing = High reactivity
+        
         const bufferLength = analyserRef.current.frequencyBinCount;
         dataArrayRef.current = new Uint8Array(bufferLength);
         source.connect(analyserRef.current);
 
         const updateWaveform = () => {
           if (!analyserRef.current || !dataArrayRef.current || !isActive) return;
-          analyserRef.current.getByteTimeDomainData(dataArrayRef.current);
+          
+          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
 
           const newTargets = [];
-          for (let i = 0; i < 30; i++) {
-            const dataIndex = Math.floor(i * (dataArrayRef.current.length / 30));
-            const amplitude = Math.abs(dataArrayRef.current[dataIndex] - 128);
-            newTargets.push(Math.max(4, amplitude * 1.5));
+          const barCount = 32;
+          const samplingRange = Math.floor(dataArrayRef.current.length * 0.7); // Focus on lower/mid frequencies where voice is
+          const step = Math.floor(samplingRange / barCount);
+
+          for (let i = 0; i < barCount; i++) {
+            let sum = 0;
+            for (let j = 0; j < step; j++) {
+              sum += dataArrayRef.current[i * step + j];
+            }
+            const average = sum / step;
+            // Higher boost for voice-range frequencies
+            const height = Math.min(64, Math.max(6, (average / 180) * 100 + 4));
+            newTargets.push(height);
           }
           targetWaveHeightsRef.current = newTargets;
 
           setWaveHeights(prev => prev.map((current, i) => {
             const target = targetWaveHeightsRef.current[i];
-            return current + (target - current) * 0.3; // lerp
+            const lerpFactor = 0.45; // Faster snapping to word peaks
+            return current + (target - current) * lerpFactor;
           }));
 
           animationFrameRef.current = requestAnimationFrame(updateWaveform);
@@ -292,8 +375,8 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
       } catch (err) {
         console.warn('Audio visualization fallback:', err);
         const interval = setInterval(() => {
-          if (isActive) setWaveHeights(Array.from({ length: 30 }, () => Math.round(4 + Math.random() * 32)));
-        }, 80);
+          if (isActive) setWaveHeights(Array.from({ length: 32 }, () => Math.round(6 + Math.random() * 24)));
+        }, 100);
         animationFrameRef.current = interval;
       }
     };
@@ -301,7 +384,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     if (isRecording) {
       setupAudio();
     } else {
-      setWaveHeights(Array(30).fill(4));
+      setWaveHeights(Array(32).fill(6));
     }
 
     return () => {
@@ -494,7 +577,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
       stopAndFlush();
       setTimerVal(0);
       setRecordingState('IDLE');
-      showToast('Recording stopped — ready to generate.');
+      toast.success('Recording stopped — ready to generate.');
     }
   };
 
@@ -534,25 +617,117 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     setTimeout(() => {
       setEntries(currentEntries => {
         const speechEntries = currentEntries.filter(e => e.type === 'speech');
-        const fullText = speechEntries.map(e => e.text).join(' ');
         const additionalText = speechEntries.filter(e => e.isAdditional).map(e => e.text).join(' ');
 
-        onProcessSpeech([{
-          id: Date.now(),
-          s_no: '1',
-          function: 'General',
-          project_name: meetingTitle || 'Untitled meeting',
-          criticality: 'High',
-          discussion_point: fullText || 'No context recorded.',
-          responsibility: attendees.join(', ') || currentUser.name,
-          target: new Date().toLocaleDateString(),
-          // Wait, passing it as project_id here:
-          project_id: projectId ? Number(projectId) : undefined,
-          status: 'Pending',
-          action_taken: additionalText ? `Additional: ${additionalText}` : 'None',
-          // pass through structured entries for rich table
-          _rawEntries: currentEntries,
-        }]);
+        const generatedRows = [];
+        let rowCount = 1;
+
+        speechEntries.forEach(entry => {
+          // Split entry text by punctuation followed by space
+          const rawSentences = entry.text.split(/(?<=[.?!])\s+/);
+
+          rawSentences.forEach(rawSentence => {
+            const cleanText = rawSentence.trim();
+
+            // Ignore very short bursts
+            if (cleanText.length < 3) return;
+
+            const lower = cleanText.toLowerCase();
+            // Heuristic to ignore simple greetings / filler lines
+            const isFiller = /^(thanks|good afternoon|good morning|hello|hi|bye|see you|good evening|sounds good|okay|ok|yes|no)\.?$/i.test(lower);
+            if (isFiller) return;
+
+            let sentenceSpeaker = entry.speaker;
+            let actualPoint = cleanText;
+
+            // Extract speaker before ":" if text is formatted like "Rahul: API latency reduced."
+            const speakerMatch = cleanText.match(/^([A-Za-z\s]{2,20}):\s*(.*)$/);
+            if (speakerMatch) {
+              sentenceSpeaker = speakerMatch[1].trim();
+              actualPoint = speakerMatch[2].trim();
+            }
+
+            if (!actualPoint) return;
+
+            // Detect semantic targets (tomorrow, next week, etc) or keep null
+            let targetDate = ''; // Fallback for UI if null
+            const pointLower = actualPoint.toLowerCase();
+            if (pointLower.includes('tomorrow')) {
+              const t = new Date(); t.setDate(t.getDate() + 1); targetDate = t.toLocaleDateString('en-GB');
+            } else if (pointLower.includes('today')) {
+              targetDate = new Date().toLocaleDateString('en-GB');
+            } else if (pointLower.includes('next week')) {
+              const t = new Date(); t.setDate(t.getDate() + 7); targetDate = t.toLocaleDateString('en-GB');
+            }
+
+            // Determine Function (module mapping)
+            let funcStr = 'General';
+            if (/api|backend|database|db|sql|server|latency/i.test(pointLower)) funcStr = 'Backend';
+            else if (/ui|frontend|react|dashboard|button|page/i.test(pointLower)) funcStr = 'Frontend';
+            else if (/design|ux|figma|color/i.test(pointLower)) funcStr = 'Design';
+            else if (/test|qa|bug|issue/i.test(pointLower)) funcStr = 'QA';
+
+            // Ensure status is correctly defaulted
+            let statusStr = 'Pending';
+            if (/(completed|done|finished|resolved)/i.test(pointLower)) {
+              statusStr = 'Done';
+            }
+
+            generatedRows.push({
+              id: Date.now() + Math.random(),
+              s_no: String(rowCount++),
+              function: funcStr,
+              project_name: meetingTitle || 'Untitled meeting',
+              criticality: 'High',
+              discussion_point: actualPoint,
+              responsibility: sentenceSpeaker || attendees.join(', ') || currentUser.name,
+              target: targetDate || '',  // Null/Empty string if none detected
+              project_id: projectId ? Number(projectId) : undefined,
+              status: statusStr,
+              action_taken: additionalText ? `Additional: ${additionalText}` : 'None',
+              _rawEntries: currentEntries,
+            });
+          });
+        });
+
+        // Fallback if somehow everything was filtered out
+        if (generatedRows.length === 0) {
+          generatedRows.push({
+            id: Date.now(),
+            s_no: '1',
+            function: 'General',
+            project_name: meetingTitle || 'Untitled meeting',
+            criticality: 'High',
+            discussion_point: 'No context recorded.',
+            responsibility: attendees.join(', ') || currentUser.name,
+            target: new Date().toLocaleDateString(),
+            project_id: projectId ? Number(projectId) : undefined,
+            status: 'Pending',
+            action_taken: additionalText ? `Additional: ${additionalText}` : 'None',
+            _rawEntries: currentEntries,
+          });
+        }
+
+        // Final Data Sync to Redux & Backend
+        const proj = projects.find(p => String(p.id || p.project_id) === String(projectId));
+        const projName = proj ? (proj.name || proj.project_name) : (meetingTitle || 'Untitled meeting');
+
+        dispatch(setMeetingContext({
+          meetingId,
+          meetingName: meetingTitle || 'Untitled meeting',
+          projectId: projectId || null,
+          projectName: projName
+        }));
+
+        dispatch(saveMOM({
+          meetingId,
+          meetingName: meetingTitle || 'Untitled meeting',
+          projectId: projectId || null,
+          projectName: projName,
+          momData: generatedRows
+        }));
+
+        onProcessSpeech(generatedRows);
         switchToTable();
         return currentEntries;
       });
@@ -561,6 +736,25 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
 
   // ── File upload ──────────────────────────────────────────────────
   const handleFileUpload = (e) => {
+    // ── Validation ──
+    if (!meetingTitle.trim()) {
+      toast.error('Please enter a Meeting Name first');
+      e.target.value = '';
+      return;
+    }
+    if (!lockedProjectId && !projectId) {
+      toast.error('Please select a Project first');
+      e.target.value = '';
+      return;
+    }
+
+    if (entries.length > 0) {
+      const confirmed = window.confirm("Warning: Uploading a new file will replace the current transcript data. This action cannot be undone. Do you want to proceed?");
+      if (!confirmed) {
+        e.target.value = ''; 
+        return;
+      }
+    }
     const file = e.target.files[0];
     if (!file) return;
 
@@ -724,13 +918,26 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
         .animate-fadeInFast { animation: fadeIn 0.2s ease; }
       `}</style>
 
-      {/* ── TOAST ── */}
-      {toastMsg && (
-        <div className="fixed top-6 right-6 z-50 animate-slideUp bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3">
-          <CheckCircle className="w-4 h-4 text-emerald-400" />
-          {toastMsg}
+
+      {/* ── SAVE STATUS INDICATOR ── */}
+      <div className="fixed bottom-6 left-6 z-40">
+        <div className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase shadow-lg border flex items-center gap-2 transition-all duration-300 ${
+          saveStatus === 'saving' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+          saveStatus === 'saved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+          saveStatus === 'error' ? 'bg-red-50 text-red-600 border-red-200' :
+          'bg-gray-50 text-gray-400 border-gray-200'
+        }`}>
+          {saveStatus === 'saving' && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+          {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
+          {saveStatus === 'error' && <AlertCircle className="w-3.5 h-3.5" />}
+          
+          <span>
+            {saveStatus === 'saving' ? 'Syncing Transcript...' : 
+             saveStatus === 'saved' ? `Transcript Cached` :
+             saveStatus === 'error' ? 'Sync Error' : 'Offline'}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* ── BACK LINK ── */}
       <div className="mb-2">
@@ -741,28 +948,34 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
 
       {/* ── METADATA BAR ── */}
       <div className="bg-white rounded-xl border border-black/10 overflow-hidden flex flex-col sm:flex-row items-center divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
-        <input
-          type="text"
-          placeholder="Untitled meeting"
-          value={meetingTitle}
-          onChange={(e) => setMeetingTitle(e.target.value)}
-          className="w-full sm:w-1/4 px-4 py-3 text-xs focus:outline-none placeholder-gray-400"
-        />
+        <div className="relative w-full sm:w-1/4">
+          <input
+            type="text"
+            placeholder="Meeting Name *"
+            value={meetingTitle}
+            onChange={(e) => setMeetingTitle(e.target.value)}
+            className={`w-full px-4 py-3 text-xs focus:outline-none placeholder-gray-400 font-medium ${
+              mode === 'upload' && !meetingTitle.trim() ? 'bg-red-50/30' : ''
+            }`}
+          />
+        </div>
         {!lockedProjectId && (
           <div className="w-full sm:w-1/4 px-2 py-2 text-xs flex items-center">
-              <Target className="w-3.5 h-3.5 text-gray-400 mr-2 ml-2" />
-              <select
-                  className="w-full bg-transparent focus:outline-none appearance-none cursor-pointer text-gray-700"
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-              >
-                  <option value="">Select Project...</option>
-                  {projects.map(p => (
-                      <option key={p.id || p.project_id} value={p.id || p.project_id}>
-                          {p.name || p.project_name}
-                      </option>
-                  ))}
-              </select>
+            <Target className="w-3.5 h-3.5 text-gray-400 mr-2 ml-2" />
+            <select
+              className={`w-full bg-transparent focus:outline-none appearance-none cursor-pointer text-gray-700 font-medium ${
+                mode === 'upload' && !projectId ? 'bg-red-50/50' : ''
+              }`}
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">Select Project *</option>
+              {projects.map(p => (
+                <option key={p.id || p.project_id} value={p.id || p.project_id}>
+                  {p.name || p.project_name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
         <div className="w-full sm:w-[15%] px-4 py-3 text-xs text-gray-500 whitespace-nowrap bg-gray-50/50">
@@ -859,16 +1072,17 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
                     {waveHeights.map((h, i) => (
                       <div
                         key={i}
-                        className={`rounded-full flex-shrink-0 transition-all ease-in-out ${recordingState === 'RECORDING'
-                          ? 'bg-red-500'
+                        className={`rounded-full flex-shrink-0 transition-all ease-out ${recordingState === 'RECORDING'
+                          ? 'bg-gradient-to-t from-red-600 to-rose-400'
                           : recordingState === 'PAUSED'
                             ? 'bg-amber-400'
-                            : 'bg-gray-300'
+                            : 'bg-gray-200'
                           }`}
                         style={{
-                          width: '3px',
-                          height: recordingState === 'IDLE' ? '8px' : `${h}px`,
-                          transitionDuration: recordingState === 'RECORDING' ? '80ms' : '300ms',
+                          width: '4px',
+                          height: recordingState === 'IDLE' ? '6px' : `${h}px`,
+                          opacity: recordingState === 'IDLE' ? 0.3 : 1,
+                          transitionDuration: recordingState === 'RECORDING' ? '50ms' : '200ms',
                         }}
                       />
                     ))}

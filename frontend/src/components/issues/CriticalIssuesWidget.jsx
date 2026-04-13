@@ -14,8 +14,8 @@ const CriticalIssuesWidget = ({ projectId }) => {
   const [selectedIssue, setSelectedIssue] = useState(null);
   
   // Filter States
-  const [statusFilter, setStatusFilter] = useState('Open'); // Default to Open
-  const [priorityFilter, setPriorityFilter] = useState('High'); // Default to High
+  const [statusFilter, setStatusFilter] = useState('All'); // Default to All instead of Open to show more data
+  const [priorityFilter, setPriorityFilter] = useState('High'); // Keep High as default for 'Critical' widget
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
@@ -51,7 +51,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
         iss.owner?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    return result.slice(0, 5); // Limit to top 5 as per executive requirement
+    return result; // Removed .slice(0, 5) to show ALL issues returned by API
   }, [issues, searchQuery]);
 
   const getStatusIcon = (health) => {
@@ -158,9 +158,9 @@ const CriticalIssuesWidget = ({ projectId }) => {
           <div style={styles.emptyState}>
             <CheckCircle2 size={32} color="#10b981" style={{ marginBottom: 12, opacity: 0.5 }} />
             <div style={styles.emptyText}>
-              {searchQuery || statusFilter !== 'Open' || priorityFilter !== 'High' 
+              {searchQuery || statusFilter !== 'All' || priorityFilter !== 'High' 
                 ? "No issues match these filters." 
-                : "No critical issues. Project is on track."}
+                : "No critical issues"}
             </div>
           </div>
         ) : (

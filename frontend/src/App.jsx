@@ -22,6 +22,7 @@ import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
 
 import { ThemeProvider } from './contexts/ThemeContext';
+import { Toaster } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
@@ -66,9 +67,19 @@ function App() {
 
   return (
     <ThemeProvider>
-      <ErrorBoundary>
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          duration: 2500,
+          style: { fontSize: '12px', fontWeight: '600', borderRadius: '10px', boxShadow: '0 4px 24px rgba(0,0,0,0.12)' },
+          success: { iconTheme: { primary: '#059669', secondary: '#fff' }, style: { background: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0' } },
+          error:   { iconTheme: { primary: '#dc2626', secondary: '#fff' }, style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }, duration: 4000 },
+          loading: { style: { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' } },
+        }}
+      />
 
-      <Router>
+      <ErrorBoundary>
+        <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
           

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
+import toast from 'react-hot-toast';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown, Loader2 } from 'lucide-react';
 import API from '../../utils/api';
+import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
 
 const CRITICALITY_STYLES = {
   'High': 'bg-red-50 text-red-700 border-red-200 uppercase',
@@ -16,12 +19,12 @@ const STATUS_STYLES = {
 };
 
 const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
+  const dispatch = useDispatch();
+  const { meetingId, meetingName, projectId: reduxProjectId, projectName: reduxProjectName, status: reduxStatus } = useSelector(state => state.mom);
+
   // ── Project selector state ──────────────────────────────────────
   const [projects, setProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(() => {
-    // Pre-seed from first meeting row if it already has a project_id
-    return lockedProjectId || (meetings?.[0]?.project_id ? String(meetings[0].project_id) : '');
-  });
+  const [selectedProjectId, setSelectedProjectId] = useState(reduxProjectId || '');
 
   useEffect(() => {
     API.get('/projects')
@@ -34,14 +37,12 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
       .catch(err => console.error('Failed to fetch projects', err));
   }, []);
 
-  // If first meeting row already carries a project_id (e.g. from ScheduleMeetingPage
-  // navigate context), use it as the default once projects have loaded.
+  // Sync local selectedProjectId with Redux
   useEffect(() => {
-    if (!selectedProjectId) {
-      const pid = lockedProjectId || meetings?.[0]?.project_id;
-      if (pid) setSelectedProjectId(String(pid));
+    if (reduxProjectId && reduxProjectId !== selectedProjectId) {
+      setSelectedProjectId(String(reduxProjectId));
     }
-  }, [meetings, lockedProjectId, selectedProjectId]);
+  }, [reduxProjectId]);
 
   // Helper: resolve project name from id for display
   const resolveProjectName = (pid) => {
@@ -58,25 +59,29 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
   const handleSyncIssues = async () => {
     // ── Step 1: Validate project selection FIRST ───────────────────
     if (!selectedProjectId) {
-      setSyncResult({ error: 'Please select a valid project before syncing.' });
-      setTimeout(() => setSyncResult(null), 5000);
+      toast.error('Please select a valid project before syncing.');
       return;
     }
 
     // ── Step 2: Validate rows ──────────────────────────────────────
-    const highRows = meetings.filter(m => m.criticality === 'High' || m.criticality === 'Critical');
+    const triggerKeywords = ["pending", "blocked", "delay"];
+    const rowsToSync = meetings.filter(m => {
+        const text = (m.discussion_point || '').toLowerCase();
+        const isHigh = m.criticality === 'High' || m.criticality === 'Critical';
+        const hasKeywords = triggerKeywords.some(k => text.includes(k));
+        return isHigh || hasKeywords;
+    });
 
-    if (highRows.length === 0) {
-      setSyncResult({ error: 'No High or Critical-criticality rows to sync.' });
-      setTimeout(() => setSyncResult(null), 4000);
+    if (rowsToSync.length === 0) {
+      toast.error('No High priority or pending rows found to sync.');
       return;
     }
 
-    // Build action items, skip rows missing owner or target date
+    // Build action items, skip rows missing owner
     const actions = [];
     const localSkipped = [];
 
-    highRows.forEach((m, idx) => {
+    rowsToSync.forEach((m, idx) => {
       const owner      = (m.responsibility || '').trim();
       const target     = (m.target || '').trim();
       const actionText = (m.discussion_point || '').trim();
@@ -85,18 +90,19 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
         localSkipped.push(`Row ${idx + 1}: missing Responsibility (owner)`);
         return;
       }
-      if (!target) {
-        localSkipped.push(`Row ${idx + 1}: missing Target Date`);
-        return;
-      }
 
-      // Parse target date — ISO first, then any parseable string
-      const iso = Date.parse(target);
-      if (isNaN(iso)) {
-        localSkipped.push(`Row ${idx + 1}: unrecognisable date format '${target}'`);
-        return;
+      // Parse target date — allow empty/null
+      let parsedDate = null;
+      if (target) {
+        const iso = Date.parse(target);
+        if (!isNaN(iso)) {
+          parsedDate = new Date(iso).toISOString().split('T')[0];
+        } else {
+            // If target is present but garbage, we still might want to alert or just ignore
+            // For now, if it's garbage we leave it null per "If no date -> keep null"
+            parsedDate = null;
+        }
       }
-      const parsedDate = new Date(iso).toISOString().split('T')[0];
 
       const title50 = actionText.slice(0, 50) || `MOM Action ${idx + 1}`;
 
@@ -105,7 +111,7 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
         description: actionText || title50,
         owner,
         department:  m.function || undefined,
-        priority:    'High',
+        priority:    m.criticality === 'High' || m.criticality === 'Critical' ? 'High' : 'Medium',
         due_date:    parsedDate,
         status:      m.status === 'Done' || m.status === 'Closed' ? 'Closed' : 'Open',
       });
@@ -122,24 +128,19 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
 
     // ── Step 3: POST to backend ────────────────────────────────────
     setSyncing(true);
+    const syncToast = toast.loading('Syncing issues to engine...');
     try {
       const resp = await API.post('/mom/issues', {
         project_id: Number(selectedProjectId),
         actions,
       });
       const data = resp.data;
-      // Backend returns: { total_rows, issues_created, issues_skipped, reasons, issues }
-      setSyncResult({
-        created:  data.issues_created ?? 0,
-        skipped:  (data.issues_skipped ?? 0) + localSkipped.length,
-        skipLog:  [...(data.reasons || []), ...localSkipped],
-      });
+      toast.success(`Successfully synced ${data.issues_created} issues!`, { id: syncToast });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      setSyncResult({ error: `Sync failed: ${detail}` });
+      toast.error(`Sync failed: ${detail}`, { id: syncToast });
     } finally {
       setSyncing(false);
-      setTimeout(() => setSyncResult(null), 7000);
     }
   };
 
@@ -151,6 +152,7 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
     ).join('\n');
     navigator.clipboard.writeText(`S.No\tFunction\tProject\tCriticality\tAction Points\tResponsibility\tTarget\tStatus\tAction Taken\n${text}`).then(() => {
       setCopied(true);
+      toast.success('Table copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
     });
   };
@@ -174,38 +176,18 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
   return (
     <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
 
-      {/* ── Sync Result Toast ── */}
-      {syncResult && (
-        <div className={`fixed top-6 right-6 z-50 max-w-sm rounded-2xl shadow-2xl border px-5 py-4 text-sm font-semibold animate-slideUp ${
-          syncResult.error
-            ? 'bg-red-50 border-red-200 text-red-700'
-            : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-        }`}>
-          {syncResult.error ? (
-            <div className="flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{syncResult.error}</span>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>{syncResult.created} issue{syncResult.created !== 1 ? 's' : ''} synced to Issue Engine</span>
-              </div>
-              {syncResult.skipped > 0 && (
-                <div className="text-xs text-emerald-600 opacity-70">{syncResult.skipped} row(s) skipped (non-High or missing fields)</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Removed old syncResult Toast - replaced by toast.success */}
 
       {/* ── Action Toolbar (Hidden in Print) ── */}
       <div className="flex flex-col gap-3 print:hidden">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight">Form MOM-202</h2>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Industrial Analytics Standard</p>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+               {meetingName || 'Form MOM-202'}
+            </h2>
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+              {reduxProjectName ? `Project: ${reduxProjectName}` : 'Industrial Analytics Standard'}
+            </p>
           </div>
           <div className="flex gap-3 items-center">
             {/* ── Project Dropdown (Hidden if locked) ── */}
@@ -318,32 +300,71 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
                       {m.s_no || m.sno || idx + 1}
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-semibold text-gray-700">
-                      {m.function || 'General'}
+                       <input 
+                         type="text" 
+                         defaultValue={m.function || 'General'} 
+                         className="bg-transparent text-center focus:bg-white focus:outline-indigo-500 w-full"
+                         onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })}
+                       />
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-bold text-gray-900">
                       {resolveProjectName(m.project_id) !== '—'
                         ? resolveProjectName(m.project_id)
-                        : resolveProjectName(selectedProjectId)}
+                        : (reduxProjectName || resolveProjectName(selectedProjectId))}
                     </td>
                     <td className="border border-gray-300 px-3 py-4 text-center">
-                      <span className={`px-2 py-1 rounded-[4px] text-[9px] font-black border text-center block ${critStyle}`}>
-                        {m.criticality || 'Normal'}
-                      </span>
+                      <select 
+                        defaultValue={m.criticality || 'Normal'}
+                        className={`px-2 py-1 rounded-[4px] text-[9px] font-black border text-center block bg-transparent cursor-pointer ${critStyle}`}
+                        onChange={(e) => onUpdateMeeting(m.id, { criticality: e.target.value })}
+                      >
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                      </select>
                     </td>
                     <td className="border border-gray-300 px-6 py-4 text-xs font-medium text-gray-800 leading-relaxed min-w-[300px]">
-                      {m.discussion_point || '—'}
+                      <textarea
+                        defaultValue={m.discussion_point || '—'}
+                        className="w-full bg-transparent resize-none focus:bg-white focus:outline-indigo-500 min-h-[40px]"
+                        onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })}
+                      />
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-bold text-indigo-600">
-                      {m.responsibility || '—'}
+                      <input 
+                         type="text" 
+                         defaultValue={m.responsibility || '—'} 
+                         className="bg-transparent text-center focus:bg-white focus:outline-indigo-500 w-full font-bold"
+                         onBlur={(e) => onUpdateMeeting(m.id, { responsibility: e.target.value })}
+                       />
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-mono font-bold text-gray-500">
-                      {m.target || '—'}
+                      <input 
+                         type="text" 
+                         defaultValue={m.target || '—'} 
+                         className="bg-transparent text-center focus:bg-white focus:outline-indigo-500 w-full"
+                         onBlur={(e) => onUpdateMeeting(m.id, { target: e.target.value })}
+                       />
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs">
-                      <span className={statusStyle}>{m.status || 'Pending'}</span>
+                       <select 
+                         defaultValue={m.status || 'Pending'}
+                         className={`bg-transparent cursor-pointer font-bold ${statusStyle}`}
+                         onChange={(e) => onUpdateMeeting(m.id, { status: e.target.value })}
+                       >
+                         <option value="Pending">Pending</option>
+                         <option value="Done">Done</option>
+                         <option value="Closed">Closed</option>
+                         <option value="Blocked">Blocked</option>
+                       </select>
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-xs text-gray-500 italic">
-                      {m.action_taken && m.action_taken !== 'None' ? m.action_taken : 'No update.'}
+                      <textarea
+                        defaultValue={m.action_taken || 'No update.'}
+                        className="w-full bg-transparent resize-none focus:bg-white focus:outline-indigo-500"
+                        onBlur={(e) => onUpdateMeeting(m.id, { action_taken: e.target.value })}
+                      />
                     </td>
                     <td className="border border-gray-300 px-3 py-4 text-center print:hidden">
                       <button
