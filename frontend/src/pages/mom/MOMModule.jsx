@@ -111,12 +111,7 @@ const MOMModule = () => {
             )}
           </div>
           
-          <button
-            onClick={() => navigate('/dashboard/meetings')}
-            className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 uppercase tracking-widest transition-colors flex items-center gap-1"
-          >
-            ← Exit
-          </button>
+
         </div>
       </div>
 

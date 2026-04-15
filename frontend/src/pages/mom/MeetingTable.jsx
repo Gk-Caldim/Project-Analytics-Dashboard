@@ -64,12 +64,8 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
     }
 
     // ── Step 2: Validate rows ──────────────────────────────────────
-    const triggerKeywords = ["pending", "blocked", "delay"];
     const rowsToSync = meetings.filter(m => {
-        const text = (m.discussion_point || '').toLowerCase();
-        const isHigh = m.criticality === 'High' || m.criticality === 'Critical';
-        const hasKeywords = triggerKeywords.some(k => text.includes(k));
-        return isHigh || hasKeywords;
+        return m.criticality === 'High' || m.criticality === 'Critical';
     });
 
     if (rowsToSync.length === 0) {
@@ -159,19 +155,6 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
 
   const handlePrint = () => window.print();
 
-  if (!meetings || meetings.length === 0) {
-    return (
-      <div className="max-w-6xl mx-auto py-20 px-4">
-        <div className="bg-white border-2 border-dashed border-gray-200 rounded-3xl flex flex-col items-center justify-center p-16 text-center">
-          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-            <Tag className="w-8 h-8 text-gray-300" />
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">No meeting notes captured</h3>
-          <p className="text-gray-500 max-w-sm mb-8">Generated minutes will appear here in the formal grid format once you've recorded or uploaded a transcript.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">

@@ -359,10 +359,12 @@ def create_issues_from_mom(
     """
     AUTO-CREATE issues from MOM action rows.
 
-    Business rules enforced (none can be bypassed here):
+    Business rules enforced:
       1. Only priority == 'High' rows are processed
       2. owner must be non-empty (Responsibility column)
-      3. due_date must be present (Target Date column)
+      3. due_date STRONGLY RECOMMENDED — if missing on High priority:
+         • HIGH priority without due_date → auto-downgrade to MEDIUM
+         • (allows sync to succeed with risk mitigation logged)
       4. Duplicate guard: title[:50] + owner + due_date + project_id must
          be unique among open issues — duplicates are skipped with a reason logged
 
@@ -371,7 +373,7 @@ def create_issues_from_mom(
       Action Points  -> description  (first 50 chars -> title)
       Responsibility -> owner
       Target Date    -> due_date
-      Criticality    -> priority
+      Criticality    -> priority (auto-downgraded if High + no due_date)
       Project        -> project_id
 
     Response:
@@ -379,7 +381,14 @@ def create_issues_from_mom(
         "total_rows":     <int>,
         "issues_created": <int>,
         "issues_skipped": <int>,
-        "reasons":        [<human-readable skip reason>, ...],
+        "missing_dates_downgraded": <int>,
+        "summary": {
+          "missing_owner":       <int>,
+          "missing_date_downgraded": <int>,
+          "duplicate":           <int>,
+          "error":               <int>
+        },
+        "details":        [{"row": int, "reason": str, "action": str}],
         "issues":         [<IssueOut>, ...]
       }
     """
@@ -389,52 +398,79 @@ def create_issues_from_mom(
     created_by = user.get("email") or user.get("employee_id") or "MOM-Auto"
     total_rows = len(payload.actions)
     created: List[IssueOut] = []
-    reasons: List[str]      = []
+    details: List[dict] = []
+    
+    # Summary counters
+    summary = {
+        "missing_owner": 0,
+        "missing_date_downgraded": 0,
+        "duplicate": 0,
+        "error": 0,
+    }
 
     # 2. Process each action row
     for i, action in enumerate(payload.actions):
-        row_ref = f"Row {i + 1}"
+        row_num = i + 1
+        row_ref = f"Row {row_num}"
 
-        # Rule 1 — owner required
+        # ── Validation: owner required ──
         if not action.owner or not action.owner.strip():
-            reason = f"{row_ref}: skipped — missing owner (Responsibility field is empty)"
-            reasons.append(reason)
+            summary["missing_owner"] += 1
+            detail = {
+                "row": row_num,
+                "reason": "Missing owner (Responsibility field is empty)",
+                "action": "SKIPPED",
+                "title": (action.description or action.title or "")[:40],
+            }
+            details.append(detail)
             logger.warning("MOM auto-create skipped %s — no owner", row_ref)
             continue
 
         # Build canonical title (first 50 chars of action point / description)
         source_text = (action.description or action.title or "").strip()
 
-        # Keyword enforcement: only create issues for these flags
-        lower_text = source_text.lower()
-        if not any(k in lower_text for k in ["pending", "blocked", "delay"]):
-            reason = f"{row_ref}: skipped — does not contain issue triggers (pending, blocked, delay)"
-            reasons.append(reason)
-            logger.info("MOM auto-create skipped %s — missing keywords", row_ref)
-            continue
-
         f_title_50 = source_text[:50]
         f_desc = source_text
         f_due_date = action.due_date
         f_owner = action.owner.strip()
         f_status = "Open"
-        f_priority = action.priority
+        f_priority = action.priority or "High"
 
-        # Rule 4 — duplicate guard
+        # ── Smart Priority Handling: High without due_date → downgrade to Medium ──
+        priority_downgraded = False
+        if f_priority == "High" and not f_due_date:
+            f_priority = "Medium"
+            priority_downgraded = True
+            summary["missing_date_downgraded"] += 1
+            detail = {
+                "row": row_num,
+                "reason": "Missing due date (Target column is empty)",
+                "action": "CREATED (priority downgraded from High → Medium)",
+                "title": f_title_50[:40],
+            }
+            details.append(detail)
+            logger.info(
+                "MOM auto-create %s — HIGH→MEDIUM due to missing due_date: %s",
+                row_ref, f_title_50[:40]
+            )
+
+        # ── Duplicate guard ──
         duplicate = issue_service.find_duplicate_issue(
             db, project_id, f_title_50, f_owner, f_due_date
         )
         if duplicate:
-            reason = (
-                f"{row_ref}: skipped — duplicate issue already exists "
-                f"(id={duplicate.id}, title='{f_title_50[:30]}', "
-                f"owner='{f_owner}', due={f_due_date})"
-            )
-            reasons.append(reason)
+            summary["duplicate"] += 1
+            detail = {
+                "row": row_num,
+                "reason": f"Duplicate issue already exists (id={duplicate.id})",
+                "action": "SKIPPED",
+                "title": f_title_50[:40],
+            }
+            details.append(detail)
             logger.info("MOM duplicate skipped %s → existing issue id=%d", row_ref, duplicate.id)
             continue
 
-        # Create the issue — catch per-row errors so the batch never fails entirely
+        # ── Create the issue — catch per-row errors so batch never fails entirely ──
         try:
             issue = issue_service.create_issue_from_mom_action(
                 db=db,
@@ -452,29 +488,56 @@ def create_issues_from_mom(
                 created_by=created_by,
             )
             created.append(_serialize(issue))
+            
+            # Only add detail if not already added (e.g., priority downgrade case)
+            if not priority_downgraded:
+                detail = {
+                    "row": row_num,
+                    "reason": f"Created successfully (priority={f_priority})",
+                    "action": "CREATED",
+                    "title": f_title_50[:40],
+                    "issue_id": issue.id,
+                }
+                details.append(detail)
+            else:
+                # Update the previously added detail with issue_id
+                for d in details:
+                    if d.get("row") == row_num:
+                        d["issue_id"] = issue.id
+                        break
+
             logger.info(
-                "MOM auto-create SUCCESS %s -> issue_id=%d project=%d",
-                row_ref, issue.id, project_id,
+                "MOM auto-create SUCCESS %s -> issue_id=%d project=%d priority=%s",
+                row_ref, issue.id, project_id, f_priority,
             )
         except Exception as exc:
-            reason = f"{row_ref}: error during creation — {exc}"
-            reasons.append(reason)
+            summary["error"] += 1
+            detail = {
+                "row": row_num,
+                "reason": f"Error during creation: {str(exc)[:100]}",
+                "action": "FAILED",
+                "title": f_title_50[:40],
+            }
+            details.append(detail)
             logger.error("MOM auto-create ERROR %s: %s", row_ref, exc)
 
 
     logger.info(
         "MOM sync complete — project_id=%d meeting=%s "
-        "total=%d created=%d skipped=%d",
+        "total=%d created=%d skipped=%d downgraded=%d",
         project_id, payload.meeting_id,
         total_rows, len(created), total_rows - len(created),
+        summary["missing_date_downgraded"],
     )
 
     return {
-        "total_rows":     total_rows,
+        "total_rows": total_rows,
         "issues_created": len(created),
         "issues_skipped": total_rows - len(created),
-        "reasons":        reasons,
-        "issues":         created,
+        "missing_dates_downgraded": summary["missing_date_downgraded"],
+        "summary": summary,
+        "details": details,
+        "issues": created,
     }
 
 

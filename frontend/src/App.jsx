@@ -13,6 +13,8 @@ import ProjectMaster from './pages/Masters/ProjectMaster';
 
 import Masters from './pages/Masters/Masters';
 import MOMModule from './pages/mom/MOMModule';
+import MeetingCapturePage from './pages/mom/MeetingCapturePage';
+import MOMViewPage from './pages/mom/MOMViewPage';
 import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
@@ -103,7 +105,9 @@ function App() {
 
             <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
             
-            <Route path="mom" element={<MOMModule />} />
+            <Route path="mom" element={<MeetingCapturePage />} />
+            <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/legacy" element={<MOMModule />} />
             <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
