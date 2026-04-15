@@ -93,7 +93,13 @@ function parseTranscriptFile(rawText) {
       currentEntry = { type: 'action', text: line.replace(/^action items?:?\s*/i, '').trim() };
       continue;
     }
-    if (currentEntry) currentEntry.text += ' ' + line.replace(/^[-•]\s*/, '');
+    
+    const cleanLine = line.replace(/^[-•]\s*/, '');
+    if (currentEntry) {
+      currentEntry.text += ' ' + cleanLine;
+    } else {
+      currentEntry = { type: 'speech', time: null, speaker: 'Transcript', text: cleanLine };
+    }
   }
   if (currentEntry) entries.push(currentEntry);
   return entries;
@@ -185,6 +191,7 @@ const MeetingCapturePage = () => {
   // ── Meta ───────────────────────────────────────────────────────────────
   const [meetingTitle, setMeetingTitle] = useState('');
   const [projectId, setProjectId]       = useState(searchParams.get('projectId') || '');
+  const reduxProjects                   = useSelector(s => s.project?.projects) || [];
   const [projects, setProjects]         = useState([]);
   const [projectError, setProjectError] = useState(false);
 
@@ -200,6 +207,7 @@ const MeetingCapturePage = () => {
 
   // ── Upload Mode ───────────────────────────────────────────────────────
   const [isDragOver, setIsDragOver]     = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState('');
   const fileInputRef                    = useRef(null);
 
   // ── Record Mode ───────────────────────────────────────────────────────
@@ -237,10 +245,14 @@ const MeetingCapturePage = () => {
 
   // ── Effects ───────────────────────────────────────────────────────────
   useEffect(() => {
-    API.get('/projects').then(r => {
-      const data = r.data.success ? r.data.projects : (Array.isArray(r.data) ? r.data : []);
-      setProjects(data);
-    }).catch(() => {});
+    if (reduxProjects && reduxProjects.length > 0) {
+      setProjects(reduxProjects);
+    } else {
+      API.get('/projects/').then(r => {
+        const data = r.data?.success ? r.data.projects : (Array.isArray(r.data) ? r.data : []);
+        setProjects(data);
+      }).catch(() => {});
+    }
 
     if (meetingId && meetingId !== 'unscheduled') {
       setMeetingTitle(`Meeting #${meetingId}`);
@@ -411,6 +423,10 @@ const MeetingCapturePage = () => {
         if (lbl === 'meeting title' && p.text) setMeetingTitle(p.text);
       }
     });
+    
+    if (!projectId) {
+      setProjectError(true);
+    }
 
     const uploadedEntries = parsed.map((p, i) => {
       if (p.type === 'metadata') {
@@ -447,10 +463,11 @@ const MeetingCapturePage = () => {
     });
     setEntries(uploadedEntries);
     toast.success(`Parsed ${uploadedEntries.length} lines`);
-  }, [getSpeakerColor]);
+  }, [getSpeakerColor, projectId]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
+    setUploadedFileName(file.name);
     const ext = file.name.split('.').pop().toLowerCase();
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -687,12 +704,16 @@ const MeetingCapturePage = () => {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="mcp-dropzone-icon">
-                    <FileUp style={{ width: 18, height: 18 }} />
+                    {uploadedFileName ? <CheckCircle style={{ width: 18, height: 18, color: '#059669' }} /> : <FileUp style={{ width: 18, height: 18 }} />}
                   </div>
-                  <div className="mcp-dropzone-title">Drop transcript file here</div>
-                  <div className="mcp-dropzone-sub">Supports .txt · .md · .json · .vtt</div>
+                  <div className="mcp-dropzone-title">
+                    {uploadedFileName ? <span style={{ color: '#059669', fontWeight: '600' }}>{uploadedFileName}</span> : 'Drop transcript file here'}
+                  </div>
+                  <div className="mcp-dropzone-sub">
+                    {uploadedFileName ? 'File uploaded successfully' : 'Supports .txt · .md · .json · .vtt'}
+                  </div>
                   <button className="mcp-file-btn" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                    <FileUp style={{ width: 12, height: 12 }} />Browse File
+                    <FileUp style={{ width: 12, height: 12 }} />{uploadedFileName ? 'Change File' : 'Browse File'}
                   </button>
                 </div>
                 <input

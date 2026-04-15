@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil } from 'lucide-react';
 import './ScheduleMeetingPage.css';
 import API from '../../utils/api'; // Assuming axios instance is set up
@@ -12,6 +13,7 @@ const ScheduleMeetingPage = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const reduxProjects = useSelector(state => state.project?.projects) || [];
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
@@ -96,16 +98,20 @@ const ScheduleMeetingPage = () => {
   // --- Fetch Projects ---
   useEffect(() => {
     const fetchProjects = async () => {
+      if (reduxProjects && reduxProjects.length > 0) {
+        setProjects(reduxProjects);
+        return;
+      }
       try {
-        const resp = await API.get('/projects');
-        const data = resp.data.success ? resp.data.projects : (Array.isArray(resp.data) ? resp.data : []);
+        const resp = await API.get('/projects/');
+        const data = resp.data?.success ? resp.data.projects : (Array.isArray(resp.data) ? resp.data : []);
         setProjects(data);
       } catch (err) {
         console.error('Failed to fetch projects', err);
       }
     };
     fetchProjects();
-  }, []);
+  }, [reduxProjects]);
 
   // --- Auth Intercept Effects ---
   useEffect(() => {
@@ -141,7 +147,7 @@ const ScheduleMeetingPage = () => {
       if (val && isEmail(val) && !attendees.includes(val)) {
         setAttendees([...attendees, val]);
         setAttendeeInput('');
-        setSelectedTime(null); // Reset time when attendees change (availability shifts)
+        setSelectedTime(null);
       }
     }
   };
@@ -536,24 +542,24 @@ const ScheduleMeetingPage = () => {
 
         {/* Calendar Card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6 transition-all">
-          <div className="calendar-header mb-6">
-            <h2 className="text-xl font-bold text-gray-800 tracking-tight">
+          <div className="flex items-center justify-between mb-6 px-1">
+            <button 
+              className="p-2.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-xl border border-gray-200 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100" 
+              onClick={handlePrevMonth}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            
+            <h2 className="text-lg font-bold text-gray-800 tracking-tight select-none pt-0.5">
               {new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </h2>
-            <div className="flex space-x-2">
-              <button className="nav-btn bg-gray-50 hover:bg-gray-100 border border-gray-200" onClick={handleToday}>
-                Today
-              </button>
-              <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <button className="nav-btn-icon bg-gray-50 hover:bg-gray-100" onClick={handlePrevMonth}>
-                  <ChevronLeft className="h-5 w-5 text-gray-600" />
-                </button>
-                <div className="w-px bg-gray-200"></div>
-                <button className="nav-btn-icon bg-gray-50 hover:bg-gray-100" onClick={handleNextMonth}>
-                  <ChevronRight className="h-5 w-5 text-gray-600" />
-                </button>
-              </div>
-            </div>
+            
+            <button 
+              className="p-2.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-xl border border-gray-200 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100" 
+              onClick={handleNextMonth}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
 
           <div className="calendar-grid">
