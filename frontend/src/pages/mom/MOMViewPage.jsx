@@ -14,7 +14,8 @@ import {
   FileText, Plus
 } from 'lucide-react';
 import API from '../../utils/api';
-import { updateMomRow, deleteMomRow, saveMOM } from '../../store/slices/momSlice';
+import { updateMomRow, deleteMomRow, saveMOM, setMomData as setMomDataRedux } from '../../store/slices/momSlice';
+import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
 import './MOMViewPage.css';
@@ -46,17 +47,17 @@ const MOMViewPage = () => {
   const { meetingId, meetingName, projectId, projectName, momData, status, lastSaved } = useSelector(s => s.mom);
 
   const [projects, setProjects]    = useState([]);
+  const [employees, setEmployees]  = useState([]);
   const [selProject, setSelProject] = useState(String(projectId || ''));
-  const [syncing, setSyncing]      = useState(false);
-  const [copied, setCopied]        = useState(false);
-  const [discussionOpen, setDiscussionOpen] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [showSyncModal, setShowSyncModal] = useState(false);
 
   useEffect(() => {
     API.get('/projects').then(r => {
       const data = r.data.success ? r.data.projects : (Array.isArray(r.data) ? r.data : []);
       setProjects(data);
+    }).catch(() => {});
+
+    API.get('/employees').then(r => {
+      setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => {});
   }, []);
 
@@ -85,6 +86,42 @@ const MOMViewPage = () => {
     }
     return [];
   }, [rows]);
+
+  // Participation Metrics
+  const participationData = useMemo(() => {
+    const stats = {};
+    let totalWords = 0;
+    transcriptEntries.forEach(e => {
+      if (e.type === 'speech' && e.speaker && e.text) {
+        const words = e.text.trim().split(/\s+/).length;
+        if (!stats[e.speaker]) stats[e.speaker] = { name: e.speaker, value: 0 };
+        stats[e.speaker].value += words;
+        totalWords += words;
+      }
+    });
+    return Object.values(stats).sort((a, b) => b.value - a.value);
+  }, [transcriptEntries]);
+
+  const chartOption = useMemo(() => ({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} words ({d}%)' },
+    legend: { bottom: '0%', left: 'center', itemWidth: 8, itemHeight: 8, textStyle: { fontSize: 10, color: '#6b7280' } },
+    series: [
+      {
+        name: 'Participation',
+        type: 'pie',
+        radius: ['45%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: false } },
+        labelLine: { show: false },
+        data: participationData.map((d, i) => ({
+          ...d,
+          itemStyle: { color: getSpeakerColor(d.name).dot }
+        }))
+      }
+    ]
+  }), [participationData]);
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
@@ -146,13 +183,22 @@ const MOMViewPage = () => {
 
   const handleSave = useCallback(() => {
     dispatch(saveMOM({ meetingId, meetingName, projectId, projectName, momData: rows }));
-    setTimeout(() => {
-      toast.success('MOM saved successfully', {
-        duration: 3000,
-        icon: '✓',
-      });
-    }, 400);
   }, [dispatch, meetingId, meetingName, projectId, projectName, rows]);
+
+  // ── Auto-save (Debounced) ──
+  useEffect(() => {
+    // Skip auto-save if we just loaded or are in an error state
+    if (!meetingId || status === 'loading' || status === 'error') return;
+    
+    const handler = setTimeout(() => {
+      // Only auto-save if there's actual data and it's not currently saving
+      if (rows.length > 0 && status !== 'saving') {
+        handleSave();
+      }
+    }, 2000);
+
+    return () => clearTimeout(handler);
+  }, [rows, meetingId, handleSave, status]);
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
@@ -176,7 +222,7 @@ const MOMViewPage = () => {
             {status === 'saved'  && <CheckCircle style={{ width: 10, height: 10 }} />}
             {status === 'saving' ? 'Saving…' : status === 'saved' && lastSaved
               ? `Saved ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              : 'Ready'}
+              : 'Auto-save Enabled'}
           </div>
           <button className="mvp-action-btn" onClick={handleCopy}>
             {copied ? <><Check style={{ width: 12, height: 12 }} />Copied</> : <><Clipboard style={{ width: 12, height: 12 }} />Copy CSV</>}
@@ -298,6 +344,26 @@ const MOMViewPage = () => {
                 <div className="mvp-exec-label">Total Actions</div>
               </div>
             </div>
+
+            {participationData.length > 0 && (
+              <div className="mvp-exec-card participation" style={{ flex: 1.5, minWidth: 320, padding: '12px 16px' }}>
+                <div className="mvp-exec-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div className="mvp-exec-label" style={{ marginBottom: 4 }}>Voice Participation</div>
+                  <div style={{ height: 130, width: '100%' }}>
+                     <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} />
+                  </div>
+                </div>
+                <div className="mvp-exec-body" style={{ borderLeft: '1px solid #f0f0f0', paddingLeft: 12, minWidth: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                   <div className="mvp-exec-label">Top Contributor</div>
+                   <div className="mvp-exec-value" style={{ fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                     {participationData[0]?.name || 'N/A'}
+                   </div>
+                   <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, marginTop: 4 }}>
+                     {participationData[0]?.value || 0} words shared
+                   </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -305,6 +371,7 @@ const MOMViewPage = () => {
         <div style={{ marginTop: '24px' }}>
           <MeetingTable
             meetings={rows}
+            employees={employees}
             onUpdateMeeting={handleUpdate}
             onDeleteMeeting={handleDelete}
             lockedProjectId={projectId ? String(projectId) : undefined}

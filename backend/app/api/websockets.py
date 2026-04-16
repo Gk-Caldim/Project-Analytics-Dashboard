@@ -1,40 +1,48 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict
+from typing import List, Dict, Set
+import json
 
 router = APIRouter()
 
 class ConnectionManager:
     def __init__(self):
-        # We can store active connections. Dictionary mapping client_id to WebSocket
-        self.active_connections: Dict[str, WebSocket] = {}
+        # Dictionary mapping meeting_id to a set of active WebSockets
+        self.rooms: Dict[str, Set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, client_id: str):
+    async def connect(self, websocket: WebSocket, meeting_id: str):
         await websocket.accept()
-        self.active_connections[client_id] = websocket
+        if meeting_id not in self.rooms:
+            self.rooms[meeting_id] = set()
+        self.rooms[meeting_id].add(websocket)
 
-    def disconnect(self, client_id: str):
-        if client_id in self.active_connections:
-            del self.active_connections[client_id]
+    def disconnect(self, websocket: WebSocket, meeting_id: str):
+        if meeting_id in self.rooms:
+            self.rooms[meeting_id].remove(websocket)
+            if not self.rooms[meeting_id]:
+                del self.rooms[meeting_id]
 
-    async def send_personal_message(self, message: dict, client_id: str):
-        if client_id in self.active_connections:
-            await self.active_connections[client_id].send_json(message)
-
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections.values():
-            try:
-                await connection.send_json(message)
-            except Exception:
-                pass # Ignore failed sends to disconnected clients
+    async def broadcast_to_room(self, meeting_id: str, message: dict, sender: WebSocket = None):
+        if meeting_id in self.rooms:
+            for connection in self.rooms[meeting_id]:
+                if connection != sender:
+                    try:
+                        await connection.send_json(message)
+                    except Exception:
+                        pass
 
 manager = ConnectionManager()
 
-@router.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(websocket, client_id)
+@router.websocket("/ws/capture/{meeting_id}/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, meeting_id: str, client_id: str):
+    await manager.connect(websocket, meeting_id)
     try:
         while True:
-            # We don't necessarily expect incoming messages, but we keep the loop alive
             data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                # Broadcast incoming messages to everyone else in the same meeting room
+                await manager.broadcast_to_room(meeting_id, message, sender=websocket)
+            except json.JSONDecodeError:
+                pass
     except WebSocketDisconnect:
-        manager.disconnect(client_id)
+        manager.disconnect(websocket, meeting_id)

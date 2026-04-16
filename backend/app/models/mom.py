@@ -19,6 +19,6 @@ class MOMSession(Base):
     #            responsibility, target, status, action_taken, ... }, ...]
     mom_data     = Column(JSON, nullable=False, default=list)
 
-    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc),
+    created_at   = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at   = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc),
                           onupdate=lambda: datetime.now(timezone.utc))

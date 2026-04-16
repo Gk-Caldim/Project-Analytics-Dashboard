@@ -335,7 +335,7 @@
   width: 3px;
   border-radius: 2px;
   background: #4f46e5;
-  transition: height 0.06s ease;
+  /* Removed transition to allow for 60fps real-time visual updates */
   opacity: 0.7;
 }
 
@@ -586,6 +586,64 @@
 .mcp-entry-row:hover .mcp-entry-del { opacity: 1; }
 .mcp-entry-del:hover { color: #ef4444; }
 
+.mcp-entry-interim {
+  opacity: 0.6;
+  font-style: italic;
+  animation: mcpInterimPulse 2s infinite ease-in-out;
+  border-left: 3px solid #6366f1;
+}
+
+@keyframes mcpInterimPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.8; }
+}
+
+ 
+/* ── Responsive Mobile Enhancements ── */
+@media (max-width: 1024px) {
+  .mcp-body {
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+    overflow-y: auto;
+  }
+ 
+  .mcp-input-pane, .mcp-speaker-sidebar {
+    width: 100%;
+  }
+ 
+  .mcp-preview-pane {
+    min-height: 500px;
+    flex: none;
+  }
+ 
+  .mcp-cta-bar {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+ 
+  .mcp-generate-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+ 
+@media (max-width: 640px) {
+  .mcp-topbar {
+    padding: 0 12px;
+  }
+  .mcp-breadcrumb {
+    font-size: 11px;
+  }
+  .mcp-save-status {
+    display: none; 
+  }
+  .mcp-body {
+    padding: 8px;
+  }
+}
+ 
 .mcp-event-label {
   font-size: 10px;
   font-weight: 800;
