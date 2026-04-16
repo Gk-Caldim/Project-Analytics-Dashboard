@@ -8,10 +8,37 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        inter: ['Inter', 'sans-serif'],
-        outfit: ['Outfit', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
+        // Industrial Design System Colors
+        app: {
+          bg: '#FFFFFF',
+          surface: '#F4F6F9',
+          panel: '#E6EAF2',
+        },
+        brand: {
+          primary: '#00939F',
+          accent: '#26C0CB',
+        },
+        text: {
+          primary: '#1A1F2E',
+          secondary: 'rgba(26, 31, 46, 0.65)',
+          muted: 'rgba(26, 31, 46, 0.40)',
+        },
+        border: {
+          DEFAULT: 'rgba(26, 31, 46, 0.08)',
+          strong: 'rgba(26, 31, 46, 0.15)',
+        },
+        status: {
+          success: '#16A34A',
+          warning: '#D97706',
+          error: '#DC2626',
+          info: '#00939F',
+          neutral: '#6B7280',
+        },
+        // Legacy maroon colors for backward compatibility
         maroon: {
           50: '#fdf2f2',
           100: '#fce8e8',
@@ -20,14 +47,57 @@ export default {
           400: '#f98080',
           500: '#f05252',
           600: '#e02424',
-          700: '#800000', // This is maroon
-          800: '#5c0000', // Darker maroon
-          900: '#380000', // Even darker maroon
+          700: '#800000',
+          800: '#5c0000',
+          900: '#380000',
         },
+      },
+      spacing: {
+        '1': '4px',
+        '2': '8px',
+        '3': '12px',
+        '4': '16px',
+        '5': '20px',
+        '6': '24px',
+        '8': '32px',
+        '10': '40px',
+        '12': '48px',
+      },
+      borderRadius: {
+        'sm': '4px',    // Inputs, status badges
+        'md': '6px',    // Buttons
+        'lg': '8px',    // Stat cards, project cards, settings panels
+        'xl': '12px',   // Modals
+        'sidebar': '0 6px 6px 0', // Sidebar active item
+      },
+      fontSize: {
+        'display': ['32px', { lineHeight: '1.25', fontWeight: '700' }],
+        'h1': ['28px', { lineHeight: '1.25', fontWeight: '600' }],
+        'h2': ['24px', { lineHeight: '1.25', fontWeight: '600' }],
+        'h3': ['20px', { lineHeight: '1.25', fontWeight: '600' }],
+        'body-lg': ['16px', { lineHeight: '1.5' }],
+        'body': ['14px', { lineHeight: '1.5' }],
+        'body-sm': ['13px', { lineHeight: '1.5' }],
+        'label': ['12px', { lineHeight: '1.5', fontWeight: '500' }],
+        'caption': ['11px', { lineHeight: '1.5' }],
+      },
+      boxShadow: {
+        'sm': '0 1px 2px rgba(26, 31, 46, 0.04)',
+        'md': '0 2px 8px rgba(26, 31, 46, 0.06)',
+        'lg': '0 4px 16px rgba(26, 31, 46, 0.08)',
+        'xl': '0 8px 32px rgba(26, 31, 46, 0.12)',
+      },
+      transitionTimingFunction: {
+        'product': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
+      transitionDuration: {
+        'fast': '150ms',
+        'normal': '250ms',
+        'slow': '350ms',
       },
     },
   },
   plugins: [
-    require('tailwind-scrollbar'), // This line adds the plugin
+    require('tailwind-scrollbar'),
   ],
 }
