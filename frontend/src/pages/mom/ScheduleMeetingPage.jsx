@@ -25,11 +25,37 @@ const ScheduleMeetingPage = () => {
   // ── Scroll ref for auto-scroll to timeslots ──
   const timeSlotsRef = useRef(null);
 
+  // ── Current time position for live indicator ──
+  const [currentTimePx, setCurrentTimePx] = useState(null);
+
   // ── Mini Cal & View State ──
   const [miniCalMonth, setMiniCalMonth] = useState(new Date().getMonth());
   const [miniCalYear, setMiniCalYear] = useState(new Date().getFullYear());
   const [eventColor, setEventColor] = useState('#4f46e5');
   const [activeView, setActiveView] = useState('Week');
+
+  // ── Auto-scroll to 8 AM on mount + live current-time line ──
+  useEffect(() => {
+    // Use rAF so DOM is painted before we scroll
+    requestAnimationFrame(() => {
+      if (timeSlotsRef.current) {
+        timeSlotsRef.current.scrollTop = 60; // 8 AM = 1hr × 60px
+      }
+    });
+
+    const updateTimePx = () => {
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      const px = (h - 7) * 60 + m; // 7 AM = 0px baseline
+      setCurrentTimePx(h >= 7 && h < 21 ? px : null);
+    };
+
+    updateTimePx();
+    const timer = setInterval(updateTimePx, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const reduxProjects = useSelector(state => state.project?.projects) || [];
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -775,8 +801,8 @@ const ScheduleMeetingPage = () => {
             >
               <div className="time-gutter-header">GMT{new Date().getTimezoneOffset() < 0 ? '+' : '-'}{Math.abs(new Date().getTimezoneOffset() / 60)}</div>
               {weekDays.map(d => (
-                <div key={d.toISOString()} className="day-header">
-                  <span className={`day-name ${isToday(d) ? 'text-indigo-600' : ''}`}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                <div key={d.toISOString()} className={`day-header${isToday(d) ? ' today-header' : ''}`}>
+                  <span className={`day-name${isToday(d) ? ' today-name' : ''}`}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                   <span className={`day-number ${isToday(d) ? 'today shadow-md shadow-indigo-200' : ''}`}>{d.getDate()}</span>
                 </div>
               ))}
@@ -788,15 +814,25 @@ const ScheduleMeetingPage = () => {
                 <div className="time-gutter">
                   {hours.map(h => (
                     <div key={h} className="time-label">
-                      {h === 12 ? '12 PM' : h > 12 ? `${h-12} PM` : `${h} AM`}
+                      {h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`}
                     </div>
                   ))}
                 </div>
-              
-              <div 
+
+              <div
                 className="days-grid"
                 style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDays.length}, minmax(0, 1fr))` }}
               >
+                {/* Live current-time indicator — renders across all columns */}
+                {currentTimePx !== null && (
+                  <div
+                    className="current-time-indicator"
+                    style={{ top: `${currentTimePx}px`, left: 0, right: 0, position: 'absolute', zIndex: 15 }}
+                  >
+                    <div className="current-time-dot" />
+                    <div className="current-time-line" />
+                  </div>
+                )}
                 {weekDays.map(d => {
                   // Check if selected block belongs to this day column
                   const hasSelection = selectedDate && 
@@ -813,16 +849,18 @@ const ScheduleMeetingPage = () => {
                   }
 
                   return (
-                    <div key={d.toISOString()} className="day-col">
+                    <div key={d.toISOString()} className={`day-col${isToday(d) ? ' today-col' : ''}`}>
                       {hours.map(h => (
                         <div key={h} className="hour-slot-group">
-                          <div 
-                            className={`half-hour ${isPastSlot(d, h, 0) ? 'past' : ''}`} 
-                            onClick={() => handleGridSlotSelect(d, h, 0)} 
+                          <div
+                            className={`half-hour ${isPastSlot(d, h, 0) ? 'past' : ''}`}
+                            data-time={`${h === 12 ? '12' : h > 12 ? h - 12 : h}:00 ${h >= 12 ? 'PM' : 'AM'}`}
+                            onClick={() => handleGridSlotSelect(d, h, 0)}
                           />
-                          <div 
-                            className={`half-hour ${isPastSlot(d, h, 30) ? 'past' : ''}`} 
-                            onClick={() => handleGridSlotSelect(d, h, 30)} 
+                          <div
+                            className={`half-hour ${isPastSlot(d, h, 30) ? 'past' : ''}`}
+                            data-time={`${h === 12 ? '12' : h > 12 ? h - 12 : h}:30 ${h >= 12 ? 'PM' : 'AM'}`}
+                            onClick={() => handleGridSlotSelect(d, h, 30)}
                           />
                         </div>
                       ))}

@@ -28,22 +28,22 @@ const VPProjectDashboard = ({
           setRecentMeetings(projectMeetings);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [activeProject]);
 
   const milestones = dashboardData?.milestones || [];
-  
+
   // Compute KPI exactly as requested
   const totalMilestones = milestones.length;
   const completed = milestones.filter(m => m.status === 'Completed' || m.status === 'Complete').length;
   const delayed = milestones.filter(m => m.status === 'Delayed').length;
   const pending = milestones.filter(m => m.status === 'In Progress' || m.status === 'On Track' || m.status === 'Pending' || m.status === 'Open').length;
-  
+
   const completedPct = totalMilestones > 0 ? Math.round((completed / totalMilestones) * 100) : 0;
 
   return (
     <div className="vppd-root">
-      
+
       {/* ── 1. HEADER ── */}
       <div className="vppd-header">
         <div className="vppd-header-left">
@@ -55,7 +55,7 @@ const VPProjectDashboard = ({
           </div>
           <div style={{ fontSize: '13px', color: '#64748b' }}>Project ID: {activeProject?.code || activeProject?.dbProjectId}</div>
         </div>
-        
+
         <div className="vppd-header-right">
           <button className="vppd-btn vppd-btn-secondary" onClick={onConfigure}>
             <Settings size={14} /> Configure
@@ -148,12 +148,12 @@ const VPProjectDashboard = ({
             Top Critical Issues
           </div>
           <div style={{ marginLeft: '-15px', marginRight: '-15px' }}>
-             {/* We rely on the existing widget, modifying its internal CSS isn't needed if it looks okay, but we render it natively */}
-             {activeProject?.dbProjectId ? (
-               <CriticalIssuesWidget projectId={activeProject.dbProjectId} />
-             ) : (
-               <div className="vppd-empty">Loading Critical Risks...</div>
-             )}
+            {/* We rely on the existing widget, modifying its internal CSS isn't needed if it looks okay, but we render it natively */}
+            {activeProject?.dbProjectId ? (
+              <CriticalIssuesWidget projectId={activeProject.dbProjectId} />
+            ) : (
+              <div className="vppd-empty">Loading Critical Risks...</div>
+            )}
           </div>
         </div>
 
@@ -176,7 +176,7 @@ const VPProjectDashboard = ({
                     </div>
                   </div>
                   <div className="vppd-meeting-meta">
-                    <span><Clock size={12} style={{display:'inline', marginRight: 4}}/> {m.date} {m.time}</span>
+                    <span><Clock size={12} style={{ display: 'inline', marginRight: 4 }} /> {m.date} {m.time}</span>
                     <span>•</span>
                     <span>Host: {m.host || 'Unknown'}</span>
                   </div>
@@ -211,12 +211,12 @@ const VPProjectDashboard = ({
                     const isDelayed = String(m.status).toLowerCase().includes('delay');
                     return (
                       <tr key={idx}>
-                        <td style={{fontWeight: 700}}>{m.module || 'General'}</td>
+                        <td style={{ fontWeight: 700 }}>{m.module || 'General'}</td>
                         <td>{m.milestone}</td>
                         <td>{m.planned_date || '-'}</td>
                         <td>{m.actual_date || '-'}</td>
                         <td>
-                          <span className={`vppd-badge ${isDelayed ? 'red' : 'green'}`} style={{display: 'inline-flex', width: 'fit-content'}}>
+                          <span className={`vppd-badge ${isDelayed ? 'red' : 'green'}`} style={{ display: 'inline-flex', width: 'fit-content' }}>
                             {m.status}
                           </span>
                         </td>

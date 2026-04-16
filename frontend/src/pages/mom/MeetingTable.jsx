@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown, Loader2 } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown, Loader2, User } from 'lucide-react';
+import Select from 'react-select';
 import API from '../../utils/api';
 import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
 
@@ -18,8 +19,9 @@ const STATUS_STYLES = {
   'Closed': 'text-gray-400 font-medium line-through',
 };
 
-const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
+const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
   const dispatch = useDispatch();
+  const { user } = useSelector(state => state.auth);
   const { meetingId, meetingName, projectId: reduxProjectId, projectName: reduxProjectName, status: reduxStatus } = useSelector(state => state.mom);
 
   // ── Project selector state ──────────────────────────────────────
@@ -314,13 +316,28 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
                         onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })}
                       />
                     </td>
-                    <td className="border border-gray-300 px-4 py-4 text-center text-xs font-bold text-indigo-600">
-                      <input 
-                         type="text" 
-                         defaultValue={m.responsibility || '—'} 
-                         className="bg-transparent text-center focus:bg-white focus:outline-indigo-500 w-full font-bold"
-                         onBlur={(e) => onUpdateMeeting(m.id, { responsibility: e.target.value })}
-                       />
+                    <td className="border border-gray-300 px-4 py-4 text-xs font-bold text-indigo-600 min-w-[180px]">
+                      <Select
+                        options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
+                        defaultValue={m.responsibility ? { value: m.responsibility, label: m.responsibility } : null}
+                        onChange={(opt) => onUpdateMeeting(m.id, { responsibility: opt?.value })}
+                        placeholder="Search Employee..."
+                        className="text-left"
+                        styles={{
+                          control: (base) => ({
+                            ...base,
+                            minHeight: '30px',
+                            background: 'transparent',
+                            border: 'none',
+                            boxShadow: 'none',
+                            fontSize: '11px'
+                          }),
+                          placeholder: (base) => ({ ...base, color: '#a5b4fc' }),
+                          singleValue: (base) => ({ ...base, color: '#4f46e5', fontWeight: '800' }),
+                          indicatorSeparator: () => ({ display: 'none' }),
+                          dropdownIndicator: () => ({ display: 'none' })
+                        }}
+                      />
                     </td>
                     <td className="border border-gray-300 px-4 py-4 text-center text-xs font-mono font-bold text-gray-500">
                       <input 
@@ -378,7 +395,7 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
         <div className="p-12 mt-8 grid grid-cols-3 gap-20">
           <div className="border-t border-gray-900 pt-3 text-center">
             <div className="text-[10px] font-black uppercase text-gray-400">Prepared By</div>
-            <div className="text-xs font-bold mt-2">AI MOM ENGINE (Industrial-v2)</div>
+            <div className="text-xs font-bold mt-2">{user?.full_name || user?.name || 'Authorized Personnel'}</div>
           </div>
           <div className="border-t border-gray-900 pt-3 text-center">
             <div className="text-[10px] font-black uppercase text-gray-400">Reviewed By</div>

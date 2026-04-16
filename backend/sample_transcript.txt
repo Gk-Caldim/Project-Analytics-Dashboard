@@ -1,0 +1,23 @@
+Pradeep Kumar
+00:00:08
+Good morning everyone, let's get started with today's sprint review.
+
+Ananya Sharma
+00:00:21
+The API integration is complete but we're blocked on the authentication token issue.
+
+Ravi Menon
+00:00:35
+I can take that up. I'll fix the OAuth flow by end of day today.
+
+Pradeep Kumar
+00:00:52
+Great. Also the dashboard deployment needs to happen before Friday.
+
+Ananya Sharma
+00:01:08
+The frontend build is ready, we just need the environment variables from DevOps.
+
+Ravi Menon
+00:01:19
+I'll follow up with DevOps and get those variables by tomorrow morning.

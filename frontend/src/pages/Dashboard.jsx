@@ -566,7 +566,7 @@ const Dashboard = () => {
   // ==========================================================================
   // HANDLE MODULE CLICK - UPDATED to match Masters behavior
   // ==========================================================================
-    const handleModuleClick = (moduleId) => {
+  const handleModuleClick = (moduleId) => {
     dispatch(setActiveModule(moduleId));
 
     // Build path
@@ -1111,7 +1111,7 @@ const Dashboard = () => {
   const renderOtherModules = () => {
     return otherModules.filter(module => module.id !== 'upload-trackers').map((module, index) => {
       if (!hasPermission(module.name)) return null;
-      
+
       const isActive = activeModule === module.id;
       const isHovered = hoveredModule === module.id;
       return (

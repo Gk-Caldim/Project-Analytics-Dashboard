@@ -39,7 +39,7 @@ class Meeting(Base):
     cancellation_reason = Column(String(100), nullable=True)
     cancellation_note = Column(Text, nullable=True)
     cancelled_by = Column(String(100), nullable=True)
-    cancelled_at = Column(DateTime, nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
     attendees_notified = Column(Boolean, default=False)
     
     # Advanced / Rich content
@@ -51,5 +51,5 @@ class Meeting(Base):
     mom_generated = Column(Boolean, default=False)
     action_item_count = Column(Integer, default=0)
     
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

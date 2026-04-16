@@ -29,7 +29,7 @@ const MeetingsDashboardPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [timeNow, setTimeNow] = useState(new Date());
-  
+
   // State for expand/collapse saved MOMs
   const [expandMoms, setExpandMoms] = useState(false);
   const [expandHistory, setExpandHistory] = useState(false);
@@ -48,7 +48,7 @@ const MeetingsDashboardPage = () => {
 
   const handleDeleteMom = async (meetingId) => {
     if (!window.confirm('Are you sure you want to delete this MOM?')) return;
-    
+
     try {
       const res = await API.delete(`/mom/${meetingId}`);
       if (res.data?.success) {
@@ -75,7 +75,7 @@ const MeetingsDashboardPage = () => {
     let [hours, minutes] = time.split(':');
     if (hours === '12') hours = '00';
     if (modifier === 'PM') hours = (parseInt(hours, 10) + 12).toString();
-    const startTime = new Date(`${dateStr}T${hours.padStart(2,'0')}:${minutes.padStart(2,'0')}:00`);
+    const startTime = new Date(`${dateStr}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`);
     const endTime = new Date(startTime.getTime() + (parseInt(m.duration || 60) * 60000));
     return { startTime, endTime };
   };
@@ -119,7 +119,7 @@ const MeetingsDashboardPage = () => {
   const displayedMoms = expandMoms ? momHistory : momHistory.slice(0, 2);
 
   // Insights
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = today.toLocaleDateString('en-CA');
 
   const totalMeetings = meetings.length;
@@ -192,7 +192,7 @@ const MeetingsDashboardPage = () => {
 
         {/* 1. Meeting Insights */}
         <div className="mdp-insights mdp-fade-up">
-          <div 
+          <div
             className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
             onClick={() => {
               setActiveFilter('all');
@@ -208,7 +208,7 @@ const MeetingsDashboardPage = () => {
             </div>
           </div>
 
-          <div 
+          <div
             className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
             onClick={() => {
               upcomingRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -223,7 +223,7 @@ const MeetingsDashboardPage = () => {
             </div>
           </div>
 
-          <div 
+          <div
             className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
             onClick={() => {
               setActiveFilter('no_mom');
@@ -323,7 +323,7 @@ const MeetingsDashboardPage = () => {
                 Saved MOMs
               </span>
             </div>
-            
+
             <div className="flex flex-col gap-3">
               {hasSavedMom && !momHistory.find(m => String(m.id) === String(savedMomId)) && (
                 <div style={{
@@ -430,7 +430,7 @@ const MeetingsDashboardPage = () => {
                   </div>
                 </div>
               ))}
-              
+
               {showMoreMoms && (
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
                   <button
@@ -542,7 +542,7 @@ const MeetingsDashboardPage = () => {
               )}
             </tbody>
           </table>
-          
+
           {filteredHistory.length > 5 && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '12px', borderTop: '1px solid #f1f5f9' }}>
               <button

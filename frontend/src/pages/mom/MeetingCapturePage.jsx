@@ -58,7 +58,7 @@ const METADATA_KEYS = new Set([
   'meeting', 'vtt', 'srt', 'subtitle', 'agenda', 'notes'
 ]);
 
-function parseTranscriptFile(rawText) {
+function parseTranscriptFile(rawText, defaultSpeaker = 'Unattributed') {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
   const entries = [];
 
@@ -225,7 +225,7 @@ function parseTranscriptFile(rawText) {
       if (clean) cur.text = cur.text ? cur.text + '\n' + clean : clean;
     } else if (clean.length > 2) {
       push(cur);
-      cur = { type: 'speech', time: pendingTime || null, speaker: 'Unattributed', text: clean };
+      cur = { type: 'speech', time: pendingTime || null, speaker: defaultSpeaker, text: clean };
       pendingTime = null;
     }
   }
@@ -366,12 +366,19 @@ const MeetingCapturePage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user } = useSelector(state => state.auth);
   const { status: reduxStatus, lastSaved } = useSelector(s => s.mom);
 
   const currentUser = useMemo(() => {
-    const name = user?.full_name || user?.name || user?.username || user?.email || 'You';
-    return { name, initials: getInitials(name) };
+    // Priority: full_name -> name -> email prefix -> Anonymous
+    let name = user?.full_name || user?.name || user?.displayName;
+    if (!name && user?.email) {
+      const prefix = user.email.split('@')[0];
+      name = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    }
+    const finalName = name || 'Anonymous User';
+    
+    return { name: finalName, initials: getInitials(finalName) };
   }, [user]);
 
   // ── Meta ───────────────────────────────────────────────────────────────
@@ -402,6 +409,7 @@ const MeetingCapturePage = () => {
   const [micError, setMicError]         = useState('');
   const [waveHeights, setWaveHeights]   = useState(Array(28).fill(4));
   const [interimText, setInterimText]   = useState('');
+  const [interimEntry, setInterimEntry] = useState(null);
   const recognitionRef                  = useRef(null);
   const manualStopRef                   = useRef(false);
   const bufferRef                       = useRef('');
@@ -409,6 +417,15 @@ const MeetingCapturePage = () => {
   const timerRef                        = useRef(null);
   const waveAnimRef                     = useRef(null);
   const speakerColorMapRef              = useRef({});
+
+  // ── High-Precision Audio Visualization ──────────────────────────────
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const streamRef   = useRef(null);
+  const sourceRef   = useRef(null);
+  const animationFrameRef = useRef(null);
+  const previewBodyRef    = useRef(null);
+  const wsRef             = useRef(null);
 
   // ── Manual Mode ───────────────────────────────────────────────────────
   const [manualText, setManualText]     = useState('');
@@ -449,6 +466,46 @@ const MeetingCapturePage = () => {
     }
   }, [meetingId]);
 
+  // WebSocket Collaboration
+  useEffect(() => {
+    if (!meetingId || meetingId === 'unscheduled') return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host.includes('localhost') ? 'localhost:8001' : window.location.host;
+    const wsUrl = `${protocol}//${host}/api/ws/capture/${meetingId}/${currentUser.name}-${Date.now()}`;
+    
+    const socket = new WebSocket(wsUrl);
+    wsRef.current = socket;
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'SYNC_ENTRIES') {
+          setEntries(message.payload);
+        }
+      } catch (err) {
+        console.error("WS Message error:", err);
+      }
+    };
+
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [meetingId, currentUser.name]);
+
+  const broadcastEntries = useCallback((newEntries) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'SYNC_ENTRIES', payload: newEntries }));
+    }
+  }, []);
+
+  // Auto-scroll to bottom on new content
+  useEffect(() => {
+    if (previewBodyRef.current) {
+      previewBodyRef.current.scrollTop = previewBodyRef.current.scrollHeight;
+    }
+  }, [entries, interimEntry]);
+
   // Timer
   useEffect(() => {
     if (recordState === 'RECORDING') {
@@ -459,17 +516,76 @@ const MeetingCapturePage = () => {
     return () => clearInterval(timerRef.current);
   }, [recordState]);
 
-  // Waveform animation (fake bars when not recording)
+  // Waveform animation (Real-time Audio Analysis)
+  const startAudioAnalysis = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      streamRef.current = stream;
+
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      sourceRef.current = source;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const updateWave = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // We have 28 bars. Map frequencies to these bars.
+        const newHeights = [];
+        const binSize = Math.floor(bufferLength / 28) || 1;
+        
+        for (let i = 0; i < 28; i++) {
+          let sum = 0;
+          for (let j = 0; j < binSize; j++) {
+            sum += dataArray[i * binSize + j];
+          }
+          const avg = sum / binSize;
+          // Scale for visual impact: base 4px + (avg/255 * max_height)
+          const h = 4 + (avg / 255) * 44;
+          newHeights.push(h);
+        }
+        setWaveHeights(newHeights);
+        animationFrameRef.current = requestAnimationFrame(updateWave);
+      };
+
+      updateWave();
+    } catch (err) {
+      console.warn("Audio analysis failed:", err);
+      setMicError("Microphone visualization unavailable.");
+    }
+  };
+
+  const stopAudioAnalysis = () => {
+    cancelAnimationFrame(animationFrameRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+      audioCtxRef.current = null;
+    }
+    setWaveHeights(Array(28).fill(4));
+  };
+
   useEffect(() => {
     if (recordState === 'RECORDING') {
-      waveAnimRef.current = setInterval(() => {
-        setWaveHeights(Array.from({ length: 28 }, () => 4 + Math.random() * 40));
-      }, 80);
+      startAudioAnalysis();
     } else {
-      clearInterval(waveAnimRef.current);
-      setWaveHeights(Array(28).fill(4));
+      stopAudioAnalysis();
     }
-    return () => clearInterval(waveAnimRef.current);
+    return () => stopAudioAnalysis();
   }, [recordState]);
 
   // Cleanup
@@ -477,7 +593,7 @@ const MeetingCapturePage = () => {
     return () => {
       clearTimeout(debounceRef.current);
       clearInterval(timerRef.current);
-      clearInterval(waveAnimRef.current);
+      stopAudioAnalysis();
       if (recognitionRef.current) {
         recognitionRef.current.onend = null;
         try { recognitionRef.current.stop(); } catch (_) {}
@@ -493,7 +609,14 @@ const MeetingCapturePage = () => {
     clearTimeout(debounceRef.current);
     const text = bufferRef.current.trim();
     bufferRef.current = '';
-    if (!text) return;
+    
+    // Noise Filter: Ignore nonsense bursts or very short filler (< 3 chars)
+    if (!text || text.length < 3) {
+      setInterimText('');
+      setInterimEntry(null);
+      return;
+    }
+
     const color = getSpeakerColor(currentUser.name);
     setEntries(prev => [...prev, {
       id: Date.now() + Math.random(),
@@ -507,7 +630,13 @@ const MeetingCapturePage = () => {
       text,
     }]);
     setInterimText('');
-  }, [currentUser.name, getSpeakerColor]);
+    setInterimEntry(null);
+    // Broadcast newly finished turn
+    setEntries(prev => {
+      broadcastEntries(prev);
+      return prev;
+    });
+  }, [currentUser.name, getSpeakerColor, broadcastEntries]);
 
   const initRecognition = useCallback(() => {
     if (!SpeechRecognitionAPI) return null;
@@ -532,7 +661,22 @@ const MeetingCapturePage = () => {
           interim += t;
         }
       }
-      if (interim) setInterimText(interim);
+      if (interim) {
+        setInterimText(interim);
+        const color = getSpeakerColor(currentUser.name);
+        setInterimEntry({
+          id: 'interim-entry',
+          type: 'speech',
+          speaker: currentUser.name,
+          initials: getInitials(currentUser.name),
+          color: color.dot,
+          bg: color.bg,
+          textColor: color.text,
+          time: nowTime(),
+          text: interim,
+          isInterim: true
+        });
+      }
     };
 
     rec.onerror = (e) => {
@@ -599,7 +743,7 @@ const MeetingCapturePage = () => {
 
   // ── File Upload ────────────────────────────────────────────────────────
   const processFileText = useCallback((rawText) => {
-    const parsed = parseTranscriptFile(rawText);
+    const parsed = parseTranscriptFile(rawText, currentUser.name);
     const uploadTime = nowTime();
 
     // Adapt UI fields from metadata
@@ -647,9 +791,13 @@ const MeetingCapturePage = () => {
         text: p.text,
       };
     });
-    setEntries(uploadedEntries);
-    toast.success(`Parsed ${uploadedEntries.length} lines`);
-  }, [getSpeakerColor, projectId]);
+    setEntries(prev => {
+      const combined = [...prev, ...uploadedEntries];
+      broadcastEntries(combined);
+      return combined;
+    });
+    toast.success(`Added ${uploadedEntries.length} lines to session`);
+  }, [getSpeakerColor, projectId, broadcastEntries]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -698,8 +846,12 @@ const MeetingCapturePage = () => {
   }, []);
 
   const updateEntryText = useCallback((id, text) => {
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, text } : e));
-  }, []);
+    setEntries(prev => {
+      const updated = prev.map(e => e.id === id ? { ...e, text } : e);
+      broadcastEntries(updated);
+      return updated;
+    });
+  }, [broadcastEntries]);
 
   const handleRenameSpeaker = useCallback((oldName) => {
     setRenamingSpeaker(oldName);
@@ -742,6 +894,13 @@ const MeetingCapturePage = () => {
   // ── Generate MOM ───────────────────────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (entries.length === 0) { toast.error('Nothing to generate from — add some content first'); return; }
+    
+    // Check if MOM already exists (via lastSaved state or simple prompt)
+    if (lastSaved) {
+      const confirmOverwrite = window.confirm("A Minutes of Meeting already exists for this session. Do you want to overwrite it with the current data?");
+      if (!confirmOverwrite) return;
+    }
+
     if (!projectId) { 
         setProjectError(true);
         toast.error('Please select a project before generating the MOM'); 
@@ -1030,8 +1189,8 @@ const MeetingCapturePage = () => {
                 <span className="mcp-preview-count">{entries.length} lines</span>
               </div>
 
-              <div className="mcp-preview-body">
-                {!hasEntries ? (
+              <div className="mcp-preview-body" ref={previewBodyRef}>
+                {!hasEntries && !interimEntry ? (
                   <div className="mcp-preview-empty">
                     <div className="mcp-preview-empty-icon">
                       <FileText style={{ width: 20, height: 20 }} />
@@ -1078,29 +1237,35 @@ const MeetingCapturePage = () => {
                     )}
 
                     {/* ── Speech / Dialogue Entries ── */}
-                    {entries.filter(e => e.type === 'speech').map((entry) => {
+                    {[...entries.filter(e => e.type === 'speech'), ...(interimEntry ? [interimEntry] : [])].map((entry) => {
                       const spkColor = { bg: entry.bg || '#EDE9FE', text: entry.textColor || '#6D28D9', dot: entry.color || '#7C3AED' };
                       return (
-                        <div key={entry.id} className="mcp-entry-row">
+                        <div key={entry.id} className={`mcp-entry-row ${entry.isInterim ? 'mcp-entry-interim' : ''}`}>
                           <span
                             className="mcp-speaker-pill"
                             style={{ background: spkColor.bg, color: spkColor.text, cursor: 'pointer', userSelect: 'none' }}
                             title="Click to rename speaker"
-                            onClick={() => handleRenameSpeaker(entry.speaker)}
+                            onClick={() => !entry.isInterim && handleRenameSpeaker(entry.speaker)}
                           >
                             <span className="mcp-speaker-dot" style={{ background: spkColor.dot }} />
                             {entry.speaker}
                           </span>
                           {entry.time && <span className="mcp-entry-time">{entry.time}</span>}
-                          <textarea
-                            className="mcp-entry-text-editable"
-                            defaultValue={entry.text}
-                            rows={1}
-                            onBlur={e => updateEntryText(entry.id, e.target.value)}
-                          />
-                          <button className="mcp-entry-del" onClick={() => deleteEntry(entry.id)}>
-                            <X style={{ width: 12, height: 12 }} />
-                          </button>
+                          {entry.isInterim ? (
+                            <div className="mcp-entry-text">{entry.text}<em>...</em></div>
+                          ) : (
+                            <textarea
+                              className="mcp-entry-text-editable"
+                              defaultValue={entry.text}
+                              rows={1}
+                              onBlur={e => updateEntryText(entry.id, e.target.value)}
+                            />
+                          )}
+                          {!entry.isInterim && (
+                            <button className="mcp-entry-del" onClick={() => deleteEntry(entry.id)}>
+                              <X style={{ width: 12, height: 12 }} />
+                            </button>
+                          )}
                         </div>
                       );
                     })}
