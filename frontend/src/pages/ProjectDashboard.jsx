@@ -247,6 +247,30 @@ const ProjectTitleDashboard = () => {
 
   const chartRefs = useRef({});
 
+  const [viewMode, setViewMode] = useState('grid');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  // New customization states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pinnedProjects, setPinnedProjects] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('dashboard_pinnedProjects')) || []; } catch { return []; }
+  });
+  const [projectUrgency, setProjectUrgency] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('dashboard_projectUrgency')) || {}; } catch { return {}; }
+  });
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState([]);
+
+  // Sync to session storage
+  useEffect(() => {
+    sessionStorage.setItem('dashboard_pinnedProjects', JSON.stringify(pinnedProjects));
+  }, [pinnedProjects]);
+
+  useEffect(() => {
+    sessionStorage.setItem('dashboard_projectUrgency', JSON.stringify(projectUrgency));
+  }, [projectUrgency]);
+
   // --- Derived state from searchParams & projects ---
   const projectId = searchParams.get('projectId');
   const submoduleId = searchParams.get('submoduleId');
@@ -254,6 +278,42 @@ const ProjectTitleDashboard = () => {
 
   // Projects data from Redux
   const projects = useSelector(state => state.project.projects);
+
+  // Derived filtered & sorted projects
+  const filteredAndSortedProjects = useMemo(() => {
+    let result = [...projects];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p => 
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.code && p.code.toLowerCase().includes(q))
+      );
+    }
+    // Sort logic: pinned first
+    result.sort((a, b) => {
+      const aPinned = pinnedProjects.includes(a.id) ? 1 : 0;
+      const bPinned = pinnedProjects.includes(b.id) ? 1 : 0;
+      return bPinned - aPinned; // 1 goes before 0
+    });
+    return result;
+  }, [projects, searchQuery, pinnedProjects]);
+
+  // Bulk Handlers
+  const handleBulkPin = (pin) => {
+    if (pin) {
+      setPinnedProjects(prev => [...new Set([...prev, ...selectedProjects])]);
+    } else {
+      setPinnedProjects(prev => prev.filter(id => !selectedProjects.includes(id)));
+    }
+  };
+
+  const handleBulkUrgency = (level) => {
+    setProjectUrgency(prev => {
+      const next = { ...prev };
+      selectedProjects.forEach(id => { next[id] = level; });
+      return next;
+    });
+  };
 
   const activeProject = useMemo(() => {
     if (!projectId) return null;
@@ -3229,8 +3289,8 @@ const ProjectTitleDashboard = () => {
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#f0f2f5',
-      padding: '20px',
-      fontFamily: 'Arial, sans-serif'
+      padding: '24px', // updated to consistent spacing
+      fontFamily: "'Inter', sans-serif"
     }}>
 
 
@@ -3278,68 +3338,31 @@ const ProjectTitleDashboard = () => {
 
       {/* Main Dashboard Container */}
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--surface, white)',
         borderRadius: '4px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
         overflow: 'hidden',
-        maxWidth: '1600px',
-        margin: '0 auto'
+        width: '100%'
       }}>
         {/* Header with navigation */}
-        <div style={{
-          backgroundColor: '#1e3a5f',
-          color: 'white',
-          padding: '15px 20px',
-          fontSize: '20px',
-          fontWeight: 'bold',
-          borderBottom: '3px solid #0f2b40',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-            {activeProject && (
-              <button
-                onClick={selectedSubmodule ? handleBackToProjectDashboard : handleBackToProjects}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '14px',
-                  borderRadius: '4px',
-                  border: '1px solid white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                ← Back
-              </button>
-            )}
-          </div>
-
-          <div style={{ textAlign: 'center', flex: 2 }}>
-            {selectedSubmodule ? (
-              <span>{getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)}</span>
-            ) : activeProject ? (
-              <span>{activeProject.name} Dashboard</span>
-            ) : (
-              <span>Project Dashboard</span>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flex: 1 }}>
-            {activeProject && !selectedSubmodule && (
-              <>
+        {(activeProject || selectedSubmodule) && (
+          <div style={{
+            backgroundColor: '#1e3a5f',
+            color: 'white',
+            padding: '15px 20px',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            borderBottom: '3px solid #0f2b40',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
+              {activeProject && (
                 <button
-                  onClick={() => {
-                    setVisibleSections(activeProject.dashboardConfig?.visibleSections || {});
-                    setShowSimulateModal(true);
-                  }}
+                  onClick={selectedSubmodule ? handleBackToProjectDashboard : handleBackToProjects}
                   style={{
-                    padding: '8px 16px',
+                    padding: '6px 12px',
                     fontSize: '14px',
                     borderRadius: '4px',
                     border: '1px solid white',
@@ -3349,58 +3372,92 @@ const ProjectTitleDashboard = () => {
                     fontWeight: 'bold',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    outline: 'none'
+                    gap: '5px'
                   }}
                 >
-                  Configure Dashboard
+                  ← Back
                 </button>
-                <button
-                  onClick={() => {
-                    const sections = {
-                      milestones: true,
-                      criticalIssues: true,
-                      budget: true,
-                      resource: true,
-                      quality: true,
-                      design: true,
-                      partDevelopment: true,
-                      build: true,
-                      gateway: true,
-                      validation: true,
-                      qualityIssues: true,
-                      sopTables: true
-                    };
-                    (activeProject?.submodules || []).forEach(sub => {
-                      sections[sub.id] = true;
-                    });
-                    setEmailData(prev => ({ ...prev, selectedSections: sections, includePdf: true }));
-                    setShowEmailModal(true);
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    borderRadius: '4px',
-                    border: '1px solid white',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    outline: 'none'
-                  }}
-                >
-                  <Mail className="h-4 w-4" />
-                  Send Mail
-                </button>
+              )}
+            </div>
 
+            <div style={{ textAlign: 'center', flex: 2 }}>
+              {selectedSubmodule ? (
+                <span>{getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)}</span>
+              ) : activeProject ? (
+                <span>{activeProject.name} Dashboard</span>
+              ) : null}
+            </div>
 
-              </>
-            )}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flex: 1 }}>
+              {activeProject && !selectedSubmodule && (
+                <>
+                  <button
+                    onClick={() => {
+                      setVisibleSections(activeProject.dashboardConfig?.visibleSections || {});
+                      setShowSimulateModal(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      borderRadius: '4px',
+                      border: '1px solid white',
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      outline: 'none'
+                    }}
+                  >
+                    Configure Dashboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sections = {
+                        milestones: true,
+                        criticalIssues: true,
+                        budget: true,
+                        resource: true,
+                        quality: true,
+                        design: true,
+                        partDevelopment: true,
+                        build: true,
+                        gateway: true,
+                        validation: true,
+                        qualityIssues: true,
+                        sopTables: true
+                      };
+                      (activeProject?.submodules || []).forEach(sub => {
+                        sections[sub.id] = true;
+                      });
+                      setEmailData(prev => ({ ...prev, selectedSections: sections, includePdf: true }));
+                      setShowEmailModal(true);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      borderRadius: '4px',
+                      border: '1px solid white',
+                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      outline: 'none'
+                    }}
+                  >
+                    <Mail className="h-4 w-4" />
+                    Send Mail
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Projects List or Dashboard Content */}
         {!activeProject ? (
@@ -3408,101 +3465,132 @@ const ProjectTitleDashboard = () => {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
             {/* Content Array */}
             <div style={{ padding: '28px' }}>
-              {/* Page header row */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
-                <div>
-                  <h1 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>Projects</h1>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{projects.length} active · last synced just now</p>
-                </div>
-                <button
-                  style={{
-                    backgroundColor: 'var(--accent)', color: '#FFFFFF', border: 'none', borderRadius: '10px',
-                    padding: '9px 16px', fontSize: '13px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px',
-                    cursor: 'pointer', transition: 'background 0.15s, transform 0.1s'
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1B6AE0'}
-                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--accent)'}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                  New Project
-                </button>
-              </div>
+              {/* Dashboard Content removed title and stats here */}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
-                {[
-                  {
-                    label: 'TOTAL MILESTONES',
-                    value: dashboardData ? dashboardData.total_milestones : 0,
-                    sub: 'Active tracking', badge: 'green'
-                  },
-                  {
-                    label: 'SUBMODULES',
-                    value: dashboardData ? dashboardData.submodules : 0,
-                    sub: 'Unique modules', badge: 'green'
-                  },
-                  {
-                    label: 'COMPLETED',
-                    value: dashboardData ? dashboardData.completed : 0,
-                    sub: 'On Track', badge: 'green'
-                  },
-                  {
-                    label: 'DELAYED',
-                    value: dashboardData ? dashboardData.delayed : 0,
-                    sub: 'Critical delays', badge: 'amber'
-                  },
-                  {
-                    label: 'PENDING',
-                    value: dashboardData ? dashboardData.pending : 0,
-                    sub: 'Awaiting action', badge: 'amber'
-                  }
-                ].map((stat, i) => (
-                  <div key={i} style={{ background: '#FFFFFF', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px 18px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-tertiary)', marginBottom: '8px', fontWeight: 500 }}>{stat.label}</div>
-                    <div style={{ fontSize: '24px', fontWeight: 500, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', marginBottom: '4px' }}>{stat.value}</div>
-                    <div style={{ display: 'inline-flex', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
-                      background: stat.badge === 'green' ? 'rgba(18,183,106,0.1)' : 'rgba(247,144,9,0.1)',
-                      color: stat.badge === 'green' ? '#0B7A45' : '#92400E'
-                    }}>
-                      {stat.sub}
+              {/* Action Menu Bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                {/* Left: Search Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '300px' }}>
+                  <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-tertiary)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '14px', outline: 'none' }}
+                  />
+                </div>
+
+                {/* Center: Bulk Actions Menu */}
+                {selectionMode && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 'bold', marginRight: '8px' }}>{selectedProjects.length} selected</span>
+                    <button onClick={() => handleBulkPin(true)} style={{ padding: '6px 12px', fontSize: '12px', background: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>Pin</button>
+                    <button onClick={() => handleBulkPin(false)} style={{ padding: '6px 12px', fontSize: '12px', background: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>Unpin</button>
+                    <div style={{ position: 'relative' }}>
+                      <button onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)} style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Set Urgency <ChevronDown size={12} />
+                      </button>
+                      {isBulkMenuOpen && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, width: '120px' }}>
+                          {['Low', 'Medium', 'High', 'Critical'].map(level => (
+                            <div key={level} onClick={() => { handleBulkUrgency(level); setIsBulkMenuOpen(false); setSelectionMode(false); setSelectedProjects([]); }} style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>{level}</div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {/* Right: View Toggles & Select Mode */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button 
+                    onClick={() => {
+                      setSelectionMode(!selectionMode);
+                      if (selectionMode) setSelectedProjects([]);
+                    }}
+                    style={{ background: selectionMode ? 'var(--accent)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    {selectionMode ? 'Cancel' : 'Select'}
+                  </button>
+                  <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button 
+                      onClick={() => setViewMode('grid')}
+                      style={{ background: viewMode === 'grid' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
+                      <Layout size={16} />
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('list')}
+                      style={{ background: viewMode === 'list' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Section Header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>Project Overview</h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', display: 'flex', padding: '4px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                  </button>
-                  <button style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                  </button>
-                </div>
+                <h3 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
               </div>
 
-              {/* Grid Content */}
+              {/* Grid/List Content */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '14px'
+                gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
+                gap: '16px'
               }}>
-                {projects.length === 0 ? (
+                {filteredAndSortedProjects.length === 0 ? (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '13px' }}>
                     No projects found. Please add a project module to get started.
                   </div>
-                ) : projects.map((project, idx) => (
+                ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
                   <PremiumProjectCard
                     key={project.id}
                     project={project}
                     onClick={handleProjectSelect}
-                    isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig)}
+                    isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
+                    viewMode={viewMode}
+                    selectionMode={selectionMode}
+                    isSelected={selectedProjects.includes(project.id)}
+                    onSelect={(selected) => {
+                      if (selected) setSelectedProjects(prev => [...prev, project.id]);
+                      else setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                    }}
+                    isPinned={pinnedProjects.includes(project.id)}
+                    onPinToggle={(pin) => {
+                      if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
+                      else setPinnedProjects(prev => prev.filter(id => id !== project.id));
+                    }}
+                    urgency={projectUrgency[project.id] || 'None'}
+                    onUrgencyChange={(level) => {
+                      setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
+                    }}
                   />
                 ))}
               </div>
+
+              {filteredAndSortedProjects.length > itemsPerPage && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Page {currentPage} of {Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
+                    disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
+                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : selectedSubmodule ? (

@@ -1,110 +1,132 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './PremiumProjectCard.css';
+import { MoreVertical, Pin, CheckSquare, Square } from 'lucide-react';
 
-const ProgressRing = ({ percentage }) => {
-  const r = 16;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - percentage / 100);
+const PremiumProjectCard = ({ 
+  project, 
+  onClick, 
+  isFeatured, 
+  viewMode = 'grid',
+  selectionMode = false,
+  isSelected = false,
+  onSelect,
+  isPinned = false,
+  onPinToggle,
+  urgency = 'None',
+  onUrgencyChange
+}) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef();
 
-  return (
-    <div className="progress-ring-container">
-      <svg className="progress-ring-svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle
-          cx="20"
-          cy="20"
-          r={r}
-          fill="none"
-          stroke="#F1F5F9"
-          strokeWidth="3"
-        />
-        <circle
-          cx="20"
-          cy="20"
-          r={r}
-          fill="none"
-          stroke="#2E7CF6"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-        />
-      </svg>
-      <div className="progress-ring-label">{percentage}%</div>
-    </div>
-  );
-};
-
-const PremiumProjectCard = ({ project, onClick, isFeatured }) => {
-  const completionPercent = project.completion_percent ?? Math.floor(Math.random() * 40) + 60; // fallback if undefined
-  const issues = project.issues ?? { critical: 0, warning: 0, low: 0 };
   const subModulesCount = project.submodules ? project.submodules.length : 0;
   const isConfigured = !!project.dashboardConfig;
 
-  // Determine avatar icon style
-  const code = project.code ?? project.name.substring(0, 4).toUpperCase();
-  let iconBg = 'rgba(203, 213, 225, 0.2)'; // Default gray
-  let iconColor = '#64748B';
-  if (code.startsWith('LEYL')) {
-    iconBg = 'rgba(46,124,246,0.1)';
-    iconColor = '#2E7CF6';
-  } else if (code.startsWith('DAS') || code.startsWith('DASH')) {
-    iconBg = 'rgba(18,183,106,0.1)';
-    iconColor = '#0B7A45';
-  } else if (code.startsWith('ASHO')) {
-    iconBg = 'rgba(247,144,9,0.1)';
-    iconColor = '#92400E';
-  }
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const getUrgencyColor = () => {
+    switch(urgency) {
+      case 'Critical': return '#F04438';
+      case 'High': return '#F79009';
+      case 'Medium': return '#F59E0B';
+      default: return 'transparent'; // Low/None
+    }
+  };
 
   return (
     <div 
-      className={`executive-project-card ${isFeatured ? 'featured' : ''}`}
-      onClick={() => onClick(project.id)}
+      className={`executive-project-card ${isFeatured ? 'featured' : ''} ${viewMode === 'list' ? 'list-view' : ''}`}
+      style={urgency !== 'None' && urgency !== 'Low' ? { borderTop: `3px solid ${getUrgencyColor()}` } : {}}
+      onClick={(e) => {
+        if (selectionMode) {
+          onSelect(!isSelected);
+        } else if (!menuOpen) {
+          onClick(project.id);
+        }
+      }}
     >
-      <div className="card-top-row">
-        <div className="project-icon" style={{ background: iconBg, color: iconColor }}>
-          {code.substring(0, 4)}
+      {/* Top Header Row with Status / Menu */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {selectionMode && (
+            <div style={{ color: isSelected ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer' }}>
+              {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+            </div>
+          )}
+          {isPinned && <Pin size={14} fill="var(--accent)" color="var(--accent)" />}
+          {urgency !== 'None' && (
+            <span style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 6px', background: `${getUrgencyColor()}20`, color: getUrgencyColor(), borderRadius: '4px' }}>
+              {urgency}
+            </span>
+          )}
         </div>
-        <ProgressRing percentage={completionPercent} />
+
+        <div className="card-menu-container" ref={menuRef} style={{ position: 'relative' }}>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+          >
+            <MoreVertical size={16} />
+          </button>
+          
+          {menuOpen && (
+            <div style={{ position: 'absolute', top: '100%', right: '0', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '4px', zIndex: 10, minWidth: '140px' }} onClick={e => e.stopPropagation()}>
+              <button 
+                onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}
+                style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer', borderRadius: '4px' }}
+              >
+                {isPinned ? 'Unpin Project' : 'Pin Project'}
+              </button>
+              <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', borderTop: '1px solid var(--border)', marginTop: '4px' }}>
+                Set Urgency
+              </div>
+              {['Low', 'Medium', 'High', 'Critical'].map(level => (
+                <button 
+                  key={level}
+                  onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
+                  style={{ width: '100%', textAlign: 'left', padding: '6px 12px', background: urgency === level ? 'var(--bg)' : 'none', border: 'none', fontSize: '12px', cursor: 'pointer', borderRadius: '4px', color: level === 'Critical' ? '#F04438' : 'inherit' }}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <h3 className="project-name">{project.name}</h3>
-      <p className="project-code">{code}</p>
+      <h3 className="project-name" style={{ marginTop: 0 }}>{project.name}</h3>
 
       <div className="card-divider" />
 
       <div className="meta-grid">
-        <div>
-          <div className="meta-label">Submodules</div>
-          <div className="meta-value">{subModulesCount}</div>
+        <div className="meta-item">
+          <span className="meta-label">Submodules</span>
+          <span className="meta-value">{subModulesCount}</span>
         </div>
-        <div>
-          <div className="meta-label">Completion</div>
-          <div className="meta-value">{completionPercent}%</div>
+        <div className="meta-item">
+          <span className="meta-label">State</span>
+          <span className={`status-tag ${isConfigured ? 'configured' : 'pending'}`}>
+            {isConfigured ? 'Configured' : 'Not Configured'}
+          </span>
         </div>
       </div>
 
-      <div className="status-row">
-        <div className="severity-badges">
-          <div className="severity-badge">
-            <div className="dot dot-red" />
-            <span>{issues.critical}</span>
-          </div>
-          <div className="severity-badge">
-            <div className="dot dot-amber" />
-            <span>{issues.warning}</span>
-          </div>
-          <div className="severity-badge">
-            <div className="dot dot-gray" />
-            <span>{issues.low}</span>
-          </div>
-        </div>
-        
-        {isConfigured ? (
-          <span className="status-tag configured">Configured</span>
-        ) : (
-          <span className="status-tag pending">Pending</span>
-        )}
+      <div className="card-actions">
+        <button 
+           className="view-button" 
+           onClick={(e) => {
+             e.stopPropagation();
+             onClick(project.id);
+           }}>
+          View <span>→</span>
+        </button>
       </div>
     </div>
   );
