@@ -902,18 +902,8 @@ const Dashboard = () => {
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => {
-            if (activeProjectName) {
-              const project = projectDashboardModules.find(p => p.name === activeProjectName);
-              const pid = project?.dbProjectId || project?.id;
-              if (pid) {
-                navigate(`/dashboard/mom?projectId=${pid}`);
-                dispatch(setActiveModule('mom-module'));
-              } else {
-                handleModuleClick('mom-module');
-              }
-            } else {
-              handleModuleClick('mom-module');
-            }
+            // Priority: Navigate to Meetings Dashboard
+            handleModuleClick('meetings');
           }}
           className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
             } rounded-xl ${isActive
@@ -969,6 +959,27 @@ const Dashboard = () => {
               </div>
               <span className={`text-sm font-medium truncate text-white`}>
                 Meetings
+              </span>
+            </button>
+
+            <button
+              key="mom-module"
+              onMouseEnter={() => setHoveredModule('mom-module')}
+              onMouseLeave={() => setHoveredModule(null)}
+              onClick={() => handleModuleClick('mom-module')}
+              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
+                activeModule === 'mom-module'
+                  ? 'bg-white/20 shadow-sm text-white'
+                  : hoveredModule === 'mom-module'
+                    ? 'bg-white/15 shadow-sm text-white'
+                    : 'hover:bg-white/10 text-white'
+              }`}
+            >
+              <div className="text-white">
+                <Plus className="h-5 w-5" />
+              </div>
+              <span className={`text-sm font-medium truncate text-white`}>
+                Create MOM
               </span>
             </button>
           </div>

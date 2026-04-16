@@ -3406,17 +3406,6 @@ const ProjectTitleDashboard = () => {
         {!activeProject ? (
           /* Projects List View */
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-            {/* Topbar */}
-            <div style={{ height: '56px', backgroundColor: '#FFFFFF', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 28px' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Workspace / <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Projects</span></div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--green)' }} className="animate-pulse" />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} · {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
-              </div>
-            </div>
-
             {/* Content Array */}
             <div style={{ padding: '28px' }}>
               {/* Page header row */}
