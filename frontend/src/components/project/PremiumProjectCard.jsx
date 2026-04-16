@@ -1,110 +1,33 @@
 import React from 'react';
+import { Layers } from 'lucide-react';
 import './PremiumProjectCard.css';
 
-const ProgressRing = ({ percentage }) => {
-  const r = 16;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - percentage / 100);
-
-  return (
-    <div className="progress-ring-container">
-      <svg className="progress-ring-svg" width="40" height="40" viewBox="0 0 40 40">
-        <circle
-          cx="20"
-          cy="20"
-          r={r}
-          fill="none"
-          stroke="#F1F5F9"
-          strokeWidth="3"
-        />
-        <circle
-          cx="20"
-          cy="20"
-          r={r}
-          fill="none"
-          stroke="#2E7CF6"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-        />
-      </svg>
-      <div className="progress-ring-label">{percentage}%</div>
-    </div>
-  );
-};
-
 const PremiumProjectCard = ({ project, onClick, isFeatured }) => {
-  const completionPercent = project.completion_percent ?? Math.floor(Math.random() * 40) + 60; // fallback if undefined
-  const issues = project.issues ?? { critical: 0, warning: 0, low: 0 };
   const subModulesCount = project.submodules ? project.submodules.length : 0;
   const isConfigured = !!project.dashboardConfig;
 
-  // Determine avatar icon style
-  const code = project.code ?? project.name.substring(0, 4).toUpperCase();
-  let iconBg = 'rgba(203, 213, 225, 0.2)'; // Default gray
-  let iconColor = '#64748B';
-  if (code.startsWith('LEYL')) {
-    iconBg = 'rgba(46,124,246,0.1)';
-    iconColor = '#2E7CF6';
-  } else if (code.startsWith('DAS') || code.startsWith('DASH')) {
-    iconBg = 'rgba(18,183,106,0.1)';
-    iconColor = '#0B7A45';
-  } else if (code.startsWith('ASHO')) {
-    iconBg = 'rgba(247,144,9,0.1)';
-    iconColor = '#92400E';
-  }
-
   return (
     <div 
-      className={`executive-project-card ${isFeatured ? 'featured' : ''}`}
+      className={`executive-project-card group flex flex-col justify-between ${isFeatured ? 'featured' : ''}`}
       onClick={() => onClick(project.id)}
+      style={{ minHeight: '140px' }}
     >
-      <div className="card-top-row">
-        <div className="project-icon" style={{ background: iconBg, color: iconColor }}>
-          {code.substring(0, 4)}
-        </div>
-        <ProgressRing percentage={completionPercent} />
-      </div>
-
-      <h3 className="project-name">{project.name}</h3>
-      <p className="project-code">{code}</p>
-
-      <div className="card-divider" />
-
-      <div className="meta-grid">
-        <div>
-          <div className="meta-label">Submodules</div>
-          <div className="meta-value">{subModulesCount}</div>
-        </div>
-        <div>
-          <div className="meta-label">Completion</div>
-          <div className="meta-value">{completionPercent}%</div>
-        </div>
-      </div>
-
-      <div className="status-row">
-        <div className="severity-badges">
-          <div className="severity-badge">
-            <div className="dot dot-red" />
-            <span>{issues.critical}</span>
-          </div>
-          <div className="severity-badge">
-            <div className="dot dot-amber" />
-            <span>{issues.warning}</span>
-          </div>
-          <div className="severity-badge">
-            <div className="dot dot-gray" />
-            <span>{issues.low}</span>
-          </div>
-        </div>
-        
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-[1rem] font-bold text-slate-800 leading-snug pr-4 group-hover:text-slate-900 transition-colors duration-300">
+          {project.name}
+        </h3>
         {isConfigured ? (
-          <span className="status-tag configured">Configured</span>
+          <span className="status-tag configured shrink-0">Configured</span>
         ) : (
-          <span className="status-tag pending">Pending</span>
+          <span className="status-tag pending shrink-0">Pending</span>
         )}
+      </div>
+
+      <div className="flex items-center gap-2 text-slate-500 font-medium pt-4 mt-auto border-t border-slate-100/80">
+        <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-slate-100 transition-colors">
+          <Layers className="h-4 w-4 text-slate-600" />
+        </div>
+        <span className="text-[13px] uppercase tracking-wider text-slate-600 group-hover:text-slate-800 transition-colors duration-300">{subModulesCount} {subModulesCount === 1 ? 'Submodule' : 'Submodules'}</span>
       </div>
     </div>
   );

@@ -16,7 +16,8 @@ import { logout } from '../store/slices/authSlice';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
-  MessageSquare, Layers, FolderTree, Calendar
+  MessageSquare, Layers, FolderTree, Calendar, Box, MoreVertical, Pin,
+  LayoutDashboard, ServerCog, UsersRound, Briefcase, CloudUpload, FilePlus2, Settings2, MessagesSquare, CalendarDays
 } from 'lucide-react';
 
 import API from "../utils/api";
@@ -97,26 +98,49 @@ const Dashboard = () => {
   const hoverTimeoutRef = useRef(null);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
 
+  // Recents State
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [recentsExpanded, setRecentsExpanded] = useState(true);
+  const [recentMenu, setRecentMenu] = useState(null); // idx of open menu
+  const [pinnedRecents, setPinnedRecents] = useState([]);
+
+  useEffect(() => {
+    const loadRecents = () => {
+      const saved = localStorage.getItem('project_dashboard_recents');
+      if (saved) {
+        try {
+          setRecentActivity(JSON.parse(saved).slice(0, 8)); // Limit sidebar to 8 items
+        } catch (e) {
+          console.error("Failed to load recents", e);
+        }
+      }
+    };
+    
+    loadRecents(); // initial load
+    window.addEventListener('recentsUpdated', loadRecents);
+    return () => window.removeEventListener('recentsUpdated', loadRecents);
+  }, []);
+
   // Masters submodules
   const mastersSubmodules = useMemo(() => [
-    { id: 'employee-master', name: 'Employee Master', path: 'masters/employees', icon: <Users className="h-5 w-5" />, color: '#000000' },
-    { id: 'project-master', name: 'Project Master', path: 'masters/project-master', icon: <FolderKanban className="h-5 w-5" />, color: '#333333' },
+    { id: 'employee-master', name: 'Employee Master', path: 'masters/employees', icon: <UsersRound className="h-5 w-5" />, color: '#000000' },
+    { id: 'project-master', name: 'Project Master', path: 'masters/project-master', icon: <Briefcase className="h-5 w-5" />, color: '#333333' },
   ], []);
 
   const mastersModules = useMemo(() => [
-    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <Database className="h-5 w-5" /> },
+    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <ServerCog className="h-5 w-5" /> },
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
-    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
-    { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <FileUp className="h-5 w-5" /> }
+    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <CloudUpload className="h-5 w-5" /> },
+    { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <CloudUpload className="h-5 w-5" /> }
   ], []);
   const uploadsModules = useMemo(() => [
-    { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <FileUp className="h-5 w-5" /> }
+    { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <CloudUpload className="h-5 w-5" /> }
   ], []);
 
   const otherModules = useMemo(() => [
-    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings className="h-5 w-5" /> },
+    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings2 className="h-5 w-5" /> },
   ], []);
 
 
@@ -523,7 +547,7 @@ const Dashboard = () => {
   };
 
   const getActiveModuleName = () => {
-    if (activeModule === 'project-dashboard') return 'Project Dashboard';
+    if (activeModule === 'project-dashboard') return 'Dashboard';
     if (activeModule === 'masters-main') return 'Masters';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
@@ -531,7 +555,7 @@ const Dashboard = () => {
 
     const allModules = [...mastersModules, ...mastersSubmodules, ...uploadsModules, ...uploadsSubmodules, ...otherModules];
     const module = allModules.find(m => m.id === activeModule);
-    return module ? module.name : 'Project Dashboard';
+    return module ? module.name : 'Dashboard';
   };
 
   // ==========================================================================
@@ -575,7 +599,7 @@ const Dashboard = () => {
     const module = allModules.find(m => m.id === moduleId);
     if (module) path = module.path;
     else if (moduleId === 'mom-module') path = 'mom';
-    else if (moduleId === 'meetings') path = 'meetings';
+    else if (moduleId === 'mom-main' || moduleId === 'meetings') path = 'meetings';
     else if (moduleId === 'schedule-meeting') path = 'schedule-meeting';
 
     navigate(`/dashboard/${path}`);
@@ -592,20 +616,18 @@ const Dashboard = () => {
     }
 
     if (moduleId === 'project-dashboard') {
-      if (projectDashboardModules.length > 0 && !expandedModules['project-dashboard']) {
-        dispatch(setExpandedModules({ 'project-dashboard': true }));
+      if (projectDashboardModules.length > 0) {
+        dispatch(toggleExpansion('project-dashboard'));
       }
     } else if (moduleId === 'masters-main') {
       dispatch(toggleExpansion('masters'));
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
-    } else if (moduleId === 'mom-module') {
-      if (!expandedModules['mom']) {
-        dispatch(setExpandedModules({ 'mom': true }));
-      }
+    } else if (moduleId === 'mom-main') {
+      dispatch(toggleExpansion('mom'));
     } else if (moduleId === 'upload-trackers') {
-      if (uploadTrackerModules.length > 0 && !expandedModules['upload-trackers']) {
-        dispatch(setExpandedModules({ 'upload-trackers': true }));
+      if (uploadTrackerModules.length > 0) {
+        dispatch(toggleExpansion('upload-trackers'));
       }
     }
   };
@@ -715,7 +737,7 @@ const Dashboard = () => {
         >
           <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
             <div className={`transition-colors text-white`}>
-              <BarChart3 className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
+              <LayoutDashboard className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
             </div>
             {isSidebarExpanded && (
               <span className={`font-semibold text-base text-white`}>
@@ -828,7 +850,7 @@ const Dashboard = () => {
         >
           <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
             <div className={`transition-colors text-white`}>
-              <FolderTree className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
+              <CloudUpload className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
             </div>
             {isSidebarExpanded && (
               <span className={`font-semibold text-base text-white`}>
@@ -876,7 +898,7 @@ const Dashboard = () => {
                 }`}
               >
                 <div className="text-white">
-                  <FileUp className="h-5 w-5" />
+                  <CloudUpload className="h-5 w-5" />
                 </div>
                 <span className={`text-sm font-medium truncate text-white`}>
                   Budget Upload
@@ -893,7 +915,7 @@ const Dashboard = () => {
     if (!hasPermission('MOM')) return null;
 
     const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings';
+    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'mom-main';
     const isHovered = hoveredModule === 'mom-main';
 
     return (
@@ -902,8 +924,7 @@ const Dashboard = () => {
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => {
-            // Priority: Navigate to Meetings Dashboard
-            handleModuleClick('meetings');
+            handleModuleClick('mom-main');
           }}
           className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
             } rounded-xl ${isActive
@@ -915,7 +936,7 @@ const Dashboard = () => {
         >
           <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
             <div className={`transition-colors text-white`}>
-              <MessageSquare className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
+              <MessagesSquare className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
             </div>
             {isSidebarExpanded && (
               <span className={`font-semibold text-base text-white`}>
@@ -955,7 +976,7 @@ const Dashboard = () => {
               }`}
             >
               <div className="text-white">
-                <Calendar className="h-5 w-5" />
+                <CalendarDays className="h-5 w-5" />
               </div>
               <span className={`text-sm font-medium truncate text-white`}>
                 Meetings
@@ -976,7 +997,7 @@ const Dashboard = () => {
               }`}
             >
               <div className="text-white">
-                <Plus className="h-5 w-5" />
+                <FilePlus2 className="h-5 w-5" />
               </div>
               <span className={`text-sm font-medium truncate text-white`}>
                 Create MOM
@@ -1247,7 +1268,8 @@ const Dashboard = () => {
             transform transition-all duration-200 ease-in-out lg:transform-none
             flex flex-col
             shadow-xl
-            relative overflow-hidden
+            relative z-30
+            group
           `}
         >
           {/* Subtle pattern overlay */}
@@ -1258,25 +1280,30 @@ const Dashboard = () => {
             }}>
           </div>
 
+          {/* Sidebar Boundary Toggle Button */}
+          <button
+            onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+            className="absolute top-7 -right-3.5 z-[100] h-7 w-7 rounded-full bg-[#1e3a5f] border-2 border-gray-100 text-white hover:bg-[#2a528a] transition-all duration-300 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100"
+            title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-4 w-4 ml-0.5" /> : <ChevronLeft className="h-4 w-4 pr-0.5" />}
+          </button>
+
           {/* Logo Section */}
-          <div className="relative px-6 py-4 z-10">
+          <div className="relative px-4 py-4 z-10 min-h-[80px] flex items-center justify-center">
             {isSidebarExpanded ? (
-              <div className="flex justify-center items-center">
-                <div className="relative w-full flex justify-center">
-                  <img
-                    src={companyLogo || "/caldimlogo.png"}
-                    className={`h-22 w-auto max-w-full object-contain relative ${!companyLogo ? 'brightness-0 invert' : ''}`}
-                    alt="Company Logo"
-                  />
-                </div>
+              <div className="relative w-full flex justify-center">
+                <img
+                  src={companyLogo || "/caldimlogo.png"}
+                  className={`h-22 w-auto max-w-full object-contain relative ${!companyLogo ? 'brightness-0 invert' : ''}`}
+                  alt="Company Logo"
+                />
               </div>
             ) : (
-              <div className="flex justify-center py-2">
-                <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shadow-md backdrop-blur-sm">
-                  <span className="text-white font-bold text-sm">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'CD'}
-                  </span>
-                </div>
+              <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shadow-md backdrop-blur-sm">
+                <span className="text-white font-bold text-sm">
+                  {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'CD'}
+                </span>
               </div>
             )}
           </div>
@@ -1291,6 +1318,108 @@ const Dashboard = () => {
               {renderUploadsModule()}
               {renderOtherModules()}
             </div>
+
+            {/* Recents Sidebar Section */}
+            {recentActivity.length > 0 && (
+              <div className="mt-8 mb-4">
+                {isSidebarExpanded ? (
+                  <button
+                    onClick={() => setRecentsExpanded(!recentsExpanded)}
+                    className="w-full px-4 mb-2 flex items-center justify-between group"
+                  >
+                    <span className="text-xs font-bold text-white/50 uppercase tracking-wider group-hover:text-white/70 transition-colors">
+                      Recents
+                    </span>
+                    <span className="text-white/40 group-hover:text-white/70 transition-colors">
+                      {recentsExpanded
+                        ? <ChevronUp className="h-3.5 w-3.5" />
+                        : <ChevronDown className="h-3.5 w-3.5" />}
+                    </span>
+                  </button>
+                ) : null}
+
+                {(recentsExpanded || !isSidebarExpanded) && (
+                  <div className="space-y-1">
+                    {recentActivity.map((item, idx) => (
+                      <div key={idx} className="relative group/item">
+                        <button
+                          onClick={() => {
+                            if (item.type === 'project') {
+                              navigate(`/dashboard/projects?projectId=${item.id}`);
+                              window.dispatchEvent(new CustomEvent('openProjectDashboardMain', { detail: { projectId: item.id } }));
+                            } else {
+                              navigate(item.path);
+                            }
+                          }}
+                          title={!isSidebarExpanded ? item.label : ''}
+                          className={`w-full flex items-center transition-all duration-300 ${isSidebarExpanded ? 'pl-4 pr-8 py-2 space-x-3' : 'justify-center px-2 py-2'} rounded-xl hover:bg-white/10 text-white/80 hover:text-white`}
+                        >
+                          <div className="flex-shrink-0">
+                            {pinnedRecents.includes(idx)
+                              ? <span className="text-yellow-400"><Box className="h-4 w-4" /></span>
+                              : item.type === 'project' ? <Box className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
+                          </div>
+                          {isSidebarExpanded && (
+                            <div className="flex flex-col items-start min-w-0 overflow-hidden">
+                              <span className="text-sm font-medium truncate w-full text-left">
+                                {item.label}
+                              </span>
+                            </div>
+                          )}
+                        </button>
+
+                        {/* Three-dot menu button */}
+                        {isSidebarExpanded && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRecentMenu(recentMenu === idx ? null : idx); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-white/0 group-hover/item:text-white/50 hover:!text-white transition-all"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+
+                        {/* Dropdown Menu */}
+                        {recentMenu === idx && isSidebarExpanded && (
+                          <div
+                            className="absolute right-0 top-full mt-1 z-[200] bg-[#1a2f4a] border border-white/10 rounded-lg shadow-xl overflow-hidden w-36"
+                            onMouseLeave={() => setRecentMenu(null)}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPinnedRecents(prev =>
+                                  prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+                                );
+                                setRecentMenu(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                            >
+                              <Pin className="h-3.5 w-3.5" />
+                              {pinnedRecents.includes(idx) ? 'Unpin' : 'Pin'}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updated = recentActivity.filter((_, i) => i !== idx);
+                                setRecentActivity(updated);
+                                localStorage.setItem('project_dashboard_recents', JSON.stringify(updated));
+                                setRecentMenu(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+
           </div>
         </div>
 
@@ -1299,15 +1428,18 @@ const Dashboard = () => {
           {/* Header - White background */}
           <header className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-20 shadow-sm">
             <div className="px-6 py-4 flex items-center justify-between relative z-10">
-              {/* Left side - Toggle button */}
+              {/* Left side - Back Button */}
               <div className="w-48 flex items-center">
-                <button
-                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                  className="p-2 rounded-lg text-[#1e3a5f] hover:bg-gray-100 transition-colors"
-                  title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
-                >
-                  {sidebarCollapsed ? <Menu className="h-6 w-6" /> : <ChevronLeft className="h-6 w-6" />}
-                </button>
+                {!(location.pathname === '/dashboard/projects' && !location.search) && location.pathname !== '/dashboard' && (
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="px-3 py-2 rounded-lg text-[#1e3a5f] hover:bg-gray-100 transition-colors flex items-center gap-2 group"
+                    title="Go Back"
+                  >
+                    <ChevronLeft className="h-5 w-5 transform group-hover:-translate-x-1 transition-transform" />
+                    <span className="font-semibold text-sm text-[15px]">Back</span>
+                  </button>
+                )}
               </div>
 
               {/* Center - Title */}
@@ -1325,6 +1457,15 @@ const Dashboard = () => {
                   <span className="text-gray-300">|</span>
                   <span className="text-sm font-medium text-gray-700">{currentDate}</span>
                 </div>
+
+                {/* Notifications */}
+                <button className="relative p-2 text-gray-500 hover:text-[#1e3a5f] transition-colors rounded-full hover:bg-gray-100">
+                  <Bell className="h-6 w-6" />
+                  {notifications > 0 && (
+                    <span className="absolute top-1 right-1 h-3.5 w-3.5 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                    </span>
+                  )}
+                </button>
 
                 {/* Profile Menu with black background */}
                 <div className="relative" ref={profileMenuRef}>

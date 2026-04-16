@@ -1,29 +1,22 @@
 .executive-project-card {
   background: #FFFFFF;
-  border: 1px solid rgba(0,0,0,0.07);
-  border-radius: 14px;
-  padding: 20px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 0;
+  padding: 24px;
   position: relative;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+  overflow: hidden;
 }
 
 .executive-project-card:hover {
   border-color: rgba(46,124,246,0.3);
-  box-shadow: 0 2px 12px rgba(46,124,246,0.08);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06), 0 4px 10px rgba(46,124,246,0.05);
+  transform: translateY(-4px);
 }
 
-.executive-project-card.featured::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: #2E7CF6;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
-}
+
 
 .card-top-row {
   display: flex;
