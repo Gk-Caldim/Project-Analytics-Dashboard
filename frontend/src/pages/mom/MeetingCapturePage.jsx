@@ -370,12 +370,12 @@ const MeetingCapturePage = () => {
   const { status: reduxStatus, lastSaved } = useSelector(s => s.mom);
 
   const currentUser = useMemo(() => {
-    // Priority: full_name -> name -> email prefix -> Gokul (as specified by user)
+    // Priority: full_name -> name -> email prefix -> System User
     let name = user?.full_name || user?.name;
     if (!name && user?.email) {
       name = user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1);
     }
-    if (!name || name.toLowerCase() === 'you') name = 'Gokul'; 
+    if (!name || name.toLowerCase() === 'you') name = 'System User'; 
     
     return { name, initials: getInitials(name) };
   }, [user]);

@@ -566,7 +566,7 @@ const Dashboard = () => {
   // ==========================================================================
   // HANDLE MODULE CLICK - UPDATED to match Masters behavior
   // ==========================================================================
-    const handleModuleClick = (moduleId) => {
+  const handleModuleClick = (moduleId) => {
     dispatch(setActiveModule(moduleId));
 
     // Build path
@@ -867,13 +867,12 @@ const Dashboard = () => {
                 onMouseEnter={() => setHoveredModule('budget-upload')}
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
-                  activeModule === 'budget-upload'
-                    ? 'bg-white/20 shadow-sm text-white'
-                    : hoveredModule === 'budget-upload'
-                      ? 'bg-white/15 shadow-sm text-white'
-                      : 'hover:bg-white/10 text-white'
-                }`}
+                className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${activeModule === 'budget-upload'
+                  ? 'bg-white/20 shadow-sm text-white'
+                  : hoveredModule === 'budget-upload'
+                    ? 'bg-white/15 shadow-sm text-white'
+                    : 'hover:bg-white/10 text-white'
+                  }`}
               >
                 <div className="text-white">
                   <FileUp className="h-5 w-5" />
@@ -946,13 +945,12 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('meetings')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
-                activeModule === 'meetings'
-                  ? 'bg-white/20 shadow-sm text-white'
-                  : hoveredModule === 'meetings'
-                    ? 'bg-white/15 shadow-sm text-white'
-                    : 'hover:bg-white/10 text-white'
-              }`}
+              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${activeModule === 'meetings'
+                ? 'bg-white/20 shadow-sm text-white'
+                : hoveredModule === 'meetings'
+                  ? 'bg-white/15 shadow-sm text-white'
+                  : 'hover:bg-white/10 text-white'
+                }`}
             >
               <div className="text-white">
                 <Calendar className="h-5 w-5" />
@@ -967,13 +965,12 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('mom-module')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
-                activeModule === 'mom-module'
-                  ? 'bg-white/20 shadow-sm text-white'
-                  : hoveredModule === 'mom-module'
-                    ? 'bg-white/15 shadow-sm text-white'
-                    : 'hover:bg-white/10 text-white'
-              }`}
+              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${activeModule === 'mom-module'
+                ? 'bg-white/20 shadow-sm text-white'
+                : hoveredModule === 'mom-module'
+                  ? 'bg-white/15 shadow-sm text-white'
+                  : 'hover:bg-white/10 text-white'
+                }`}
             >
               <div className="text-white">
                 <Plus className="h-5 w-5" />
@@ -1175,7 +1172,7 @@ const Dashboard = () => {
   const renderOtherModules = () => {
     return otherModules.filter(module => module.id !== 'upload-trackers').map((module, index) => {
       if (!hasPermission(module.name)) return null;
-      
+
       const isActive = activeModule === module.id;
       const isHovered = hoveredModule === module.id;
 
