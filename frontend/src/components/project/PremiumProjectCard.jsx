@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './PremiumProjectCard.css';
-import { MoreVertical, Pin, CheckSquare, Square } from 'lucide-react';
+import { MoreVertical, Pin, CheckSquare, Square, Trash2 } from 'lucide-react';
 
 const PremiumProjectCard = ({ 
   project, 
@@ -13,7 +13,8 @@ const PremiumProjectCard = ({
   isPinned = false,
   onPinToggle,
   urgency = 'None',
-  onUrgencyChange
+  onUrgencyChange,
+  onDeleteRequest
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
@@ -52,81 +53,103 @@ const PremiumProjectCard = ({
         }
       }}
     >
-      {/* Top Header Row with Status / Menu */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {selectionMode && (
-            <div style={{ color: isSelected ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer' }}>
-              {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-            </div>
-          )}
-          {isPinned && <Pin size={14} fill="var(--accent)" color="var(--accent)" />}
+      <div className="card-header-wrapper">
+        <div className="card-title-area">
+          <div className="title-and-indicators">
+            {selectionMode && (
+              <div className="selection-indicator">
+                {isSelected ? <CheckSquare size={18} color="var(--accent)" /> : <Square size={18} color="var(--text-tertiary)" />}
+              </div>
+            )}
+            <h3 className="project-name">{project.name}</h3>
+            {isPinned && (
+              <div className="pin-indicator" title="Pinned Project">
+                <Pin size={14} fill="var(--accent)" color="var(--accent)" style={{ transform: 'rotate(45deg)' }} />
+              </div>
+            )}
+          </div>
           {urgency !== 'None' && (
-            <span style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', padding: '2px 6px', background: `${getUrgencyColor()}20`, color: getUrgencyColor(), borderRadius: '4px' }}>
+            <span className="urgency-pill" style={{ background: `${getUrgencyColor()}15`, color: getUrgencyColor() }}>
+              <div className="urgency-dot" style={{ background: getUrgencyColor() }} />
               {urgency}
             </span>
           )}
         </div>
 
-        <div className="card-menu-container" ref={menuRef} style={{ position: 'relative' }}>
+        <div className="card-menu-container" ref={menuRef}>
           <button 
+            className="menu-trigger"
             onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}
           >
-            <MoreVertical size={16} />
+            <MoreVertical size={18} />
           </button>
           
           {menuOpen && (
-            <div style={{ position: 'absolute', top: '100%', right: '0', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '4px', zIndex: 10, minWidth: '140px' }} onClick={e => e.stopPropagation()}>
-              <button 
-                onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}
-                style={{ width: '100%', textAlign: 'left', padding: '8px 12px', background: 'none', border: 'none', fontSize: '12px', cursor: 'pointer', borderRadius: '4px' }}
-              >
-                {isPinned ? 'Unpin Project' : 'Pin Project'}
+            <div className="card-dropdown-menu" onClick={e => e.stopPropagation()}>
+              <button className="dropdown-item" onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}>
+                <Pin size={14} style={{ transform: isPinned ? 'none' : 'rotate(45deg)' }} /> 
+                {isPinned ? 'Unpin Project' : 'Pin to Top'}
               </button>
-              <div style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold', textTransform: 'uppercase', borderTop: '1px solid var(--border)', marginTop: '4px' }}>
-                Set Urgency
+              
+              <div className="dropdown-divider" />
+              <div className="dropdown-label">Priority Level</div>
+              
+              <div className="urgency-options">
+                {['Low', 'Medium', 'High', 'Critical'].map(level => {
+                  let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
+                  return (
+                    <button 
+                      key={level}
+                      className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
+                      style={{ color: urgency === level ? lColor : 'inherit' }}
+                      onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
+                    >
+                      <div className="urgency-dot-small" style={{ background: lColor }} />
+                      {level}
+                    </button>
+                  );
+                })}
               </div>
-              {['Low', 'Medium', 'High', 'Critical'].map(level => (
-                <button 
-                  key={level}
-                  onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
-                  style={{ width: '100%', textAlign: 'left', padding: '6px 12px', background: urgency === level ? 'var(--bg)' : 'none', border: 'none', fontSize: '12px', cursor: 'pointer', borderRadius: '4px', color: level === 'Critical' ? '#F04438' : 'inherit' }}
-                >
-                  {level}
-                </button>
-              ))}
+
+              <div className="dropdown-divider" />
+              <button 
+                className="dropdown-item" 
+                style={{ color: '#F04438' }} 
+                onClick={() => { onDeleteRequest(project); setMenuOpen(false); }}
+              >
+                <Trash2 size={14} /> Delete Project
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      <h3 className="project-name" style={{ marginTop: 0 }}>{project.name}</h3>
-
       <div className="card-divider" />
 
-      <div className="meta-grid">
-        <div className="meta-item">
-          <span className="meta-label">Submodules</span>
-          <span className="meta-value">{subModulesCount}</span>
+      <div className="card-content-wrapper">
+        <div className="meta-grid">
+          <div className="meta-item">
+            <span className="meta-label">Submodules</span>
+            <span className="meta-value">{subModulesCount}</span>
+          </div>
+          <div className="meta-item">
+            <span className="meta-label">Status</span>
+            <span className={`status-tag ${isConfigured ? 'configured' : 'pending'}`}>
+              {isConfigured ? 'Configured' : 'Pending Setup'}
+            </span>
+          </div>
         </div>
-        <div className="meta-item">
-          <span className="meta-label">State</span>
-          <span className={`status-tag ${isConfigured ? 'configured' : 'pending'}`}>
-            {isConfigured ? 'Configured' : 'Not Configured'}
-          </span>
-        </div>
-      </div>
 
-      <div className="card-actions">
-        <button 
-           className="view-button" 
-           onClick={(e) => {
-             e.stopPropagation();
-             onClick(project.id);
-           }}>
-          View <span>→</span>
-        </button>
+        <div className="card-actions">
+          <button 
+             className="view-button" 
+             onClick={(e) => {
+               e.stopPropagation();
+               onClick(project.id);
+             }}>
+            View <span>→</span>
+          </button>
+        </div>
       </div>
     </div>
   );

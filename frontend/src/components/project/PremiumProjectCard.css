@@ -117,28 +117,215 @@
   opacity: 0.9;
 }
 
+.card-header-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.card-title-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title-and-indicators {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selection-indicator {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.pin-indicator {
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.urgency-pill {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 6px;
+}
+
+.urgency-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.card-menu-container {
+  position: relative;
+}
+
+.menu-trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.menu-trigger:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.card-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  padding: 6px;
+  z-index: 50;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-item {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.dropdown-item:hover {
+  background: var(--bg);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.dropdown-label {
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.urgency-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.urgency-btn {
+  font-size: 12px;
+}
+
+.urgency-btn.active {
+  background: var(--bg);
+  font-weight: 600;
+}
+
+.urgency-dot-small {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.card-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 12px;
+}
+
 /* List View Styles */
 .executive-project-card.list-view {
   flex-direction: row;
   align-items: center;
   padding: 12px 20px;
+  gap: 32px; /* Increased gap slightly to distribute unused space */
+}
+
+.executive-project-card.list-view .card-header-wrapper {
+  flex: 3;
+  align-items: center;
+  margin-bottom: 0;
   gap: 24px;
 }
 
+.executive-project-card.list-view .card-title-area {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+.executive-project-card.list-view .title-and-indicators {
+  flex-shrink: 0;
+}
+
 .executive-project-card.list-view .project-name {
-  flex: 2;
-  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Push menu trigger to extreme right of header container but without absolute */
+.executive-project-card.list-view .card-menu-container {
+  margin-left: auto; 
+}
+
+.executive-project-card.list-view .card-dropdown-menu {
+  right: 0;
+  top: calc(100% + 4px);
 }
 
 .executive-project-card.list-view .card-divider {
   display: none;
 }
 
-.executive-project-card.list-view .meta-grid {
-  flex: 3;
+.executive-project-card.list-view .card-content-wrapper {
+  flex: 5;
   flex-direction: row;
-  gap: 32px;
   align-items: center;
+  justify-content: flex-end;
+  gap: 32px;
+}
+
+.executive-project-card.list-view .meta-grid {
+  flex-direction: row;
+  gap: 40px; /* Better alignment utilizing unused list whitespace */
+  align-items: center;
+  margin: 0 auto;
 }
 
 .executive-project-card.list-view .meta-item {
@@ -148,5 +335,5 @@
 .executive-project-card.list-view .card-actions {
   margin-top: 0;
   padding-top: 0;
-  flex: 1;
+  flex-shrink: 0;
 }

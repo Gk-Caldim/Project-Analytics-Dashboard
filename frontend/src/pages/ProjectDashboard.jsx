@@ -261,6 +261,59 @@ const ProjectTitleDashboard = () => {
   });
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState([]);
+  const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  
+  // Staging states for bulk layout
+  const [stagedBulkPin, setStagedBulkPin] = useState(null); // null, 'pin', 'unpin'
+  const [stagedBulkUrgency, setStagedBulkUrgency] = useState(null);
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    try {
+      setLoading(true);
+      const { default: API } = await import('../utils/api');
+      
+      let safeId = projectToDelete.dbProjectId;
+      
+      // If we don't have dbProjectId cached properly, fetch the projects list to find it by name
+      if (!safeId) {
+        const { data: allProjects } = await API.get('/projects/');
+        const matched = allProjects.find(p => p.name.trim().toLowerCase() === projectToDelete.name.trim().toLowerCase());
+        if (matched) {
+          safeId = matched.project_id || matched.id;
+        } else {
+          // Fallback extraction as a last resort
+          const extracted = parseInt(projectToDelete.id.split('-').pop());
+          safeId = isNaN(extracted) ? projectToDelete.id : extracted;
+        }
+      }
+      
+      await API.delete(`/projects/${safeId}`);
+      
+      // Update local Redux Store
+      const newProjects = projects.filter(p => p.id !== projectToDelete.id);
+      dispatch(setProjects(newProjects));
+      
+      // Update filters
+      setPinnedProjects(prev => prev.filter(id => id !== projectToDelete.id));
+      setSelectedProjects(prev => prev.filter(id => id !== projectToDelete.id));
+      
+      // Force Dashboard sidebar refresh
+      window.dispatchEvent(new CustomEvent('projectDashboardUpdate'));
+      
+      setProjectToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete project', err);
+      let errMsg = err.response?.data?.detail || 'Failed to delete project. Ensure no uploaded trackers correspond to this project before deletion.';
+      if (typeof errMsg === 'object') {
+        errMsg = JSON.stringify(errMsg);
+      }
+      alert(`Deletion Failed:\n${errMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Sync to session storage
   useEffect(() => {
@@ -3483,22 +3536,52 @@ const ProjectTitleDashboard = () => {
 
                 {/* Center: Bulk Actions Menu */}
                 {selectionMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 'bold', marginRight: '8px' }}>{selectedProjects.length} selected</span>
-                    <button onClick={() => handleBulkPin(true)} style={{ padding: '6px 12px', fontSize: '12px', background: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>Pin</button>
-                    <button onClick={() => handleBulkPin(false)} style={{ padding: '6px 12px', fontSize: '12px', background: 'white', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}>Unpin</button>
-                    <div style={{ position: 'relative' }}>
-                      <button onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)} style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Set Urgency <ChevronDown size={12} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 'bold', marginRight: '8px', color: 'var(--text-secondary)' }}>
+                      {selectedProjects.length} selected
+                    </span>
+                    
+                    <button 
+                      onClick={() => setStagedBulkPin(stagedBulkPin === true ? null : true)} 
+                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === true ? 'var(--blue-50)' : 'white', color: stagedBulkPin === true ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === true ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === true ? '600' : 'normal' }}>
+                      Pin
+                    </button>
+                    <button 
+                      onClick={() => setStagedBulkPin(stagedBulkPin === false ? null : false)} 
+                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === false ? 'var(--blue-50)' : 'white', color: stagedBulkPin === false ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === false ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === false ? '600' : 'normal' }}>
+                      Unpin
+                    </button>
+                    
+                    <div style={{ position: 'relative', marginLeft: '4px' }}>
+                      <button 
+                        onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)} 
+                        style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkUrgency ? 'var(--blue-50)' : 'white', color: stagedBulkUrgency ? 'var(--accent)' : 'var(--text-primary)', border: '1px solid', borderColor: stagedBulkUrgency ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: stagedBulkUrgency ? '600' : 'normal' }}>
+                        {stagedBulkUrgency ? `Urgency: ${stagedBulkUrgency}` : 'Set Urgency'} <ChevronDown size={12} />
                       </button>
                       {isBulkMenuOpen && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, width: '120px' }}>
+                          <div onClick={() => { setStagedBulkUrgency(null); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', color: 'var(--text-secondary)' }}>Clear</div>
                           {['Low', 'Medium', 'High', 'Critical'].map(level => (
-                            <div key={level} onClick={() => { handleBulkUrgency(level); setIsBulkMenuOpen(false); setSelectionMode(false); setSelectedProjects([]); }} style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>{level}</div>
+                            <div key={level} onClick={() => { setStagedBulkUrgency(level); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: stagedBulkUrgency === level ? '600' : 'normal', background: stagedBulkUrgency === level ? 'var(--bg)' : 'transparent' }}>{level}</div>
                           ))}
                         </div>
                       )}
                     </div>
+                    
+                    {(stagedBulkPin !== null || stagedBulkUrgency !== null) && selectedProjects.length > 0 && (
+                      <button 
+                        onClick={() => {
+                          if (stagedBulkPin !== null) handleBulkPin(stagedBulkPin);
+                          if (stagedBulkUrgency !== null) handleBulkUrgency(stagedBulkUrgency);
+                          setStagedBulkPin(null);
+                          setStagedBulkUrgency(null);
+                          setSelectionMode(false);
+                          setSelectedProjects([]);
+                        }}
+                        style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Check size={14} /> Apply
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -3566,6 +3649,7 @@ const ProjectTitleDashboard = () => {
                     onUrgencyChange={(level) => {
                       setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
                     }}
+                    onDeleteRequest={(p) => setProjectToDelete(p)}
                   />
                 ))}
               </div>
@@ -3625,6 +3709,39 @@ const ProjectTitleDashboard = () => {
               chartImages={pdfChartImages}
               isCapturing={isCapturingPdf}
             />
+              
+            {/* Delete Confirmation Modal */}
+            {projectToDelete && (
+              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
+                <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '400px', maxWidth: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ background: '#fef2f2', padding: '8px', borderRadius: '50%' }}>
+                      <Trash2 size={24} color="#ef4444" />
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>Delete Project</h3>
+                  </div>
+                  <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    Are you sure you want to permanently delete <strong>{projectToDelete.name}</strong>? This action will remove it from all views.
+                    <br /><br />
+                    <span style={{ fontSize: '12px', color: '#ef4444' }}>Note: If this project contains uploaded trackers, you must delete those files from the Trackers module first.</span>
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                    <button 
+                      onClick={() => setProjectToDelete(null)}
+                      disabled={loading}
+                      style={{ padding: '8px 16px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleDeleteProject}
+                      disabled={loading}
+                      style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                      {loading ? 'Deleting...' : 'Delete Project'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
