@@ -700,25 +700,21 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'project-dashboard';
 
     return (
-      <div key="project-dashboard" className="mb-1.5">
+      <div key="project-dashboard" className="px-2">
         <div
           onMouseEnter={() => setHoveredModule('project-dashboard')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('project-dashboard')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
+            } rounded-r-md ${isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <BarChart3 className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
+          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+            <BarChart3 className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
-              <span className={`font-semibold text-base text-white`}>
+              <span className="text-body font-medium">
                 Dashboard
               </span>
             )}
@@ -729,10 +725,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('project-dashboard', e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isActive ? 'hover:bg-white/20' :
-                isHovered ? 'hover:bg-white/15' :
-                  'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -740,7 +733,7 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-7 mt-1.5 space-y-1.5">
+          <div className="ml-6 mt-1 space-y-1">
             {projectDashboardModules.map(projectModule => renderProjectModule(projectModule, 'project-dashboard'))}
           </div>
         )}
@@ -757,25 +750,21 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'upload-trackers';
 
     return (
-      <div key="upload-trackers" className="mb-1.5">
+      <div key="upload-trackers" className="px-2">
         <div
           onMouseEnter={() => setHoveredModule('upload-trackers')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('upload-trackers')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
+            } rounded-r-md ${isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <FileUp className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
+          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+            <FileUp className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
-              <span className={`font-semibold text-base text-white`}>
+              <span className="text-body font-medium">
                 Trackers
               </span>
             )}
@@ -786,10 +775,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('upload-trackers', e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isActive ? 'hover:bg-white/20' :
-                isHovered ? 'hover:bg-white/15' :
-                  'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -797,7 +783,7 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-7 mt-1.5 space-y-1.5">
+          <div className="ml-6 mt-1 space-y-1">
             {uploadTrackerModules.map(projectModule => renderProjectModule(projectModule, 'upload-trackers'))}
           </div>
         )}
@@ -813,25 +799,21 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'uploads-main';
 
     return (
-      <div key="uploads" className="mb-1.5">
+      <div key="uploads" className="px-2">
         <div
           onMouseEnter={() => setHoveredModule('uploads-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('uploads-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
+            } rounded-r-md ${isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <FolderTree className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
+          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+            <FolderTree className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
-              <span className={`font-semibold text-base text-white`}>
+              <span className="text-body font-medium">
                 Uploads
               </span>
             )}
@@ -842,10 +824,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('uploads', e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isActive ? 'hover:bg-white/20' :
-                isHovered ? 'hover:bg-white/15' :
-                  'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -853,32 +832,22 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-7 mt-1.5 space-y-1.5">
-            {/*
-              Embed the Upload Trackers tile (with its own dynamic project expansion)
-            */}
+          <div className="ml-6 mt-1 space-y-1">
             {renderUploadTrackersModule()}
-            {/*
-              Simple submodule button for Budget Upload
-            */}
             {hasPermission('Budget Upload') && (
               <button
                 key="budget-upload"
                 onMouseEnter={() => setHoveredModule('budget-upload')}
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
+                className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                   activeModule === 'budget-upload'
-                    ? 'bg-white/20 shadow-sm text-white'
-                    : hoveredModule === 'budget-upload'
-                      ? 'bg-white/15 shadow-sm text-white'
-                      : 'hover:bg-white/10 text-white'
+                    ? 'bg-brand-primary/10 text-brand-primary'
+                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
                 }`}
               >
-                <div className="text-white">
-                  <FileUp className="h-5 w-5" />
-                </div>
-                <span className={`text-sm font-medium truncate text-white`}>
+                <FileUp className="h-4 w-4" />
+                <span className="text-body font-medium">
                   Budget Upload
                 </span>
               </button>
@@ -897,29 +866,22 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'mom-main';
 
     return (
-      <div key="mom" className="mb-1.5">
+      <div key="mom" className="px-2">
         <div
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => {
-            // Priority: Navigate to Meetings Dashboard
-            handleModuleClick('meetings');
-          }}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
+          onClick={() => handleModuleClick('meetings')}
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
+            } rounded-r-md ${isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <MessageSquare className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
+          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+            <MessageSquare className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
-              <span className={`font-semibold text-base text-white`}>
-                MOM
+              <span className="text-body font-medium">
+                Meetings
               </span>
             )}
           </div>
@@ -929,10 +891,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('mom', e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isActive ? 'hover:bg-white/20' :
-                isHovered ? 'hover:bg-white/15' :
-                  'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -940,25 +899,21 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-7 mt-1.5 space-y-1.5">
+          <div className="ml-6 mt-1 space-y-1">
             <button
               key="meetings"
               onMouseEnter={() => setHoveredModule('meetings')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
+              className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                 activeModule === 'meetings'
-                  ? 'bg-white/20 shadow-sm text-white'
-                  : hoveredModule === 'meetings'
-                    ? 'bg-white/15 shadow-sm text-white'
-                    : 'hover:bg-white/10 text-white'
+                  ? 'bg-brand-primary/10 text-brand-primary'
+                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
               }`}
             >
-              <div className="text-white">
-                <Calendar className="h-5 w-5" />
-              </div>
-              <span className={`text-sm font-medium truncate text-white`}>
-                Meetings
+              <Calendar className="h-4 w-4" />
+              <span className="text-body font-medium">
+                All Meetings
               </span>
             </button>
 
@@ -967,18 +922,14 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('mom-module')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${
+              className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                 activeModule === 'mom-module'
-                  ? 'bg-white/20 shadow-sm text-white'
-                  : hoveredModule === 'mom-module'
-                    ? 'bg-white/15 shadow-sm text-white'
-                    : 'hover:bg-white/10 text-white'
+                  ? 'bg-brand-primary/10 text-brand-primary'
+                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
               }`}
             >
-              <div className="text-white">
-                <Plus className="h-5 w-5" />
-              </div>
-              <span className={`text-sm font-medium truncate text-white`}>
+              <Plus className="h-4 w-4" />
+              <span className="text-body font-medium">
                 Create MOM
               </span>
             </button>
@@ -997,25 +948,21 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'masters-main';
 
     return (
-      <div key="masters" className="mb-1.5">
+      <div key="masters" className="px-2">
         <div
           onMouseEnter={() => setHoveredModule('masters-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('masters-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
+            } rounded-r-md ${isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <FolderTree className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
+          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+            <FolderTree className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
-              <span className={`font-semibold text-base text-white`}>
+              <span className="text-body font-medium">
                 Masters
               </span>
             )}
@@ -1026,10 +973,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('masters', e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isActive ? 'hover:bg-white/20' :
-                isHovered ? 'hover:bg-white/15' :
-                  'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -1037,10 +981,9 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-7 mt-1.5 space-y-1.5">
-            {visibleSubmodules.map((submodule, index) => {
+          <div className="ml-6 mt-1 space-y-1">
+            {visibleSubmodules.map((submodule) => {
               const isSubmoduleActive = activeModule === submodule.id;
-              const isSubmoduleHovered = hoveredModule === submodule.id;
 
               return (
                 <button
@@ -1048,17 +991,12 @@ const Dashboard = () => {
                   onMouseEnter={() => setHoveredModule(submodule.id)}
                   onMouseLeave={() => setHoveredModule(null)}
                   onClick={() => handleModuleClick(submodule.id)}
-                  className={`w-full flex items-center space-x-3.5 rounded-lg px-3 py-2.5 transition-all duration-300 ${isSubmoduleActive
-                    ? 'bg-white/20 shadow-sm text-white'
-                    : isSubmoduleHovered
-                      ? 'bg-white/15 shadow-sm text-white'
-                      : 'hover:bg-white/10 text-white'
+                  className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSubmoduleActive
+                    ? 'bg-brand-primary/10 text-brand-primary'
+                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
                     }`}
                 >
-                  <div className="text-white">
-                    {submodule.icon}
-                  </div>
-                  <span className={`text-sm font-medium truncate text-white`}>
+                  <span className="text-body font-medium">
                     {submodule.name}
                   </span>
                 </button>
@@ -1096,13 +1034,13 @@ const Dashboard = () => {
                 }));
               }
             }}
-            className={`flex-1 flex items-center space-x-2.5 rounded-lg px-3 py-2.5 transition-all duration-300 cursor-pointer ${isHovered
-              ? 'bg-white/15 text-white shadow-sm'
-              : 'hover:bg-white/10 text-white'
+            className={`flex-1 flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast cursor-pointer ${isHovered
+              ? 'bg-app-bg text-text-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
               }`}
           >
-            <Layers className="h-5 w-5 text-white" />
-            <span className="text-sm font-medium truncate text-white">
+            <Layers className="h-4 w-4" />
+            <span className="text-body font-medium truncate">
               {projectModule.name}
             </span>
           </div>
@@ -1112,8 +1050,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion(uniqueId, e);
               }}
-              className={`p-1.5 rounded-lg text-white ${isHovered ? 'hover:bg-white/15' : 'hover:bg-white/10'
-                }`}
+              className="p-1 rounded hover:bg-app-surface transition-colors text-text-muted hover:text-text-primary"
             >
               {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
@@ -1121,7 +1058,7 @@ const Dashboard = () => {
         </div>
 
         {isExpanded && hasFiles && (
-          <div className="ml-7 mt-1.5 space-y-1">
+          <div className="ml-6 mt-1 space-y-1">
             {projectModule.submodules.map(fileModule => renderFileModule(fileModule, context, projectKey))}
           </div>
         )}
@@ -1157,15 +1094,14 @@ const Dashboard = () => {
             }
           }
         }}
-        className={`w-full flex items-center space-x-2.5 rounded-lg px-3 py-2 transition-all duration-300 ${isSelected
-          ? 'bg-white/25 shadow-sm text-white font-medium'
+        className={`w-full flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast ${isSelected
+          ? 'bg-brand-primary/10 text-brand-primary'
           : isHovered
-            ? 'bg-white/15 text-white shadow-sm'
-            : 'hover:bg-white/10 text-white'
+            ? 'bg-app-bg text-text-primary'
+            : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
           }`}
       >
-        <span className={`text-sm truncate text-white ${isSelected ? 'font-medium' : ''
-          }`}>
+        <span className={`text-body-sm truncate ${isSelected ? 'font-semibold' : 'font-medium'}`}>
           {fileModule.displayName || (fileModule.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, '')}
         </span>
       </button>
@@ -1178,26 +1114,19 @@ const Dashboard = () => {
       
       const isActive = activeModule === module.id;
       const isHovered = hoveredModule === module.id;
-
       return (
         <button
           key={module.id}
-          onMouseEnter={() => setHoveredModule(module.id)}
-          onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick(module.id)}
-          className={`w-full flex items-center transition-all duration-300 ${isSidebarExpanded ? 'px-4 py-3.5 space-x-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
-            }`}
+          className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
+            isActive
+              ? 'bg-brand-primary/10 text-brand-primary'
+              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          }`}
         >
-          <div className="text-white">
-            {module.icon}
-          </div>
+          <Settings className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
           {isSidebarExpanded && (
-            <span className="font-semibold text-base text-white">
+            <span className="text-body font-medium">
               {module.name}
             </span>
           )}
@@ -1210,192 +1139,166 @@ const Dashboard = () => {
   const isSidebarExpanded = !sidebarCollapsed;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-white">
-      {/* Global styles */}
-      <style>{`
-        * {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }
-        
-        ::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-          background: rgba(255, 255, 255, 0.1);
-        }
-        
-        ::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 3px;
-        }
-        
-        ::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.5);
-        }
-      `}</style>
-
+    <div className="h-screen flex flex-col overflow-hidden bg-app-bg">
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Blue color from project dashboard header (#1e3a5f) */}
+        {/* Sidebar - Clean Surface Color */}
         <div
           ref={sidebarRef}
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
             ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-[#1e3a5f]
-            transform transition-all duration-200 ease-in-out lg:transform-none
+            bg-app-surface
+            border-r border-border
+            transform transition-all duration-250 ease-product lg:transform-none
             flex flex-col
-            shadow-xl
-            relative overflow-hidden
+            overflow-hidden
           `}
         >
-          {/* Subtle pattern overlay */}
-          <div className="absolute inset-0 pointer-events-none opacity-5"
-            style={{
-              backgroundImage: `radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 30%),
-                                   radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.3) 0%, transparent 30%)`
-            }}>
-          </div>
-
           {/* Logo Section */}
-          <div className="relative px-6 py-4 z-10">
+          <div className="px-4 py-5 border-b border-border">
             {isSidebarExpanded ? (
-              <div className="flex justify-center items-center">
-                <div className="relative w-full flex justify-center">
-                  <img
-                    src={companyLogo || "/caldimlogo.png"}
-                    className={`h-22 w-auto max-w-full object-contain relative ${!companyLogo ? 'brightness-0 invert' : ''}`}
-                    alt="Company Logo"
-                  />
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">
+                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-label font-semibold text-text-primary truncate">
+                    {companyName || 'Industrial Analytics'}
+                  </p>
+                  <p className="text-caption text-text-muted">Platform</p>
                 </div>
               </div>
             ) : (
-              <div className="flex justify-center py-2">
-                <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shadow-md backdrop-blur-sm">
+              <div className="flex justify-center">
+                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
                   <span className="text-white font-bold text-sm">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'CD'}
+                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
                   </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Navigation - All text white */}
-          <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 relative z-10">
+          {/* Navigation */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-1">
             {renderProjectDashboardModule()}
             {renderMOMModule()}
             {renderMastersModule()}
 
-            <div className="space-y-1.5">
+            <div className="pt-2">
               {renderUploadsModule()}
               {renderOtherModules()}
+            </div>
+          </div>
+
+          {/* User Section at Bottom */}
+          <div className="p-3 border-t border-border">
+            <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-semibold">
+                {getUserInitial()}
+              </div>
+              {isSidebarExpanded && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-body-sm font-medium text-text-primary truncate">{user?.full_name || 'User'}</p>
+                  <p className="text-caption text-text-muted capitalize">{user?.role || 'User'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
-          {/* Header - White background */}
-          <header className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-20 shadow-sm">
-            <div className="px-6 py-4 flex items-center justify-between relative z-10">
-              {/* Left side - Toggle button */}
-              <div className="w-48 flex items-center">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
+          {/* Header */}
+          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6">
+            {/* Left - Toggle & Title */}
+            <div className="flex items-center gap-4 flex-1">
+              <button
+                onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+                className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+              </button>
+              <h1 className="text-h3 font-semibold text-text-primary">
+                {getHeaderTitle()}
+              </h1>
+            </div>
+
+            {/* Right - Date/Time & Profile */}
+            <div className="flex items-center gap-4">
+              {/* Date and Time */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-app-surface rounded-md">
+                <Clock className="h-4 w-4 text-text-muted" />
+                <span className="text-body-sm font-medium text-text-secondary tabular-nums">{currentTime}</span>
+                <span className="text-border-strong">|</span>
+                <span className="text-body-sm text-text-secondary">{currentDate}</span>
+              </div>
+
+              {/* Profile Menu */}
+              <div className="relative" ref={profileMenuRef}>
                 <button
-                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                  className="p-2 rounded-lg text-[#1e3a5f] hover:bg-gray-100 transition-colors"
-                  title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold text-body-sm hover:bg-brand-accent transition-colors duration-fast"
                 >
-                  {sidebarCollapsed ? <Menu className="h-6 w-6" /> : <ChevronLeft className="h-6 w-6" />}
+                  {getUserInitial()}
                 </button>
-              </div>
 
-              {/* Center - Title */}
-              <div className="flex-1 flex justify-center items-center">
-                <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">
-                  {getHeaderTitle()}
-                </h1>
-              </div>
-
-              {/* Right side - Date/Time and Profile */}
-              <div className="flex items-center space-x-6 min-w-[300px] justify-end">
-                {/* Date and Time - Updated for white header */}
-                <div className="flex items-center space-x-3 bg-gray-50 px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                  <span className="text-sm font-medium text-gray-700 tabular-nums">{currentTime}</span>
-                  <span className="text-gray-300">|</span>
-                  <span className="text-sm font-medium text-gray-700">{currentDate}</span>
-                </div>
-
-                {/* Profile Menu with black background */}
-                <div className="relative" ref={profileMenuRef}>
-                  <button
-                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="bg-[#1e3a5f] w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md hover:shadow-lg transition-all"
+                {profileMenuOpen && (
+                  <div
+                    className="fixed z-[9999] w-64 bg-app-bg rounded-lg shadow-lg border border-border py-2"
+                    style={{
+                      top: `${profileMenuPosition.top}px`,
+                      right: `${profileMenuPosition.right}px`
+                    }}
                   >
-                    {getUserInitial()}
-                  </button>
-
-                  {profileMenuOpen && (
-                    <div
-                      className="fixed z-[9999] w-72 bg-white rounded-xl shadow-lg border border-gray-200 py-2"
-                      style={{
-                        position: 'fixed',
-                        top: `${profileMenuPosition.top}px`,
-                        right: `${profileMenuPosition.right}px`
-                      }}
-                    >
-                      <div className="px-5 py-4">
-                        <div className="flex items-center space-x-4">
-                          <div className="bg-[#1e3a5f] w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0">
-                            {getUserInitial()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-gray-900 text-lg truncate">{user?.full_name || 'User'}</p>
-                            <p className="text-sm text-gray-500 mt-1 truncate">{user?.email || 'user@example.com'}</p>
-                            <span className="inline-block mt-2 px-2.5 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 capitalize">
-                              {user?.role || 'User'}
-                            </span>
-                          </div>
+                    <div className="px-4 py-3 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold">
+                          {getUserInitial()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-body font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
+                          <p className="text-caption text-text-muted truncate">{user?.email || 'user@example.com'}</p>
                         </div>
                       </div>
-
-                      {/* Menu Items */}
-                      <div className="py-2 border-t border-gray-100">
-                        <button className="w-full px-5 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3">
-                          <UserIcon className="h-5 w-5 text-gray-500" />
-                          <span className="font-medium">Profile Settings</span>
-                        </button>
-                        <button className="w-full px-5 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3">
-                          <Settings className="h-5 w-5 text-gray-500" />
-                          <span className="font-medium">Account Settings</span>
-                        </button>
-                      </div>
-
-                      <div className="border-t border-gray-100 py-2">
-                        <button
-                          onClick={() => {
-                            handleLogout();
-                            setProfileMenuOpen(false);
-                          }}
-                          className="w-full px-5 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3"
-                        >
-                          <LogOut className="h-5 w-5 text-gray-500" />
-                          <span className="font-semibold">Logout</span>
-                        </button>
-                      </div>
                     </div>
-                  )}
-                </div>
+
+                    <div className="py-1">
+                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                        <UserIcon className="h-4 w-4" />
+                        <span>Profile</span>
+                      </button>
+                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                        <Settings className="h-4 w-4" />
+                        <span>Settings</span>
+                      </button>
+                    </div>
+
+                    <div className="border-t border-border py-1">
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setProfileMenuOpen(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-body-sm text-status-error hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 min-h-0 overflow-hidden bg-white">
-            <div className={activeModule === 'project-dashboard' ? 'pl-6 pr-0.5 py-6 h-full' : 'p-6 h-full'}>
-              <div className="bg-white rounded-lg h-full overflow-auto">
-                <Outlet />
-              </div>
+          <main className="flex-1 min-h-0 overflow-hidden bg-app-bg">
+            <div className="h-full overflow-auto">
+              <Outlet />
             </div>
           </main>
         </div>

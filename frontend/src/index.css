@@ -42,7 +42,7 @@
   h4,
   h5,
   h6 {
-    @apply font-outfit tracking-tight;
+    @apply font-sans tracking-tight;
   }
 
   .font-mono {
@@ -321,7 +321,7 @@
   }
 
   .header-title {
-    @apply font-outfit text-xl font-semibold text-slate-800 tracking-tight;
+    @apply font-sans text-xl font-semibold text-slate-800 tracking-tight;
   }
 
   .header-time-badge {
