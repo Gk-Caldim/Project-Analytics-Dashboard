@@ -269,7 +269,7 @@ const MeetingTable = ({ meetings, onUpdateMeeting, onDeleteMeeting, lockedProjec
                 <th className="border border-gray-300 px-4 py-4 text-[11px] font-black uppercase tracking-wider text-gray-600 w-28">Target</th>
                 <th className="border border-gray-300 px-4 py-4 text-[11px] font-black uppercase tracking-wider text-gray-600 w-28">Status</th>
                 <th className="border border-gray-300 px-4 py-4 text-[11px] font-black uppercase tracking-wider text-gray-600 w-48">Action taken</th>
-                <th className="border border-gray-300 px-3 py-4 text-[11px] font-black uppercase tracking-wider text-gray-600 w-16 print:hidden"></th>
+                <th className="border border-gray-300 px-3 py-4 text-[11px] font-black uppercase tracking-wider text-gray-600 w-16 print:hidden">Actions</th>
               </tr>
             </thead>
             <tbody>

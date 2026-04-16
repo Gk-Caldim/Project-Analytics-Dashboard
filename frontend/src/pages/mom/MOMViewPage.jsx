@@ -146,6 +146,12 @@ const MOMViewPage = () => {
 
   const handleSave = useCallback(() => {
     dispatch(saveMOM({ meetingId, meetingName, projectId, projectName, momData: rows }));
+    setTimeout(() => {
+      toast.success('MOM saved successfully', {
+        duration: 3000,
+        icon: '✓',
+      });
+    }, 400);
   }, [dispatch, meetingId, meetingName, projectId, projectName, rows]);
 
   // ── Render ─────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil, Plus } from 'lucide-react';
 import './ScheduleMeetingPage.css';
 import API from '../../utils/api'; // Assuming axios instance is set up
 
@@ -11,8 +11,25 @@ const ScheduleMeetingPage = () => {
   // --- Calendar State ---
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  // ── Calendar animation state ──
+  const [calendarDir, setCalendarDir] = useState(0);     // -1 = going left, 1 = going right
+  const [calendarKey, setCalendarKey] = useState(0);     // forces re-mount for animation
+  const [calendarAnimating, setCalendarAnimating] = useState(false);
+  
+  // ── Scroll ref for auto-scroll to timeslots ──
+  const timeSlotsRef = useRef(null);
+
+  // ── Mini Cal & View State ──
+  const [miniCalMonth, setMiniCalMonth] = useState(new Date().getMonth());
+  const [miniCalYear, setMiniCalYear] = useState(new Date().getFullYear());
+  const [eventColor, setEventColor] = useState('#4f46e5');
+  const [activeView, setActiveView] = useState('Week');
   const reduxProjects = useSelector(state => state.project?.projects) || [];
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -89,8 +106,10 @@ const ScheduleMeetingPage = () => {
       const d = new Date(prefilledDate);
       if (!isNaN(d.getTime())) {
         setSelectedDate(d);
-        setCurrentMonth(d.getMonth());
-        setCurrentYear(d.getFullYear());
+        const start = new Date(d);
+        start.setDate(start.getDate() - start.getDay());
+        start.setHours(0, 0, 0, 0);
+        setCurrentWeekStart(start);
       }
     }
   }, []); // run once on mount
@@ -127,14 +146,45 @@ const ScheduleMeetingPage = () => {
     }
   }, []);
 
-  const meetingTypes = [
-    { id: 'quickSync', label: 'Quick Sync', icon: <Clock className="w-4 h-4" /> },
-    { id: 'client', label: 'Client Meeting', icon: <Target className="w-4 h-4" /> },
-    { id: 'interview', label: 'Interview', icon: <Users className="w-4 h-4" /> },
-    { id: 'deepWork', label: 'Deep Work', icon: <AlignLeft className="w-4 h-4" /> },
-    { id: 'webinar', label: 'Webinar', icon: <Video className="w-4 h-4" /> },
-    { id: 'custom', label: 'Custom', icon: <Pencil className="w-4 h-4" /> },
+  // --- Custom Event Types ---
+  const initialCustomTypes = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('custom_event_types');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  }, []);
+  const [customEventTypes, setCustomEventTypes] = useState(initialCustomTypes);
+
+  const baseMeetingTypes = [
+    { id: 'quickSync', label: 'Quick Sync', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
+    { id: 'client', label: 'Client Meeting', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { id: 'interview', label: 'Interview', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { id: 'deepWork', label: 'Deep Work', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
+    { id: 'webinar', label: 'Webinar', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg> },
   ];
+
+  const meetingTypes = [
+    ...baseMeetingTypes,
+    ...customEventTypes,
+    { id: 'custom', label: 'Custom...', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
+  ];
+
+  const saveCustomEventType = (e) => {
+    e.preventDefault();
+    if (!customReasonInput.trim()) return;
+    const newType = {
+      id: `custom_${Date.now()}`,
+      label: customReasonInput.trim(),
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+    };
+    const updated = [...customEventTypes, newType];
+    setCustomEventTypes(updated);
+    localStorage.setItem('custom_event_types', JSON.stringify(updated));
+    setMeetingType(newType.id);
+    setCustomReasonInput('');
+  };
 
   // --- Helpers ---
   const isEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -210,18 +260,36 @@ const ScheduleMeetingPage = () => {
   }, [selectedDate, attendees]);
 
   // --- Handlers: Calendar Nav ---
-  const handlePrevMonth = () => {
-    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
-    else { setCurrentMonth(currentMonth - 1); }
+  const handlePrevTime = () => {
+    if (calendarAnimating) return;
+    setCalendarDir(-1);
+    setCalendarAnimating(true);
+    setTimeout(() => {
+      const newStart = new Date(currentWeekStart);
+      newStart.setDate(newStart.getDate() - (activeView === 'Day' ? 1 : 7));
+      setCurrentWeekStart(newStart);
+      setCalendarKey(k => k + 1);
+      setCalendarAnimating(false);
+    }, 220);
   };
-  const handleNextMonth = () => {
-    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
-    else { setCurrentMonth(currentMonth + 1); }
+  const handleNextTime = () => {
+    if (calendarAnimating) return;
+    setCalendarDir(1);
+    setCalendarAnimating(true);
+    setTimeout(() => {
+      const newStart = new Date(currentWeekStart);
+      newStart.setDate(newStart.getDate() + (activeView === 'Day' ? 1 : 7));
+      setCurrentWeekStart(newStart);
+      setCalendarKey(k => k + 1);
+      setCalendarAnimating(false);
+    }, 220);
   };
   const handleToday = () => {
     const today = new Date();
-    setCurrentMonth(today.getMonth()); setCurrentYear(today.getFullYear());
-    setSelectedDate(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
+    const start = new Date(today);
+    start.setDate(start.getDate() - start.getDay());
+    start.setHours(0, 0, 0, 0);
+    setCurrentWeekStart(start);
   };
 
   const isToday = (date) => {
@@ -229,56 +297,50 @@ const ScheduleMeetingPage = () => {
     return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
   };
 
-  const isSelected = (date) => {
-    return selectedDate && date.getDate() === selectedDate.getDate() && date.getMonth() === selectedDate.getMonth() && date.getFullYear() === selectedDate.getFullYear();
-  };
-
   const isPast = (date) => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0);
     return date < today;
   };
 
-  const renderCalendarGrid = () => {
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const startDay = new Date(currentYear, currentMonth, 1).getDay();
-    const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+  const isPastSlot = (date, hour, minute) => {
+    const today = new Date();
+    const slotDate = new Date(date);
+    slotDate.setHours(hour, minute, 0, 0);
+    return slotDate < today;
+  };
 
-    const days = [];
+  // --- Grid Generation ---
+  const weekDays = useMemo(() => {
+    const days = activeView === 'Day' ? 1 : 7;
+    return [...Array(days)].map((_, i) => {
+      const d = new Date(currentWeekStart);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [currentWeekStart, activeView]);
 
-    // Fill previous month
-    for (let i = startDay - 1; i >= 0; i--) {
-      days.push(
-        <button key={`prev-${i}`} className="calendar-day other-month" disabled>
-          {prevMonthDays - i}
-        </button>
-      );
-    }
+  const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 to 20:00
 
-    // Fill current month
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(currentYear, currentMonth, i);
-      const isPastDate = isPast(date);
-
-      days.push(
-        <button
-          key={`current-${i}`}
-          className={`calendar-day ${isToday(date) ? 'today' : ''} ${isSelected(date) ? 'selected' : ''}`}
-          onClick={() => { setSelectedDate(date); setSelectedTime(null); }}
-          disabled={isPastDate}
-        >
-          {i}
-          {/* Visual indicator for highly available vs low available could go here */}
-        </button>
-      );
-    }
-
-    // Fill next month
-    const totalCells = days.length;
-    const remainingCells = 42 - totalCells;
-    for (let i = 1; i <= remainingCells; i++) {
-      days.push(<button key={`next-${i}`} className="calendar-day other-month" disabled>{i}</button>);
-    }
-    return days;
+  const handleGridSlotSelect = (date, hour, min) => {
+    if (isPastSlot(date, hour, min)) return;
+    
+    // Set date
+    setSelectedDate(date);
+    setUseCustomTime(false);
+    
+    // Convert slot to 24h & 12h
+    const start24 = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    setStartTime(start24);
+    
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const h12 = hour % 12 || 12;
+    const time12 = `${h12}:${String(min).padStart(2, '0')} ${period}`;
+    setSelectedTime(time12);
+    
+    // End time
+    setEndTime(addMinutes(start24, presetDuration));
+    setTimeError('');
   };
 
   // --- Custom Time Helpers ---
@@ -491,138 +553,306 @@ const ScheduleMeetingPage = () => {
   }, [meetingType]);
 
   return (
-    <div className="schedule-meeting-page h-full overflow-y-auto w-full">
-      {/* ───── LEFT COLUMN ───── */}
-      <div className="calendar-column">
-        <div className="page-header mb-8">
-          <div>
-            <h1 className="text-gray-900 font-bold tracking-tight">Schedule Workspace</h1>
-          </div>
+    <div className="schedule-meeting-page h-full w-full">
+      {/* ───── LEFT COLUMN (MINI CAL & SETTINGS) ───── */}
+      <div className="sidebar-left flex flex-col gap-5 h-full overflow-y-auto pr-2 pb-4">
+        
+        {/* Workspace Brand / Header inside sidebar to save vertical space */}
+        <div className="mb-2">
+          <h1 className="text-gray-900 font-extrabold text-2xl tracking-tight">Schedule</h1>
+          <p className="text-sm text-gray-500 font-medium mt-1">Configure your workspace</p>
         </div>
 
-        {/* Meeting Type / Reason Chips */}
-        <div className="meeting-type-selector mb-6 flex flex-wrap gap-2">
-          {meetingTypes.map(type => (
-            <button
-              key={type.id}
-              className={`mt-chip ${meetingType === type.id ? 'active' : ''}`}
-              onClick={() => {
-                setMeetingType(type.id);
-                if (type.id !== 'custom') setCustomReasonInput('');
-              }}
-            >
-              {type.icon}
-              <span>{type.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Reason Input — only visible when 'Custom' is selected */}
-        {meetingType === 'custom' && (
-          <div className="mb-5 animate-fadeIn">
-            <div className="relative">
-              <Pencil className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-indigo-400" />
-              <input
-                type="text"
-                className="w-full border border-indigo-200 bg-indigo-50/40 rounded-xl pl-9 pr-4 py-2.5 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder-gray-400"
-                placeholder="e.g. Progress on project, Status check..."
-                value={customReasonInput}
-                onChange={(e) => setCustomReasonInput(e.target.value)}
-                autoFocus
-              />
-              {customReasonInput && (
-                <button type="button" onClick={() => setCustomReasonInput('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Calendar Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6 transition-all">
-          <div className="flex items-center justify-between mb-6 px-1">
-            <button 
-              className="p-2.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-xl border border-gray-200 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100" 
-              onClick={handlePrevMonth}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            
-            <h2 className="text-lg font-bold text-gray-800 tracking-tight select-none pt-0.5">
-              {new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </h2>
-            
-            <button 
-              className="p-2.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-xl border border-gray-200 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100" 
-              onClick={handleNextMonth}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="calendar-grid">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="weekday-header text-gray-500">{day}</div>
+        {/* View Switch */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-3 shadow-sm">
+          <div className="flex bg-gray-100 p-1 rounded-xl">
+            {['Day', 'Week'].map(v => (
+              <button 
+                key={v}
+                onClick={() => setActiveView(v)}
+                className={`flex-1 text-xs py-1.5 rounded-lg font-bold transition-all ${activeView === v ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                {v}
+              </button>
             ))}
-            {renderCalendarGrid()}
           </div>
         </div>
 
-        {/* Timeslots Panel */}
-        <div className={`transition-all duration-300 ${selectedDate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none hidden'}`}>
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-5">
-              <h3 className="font-bold text-gray-900 tracking-tight">
-                Available Times <span className="text-gray-400 font-normal ml-2">for {selectedDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-              </h3>
-              {loadingAvailability && <RefreshCw className="w-4 h-4 text-gray-400 animate-spin" />}
+        {/* Mini Calendar */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-800 text-sm">
+              {new Date(miniCalYear, miniCalMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </h3>
+            <div className="flex gap-1">
+              <button 
+                className="p-1 hover:bg-gray-100 rounded text-gray-500 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (miniCalMonth === 0) { setMiniCalMonth(11); setMiniCalYear(y => y - 1); }
+                  else { setMiniCalMonth(m => m - 1); }
+                }}
+              >
+                <ChevronLeft className="w-4 h-4"/>
+              </button>
+              <button 
+                className="p-1 hover:bg-gray-100 rounded text-gray-500 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (miniCalMonth === 11) { setMiniCalMonth(0); setMiniCalYear(y => y + 1); }
+                  else { setMiniCalMonth(m => m + 1); }
+                }}
+              >
+                <ChevronRight className="w-4 h-4"/>
+              </button>
             </div>
-
-            {availableTimeslots.length === 0 && !loadingAvailability ? (
-              <div className="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <p className="text-gray-500 text-sm font-medium">No slots available on this date.</p>
-                <button type="button" onClick={() => setUseCustomTime(true)} className="mt-4 text-xs bg-white border border-gray-200 px-4 py-2 rounded-lg font-bold text-gray-700 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-all focus:outline-none">
-                  Set Custom Time
-                </button>
-              </div>
-            ) : (
-              <div className="timeslot-grid items-center flex flex-wrap gap-2">
-                {availableTimeslots.map(time => (
-                  <button
-                    key={time}
-                    className={`timeslot-btn ${selectedTime === time && !useCustomTime ? 'selected' : ''} ${loadingAvailability ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    onClick={() => handleTimeslotSelect(time)}
-                    disabled={loadingAvailability}
-                  >
-                    {time}
-                  </button>
-                ))}
+          </div>
+          <div className="grid grid-cols-7 gap-y-1 gap-x-0.5">
+            {['S','M','T','W','T','F','S'].map((d, i) => (
+              <div key={i} className="text-gray-400 text-[10px] text-center font-bold py-1 uppercase">{d}</div>
+            ))}
+            {(() => {
+              const daysInMonth = new Date(miniCalYear, miniCalMonth + 1, 0).getDate();
+              const startDay = new Date(miniCalYear, miniCalMonth, 1).getDay();
+              const days = [];
+              for (let i = 0; i < startDay; i++) days.push(<div key={`empty-${i}`} className="p-1" />);
+              for (let i = 1; i <= daysInMonth; i++) {
+                const date = new Date(miniCalYear, miniCalMonth, i);
+                const isPastDate = isPast(date);
                 
-                <div className={`flex items-center gap-2 border p-1 rounded-xl transition-colors ${useCustomTime ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:border-indigo-300'}`}>
-                  <span className="text-xs text-gray-500 font-medium pl-2 whitespace-nowrap">Custom:</span>
-                  <input 
-                    type="time" 
-                    className="flex-1 bg-transparent border-none text-sm font-mono tracking-wider focus:ring-0 !p-1.5 cursor-pointer text-gray-700 outline-none"
-                    value={startTime}
-                    onChange={(e) => {
-                      setUseCustomTime(true);
-                      handleStartTimeChange(e.target.value);
-                      if (presetDuration && (!endTime || useCustomTime === false)) {
-                         setEndTime(addMinutes(e.target.value, presetDuration));
-                      }
+                // Active week highlight
+                const isCurrWeek = selectedDate && (
+                   date >= currentWeekStart && 
+                   date < new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000)
+                );
+                const isCurrDay = selectedDate && date.getDate() === selectedDate.getDate() && date.getMonth() === selectedDate.getMonth();
+                const todayCheck = isToday(date);
+                
+                let btnClass = 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 cursor-pointer';
+                if (isCurrDay) btnClass = 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-200';
+                else if (isCurrWeek) btnClass = 'bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100';
+                else if (todayCheck) btnClass = 'text-indigo-600 font-bold bg-indigo-50/50';
+                else if (isPastDate) btnClass = 'text-gray-300 cursor-not-allowed';
+
+                days.push(
+                  <button
+                    key={`mini-${i}`}
+                    disabled={isPastDate}
+                    onClick={(e) => {
+                       e.preventDefault();
+                       const start = new Date(date);
+                       start.setDate(start.getDate() - start.getDay());
+                       start.setHours(0,0,0,0);
+                       setCurrentWeekStart(start);
+                       setSelectedDate(date);
                     }}
-                  />
+                    className={`text-center w-7 h-7 rounded-full text-xs mx-auto flex items-center justify-center transition-all ${btnClass}`}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+              return days;
+            })()}
+          </div>
+        </div>
+
+        {/* Meeting Type Selection */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Event Type</label>
+          <div className="flex flex-col gap-2">
+            {meetingTypes.map(type => (
+              <button
+                key={type.id}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                  meetingType === type.id 
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' 
+                    : 'border-transparent hover:bg-gray-50 text-gray-600 hover:border-gray-200'
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMeetingType(type.id);
+                  if (type.id !== 'custom') setCustomReasonInput('');
+                }}
+              >
+                <div className={`${meetingType === type.id ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  {type.icon}
                 </div>
+                <span>{type.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Custom Reason Input & Save */}
+          {meetingType === 'custom' && (
+            <div className="mt-4 animate-fadeIn">
+              <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">New Type Name</label>
+              <div className="relative">
+                <Pencil className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-indigo-400" />
+                <input
+                  type="text"
+                  className="w-full border border-indigo-200 bg-white rounded-t-xl rounded-b-none pl-9 pr-4 py-2.5 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 placeholder-gray-400 shadow-inner"
+                  placeholder="e.g. Sales Pitch, QBW..."
+                  value={customReasonInput}
+                  onChange={(e) => setCustomReasonInput(e.target.value)}
+                  autoFocus
+                />
               </div>
-            )}
+              <button 
+                className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2.5 rounded-b-xl border border-t-0 border-indigo-200 transition-colors flex items-center justify-center gap-1"
+                onClick={saveCustomEventType}
+              >
+                <Plus className="w-3.5 h-3.5" /> Save to Event Types
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {/* Color Coding */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-4">
+           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Event Color</label>
+           <div className="flex flex-wrap gap-2">
+            {[
+              '#4f46e5', // indigo
+              '#10b981', // emerald
+              '#f59e0b', // amber
+              '#ef4444', // red
+              '#ec4899', // pink
+              '#0ea5e9', // sky blue
+              '#8b5cf6', // purple
+              '#1e293b'  // slate
+            ].map(c => (
+              <button
+                key={c}
+                onClick={(e) => { e.preventDefault(); setEventColor(c); }}
+                className="w-[26px] h-[26px] rounded-full cursor-pointer transition-transform hover:scale-110 flex items-center justify-center border-2 border-white shadow-sm"
+                style={{ backgroundColor: c, outline: eventColor === c ? `2px solid ${c}` : 'none', outlineOffset: '1px' }}
+              >
+                {eventColor === c && <Check className="w-3 h-3 text-white" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ───── CENTER COLUMN (CALENDAR) ───── */}
+      <div className="calendar-column h-full overflow-y-auto pb-6 pr-2 custom-scrollbar">
+        {/* Calendar Card (Weekly View) */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm transition-all h-full flex flex-col">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <button 
+              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
+              onClick={handleToday}
+            >
+              Today
+            </button>
+            <div className="flex items-center gap-4">
+              <button 
+                className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
+                onClick={handlePrevTime}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              
+              <h2 key={calendarKey} className="text-base font-bold text-gray-800 tracking-tight select-none cal-month-label-anim w-40 text-center">
+                {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric', day: activeView === 'Day' ? 'numeric' : undefined })}
+              </h2>
+              
+              <button 
+                className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
+                onClick={handleNextTime}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Timeline Grid */}
+          <div key={calendarKey} className={`weekly-calendar-container flex-1 overflow-hidden flex flex-col cal-slide-${calendarDir === -1 ? 'from-left' : 'from-right'}`}>
+            <div 
+              className="weekly-calendar-header border-b border-gray-200 bg-gray-50/50" 
+              style={{ display: 'grid', gridTemplateColumns: `60px repeat(${weekDays.length}, minmax(0, 1fr))` }}
+            >
+              <div className="time-gutter-header">GMT{new Date().getTimezoneOffset() < 0 ? '+' : '-'}{Math.abs(new Date().getTimezoneOffset() / 60)}</div>
+              {weekDays.map(d => (
+                <div key={d.toISOString()} className="day-header">
+                  <span className={`day-name ${isToday(d) ? 'text-indigo-600' : ''}`}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                  <span className={`day-number ${isToday(d) ? 'today shadow-md shadow-indigo-200' : ''}`}>{d.getDate()}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="weekly-calendar-scroll-area flex-1 overflow-y-auto custom-scrollbar" ref={timeSlotsRef}>
+              <div className="weekly-calendar-body relative">
+                {/* 1. Time Gutter */}
+                <div className="time-gutter">
+                  {hours.map(h => (
+                    <div key={h} className="time-label">
+                      {h === 12 ? '12 PM' : h > 12 ? `${h-12} PM` : `${h} AM`}
+                    </div>
+                  ))}
+                </div>
+              
+              <div 
+                className="days-grid"
+                style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDays.length}, minmax(0, 1fr))` }}
+              >
+                {weekDays.map(d => {
+                  // Check if selected block belongs to this day column
+                  const hasSelection = selectedDate && 
+                                       selectedDate.getDate() === d.getDate() && 
+                                       selectedDate.getMonth() === d.getMonth() &&
+                                       startTime && !useCustomTime;
+                  let topPx = 0;
+                  let heightPx = 0;
+                  if (hasSelection) {
+                    const [sh, sm] = startTime.split(':').map(Number);
+                    const dur = presetDuration || 60;
+                    topPx = (sh - hours[0]) * 60 + sm;
+                    heightPx = dur + 1; // 1 min per px
+                  }
+
+                  return (
+                    <div key={d.toISOString()} className="day-col">
+                      {hours.map(h => (
+                        <div key={h} className="hour-slot-group">
+                          <div 
+                            className={`half-hour ${isPastSlot(d, h, 0) ? 'past' : ''}`} 
+                            onClick={() => handleGridSlotSelect(d, h, 0)} 
+                          />
+                          <div 
+                            className={`half-hour ${isPastSlot(d, h, 30) ? 'past' : ''}`} 
+                            onClick={() => handleGridSlotSelect(d, h, 30)} 
+                          />
+                        </div>
+                      ))}
+                      
+                      {hasSelection && (
+                        <div 
+                          className="event-block active shadow-lg flex flex-col justify-start"
+                          style={{ 
+                            top: `${topPx}px`, 
+                            height: `${heightPx}px`, 
+                            background: `linear-gradient(135deg, ${eventColor}, ${eventColor}dd)`,
+                            boxShadow: `0 4px 12px ${eventColor}40`
+                          }}
+                        >
+                          <span className="font-bold tracking-tight leading-tight">{effectiveTitle}</span>
+                          <span className="opacity-90">{selectedTime}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ───── RIGHT COLUMN (FORM) ───── */}
-      <div className="form-column">
+      <div className="form-column h-full overflow-y-auto pb-6 pl-2 custom-scrollbar">
         <div className="sticky-panel bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
 
           {/* Live Summary Box */}
@@ -811,47 +1041,44 @@ const ScheduleMeetingPage = () => {
                 </button>
               </div>
 
-              {/* Custom time pickers — only shown when Custom chip is active */}
-              {useCustomTime && (
-                <div className="animate-fadeIn">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1 font-medium">Start</label>
-                      <input
-                        type="time"
-                        className={`ui-select font-mono text-sm tracking-wider ${startTime ? 'border-indigo-300 bg-indigo-50/40 text-indigo-800' : ''
-                          }`}
-                        value={startTime}
-                        onChange={(e) => handleStartTimeChange(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <span className="text-gray-400 font-bold text-lg mt-5">→</span>
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs text-gray-500 mb-1 font-medium">End</label>
-                      <input
-                        type="time"
-                        className={`ui-select font-mono text-sm tracking-wider ${endTime ? 'border-indigo-300 bg-indigo-50/40 text-indigo-800' : ''
-                          } ${timeError ? 'border-red-400 bg-red-50' : ''}`}
-                        value={endTime}
-                        min={startTime}
-                        onChange={(e) => handleEndTimeChange(e.target.value)}
-                      />
-                    </div>
+              {/* Universal Time Inspector */}
+              <div className="animate-fadeIn mt-6 bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner">
+                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Precise Timing</label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1 font-semibold">Start</label>
+                    <input
+                      type="time"
+                      className={`ui-select w-full font-mono text-sm tracking-wider bg-white ${startTime ? 'border-indigo-300 text-indigo-800' : ''}`}
+                      value={startTime}
+                      onChange={(e) => handleStartTimeChange(e.target.value)}
+                    />
                   </div>
-                  {timeError && (
-                    <p className="text-xs text-red-500 mt-1.5 font-medium flex items-center gap-1">
-                      <X className="w-3 h-3" /> {timeError}
-                    </p>
-                  )}
-                  {computedDuration && !timeError && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                      <Check className="w-3 h-3" /> Duration: {formatDuration(computedDuration)}
-                    </div>
-                  )}
+                  <div className="flex items-end pb-1">
+                    <span className="text-gray-300 font-bold text-lg mt-5">→</span>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500 mb-1 font-semibold">End</label>
+                    <input
+                      type="time"
+                      className={`ui-select w-full font-mono text-sm tracking-wider bg-white ${endTime ? 'border-indigo-300 text-indigo-800' : ''} ${timeError ? 'border-red-400 bg-red-50' : ''}`}
+                      value={endTime}
+                      min={startTime}
+                      onChange={(e) => handleEndTimeChange(e.target.value)}
+                    />
+                  </div>
                 </div>
-              )}
+                {timeError && (
+                  <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1">
+                    <X className="w-3 h-3" /> {timeError}
+                  </p>
+                )}
+                {computedDuration && !timeError && (
+                  <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full">
+                    <Check className="w-3 h-3" /> Duration: {formatDuration(computedDuration)}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Reminder */}

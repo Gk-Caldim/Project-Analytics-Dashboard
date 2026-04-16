@@ -24,8 +24,8 @@
   background-color: var(--primary-bg);
   padding: 2rem;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 2rem;
+  grid-template-columns: 260px minmax(0, 1fr) 350px;
+  gap: 1.5rem;
   min-height: 100%;
 }
 
@@ -91,60 +91,159 @@
   transition: all 0.2s;
 }
 
-/* Calendar Grid */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
-}
-
-.weekday-header {
-  text-align: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 0.5rem 0;
-  margin-bottom: 0.5rem;
-}
-
-.calendar-day {
-  aspect-ratio: 1;
+/* Weekly Calendar Grid */
+.weekly-calendar-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: white;
+}
+
+.weekly-calendar-header {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--primary-bg);
+}
+
+.time-gutter-header {
+  font-size: 10px;
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-dark);
-  background: transparent;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.2s ease-out;
-  position: relative;
+  border-right: 1px solid var(--border-color);
+  font-weight: 600;
 }
 
-.calendar-day:hover:not(:disabled) {
-  background: #f1f5f9;
+.day-header {
+  text-align: center;
+  padding: 12px 0;
+  border-right: 1px solid var(--border-color);
+}
+.day-header:last-child {
+  border-right: none;
 }
 
-.calendar-day.today {
-  color: var(--primary-color);
+.day-name {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   font-weight: 700;
-  background: #eff6ff;
+  color: var(--text-dark);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  transition: all 0.2s;
 }
 
-.calendar-day.selected {
+.day-number.today {
   background: var(--primary-color);
   color: white;
-  font-weight: 700;
-  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);
-  transform: scale(1.05);
 }
 
-.calendar-day:disabled {
-  opacity: 0.3;
+.weekly-calendar-body {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  height: 500px;
+  overflow-y: auto;
+  position: relative;
+  scroll-behavior: smooth;
+}
+
+.time-gutter {
+  border-right: 1px solid var(--border-color);
+  background: white;
+  position: relative;
+  z-index: 5;
+}
+
+.time-label {
+  height: 60px; /* 1 hour = 60px */
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 8px;
+  position: relative;
+  top: -8px; /* middle align over line */
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  position: relative;
+  background-image: linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+  background-size: 100% 60px;
+}
+
+.day-col {
+  border-right: 1px solid var(--border-color);
+  position: relative;
+}
+.day-col:last-child {
+  border-right: none;
+}
+
+.hour-slot-group {
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+}
+
+.half-hour {
+  height: 30px;
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+  transition: background 0.15s;
+}
+.half-hour:hover {
+  background: rgba(79, 70, 229, 0.05);
+}
+.half-hour.past {
+  background: repeating-linear-gradient(
+    45deg,
+    #f8fafc,
+    #f8fafc 10px,
+    #f1f5f9 10px,
+    #f1f5f9 20px
+  );
   cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.event-block {
+  position: absolute;
+  left: 3px;
+  right: 5px;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  z-index: 10;
+  cursor: pointer;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.event-block:hover {
+  transform: scale(1.02);
+  z-index: 20;
 }
 
 /* Timeslot Grid */
@@ -251,6 +350,37 @@
 @keyframes slideUp {
   0% { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Calendar Page-Turn Animation ─────────────────────────────────── */
+
+/* Enter from right (Next month →) */
+@keyframes calEnterFromRight {
+  0%   { opacity: 0; transform: translateX(28px) scale(0.97); }
+  100% { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+/* Enter from left (← Prev month) */
+@keyframes calEnterFromLeft {
+  0%   { opacity: 0; transform: translateX(-28px) scale(0.97); }
+  100% { opacity: 1; transform: translateX(0)      scale(1);   }
+}
+
+.cal-slide-from-right {
+  animation: calEnterFromRight 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+.cal-slide-from-left {
+  animation: calEnterFromLeft 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Month label fade */
+@keyframes calLabelFade {
+  0%   { opacity: 0; transform: translateY(-5px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.cal-month-label-anim {
+  animation: calLabelFade 0.18s ease both;
 }
 
 /* Scrollbar customization for the specific container */

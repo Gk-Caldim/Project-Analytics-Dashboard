@@ -24,8 +24,9 @@ import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
 
 import { ThemeProvider } from './contexts/ThemeContext';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
+import { Sparkles } from 'lucide-react'; // For WS toasts
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 
@@ -65,6 +66,43 @@ function App() {
     };
 
     initializeApp();
+
+    // ── Global WebSocket Setup for Real-time Notifications ──
+    let ws = null;
+    const connectWebSocket = () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
+        // Convert http://host:port/... -> ws://host:port/ws/dashboard
+        const wsUrl = baseUrl.replace(/^http/, 'ws').replace(/\/api.*$/, '') + '/ws/dashboard_' + Date.now();
+        
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => console.log('📡 Connected to Real-time Sync Engine');
+        
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          if (data.type === 'MOM_SAVED') {
+            toast.success(`Minutes Processed: ${data.project_name || 'Meeting'}`, {
+              icon: <Sparkles className="w-4 h-4 text-emerald-600" />,
+              style: { border: '1px solid #10b981', padding: '12px', background: '#f0fdf4' },
+            });
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('📡 Connection lost. Reconnecting in 5s...');
+          setTimeout(connectWebSocket, 5000);
+        };
+      } catch (err) {
+        console.warn('Real-time connection failed:', err);
+      }
+    };
+    
+    connectWebSocket();
+
+    return () => {
+      if (ws) ws.close();
+    };
   }, [dispatch]);
 
   return (

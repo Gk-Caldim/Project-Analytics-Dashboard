@@ -147,6 +147,9 @@ from app.api.issues import router as issues_router, mom_router
 app.include_router(issues_router, prefix=API_PREFIX, tags=["Issues"])
 app.include_router(mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
 
+from app.api.websockets import router as ws_router
+app.include_router(ws_router)
+
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
