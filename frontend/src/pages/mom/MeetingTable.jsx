@@ -5,7 +5,6 @@ import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, ChevronDown,
 import Select from 'react-select';
 import API from '../../utils/api';
 import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
-import { useAuth } from '../../hooks/useAuth';
 
 const CRITICALITY_STYLES = {
   'High': 'bg-red-50 text-red-700 border-red-200 uppercase',
@@ -22,7 +21,7 @@ const STATUS_STYLES = {
 
 const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
   const dispatch = useDispatch();
-  const { user } = useAuth();
+  const { user } = useSelector(state => state.auth);
   const { meetingId, meetingName, projectId: reduxProjectId, projectName: reduxProjectName, status: reduxStatus } = useSelector(state => state.mom);
 
   // ── Project selector state ──────────────────────────────────────
@@ -396,7 +395,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         <div className="p-12 mt-8 grid grid-cols-3 gap-20">
           <div className="border-t border-gray-900 pt-3 text-center">
             <div className="text-[10px] font-black uppercase text-gray-400">Prepared By</div>
-            <div className="text-xs font-bold mt-2">{user?.full_name || user?.name || 'System User'}</div>
+            <div className="text-xs font-bold mt-2">{user?.full_name || user?.name || 'Authorized Personnel'}</div>
           </div>
           <div className="border-t border-gray-900 pt-3 text-center">
             <div className="text-[10px] font-black uppercase text-gray-400">Reviewed By</div>

@@ -10,7 +10,6 @@ __pycache__/
 # text files
 *.log
 *.out
-*.txt
 
 # Virtual environments
 venv/

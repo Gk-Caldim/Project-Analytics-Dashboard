@@ -366,18 +366,19 @@ const MeetingCapturePage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user } = useSelector(state => state.auth);
   const { status: reduxStatus, lastSaved } = useSelector(s => s.mom);
 
   const currentUser = useMemo(() => {
-    // Priority: full_name -> name -> email prefix -> System User
-    let name = user?.full_name || user?.name;
+    // Priority: full_name -> name -> email prefix -> Anonymous
+    let name = user?.full_name || user?.name || user?.displayName;
     if (!name && user?.email) {
-      name = user.email.split('@')[0].charAt(0).toUpperCase() + user.email.split('@')[0].slice(1);
+      const prefix = user.email.split('@')[0];
+      name = prefix.charAt(0).toUpperCase() + prefix.slice(1);
     }
-    if (!name || name.toLowerCase() === 'you') name = 'System User'; 
+    const finalName = name || 'Anonymous User';
     
-    return { name, initials: getInitials(name) };
+    return { name: finalName, initials: getInitials(finalName) };
   }, [user]);
 
   // ── Meta ───────────────────────────────────────────────────────────────
