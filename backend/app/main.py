@@ -57,6 +57,7 @@ from app.api.project_team import router as project_team_router
 from app.api.audit_logs import router as audit_logs_router
 from app.api.teams import router as teams_router
 from app.api.application_access import router as application_access_router
+from app.api.agent import router as agent_router
 from app.crud.role import seed_default_roles
 
 Base.metadata.create_all(bind=engine)
@@ -130,6 +131,7 @@ app.include_router(project_team_router, prefix=API_PREFIX)
 app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
 app.include_router(application_access_router, prefix=API_PREFIX)
+app.include_router(agent_router, prefix=f"{API_PREFIX}/agent", tags=["Agent"])
 
 from app.api.transcript import router as transcript_router
 app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])

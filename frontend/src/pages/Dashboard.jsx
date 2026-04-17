@@ -16,7 +16,8 @@ import { logout } from '../store/slices/authSlice';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
-  MessageSquare, Layers, FolderTree, Calendar
+  MessageSquare, Layers, FolderTree, Calendar, Box, MoreVertical, Pin,
+  LayoutDashboard, ServerCog, UsersRound, Briefcase, CloudUpload, FilePlus2, Settings2, MessagesSquare, CalendarDays
 } from 'lucide-react';
 
 import API from "../utils/api";
@@ -97,26 +98,49 @@ const Dashboard = () => {
   const hoverTimeoutRef = useRef(null);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
 
+  // Recents State
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [recentsExpanded, setRecentsExpanded] = useState(true);
+  const [recentMenu, setRecentMenu] = useState(null); // idx of open menu
+  const [pinnedRecents, setPinnedRecents] = useState([]);
+
+  useEffect(() => {
+    const loadRecents = () => {
+      const saved = localStorage.getItem('project_dashboard_recents');
+      if (saved) {
+        try {
+          setRecentActivity(JSON.parse(saved).slice(0, 8)); // Limit sidebar to 8 items
+        } catch (e) {
+          console.error("Failed to load recents", e);
+        }
+      }
+    };
+    
+    loadRecents(); // initial load
+    window.addEventListener('recentsUpdated', loadRecents);
+    return () => window.removeEventListener('recentsUpdated', loadRecents);
+  }, []);
+
   // Masters submodules
   const mastersSubmodules = useMemo(() => [
-    { id: 'employee-master', name: 'Employee Master', path: 'masters/employees', icon: <Users className="h-5 w-5" />, color: '#000000' },
-    { id: 'project-master', name: 'Project Master', path: 'masters/project-master', icon: <FolderKanban className="h-5 w-5" />, color: '#333333' },
+    { id: 'employee-master', name: 'Employee Master', path: 'masters/employees', icon: <UsersRound className="h-5 w-5" />, color: '#000000' },
+    { id: 'project-master', name: 'Project Master', path: 'masters/project-master', icon: <Briefcase className="h-5 w-5" />, color: '#333333' },
   ], []);
 
   const mastersModules = useMemo(() => [
-    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <Database className="h-5 w-5" /> },
+    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <ServerCog className="h-5 w-5" /> },
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
-    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
-    { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <FileUp className="h-5 w-5" /> }
+    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <CloudUpload className="h-5 w-5" /> },
+    { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <CloudUpload className="h-5 w-5" /> }
   ], []);
   const uploadsModules = useMemo(() => [
-    { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <FileUp className="h-5 w-5" /> }
+    { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <CloudUpload className="h-5 w-5" /> }
   ], []);
 
   const otherModules = useMemo(() => [
-    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings className="h-5 w-5" /> },
+    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings2 className="h-5 w-5" /> },
   ], []);
 
 
@@ -523,7 +547,7 @@ const Dashboard = () => {
   };
 
   const getActiveModuleName = () => {
-    if (activeModule === 'project-dashboard') return 'Project Dashboard';
+    if (activeModule === 'project-dashboard') return 'Dashboard';
     if (activeModule === 'masters-main') return 'Masters';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
@@ -531,7 +555,7 @@ const Dashboard = () => {
 
     const allModules = [...mastersModules, ...mastersSubmodules, ...uploadsModules, ...uploadsSubmodules, ...otherModules];
     const module = allModules.find(m => m.id === activeModule);
-    return module ? module.name : 'Project Dashboard';
+    return module ? module.name : 'Dashboard';
   };
 
   // ==========================================================================
@@ -575,7 +599,7 @@ const Dashboard = () => {
     const module = allModules.find(m => m.id === moduleId);
     if (module) path = module.path;
     else if (moduleId === 'mom-module') path = 'mom';
-    else if (moduleId === 'meetings') path = 'meetings';
+    else if (moduleId === 'mom-main' || moduleId === 'meetings') path = 'meetings';
     else if (moduleId === 'schedule-meeting') path = 'schedule-meeting';
 
     navigate(`/dashboard/${path}`);
@@ -592,20 +616,18 @@ const Dashboard = () => {
     }
 
     if (moduleId === 'project-dashboard') {
-      if (projectDashboardModules.length > 0 && !expandedModules['project-dashboard']) {
-        dispatch(setExpandedModules({ 'project-dashboard': true }));
+      if (projectDashboardModules.length > 0) {
+        dispatch(toggleExpansion('project-dashboard'));
       }
     } else if (moduleId === 'masters-main') {
       dispatch(toggleExpansion('masters'));
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
-    } else if (moduleId === 'mom-module') {
-      if (!expandedModules['mom']) {
-        dispatch(setExpandedModules({ 'mom': true }));
-      }
+    } else if (moduleId === 'mom-main') {
+      dispatch(toggleExpansion('mom'));
     } else if (moduleId === 'upload-trackers') {
-      if (uploadTrackerModules.length > 0 && !expandedModules['upload-trackers']) {
-        dispatch(setExpandedModules({ 'upload-trackers': true }));
+      if (uploadTrackerModules.length > 0) {
+        dispatch(toggleExpansion('upload-trackers'));
       }
     }
   };
@@ -713,6 +735,7 @@ const Dashboard = () => {
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
             <BarChart3 className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+
             {isSidebarExpanded && (
               <span className="text-body font-medium">
                 Dashboard
@@ -862,7 +885,7 @@ const Dashboard = () => {
     if (!hasPermission('MOM')) return null;
 
     const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings';
+    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'mom-main';
     const isHovered = hoveredModule === 'mom-main';
 
     return (
@@ -879,6 +902,7 @@ const Dashboard = () => {
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
             <MessageSquare className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+
             {isSidebarExpanded && (
               <span className="text-body font-medium">
                 Meetings
@@ -1139,40 +1163,42 @@ const Dashboard = () => {
   const isSidebarExpanded = !sidebarCollapsed;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-app-bg">
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Clean Surface Color */}
+        {/* Sidebar */}
         <div
           ref={sidebarRef}
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
-            ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-app-surface
-            border-r border-border
-            transform transition-all duration-250 ease-product lg:transform-none
-            flex flex-col
-            overflow-hidden
+            ${isSidebarExpanded ? 'w-64' : 'w-16'}
+            bg-app-surface border-r border-border
+            transition-all duration-300 ease-in-out
+            flex flex-col shadow-xl lg:shadow-none
+            transform lg:transform-none ${sidebarCollapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}
           `}
         >
-          {/* Logo Section */}
-          <div className="px-4 py-5 border-b border-border">
+          {/* Logo / Identity Section */}
+          <div className="px-4 py-5 border-b border-border min-h-[70px] flex items-center justify-between">
             {isSidebarExpanded ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center shadow-sm">
+                  {companyLogo ? (
+                    <img src={companyLogo} alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" />
+                  ) : (
+                    <span className="text-white font-bold text-sm">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-label font-semibold text-text-primary truncate">
+                  <p className="text-label font-bold text-text-primary truncate uppercase tracking-tighter">
                     {companyName || 'Industrial Analytics'}
                   </p>
-                  <p className="text-caption text-text-muted">Platform</p>
+                  <p className="text-[10px] text-text-muted font-medium uppercase tracking-widest opacity-70">Platform</p>
                 </div>
               </div>
             ) : (
-              <div className="flex justify-center">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
+              <div className="w-full flex justify-center">
+                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center shadow-sm">
                   <span className="text-white font-bold text-sm">
                     {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
                   </span>
@@ -1181,129 +1207,250 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-3 space-y-1">
+          {/* Navigation Section */}
+          <div className="flex-1 overflow-y-auto py-4 space-y-1.5 custom-scrollbar">
             {renderProjectDashboardModule()}
             {renderMOMModule()}
             {renderMastersModule()}
-
+            
             <div className="pt-2">
               {renderUploadsModule()}
               {renderOtherModules()}
             </div>
+
+            {/* Recents Sidebar Section */}
+            {recentActivity.length > 0 && (
+              <div className="mt-8 mb-4 px-2">
+                {isSidebarExpanded ? (
+                  <button
+                    onClick={() => setRecentsExpanded(!recentsExpanded)}
+                    className="w-full px-3 mb-2 flex items-center justify-between group"
+                  >
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider group-hover:text-text-primary transition-colors">
+                      Recent Activity
+                    </span>
+                    <span className="text-text-muted group-hover:text-text-primary transition-colors">
+                      {recentsExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="w-full border-t border-border my-4 mx-auto w-8" />
+                )}
+
+                {(recentsExpanded || !isSidebarExpanded) && (
+                  <div className="space-y-0.5">
+                    {recentActivity.map((item, idx) => (
+                      <div key={`recent-${idx}`} className="relative group/item">
+                        <button
+                          onClick={() => {
+                            if (item.type === 'project') {
+                              navigate(`/dashboard/projects?projectId=${item.id}`);
+                              window.dispatchEvent(new CustomEvent('openProjectDashboardMain', { detail: { projectId: item.id } }));
+                            } else {
+                              navigate(item.path);
+                            }
+                          }}
+                          title={!isSidebarExpanded ? item.label : ''}
+                          className={`
+                            w-full flex items-center transition-all duration-200 
+                            ${isSidebarExpanded ? 'px-3 py-1.5 space-x-3' : 'justify-center p-2'} 
+                            rounded-md hover:bg-app-bg text-text-secondary hover:text-text-primary
+                          `}
+                        >
+                          <div className="flex-shrink-0">
+                            {pinnedRecents.includes(idx) ? (
+                              <Pin className="h-3.5 w-3.5 text-brand-primary rotate-45" />
+                            ) : (
+                              item.type === 'project' ? <FolderKanban className="h-3.5 w-3.5 opacity-60" /> : <Layers className="h-3.5 w-3.5 opacity-60" />
+                            )}
+                          </div>
+                          {isSidebarExpanded && (
+                            <div className="flex-1 min-w-0 flex items-start">
+                              <span className="text-body-sm truncate w-full text-left font-medium">
+                                {item.label}
+                              </span>
+                            </div>
+                          )}
+                        </button>
+
+                        {/* Three-dot menu */}
+                        {isSidebarExpanded && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRecentMenu(recentMenu === idx ? null : idx); }}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover/item:opacity-100 hover:bg-app-surface text-text-muted hover:text-text-primary transition-all"
+                          >
+                            <MoreVertical className="h-3 w-3" />
+                          </button>
+                        )}
+
+                        {/* Recent Options Dropdown */}
+                        {recentMenu === idx && isSidebarExpanded && (
+                          <div
+                            className="absolute left-full ml-1 top-0 z-[100] bg-app-surface border border-border rounded-lg shadow-2xl overflow-hidden w-40 py-1"
+                            onMouseLeave={() => setRecentMenu(null)}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPinnedRecents(prev =>
+                                  prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+                                );
+                                setRecentMenu(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg transition-colors"
+                            >
+                              <Pin className="h-3.5 w-3.5" />
+                              {pinnedRecents.includes(idx) ? 'Unpin item' : 'Pin to top'}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updated = recentActivity.filter((_, i) => i !== idx);
+                                setRecentActivity(updated);
+                                localStorage.setItem('project_dashboard_recents', JSON.stringify(updated));
+                                setRecentMenu(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-body-sm text-status-error hover:bg-status-error/10 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remove from list
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* User Section at Bottom */}
-          <div className="p-3 border-t border-border">
+          {/* User Section */}
+          <div className="p-3 border-t border-border mt-auto">
             <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-semibold">
+              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-bold shadow-sm">
                 {getUserInitial()}
               </div>
               {isSidebarExpanded && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-medium text-text-primary truncate">{user?.full_name || 'User'}</p>
-                  <p className="text-caption text-text-muted capitalize">{user?.role || 'User'}</p>
+                  <p className="text-body-sm font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
+                  <p className="text-[10px] text-text-muted font-medium uppercase truncate tracking-tight">{user?.role || 'Access'}</p>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Main Workspace */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
-          {/* Header */}
-          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6">
-            {/* Left - Toggle & Title */}
-            <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-              </button>
-              <h1 className="text-h3 font-semibold text-text-primary">
-                {getHeaderTitle()}
-              </h1>
-            </div>
-
-            {/* Right - Date/Time & Profile */}
-            <div className="flex items-center gap-4">
-              {/* Date and Time */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-app-surface rounded-md">
-                <Clock className="h-4 w-4 text-text-muted" />
-                <span className="text-body-sm font-medium text-text-secondary tabular-nums">{currentTime}</span>
-                <span className="text-border-strong">|</span>
-                <span className="text-body-sm text-text-secondary">{currentDate}</span>
+          {/* Main Header */}
+          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6 sticky top-0 z-20 shadow-sm">
+            {/* Header Content */}
+            <div className="flex items-center justify-between w-full">
+              {/* Left Side: Toggle & Title */}
+              <div className="flex items-center gap-4 flex-1">
+                <button
+                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+                  className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-200"
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                </button>
+                <div className="h-4 w-[1px] bg-border mx-1" />
+                <h1 className="text-h3 font-bold text-text-primary tracking-tight">
+                  {getHeaderTitle()}
+                </h1>
               </div>
 
-              {/* Profile Menu */}
-              <div className="relative" ref={profileMenuRef}>
-                <button
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold text-body-sm hover:bg-brand-accent transition-colors duration-fast"
-                >
-                  {getUserInitial()}
-                </button>
+              {/* Right Side: Tools, Date/Time & Profile */}
+              <div className="flex items-center gap-5">
+                {/* Date/Time Indicator */}
+                <div className="hidden md:flex items-center gap-3 px-4 py-1.5 bg-app-surface border border-border rounded-lg shadow-inner">
+                  <div className="flex flex-col items-end">
+                    <span className="text-body-xs font-bold text-text-primary tabular-nums leading-none mb-0.5">{currentTime}</span>
+                    <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter leading-none">{currentDate}</span>
+                  </div>
+                  <Clock className="h-4 w-4 text-brand-primary ml-1" />
+                </div>
 
-                {profileMenuOpen && (
-                  <div
-                    className="fixed z-[9999] w-64 bg-app-bg rounded-lg shadow-lg border border-border py-2"
-                    style={{
-                      top: `${profileMenuPosition.top}px`,
-                      right: `${profileMenuPosition.right}px`
-                    }}
+                {/* Vertical Divider */}
+                <div className="h-6 w-[1px] bg-border" />
+
+                {/* Profile Widget */}
+                <div className="relative" ref={profileMenuRef}>
+                  <button
+                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                    className="group flex items-center gap-2 p-1 pr-3 rounded-full hover:bg-app-surface transition-all duration-200"
                   >
-                    <div className="px-4 py-3 border-b border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold">
-                          {getUserInitial()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-body font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
-                          <p className="text-caption text-text-muted truncate">{user?.email || 'user@example.com'}</p>
+                    <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold text-body-sm shadow-md group-hover:scale-105 transition-transform duration-200">
+                      {getUserInitial()}
+                    </div>
+                    <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform duration-300 ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {profileMenuOpen && (
+                    <div
+                      className="fixed z-[9999] w-64 bg-app-surface rounded-xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in duration-200"
+                      style={{
+                        top: `${profileMenuPosition.top}px`,
+                        right: `${profileMenuPosition.right}px`
+                      }}
+                    >
+                      {/* Identity Summary */}
+                      <div className="px-4 py-4 bg-app-bg/50 border-b border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold text-lg">
+                            {getUserInitial()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-body font-bold text-text-primary truncate leading-tight">{user?.full_name || 'User'}</p>
+                            <p className="text-body-xs text-text-muted truncate lowercase">{user?.email || 'user@example.com'}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="py-1">
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
-                        <UserIcon className="h-4 w-4" />
-                        <span>Profile</span>
-                      </button>
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </button>
-                    </div>
+                      {/* Menu Actions */}
+                      <div className="p-1.5">
+                        <button className="w-full px-3 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg rounded-md flex items-center gap-3 transition-colors">
+                          <UserIcon className="h-4 w-4 text-brand-primary/60" />
+                          <span className="font-medium">My Profile</span>
+                        </button>
+                        <button className="w-full px-3 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg rounded-md flex items-center gap-3 transition-colors">
+                          <Settings className="h-4 w-4 text-brand-primary/60" />
+                          <span className="font-medium">System Preferences</span>
+                        </button>
+                      </div>
 
-                    <div className="border-t border-border py-1">
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setProfileMenuOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-body-sm text-status-error hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Sign out</span>
-                      </button>
+                      {/* Footer Actions */}
+                      <div className="border-t border-border p-1.5 bg-app-bg/20">
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setProfileMenuOpen(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-body-sm text-status-error hover:bg-status-error/10 rounded-md flex items-center gap-3 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span className="font-semibold text-xs uppercase tracking-wider">Secure Sign Out</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 min-h-0 overflow-hidden bg-app-bg">
-            <div className="h-full overflow-auto">
+          {/* Dynamic Content Outlet */}
+          <main className="flex-1 min-h-0 overflow-hidden relative">
+            <div className="h-full overflow-auto custom-scrollbar p-6 bg-app-bg">
               <Outlet />
             </div>
           </main>
         </div>
       </div>
-    </div>
+    
   );
 };
 

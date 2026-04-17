@@ -151,6 +151,13 @@ const PremiumProjectCard = ({
           </button>
         </div>
       </div>
+
+      <div className="flex items-center gap-2 text-slate-500 font-medium pt-4 mt-auto border-t border-slate-100/80">
+        <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg group-hover:bg-slate-100 transition-colors">
+          <Layers className="h-4 w-4 text-slate-600" />
+        </div>
+        <span className="text-[13px] uppercase tracking-wider text-slate-600 group-hover:text-slate-800 transition-colors duration-300">{subModulesCount} {subModulesCount === 1 ? 'Submodule' : 'Submodules'}</span>
+      </div>
     </div>
   );
 };
