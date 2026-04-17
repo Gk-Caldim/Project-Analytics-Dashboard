@@ -23,8 +23,7 @@ const ProjectMaster = () => {
     { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: true },
     { id: 'timeline', label: 'Timeline', visible: true, sortable: true, type: 'text', required: false },
     { id: 'status', label: 'Status', visible: true, sortable: true, type: 'select', required: true },
-    { id: 'manager', label: 'Project Manager', visible: true, sortable: true, type: 'manager_multiselect', required: true },
-    { id: 'team_lead', label: 'Team Lead', visible: true, sortable: true, type: 'team_lead_multiselect', required: false },
+
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
     { id: 'employee_name', label: 'Employee Name', visible: false, sortable: true, type: 'employee_name', required: false },
     { id: 'utilized_budget', label: 'Utilized Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
@@ -126,7 +125,7 @@ const ProjectMaster = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
   const API_URL = `${API_BASE_URL}/projects`;
 
-  const fixedColumnIds = ['id', 'project_id', 'name', 'manager', 'team_lead', 'status', 'budget', 'utilized_budget', 'balance_budget', 'timeline', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
+  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'timeline', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
 
   const defaultPermissions = {
     view: true,
@@ -138,29 +137,6 @@ const ProjectMaster = () => {
   const transformProjectFromApi = (apiProject) => {
     const { custom_fields, ...rest } = apiProject;
     const flat = { ...(custom_fields || {}), ...rest };
-    
-    // Ensure manager and team_lead are always arrays of objects
-    const normalizeUserList = (list) => {
-      if (!Array.isArray(list)) {
-        if (typeof list === 'string' && list) {
-          return [{ employeeId: list, permissions: { ...defaultPermissions } }];
-        }
-        return [];
-      }
-      return list.map(item => {
-        if (typeof item === 'string') {
-          return { employeeId: item, permissions: { ...defaultPermissions } };
-        }
-        return {
-          employeeId: item.employeeId || item.employee_id, // handle both cases
-          permissions: item.permissions || { ...defaultPermissions }
-        };
-      });
-    };
-
-    flat.manager = normalizeUserList(flat.manager);
-    flat.team_lead = normalizeUserList(flat.team_lead);
-    
     return flat;
   };
 
@@ -169,8 +145,6 @@ const ProjectMaster = () => {
     const payload = {
       project_id: projectData.project_id || null,
       name: projectData.name,
-      manager: projectData.manager || [],
-      team_lead: projectData.team_lead || [],
       status: projectData.status || 'Planning',
       budget: parseFloat(projectData.budget) || 0,
       utilized_budget: parseFloat(projectData.utilized_budget) || 0,
@@ -223,13 +197,6 @@ const ProjectMaster = () => {
       .then(res => {
         const employees = res.data || [];
         setEmployeeList(employees);
-        const employeeNames = employees.map(e => e.name);
-        setColumns(prev => prev.map(col => {
-          if (col.id === 'manager') {
-            return { ...col, options: employeeNames };
-          }
-          return col;
-        }));
       })
       .catch(err => console.error('Error fetching employees:', err));
   };
@@ -246,7 +213,7 @@ const ProjectMaster = () => {
   };
 
   const { user: currentUser } = useSelector(state => state.auth);
-  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin';
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager';
 
   const canAddProject = isAdmin || currentUser?.permissions?.includes('Project Master:ADD');
   const canEditProject = isAdmin || currentUser?.permissions?.includes('Project Master:EDIT');
@@ -259,17 +226,6 @@ const ProjectMaster = () => {
     // Check role-level global master permissions
     if (permissionType === 'edit' && canEditProject) return true;
     if (permissionType === 'delete' && canDeleteProject) return true;
-
-    const empId = currentUser?.employee_id;
-    if (!empId) return false;
-
-    // Check Managers
-    const manager = (project.manager || []).find(m => String(m.employeeId) === String(empId));
-    if (manager && manager.permissions?.[permissionType]) return true;
-
-    // Check Team Leads
-    const teamLead = (project.team_lead || []).find(tl => String(tl.employeeId) === String(empId));
-    if (teamLead && teamLead.permissions?.[permissionType]) return true;
 
     return false;
   };
@@ -406,7 +362,7 @@ const ProjectMaster = () => {
 
   const handleDeleteColumn = (columnId) => {
     const column = columns.find(col => col.id === columnId);
-    const isFixedColumn = ['id', 'name', 'manager', 'status', 'budget', 'timeline'].includes(columnId);
+    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(columnId);
 
     if (isFixedColumn) {
       setShowDeleteColumnPrompt({
@@ -454,17 +410,9 @@ const ProjectMaster = () => {
   const validateProjectForm = (project) => {
     const errors = {};
     // Only validate the fields shown in the form modal
-    const formFieldIds = ['project_id', 'name', 'budget', 'status', 'manager'];
+    const formFieldIds = ['project_id', 'name', 'budget', 'status'];
     for (const col of columns) {
       if (!formFieldIds.includes(col.id) || !col.required) continue;
-      // Handle array fields (multi-select)
-      if (col.type === 'manager_multiselect' || col.type === 'team_lead_multiselect') {
-        const arr = Array.isArray(project[col.id]) ? project[col.id] : [];
-        if (col.required && arr.length === 0) {
-          errors[col.id] = `${col.label} is required`;
-        }
-        continue;
-      }
       if (!project[col.id]?.toString().trim()) {
         errors[col.id] = `${col.label} is required`;
       }
@@ -559,8 +507,6 @@ const ProjectMaster = () => {
     columns.forEach(col => {
       if (col.id === 'status') {
         initialProject[col.id] = 'Planning';
-      } else if (col.type === 'manager_multiselect' || col.type === 'team_lead_multiselect') {
-        initialProject[col.id] = [];
       } else if (col.type === 'number') {
         initialProject[col.id] = '';
       } else {
@@ -1767,7 +1713,7 @@ const ProjectMaster = () => {
                 <h4 className="text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">Available Columns</h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {columns.map((column) => {
-                    const isFixedColumn = ['id', 'name', 'manager', 'status', 'budget', 'timeline'].includes(column.id);
+                    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(column.id);
                     const isEditing = editingColumn === column.id;
 
                     return (
@@ -1931,45 +1877,7 @@ const ProjectMaster = () => {
                     </select>
                     {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
                   </div>
-                  {/* Spacer to push multiselects below in 2-col layout */}
-                  <div className="hidden sm:block" />
-                  {/* Project Manager */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager <span className="text-red-500">*</span></label>
-                    <ReactSelect
-                      isMulti
-                      options={managerOptions}
-                      value={idsToSelectValues(newProject.manager || [])}
-                      onChange={(selected) => handleUserSelectChange('new', 'manager', selected)}
-                      placeholder="Search and select project managers..."
-                      styles={getSelectStyles(!!validationErrors.manager)}
-                      classNamePrefix="react-select"
-                      noOptionsMessage={() => 'No employees found'}
-                      isClearable={false}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                    />
-                    {renderPermissionTable('new', 'manager', newProject.manager)}
-                    {validationErrors.manager && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.manager}</p>}
-                  </div>
-                  {/* Team Lead */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
-                    <ReactSelect
-                      isMulti
-                      options={teamLeadOptions}
-                      value={idsToSelectValues(newProject.team_lead || [])}
-                      onChange={(selected) => handleUserSelectChange('new', 'team_lead', selected)}
-                      placeholder="Search and select team leads..."
-                      styles={getSelectStyles(false)}
-                      classNamePrefix="react-select"
-                      noOptionsMessage={() => 'No employees found'}
-                      isClearable={false}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                    />
-                    {renderPermissionTable('new', 'team_lead', newProject.team_lead)}
-                  </div>
+
                 </div>
               </div>
 
@@ -2085,44 +1993,7 @@ const ProjectMaster = () => {
                     </select>
                     {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
                   </div>
-                  <div className="hidden sm:block" />
-                  {/* Project Manager */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager <span className="text-red-500">*</span></label>
-                    <ReactSelect
-                      isMulti
-                      options={managerOptions}
-                      value={idsToSelectValues(editForm.manager || [])}
-                      onChange={(selected) => handleUserSelectChange('edit', 'manager', selected)}
-                      placeholder="Search and select project managers..."
-                      styles={getSelectStyles(!!validationErrors.manager)}
-                      classNamePrefix="react-select"
-                      noOptionsMessage={() => 'No employees found'}
-                      isClearable={false}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                    />
-                    {renderPermissionTable('edit', 'manager', editForm.manager)}
-                    {validationErrors.manager && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.manager}</p>}
-                  </div>
-                  {/* Team Lead */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
-                    <ReactSelect
-                      isMulti
-                      options={teamLeadOptions}
-                      value={idsToSelectValues(editForm.team_lead || [])}
-                      onChange={(selected) => handleUserSelectChange('edit', 'team_lead', selected)}
-                      placeholder="Search and select team leads..."
-                      styles={getSelectStyles(false)}
-                      classNamePrefix="react-select"
-                      noOptionsMessage={() => 'No employees found'}
-                      isClearable={false}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                    />
-                    {renderPermissionTable('edit', 'team_lead', editForm.team_lead)}
-                  </div>
+
                 </div>
               </div>
 

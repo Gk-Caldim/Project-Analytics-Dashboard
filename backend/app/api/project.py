@@ -24,33 +24,19 @@ def check_project_permission(db_project, current_user, permission_type: str):
     3. Project's team_lead list
     """
     # 1. Global Admin Check
-    if current_user.get("role") in ["Admin", "Super Admin"]:
+    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager"]:
         return True
     
     employee_id = current_user.get("employee_id")
     if not employee_id:
         return False
         
-    # 2. Check Manager List
-    managers = db_project.manager or []
-    for m in managers:
-        if isinstance(m, dict):
-            if str(m.get("employeeId")) == str(employee_id):
-                return m.get("permissions", {}).get(permission_type, False)
-        elif isinstance(m, str):
-            if m == str(employee_id):
+    # 2. Check EmployeeProjectMap
+    if hasattr(db_project, "allocations") and db_project.allocations:
+        for alloc in db_project.allocations:
+            if str(alloc.employee_id) == str(employee_id):
                 return True
-            
-    # 3. Check Team Lead List
-    leads = db_project.team_lead or []
-    for l in leads:
-        if isinstance(l, dict):
-            if str(l.get("employeeId")) == str(employee_id):
-                return l.get("permissions", {}).get(permission_type, False)
-        elif isinstance(l, str):
-            if l == str(employee_id):
-                return True
-            
+                
     return False
 
 @router.get("/", response_model=List[ProjectResponse])
@@ -62,7 +48,7 @@ def list_projects(
     projects = crud_project.get_projects(db)
     
     # 1. Admin returns all
-    if current_user.get("role") in ["Admin", "Super Admin"]:
+    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager"]:
         return projects
         
     # 2. Others filter by "view" permission
@@ -75,7 +61,7 @@ def add_project(
     current_user: dict = Depends(get_current_user)
 ):
     """Add a new project - Restricted to Admins"""
-    if current_user.get("role") not in ["Admin", "Super Admin"]:
+    if current_user.get("role") not in ["Admin", "Super Admin", "Project Manager"]:
         raise HTTPException(status_code=403, detail="Only Admins can create projects")
     db_project = crud_project.create_project(db, project)
     
