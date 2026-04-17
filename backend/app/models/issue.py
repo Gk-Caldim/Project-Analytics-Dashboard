@@ -30,7 +30,7 @@ class Issue(Base):
     __tablename__ = "issues"
 
     id             = Column(Integer, primary_key=True, index=True)
-    project_id     = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id     = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     upload_id      = Column(Integer, nullable=True)   # optional — links to an upload batch
 
     # Source traceability
