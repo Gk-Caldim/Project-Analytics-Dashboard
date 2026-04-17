@@ -9,6 +9,7 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from sqlalchemy import desc, outerjoin
 
+#router for audit logs
 router = APIRouter(
     prefix="/audit-logs",
     tags=["Audit Logs"]
