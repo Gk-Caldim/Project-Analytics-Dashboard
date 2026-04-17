@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { 
-  Shield, 
-  ArrowRight, 
-  Download, 
-  Search, 
-  Filter, 
-  Calendar as CalIcon, 
-  ChevronRight, 
-  FileText, 
+import {
+  Shield,
+  ArrowRight,
+  Download,
+  Search,
+  Filter,
+  Calendar as CalIcon,
+  ChevronRight,
+  FileText,
   Loader2,
   RefreshCcw
 } from 'lucide-react';
@@ -45,7 +45,7 @@ const AuditHistory = () => {
       // Map backend data to frontend structure if necessary
       const mappedLogs = response.data.map(log => {
         const details = log.details || {};
-        
+
         // Intelligent fallback for summary
         let summaryFallback = 'No details available';
         if (details.summary) {
@@ -92,18 +92,18 @@ const AuditHistory = () => {
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       // Search matching
-      const matchesSearch = 
+      const matchesSearch =
         log.adminName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         log.targetRole.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         log.action.toLowerCase().includes(debouncedSearch.toLowerCase());
 
       // Action filter matching
-      const matchesAction = 
-        actionFilter === 'All Actions' || 
+      const matchesAction =
+        actionFilter === 'All Actions' ||
         log.action.toLowerCase().includes(actionFilter.toLowerCase());
 
       // Date range matching
-      const matchesDate = 
+      const matchesDate =
         (!dateRange.from || dayjs(log.dateTime).isAfter(dayjs(dateRange.from).startOf('day'))) &&
         (!dateRange.to || dayjs(log.dateTime).isBefore(dayjs(dateRange.to).endOf('day')));
 
@@ -159,14 +159,14 @@ const AuditHistory = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={fetchLogs}
             className="p-2 text-text-muted hover:text-brand-primary hover:bg-app-bg rounded-md transition-all"
             title="Refresh logs"
           >
             <RefreshCcw className="h-4 w-4" />
           </button>
-          <button 
+          <button
             onClick={handleExportCSV}
             disabled={filteredLogs.length === 0}
             className="flex items-center gap-2 h-10 px-4 bg-text-primary text-white rounded-md font-semibold text-caption tracking-widest hover:brightness-110 transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -179,47 +179,47 @@ const AuditHistory = () => {
       {/* Advanced Filters Bar */}
       <div className="bg-app-surface p-2 rounded-lg border border-border flex flex-wrap items-center gap-3">
         <div className="flex-1 relative min-w-[300px]">
-           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
-           <input 
-            type="text" 
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
+          <input
+            type="text"
             placeholder="Search events..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full h-10 pl-11 pr-4 bg-app-bg border border-border rounded text-body-sm focus:ring-2 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-text-primary"
-           />
+          />
         </div>
-        
+
         <div className="flex items-center gap-3 px-3 h-10 bg-app-bg rounded border border-border">
-           <Filter className="h-3.5 w-3.5 text-text-muted" />
-           <select 
+          <Filter className="h-3.5 w-3.5 text-text-muted" />
+          <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
             className="bg-transparent text-caption font-semibold text-text-secondary border-none focus:ring-0 cursor-pointer min-w-[140px]"
-           >
-              <option>All Actions</option>
-              <option>Update Permission</option>
-              <option>Create Role</option>
-              <option>Delete Role</option>
-              <option>Update Employee</option>
-              <option>Create Employee</option>
-              <option>Delete Employee</option>
-              <option>Update Department</option>
-              <option>Create Department</option>
-              <option>Delete Department</option>
-           </select>
+          >
+            <option>All Actions</option>
+            <option>Update Permission</option>
+            <option>Create Role</option>
+            <option>Delete Role</option>
+            <option>Update Employee</option>
+            <option>Create Employee</option>
+            <option>Delete Employee</option>
+            <option>Update Department</option>
+            <option>Create Department</option>
+            <option>Delete Department</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-2 px-3 h-10 bg-app-bg rounded border border-border">
           <CalIcon className="h-3.5 w-3.5 text-text-muted" />
-          <input 
-            type="date" 
+          <input
+            type="date"
             className="text-caption font-semibold text-text-secondary border-none focus:ring-0 p-0 w-24 bg-transparent"
             value={dateRange.from}
             onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
           />
           <ArrowRight className="h-3 w-3 text-text-muted" />
-          <input 
-            type="date" 
+          <input
+            type="date"
             className="text-caption font-semibold text-text-secondary border-none focus:ring-0 p-0 w-24 bg-transparent"
             value={dateRange.to}
             onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
@@ -258,22 +258,20 @@ const AuditHistory = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase border ${
-                    log.action.includes('UPDATE') ? 'bg-brand-primary/5 text-brand-primary border-brand-primary/10' :
-                    log.action.includes('CREATE') ? 'bg-status-success/5 text-status-success border-status-success/10' :
-                    log.action.includes('DELETE') ? 'bg-status-error/5 text-status-error border-status-error/10' :
-                    'bg-app-bg text-text-secondary border-border'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase border ${log.action.includes('UPDATE') ? 'bg-brand-primary/5 text-brand-primary border-brand-primary/10' :
+                      log.action.includes('CREATE') ? 'bg-status-success/5 text-status-success border-status-success/10' :
+                        log.action.includes('DELETE') ? 'bg-status-error/5 text-status-error border-status-error/10' :
+                          'bg-app-bg text-text-secondary border-border'
+                    }`}>
                     {log.action}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      log.targetRole.includes('Admin') ? 'bg-brand-primary' : 
-                      log.targetRole.includes('Manager') ? 'bg-brand-accent' : 
-                      'bg-text-muted'
-                    }`} />
+                    <div className={`w-1.5 h-1.5 rounded-full ${log.targetRole.includes('Admin') ? 'bg-brand-primary' :
+                        log.targetRole.includes('Manager') ? 'bg-brand-accent' :
+                          'bg-text-muted'
+                      }`} />
                     <span className="text-body-sm font-medium text-text-secondary">{log.targetRole}</span>
                   </div>
                 </td>
@@ -292,17 +290,17 @@ const AuditHistory = () => {
             ))}
           </tbody>
         </table>
-        
+
         {/* Empty state overlay for no results */}
         {(filteredLogs.length === 0 && !loading) && (
           <div className="p-20 flex flex-col items-center justify-center text-center space-y-4">
-             <div className="p-6 bg-slate-50 rounded-full border border-slate-100">
-                <FileText className="h-12 w-12 text-slate-300" />
-             </div>
-             <div>
-                <p className="text-lg font-black text-slate-800 tracking-tight">No Logs Found</p>
-                <p className="text-sm text-slate-400 font-medium mt-1">Try adjusting your search or filters.</p>
-             </div>
+            <div className="p-6 bg-slate-50 rounded-full border border-slate-100">
+              <FileText className="h-12 w-12 text-slate-300" />
+            </div>
+            <div>
+              <p className="text-lg font-black text-slate-800 tracking-tight">No Logs Found</p>
+              <p className="text-sm text-slate-400 font-medium mt-1">Try adjusting your search or filters.</p>
+            </div>
           </div>
         )}
       </div>
@@ -310,32 +308,31 @@ const AuditHistory = () => {
       {/* functional Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center pt-10">
-           <div className="flex gap-2 bg-app-bg p-2 rounded-lg border border-border shadow-sm">
-              {[...Array(totalPages)].map((_, idx) => (
-                <button 
-                  key={idx + 1}
-                  onClick={() => setCurrentPage(idx + 1)}
-                  className={`w-9 h-9 flex items-center justify-center rounded-md font-semibold text-caption transition-all ${
-                    currentPage === idx + 1 
-                      ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20' 
-                      : 'bg-transparent text-text-muted hover:bg-app-surface'
+          <div className="flex gap-2 bg-app-bg p-2 rounded-lg border border-border shadow-sm">
+            {[...Array(totalPages)].map((_, idx) => (
+              <button
+                key={idx + 1}
+                onClick={() => setCurrentPage(idx + 1)}
+                className={`w-9 h-9 flex items-center justify-center rounded-md font-semibold text-caption transition-all ${currentPage === idx + 1
+                    ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/20'
+                    : 'bg-transparent text-text-muted hover:bg-app-surface'
                   }`}
+              >
+                {idx + 1}
+              </button>
+            ))}
+            {totalPages > 5 && currentPage < totalPages && (
+              <>
+                <div className="w-9 h-9 flex items-center justify-center text-text-muted tracking-tighter">•••</div>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="w-9 h-9 flex items-center justify-center rounded-md bg-transparent border border-border text-text-muted font-semibold text-caption hover:bg-app-surface transition-all"
                 >
-                  {idx + 1}
+                  <ChevronRight className="h-4 w-4" />
                 </button>
-              ))}
-              {totalPages > 5 && currentPage < totalPages && (
-                <>
-                  <div className="w-9 h-9 flex items-center justify-center text-text-muted tracking-tighter">•••</div>
-                  <button 
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    className="w-9 h-9 flex items-center justify-center rounded-md bg-transparent border border-border text-text-muted font-semibold text-caption hover:bg-app-surface transition-all"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </>
-              )}
-           </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
