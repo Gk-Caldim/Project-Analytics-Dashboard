@@ -21,7 +21,11 @@ const ProjectMaster = () => {
     { id: 'project_id', label: 'Project ID', visible: true, sortable: true, type: 'text', required: true },
     { id: 'name', label: 'Project Name', visible: true, sortable: true, type: 'text', required: true },
     { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: true },
-    { id: 'timeline', label: 'Timeline', visible: true, sortable: true, type: 'text', required: false },
+    { id: 'department', label: 'Department', visible: true, sortable: true, type: 'text', required: false },
+    { id: 'project_manager', label: 'Project Manager', visible: true, sortable: true, type: 'select', required: false },
+    { id: 'start_date', label: 'Start Date', visible: true, sortable: true, type: 'date', required: false },
+    { id: 'end_date', label: 'End Date', visible: true, sortable: true, type: 'date', required: false },
+    { id: 'timeline_months', label: 'Timeline (Months)', visible: true, sortable: true, type: 'number', required: false },
     { id: 'status', label: 'Status', visible: true, sortable: true, type: 'select', required: true },
 
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
@@ -125,7 +129,7 @@ const ProjectMaster = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
   const API_URL = `${API_BASE_URL}/projects`;
 
-  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'timeline', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
+  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
 
   const defaultPermissions = {
     view: true,
@@ -149,7 +153,11 @@ const ProjectMaster = () => {
       budget: parseFloat(projectData.budget) || 0,
       utilized_budget: parseFloat(projectData.utilized_budget) || 0,
       balance_budget: parseFloat(projectData.balance_budget) || 0,
-      timeline: projectData.timeline || '',
+      project_manager: projectData.project_manager || null,
+      department: projectData.department || null,
+      start_date: projectData.start_date || null,
+      end_date: projectData.end_date || null,
+      timeline_months: projectData.timeline_months ? parseInt(projectData.timeline_months) : null,
       employee_id: projectData.employee_id || null,
       employee_name: projectData.employee_name || null,
       custom_fields: {}
@@ -197,6 +205,13 @@ const ProjectMaster = () => {
       .then(res => {
         const employees = res.data || [];
         setEmployeeList(employees);
+        const pmNames = employees.filter(e => e.role === 'Project Manager').map(e => e.name);
+        setColumns(prev => prev.map(col => {
+          if (col.id === 'project_manager') {
+            return { ...col, options: pmNames };
+          }
+          return col;
+        }));
       })
       .catch(err => console.error('Error fetching employees:', err));
   };
@@ -410,7 +425,7 @@ const ProjectMaster = () => {
   const validateProjectForm = (project) => {
     const errors = {};
     // Only validate the fields shown in the form modal
-    const formFieldIds = ['project_id', 'name', 'budget', 'status'];
+    const formFieldIds = ['project_id', 'name', 'budget', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months'];
     for (const col of columns) {
       if (!formFieldIds.includes(col.id) || !col.required) continue;
       if (!project[col.id]?.toString().trim()) {
@@ -1854,14 +1869,58 @@ const ProjectMaster = () => {
                     </div>
                     {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
                   </div>
-                  {/* Timeline */}
+                  {/* Project Manager */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager</label>
+                    <select
+                      value={newProject.project_manager || ''}
+                      onChange={e => handleNewProjectChange('project_manager', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
+                    >
+                      <option value="">Select Project Manager</option>
+                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
+                    </select>
+                  </div>
+                  {/* Department */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
                     <input
                       type="text"
-                      value={newProject.timeline || ''}
-                      onChange={e => handleNewProjectChange('timeline', e.target.value)}
-                      placeholder="e.g. 3 months, Q1 2025"
+                      value={newProject.department || ''}
+                      onChange={e => handleNewProjectChange('department', e.target.value)}
+                      placeholder="e.g. Engineering"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* Start Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Start Date</label>
+                    <input
+                      type="date"
+                      value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
+                      onChange={e => handleNewProjectChange('start_date', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* End Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">End Date</label>
+                    <input
+                      type="date"
+                      value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
+                      onChange={e => handleNewProjectChange('end_date', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* Timeline (Months) */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
+                    <input
+                      type="number"
+                      value={newProject.timeline_months || ''}
+                      onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
+                      placeholder="e.g. 6"
+                      min="0"
                       className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
@@ -1970,14 +2029,58 @@ const ProjectMaster = () => {
                     </div>
                     {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
                   </div>
-                  {/* Timeline */}
+                  {/* Project Manager */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager</label>
+                    <select
+                      value={editForm.project_manager || ''}
+                      onChange={e => handleEditFormChange('project_manager', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
+                    >
+                      <option value="">Select Project Manager</option>
+                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
+                    </select>
+                  </div>
+                  {/* Department */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
                     <input
                       type="text"
-                      value={editForm.timeline || ''}
-                      onChange={e => handleEditFormChange('timeline', e.target.value)}
-                      placeholder="e.g. 3 months, Q1 2025"
+                      value={editForm.department || ''}
+                      onChange={e => handleEditFormChange('department', e.target.value)}
+                      placeholder="e.g. Engineering"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* Start Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Start Date</label>
+                    <input
+                      type="date"
+                      value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
+                      onChange={e => handleEditFormChange('start_date', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* End Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">End Date</label>
+                    <input
+                      type="date"
+                      value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
+                      onChange={e => handleEditFormChange('end_date', e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  {/* Timeline (Months) */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
+                    <input
+                      type="number"
+                      value={editForm.timeline_months || ''}
+                      onChange={e => handleEditFormChange('timeline_months', e.target.value)}
+                      placeholder="e.g. 6"
+                      min="0"
                       className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>

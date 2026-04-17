@@ -22,6 +22,7 @@ import SystemSettings from './pages/Settings/SystemSettings';
 import BudgetUpload from './pages/Budget/BudgetUpload';
 import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
+import AgentChat from './components/Agent/AgentChat';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
@@ -155,6 +156,7 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        <AgentChat />
       </Router>
     </ErrorBoundary>
   </ThemeProvider>

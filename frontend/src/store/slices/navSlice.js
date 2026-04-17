@@ -2,10 +2,12 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   activeModule: sessionStorage.getItem('active_module') || 'project-dashboard',
-  expandedModules: JSON.parse(sessionStorage.getItem('expanded_modules')) || {
+  expandedModules: {
     'project-dashboard': false,
     'masters': false,
-    'upload-trackers': false
+    'upload-trackers': false,
+    'uploads': false,
+    'mom': false
   },
   selectedUploadFileId: JSON.parse(sessionStorage.getItem('selected_upload_file_id')) || null,
   selectedProjectFileId: JSON.parse(sessionStorage.getItem('selected_project_file_id')) || null,
