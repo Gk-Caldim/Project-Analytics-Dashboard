@@ -180,18 +180,18 @@ const SystemSettings = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
-      {/* Sidebar Navigation - Enterprise Console Design */}
-      <aside className="w-[300px] bg-[#FFFFFF] border-r border-slate-100 flex flex-col relative z-20">
+    <div className="flex h-screen overflow-hidden bg-app-surface">
+      {/* Sidebar Navigation - Industrial Settings Design */}
+      <aside className="w-[280px] bg-[#0E1B2E] border-r border-white/5 flex flex-col relative z-20">
         <div className="p-8 pt-10 mb-8">
-          <h1 className="text-xl font-bold text-[#1E293B] tracking-tight">Enterprise Console</h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">ADMINISTRATION</p>
+          <h1 className="text-h1 font-bold text-white tracking-tight">Settings</h1>
+          <p className="text-caption font-bold text-white/40 uppercase tracking-widest mt-1">ADMINISTRATION</p>
         </div>
 
         <nav className="flex-1 px-4 space-y-12">
           {sidebarCategories.map((group) => (
             <div key={group.group} className="space-y-4">
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">{group.group}</h3>
+              <h3 className="text-caption font-bold text-white/30 uppercase tracking-[0.2em] px-4">{group.group}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <div key={item.id} className="space-y-1">
@@ -202,18 +202,18 @@ const SystemSettings = () => {
                           setActiveSubCategory(item.subItems[0].id);
                         }
                       }}
-                      className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group ${activeCategory === item.id
-                        ? 'bg-indigo-50 text-indigo-600 font-bold'
-                        : 'text-slate-500 hover:bg-slate-50'
+                      className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 group ${activeCategory === item.id
+                        ? 'bg-brand-primary/10 text-white font-semibold'
+                        : 'text-white/60 hover:bg-white/5 hover:text-white'
                         }`}
                     >
-                      <item.icon className={`h-5 w-5 ${activeCategory === item.id ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                      <span className="text-[13px] tracking-tight">{item.label}</span>
+                      <item.icon className={`h-5 w-5 transition-colors ${activeCategory === item.id ? 'text-brand-primary' : 'text-white/40 group-hover:text-white'}`} />
+                      <span className="text-body-sm tracking-tight">{item.label}</span>
                       {item.subItems && (
-                        <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-300 ${activeCategory === item.id ? 'rotate-90 text-indigo-600' : 'text-slate-300'}`} />
+                        <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-300 ${activeCategory === item.id ? 'rotate-90 text-brand-primary' : 'text-white/20'}`} />
                       )}
                       {!item.subItems && activeCategory === item.id && (
-                        <div className="ml-auto w-1 h-1 bg-indigo-600 rounded-full" />
+                        <div className="ml-auto w-1 h-1 bg-brand-primary rounded-full" />
                       )}
                     </button>
 
@@ -224,9 +224,9 @@ const SystemSettings = () => {
                           <button
                             key={subItem.id}
                             onClick={() => setActiveSubCategory(subItem.id)}
-                            className={`w-full text-left px-4 py-2 rounded-lg text-[12px] font-medium transition-all ${activeSubCategory === subItem.id
-                              ? 'text-indigo-600 bg-indigo-50/50'
-                              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                            className={`w-full text-left px-4 py-2 rounded-md text-caption font-medium transition-all ${activeSubCategory === subItem.id
+                              ? 'text-brand-primary bg-brand-primary/5'
+                              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
                               }`}
                           >
                             {subItem.label}
@@ -241,11 +241,11 @@ const SystemSettings = () => {
           ))}
         </nav>
 
-        <div className="p-6 border-t border-slate-50 space-y-4">
+        <div className="p-6 border-t border-white/5 space-y-4">
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}
-            className="w-full h-12 bg-[#1E3A8A] text-white rounded-xl font-bold text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-900 transition-all shadow-lg shadow-indigo-100/50 disabled:opacity-30 disabled:shadow-none"
+            className="w-full h-11 bg-brand-primary text-white rounded-md font-semibold text-caption tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-30 disabled:shadow-none"
           >
             <RefreshCcw className={`h-4 w-4 ${isSaving ? 'animate-spin' : ''}`} />
             SYNC UPDATES
@@ -271,10 +271,10 @@ const SystemSettings = () => {
         <main className="flex-1 overflow-y-auto p-12 scroll-smooth">
           <div className="max-w-7xl mx-auto">
             {notification && (
-              <div className={`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-3 rounded-2xl shadow-2xl z-50 animate-in slide-in-from-top-10 duration-500 flex items-center gap-4 ${notification.type === 'success' ? 'bg-[#1E293B] text-white' : 'bg-red-600 text-white'
+              <div className={`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg shadow-xl z-50 animate-in slide-in-from-top-10 duration-500 flex items-center gap-4 ${notification.type === 'success' ? 'bg-text-primary text-white' : 'bg-status-error text-white'
                 }`}>
-                <Check className="h-5 w-5 text-emerald-400" />
-                <span className="text-[11px] font-black tracking-widest uppercase">{notification.message}</span>
+                <Check className="h-5 w-5 text-brand-primary" />
+                <span className="text-caption font-bold tracking-widest uppercase">{notification.message}</span>
               </div>
             )}
             {renderContent()}
