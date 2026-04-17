@@ -22,6 +22,7 @@ import SystemSettings from './pages/Settings/SystemSettings';
 import BudgetUpload from './pages/Budget/BudgetUpload';
 import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
+import LandingPage from './pages/LandingPage';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
@@ -164,8 +165,8 @@ function App() {
             <Route path="settings" element={<SystemSettings />} />
           </Route>
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="*" element={<LandingPage />} />
         </Routes>
       </Router>
     </ErrorBoundary>

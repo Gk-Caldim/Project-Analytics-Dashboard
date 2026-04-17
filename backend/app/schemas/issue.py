@@ -16,7 +16,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 # ─── Enums / literals ────────────────────────────────────────────────────────
 PriorityLiteral = Literal["High", "Medium", "Low"]
-StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned"]
+StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned", "Delayed"]
 SourceLiteral   = Literal["Manual", "MOM", "Tracker"]
 ActionStatusLiteral = Literal["Pending", "In Progress", "Done"]
 
@@ -102,6 +102,7 @@ class IssueCreate(BaseModel):
 
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
+    milestone_name: Optional[str] = None
     created_by:     Optional[str] = "System"
 
     @field_validator("title")
@@ -125,14 +126,17 @@ class IssueCreate(BaseModel):
             raise ValueError("severity_score must be between 0 and 100")
         return v
 
-    # @model_validator(mode="after")
-    # def high_priority_needs_due_date(self) -> "IssueCreate":
-    #     if self.priority == "High" and self.due_date is None:
-    #         raise ValueError(
-    #             "due_date is required for High priority issues — "
-    #             "governance policy forbids open-ended high priority issues"
-    #         )
-    #     return self
+    @model_validator(mode="after")
+    def apply_governance_rules(self) -> "IssueCreate":
+        # Rule 1: High priority MUST have a due date
+        if self.priority == "High" and self.due_date is None:
+            raise ValueError("due_date is required for High priority issues — governance policy forbids open-ended high priority issues")
+        
+        # Rule 2: Delayed items must have a due date. If missing, force to today to trigger immediate risk flagging.
+        if self.status == "Delayed" and self.due_date is None:
+            self.due_date = date.today()
+            
+        return self
 
 
 class IssueUpdate(BaseModel):
@@ -144,14 +148,18 @@ class IssueUpdate(BaseModel):
     severity_score: Optional[int] = None
     status:         Optional[StatusLiteral] = None
     due_date:       Optional[date] = None
+    milestone_name: Optional[str] = None
 
-    # @model_validator(mode="after")
-    # def high_priority_needs_due_date(self) -> "IssueUpdate":
-    #     if self.priority == "High" and self.due_date is None:
-    #         raise ValueError(
-    #             "due_date is required when changing priority to High"
-    #         )
-    #     return self
+    @model_validator(mode="after")
+    def apply_governance_rules(self) -> "IssueUpdate":
+        if self.priority == "High" and self.due_date is None:
+            # Service layer does final DB check for due_date existence.
+            pass
+            
+        if self.status == "Delayed" and self.due_date is None:
+            self.due_date = date.today()
+            
+        return self
 
     @model_validator(mode="after")
     def cannot_close_without_owner(self) -> "IssueUpdate":
@@ -179,6 +187,7 @@ class IssueOut(BaseModel):
     health_status:  str          # dynamic: Overdue / At Risk / On Track
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
+    milestone_name: Optional[str] = None
     created_at:     datetime
     updated_at:     datetime
     resolved_at:    Optional[datetime] = None
@@ -215,11 +224,13 @@ class MOMActionItem(BaseModel):
             raise ValueError("owner is required for every MOM action item")
         return v.strip()
 
-    # @model_validator(mode="after")
-    # def high_priority_needs_due_date(self) -> "MOMActionItem":
-    #     if self.priority == "High" and self.due_date is None:
-    #         raise ValueError("due_date is required for High priority MOM actions")
-    #     return self
+    @model_validator(mode="after")
+    def apply_mom_governance_rules(self) -> "MOMActionItem":
+        if self.priority == "High" and self.due_date is None:
+            raise ValueError("due_date is required for High priority MOM actions")
+        if self.status == "Delayed" and self.due_date is None:
+            self.due_date = date.today()
+        return self
 
 
 class MOMIssueCreate(BaseModel):

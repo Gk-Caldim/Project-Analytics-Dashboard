@@ -56,6 +56,7 @@ class Issue(Base):
 
     due_date       = Column(Date, nullable=True, index=True)
     meeting_id     = Column(String(100), nullable=True)  # links to meetings table if MOM-derived
+    milestone_name = Column(String(200), nullable=True)  # links issue to a specific strategic milestone
 
     # Timestamps
     created_at     = Column(DateTime(timezone=True), nullable=False, default=_utcnow)
