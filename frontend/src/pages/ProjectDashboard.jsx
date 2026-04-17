@@ -6,8 +6,8 @@ import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
 import ExcelTableViewer from '../components/ExcelTableViewer';
-import { 
-  Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, 
+import {
+  Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
   TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare
 } from 'lucide-react';
@@ -169,7 +169,7 @@ const ProjectTitleDashboard = () => {
   const { format, symbol } = useCurrency();
   const selectedFileId = useSelector(state => state.nav.selectedProjectFileId);
   const onClearSelection = () => dispatch(setSelectedProjectFileId(null));
-  
+
   const [dashboardData, setDashboardData] = useState(null);
   const [submoduleData, setSubmoduleData] = useState({});
   const [chartTypes, setChartTypes] = useState({});
@@ -263,7 +263,7 @@ const ProjectTitleDashboard = () => {
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
-  
+
   // Staging states for bulk layout
   const [stagedBulkPin, setStagedBulkPin] = useState(null); // null, 'pin', 'unpin'
   const [stagedBulkUrgency, setStagedBulkUrgency] = useState(null);
@@ -273,9 +273,9 @@ const ProjectTitleDashboard = () => {
     try {
       setLoading(true);
       const { default: API } = await import('../utils/api');
-      
+
       let safeId = projectToDelete.dbProjectId;
-      
+
       // If we don't have dbProjectId cached properly, fetch the projects list to find it by name
       if (!safeId) {
         const { data: allProjects } = await API.get('/projects/');
@@ -288,20 +288,20 @@ const ProjectTitleDashboard = () => {
           safeId = isNaN(extracted) ? projectToDelete.id : extracted;
         }
       }
-      
+
       await API.delete(`/projects/${safeId}`);
-      
+
       // Update local Redux Store
       const newProjects = projects.filter(p => p.id !== projectToDelete.id);
       dispatch(setProjects(newProjects));
-      
+
       // Update filters
       setPinnedProjects(prev => prev.filter(id => id !== projectToDelete.id));
       setSelectedProjects(prev => prev.filter(id => id !== projectToDelete.id));
-      
+
       // Force Dashboard sidebar refresh
       window.dispatchEvent(new CustomEvent('projectDashboardUpdate'));
-      
+
       setProjectToDelete(null);
     } catch (err) {
       console.error('Failed to delete project', err);
@@ -337,8 +337,8 @@ const ProjectTitleDashboard = () => {
     let result = [...projects];
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(p => 
-        (p.name && p.name.toLowerCase().includes(q)) || 
+      result = result.filter(p =>
+        (p.name && p.name.toLowerCase().includes(q)) ||
         (p.code && p.code.toLowerCase().includes(q))
       );
     }
@@ -421,7 +421,7 @@ const ProjectTitleDashboard = () => {
         // For module links module-1-Build : parts[0] is 'module', parts[1] is id, parts.slice(2) is module name
         const projectId = parts[1];
         const moduleName = parts.slice(2).join('-');
-        
+
         getDashboard(projectId, moduleName)
           .then(res => setDashboardData(res))
           .catch(console.error);
@@ -3540,21 +3540,21 @@ const ProjectTitleDashboard = () => {
                     <span style={{ fontSize: '12px', fontWeight: 'bold', marginRight: '8px', color: 'var(--text-secondary)' }}>
                       {selectedProjects.length} selected
                     </span>
-                    
-                    <button 
-                      onClick={() => setStagedBulkPin(stagedBulkPin === true ? null : true)} 
+
+                    <button
+                      onClick={() => setStagedBulkPin(stagedBulkPin === true ? null : true)}
                       style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === true ? 'var(--blue-50)' : 'white', color: stagedBulkPin === true ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === true ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === true ? '600' : 'normal' }}>
                       Pin
                     </button>
-                    <button 
-                      onClick={() => setStagedBulkPin(stagedBulkPin === false ? null : false)} 
+                    <button
+                      onClick={() => setStagedBulkPin(stagedBulkPin === false ? null : false)}
                       style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === false ? 'var(--blue-50)' : 'white', color: stagedBulkPin === false ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === false ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === false ? '600' : 'normal' }}>
                       Unpin
                     </button>
-                    
+
                     <div style={{ position: 'relative', marginLeft: '4px' }}>
-                      <button 
-                        onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)} 
+                      <button
+                        onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)}
                         style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkUrgency ? 'var(--blue-50)' : 'white', color: stagedBulkUrgency ? 'var(--accent)' : 'var(--text-primary)', border: '1px solid', borderColor: stagedBulkUrgency ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: stagedBulkUrgency ? '600' : 'normal' }}>
                         {stagedBulkUrgency ? `Urgency: ${stagedBulkUrgency}` : 'Set Urgency'} <ChevronDown size={12} />
                       </button>
@@ -3567,9 +3567,9 @@ const ProjectTitleDashboard = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     {(stagedBulkPin !== null || stagedBulkUrgency !== null) && selectedProjects.length > 0 && (
-                      <button 
+                      <button
                         onClick={() => {
                           if (stagedBulkPin !== null) handleBulkPin(stagedBulkPin);
                           if (stagedBulkUrgency !== null) handleBulkUrgency(stagedBulkUrgency);
@@ -3587,7 +3587,7 @@ const ProjectTitleDashboard = () => {
 
                 {/* Right: View Toggles & Select Mode */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button 
+                  <button
                     onClick={() => {
                       setSelectionMode(!selectionMode);
                       if (selectionMode) setSelectedProjects([]);
@@ -3598,12 +3598,12 @@ const ProjectTitleDashboard = () => {
                   </button>
                   <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    <button 
+                    <button
                       onClick={() => setViewMode('grid')}
                       style={{ background: viewMode === 'grid' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
                       <Layout size={16} />
                     </button>
-                    <button 
+                    <button
                       onClick={() => setViewMode('list')}
                       style={{ background: viewMode === 'list' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
@@ -3709,7 +3709,7 @@ const ProjectTitleDashboard = () => {
               chartImages={pdfChartImages}
               isCapturing={isCapturingPdf}
             />
-              
+
             {/* Delete Confirmation Modal */}
             {projectToDelete && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
@@ -3726,13 +3726,13 @@ const ProjectTitleDashboard = () => {
                     <span style={{ fontSize: '12px', color: '#ef4444' }}>Note: If this project contains uploaded trackers, you must delete those files from the Trackers module first.</span>
                   </p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                    <button 
+                    <button
                       onClick={() => setProjectToDelete(null)}
                       disabled={loading}
                       style={{ padding: '8px 16px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={handleDeleteProject}
                       disabled={loading}
                       style={{ padding: '8px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
