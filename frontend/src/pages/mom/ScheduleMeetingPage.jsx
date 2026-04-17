@@ -37,6 +37,8 @@ const ScheduleMeetingPage = () => {
 
   // ── Existing Meetings State ──
   const [existingMeetings, setExistingMeetings] = useState([]);
+  const [selectedMeetingForDetails, setSelectedMeetingForDetails] = useState(null);
+  const [popoverAnchor, setPopoverAnchor] = useState(null); // { x, y } position
 
   // ── Zoho-style color map per meeting type ──
   const MEETING_TYPE_COLORS = {
@@ -151,6 +153,17 @@ const ScheduleMeetingPage = () => {
     { id: 'teams', name: 'Microsoft Teams', icon: <MicrosoftLogo />, color: '#00a1f1' },
     { id: 'meet', name: 'Google Meet', icon: <GoogleLogo />, color: '#ea4335' }
   ];
+
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      if (popoverAnchor && !e.target.closest('.meeting-popover') && !e.target.closest('.existing-meeting')) {
+        setSelectedMeetingForDetails(null);
+        setPopoverAnchor(null);
+      }
+    };
+    window.addEventListener('mousedown', handleGlobalClick);
+    return () => window.removeEventListener('mousedown', handleGlobalClick);
+  }, [popoverAnchor]);
 
   // --- Pre-fill date from calendar "+ Add one" click ---
   useEffect(() => {
@@ -473,6 +486,16 @@ const ScheduleMeetingPage = () => {
       const eM = endMin % 60;
       setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
     }
+  };
+
+  const handleExistingMeetingClick = (e, meeting) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Position to the right or left depending on space
+    const x = rect.right + 10 > window.innerWidth - 300 ? rect.left - 310 : rect.right + 10;
+    const y = Math.min(rect.top, window.innerHeight - 400);
+    setPopoverAnchor({ x, y });
+    setSelectedMeetingForDetails(meeting);
   };
 
   // --- Custom Time Helpers ---
@@ -1039,7 +1062,8 @@ const ScheduleMeetingPage = () => {
                         return (
                           <div 
                             key={m.id || Math.random()}
-                            className="event-block existing-meeting absolute left-0 right-0 flex flex-col justify-start overflow-hidden cursor-pointer z-10"
+                            className="event-block existing-meeting absolute left-0 right-0 flex flex-col justify-start overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
+                            onClick={(e) => handleExistingMeetingClick(e, m)}
                             style={{ 
                               top: `${blockTop}px`, 
                               height: `${blockHeight}px`,
@@ -1067,19 +1091,19 @@ const ScheduleMeetingPage = () => {
                       {/* Render DRAFT / SELECTION Meeting */}
                       {hasSelection && (
                         <div 
-                          className={`event-block active flex flex-col justify-start absolute left-0 right-0 z-30 transition-all ${isCollision ? 'error-collision' : ''}`}
+                          className={`event-block active flex flex-col justify-center absolute left-0 right-0 z-30 transition-all ${isCollision ? 'error-collision' : ''}`}
                           style={{ 
                             top: `${topPx}px`, 
                             height: `${heightPx}px`, 
-                            backgroundColor: isCollision ? '#fef2f2' : `${eventColor}25`,
+                            backgroundColor: isCollision ? '#fef2f2' : `${eventColor}20`,
                             borderLeft: `3px solid ${isCollision ? '#ef4444' : eventColor}`,
                             borderRadius: '2px',
-                            padding: '3px 6px',
-                            boxShadow: isCollision ? `0 2px 8px rgba(220, 38, 38, 0.15)` : `0 2px 8px ${eventColor}25`,
+                            padding: '0 8px',
+                            boxShadow: isCollision ? `0 2px 8px rgba(220, 38, 38, 0.15)` : `0 2px 10px ${eventColor}25`,
                             color: isCollision ? '#c5221f' : eventColor,
                             fontSize: '11px',
-                            fontWeight: '600',
-                            lineHeight: '1.3',
+                            fontWeight: '700',
+                            lineHeight: '1.2',
                           }}
                         >
                           <span className="truncate">{isCollision ? 'Overlapping Meeting!' : effectiveTitle}</span>
@@ -1384,6 +1408,78 @@ const ScheduleMeetingPage = () => {
           </form>
         </div>
       </div>
+      {/* ───── ZO-STYLE MEETING POPOVER ───── */}
+      {selectedMeetingForDetails && popoverAnchor && (
+        <div 
+          className="meeting-popover fixed z-[100] w-[300px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fadeIn animate-scaleIn"
+          style={{ left: popoverAnchor.x, top: popoverAnchor.y }}
+        >
+          <div className="p-5">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-gray-900 leading-tight mb-1">{selectedMeetingForDetails.title}</h3>
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-2.5 h-2.5 rounded-full" 
+                    style={{ backgroundColor: getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border }}
+                  />
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                    {selectedMeetingForDetails.meeting_type || 'General'}
+                  </span>
+                </div>
+              </div>
+              <button 
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                onClick={() => setSelectedMeetingForDetails(null)}
+              >
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 mb-6">
+              <div className="flex items-center gap-3 text-sm text-gray-600 font-medium">
+                <Calendar className="w-4 h-4 text-indigo-500" />
+                <span>{new Date(selectedMeetingForDetails.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-600 font-medium">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                <span>{to12Hour(selectedMeetingForDetails.time)} • {selectedMeetingForDetails.duration} minutes</span>
+              </div>
+              {selectedMeetingForDetails.attendees && (
+                <div className="flex items-start gap-3 text-sm text-gray-600 font-medium">
+                  <Users className="w-4 h-4 text-indigo-500 mt-0.5" />
+                  <div className="flex -space-x-2 overflow-hidden">
+                    {Array.isArray(selectedMeetingForDetails.attendees) ? (
+                      selectedMeetingForDetails.attendees.map((a, i) => (
+                        <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-200">
+                          {String(a).charAt(0).toUpperCase()}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-xs">{selectedMeetingForDetails.attendees}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t border-gray-50">
+              <button 
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                onClick={() => navigate(`/dashboard/meeting/${selectedMeetingForDetails.id || selectedMeetingForDetails.project_id}`)}
+              >
+                <ArrowRight className="w-3.5 h-3.5" /> Open Room
+              </button>
+              <button 
+                className="px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold transition-all border border-gray-100"
+                onClick={() => setSelectedMeetingForDetails(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
