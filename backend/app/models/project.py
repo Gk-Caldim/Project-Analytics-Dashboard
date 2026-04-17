@@ -11,8 +11,6 @@ class Project(Base):
     project_id = Column(String, unique=True, nullable=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    manager = Column(JSONB, nullable=False, default=[])
-    team_lead = Column(JSONB, nullable=True, default=[])
     status = Column(String, default="Planning")
     budget = Column(Float, default=0.0)
     utilized_budget = Column(Float, default=0.0)
