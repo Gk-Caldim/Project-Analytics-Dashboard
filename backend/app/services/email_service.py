@@ -39,6 +39,15 @@ class EmailService:
               {f"<p><strong>Description:</strong> {meeting_data.get('description')}</p>" if meeting_data.get('description') else ""}
             </div>
             
+            {f'''
+            <div style="background: #eef2ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #4f46e5; margin-top: 0;">Agenda</h3>
+              <ul style="padding-left: 20px; margin-bottom: 0;">
+                {"".join(f'<li style="margin-bottom: 8px;">{point}</li>' for point in meeting_data.get('agenda_text', '').splitlines() if point.strip())}
+              </ul>
+            </div>
+            ''' if meeting_data.get('agenda_text') else ""}
+            
             <div style="text-align: center; margin: 30px 0;">
               <a href="{join_url}" style="display: inline-block; background: #4285f4; color: white; padding: 15px 40px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 16px;">
                 Join Meeting

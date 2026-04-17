@@ -304,6 +304,7 @@ async def publish_meeting(
         "platform":        req.platform,
         "attendees":       req.attendees or [],
         "timezone_name":   req.timezone,
+        "agenda_text":     req.agenda_text or "",
     }
 
     platform   = req.platform.lower()

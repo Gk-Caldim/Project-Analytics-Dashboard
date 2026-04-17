@@ -1,21 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Calendar, Clock, Plus, Search,
   Play, RefreshCw, Users, ChevronRight,
-  BarChart2, CheckCircle2, AlertCircle, Eye
+  BarChart2, CheckCircle2, AlertCircle, Eye, FileText, ArrowRight, Trash2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import './MeetingsDashboardPage.css';
 import API from '../../utils/api';
+import { setMomData, setMeetingContext } from '../../store/slices/momSlice';
+import { useRef } from 'react';
 
 const MeetingsDashboardPage = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  // Refs for scrolling
+  const upcomingRef = useRef(null);
+  const historyRef = useRef(null);
+
+  // Read current saved MOM from Redux
+  const { meetingId: savedMomId, meetingName: savedMomName, projectName: savedProjName, momData, lastSaved } = useSelector(s => s.mom);
+  const hasSavedMom = momData && momData.length > 0;
 
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [timeNow, setTimeNow] = useState(new Date());
+
+  // State for expand/collapse saved MOMs
+  const [expandMoms, setExpandMoms] = useState(false);
+  const [expandHistory, setExpandHistory] = useState(false);
 
   // Fetch
   const fetchMeetings = async () => {
@@ -26,6 +43,21 @@ const MeetingsDashboardPage = () => {
       // silent
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteMom = async (meetingId) => {
+    if (!window.confirm('Are you sure you want to delete this MOM?')) return;
+
+    try {
+      const res = await API.delete(`/mom/${meetingId}`);
+      if (res.data?.success) {
+        toast.success('MOM deleted successfully');
+        fetchMeetings(); // Refresh list to update flags and history
+      }
+    } catch (err) {
+      toast.error('Failed to delete MOM');
+      console.error(err);
     }
   };
 
@@ -43,7 +75,7 @@ const MeetingsDashboardPage = () => {
     let [hours, minutes] = time.split(':');
     if (hours === '12') hours = '00';
     if (modifier === 'PM') hours = (parseInt(hours, 10) + 12).toString();
-    const startTime = new Date(`${dateStr}T${hours.padStart(2,'0')}:${minutes.padStart(2,'0')}:00`);
+    const startTime = new Date(`${dateStr}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`);
     const endTime = new Date(startTime.getTime() + (parseInt(m.duration || 60) * 60000));
     return { startTime, endTime };
   };
@@ -82,10 +114,13 @@ const MeetingsDashboardPage = () => {
     return true;
   });
 
+  const momHistory = completedMeetings.filter(m => m.mom_generated);
+  const showMoreMoms = momHistory.length > 2;
+  const displayedMoms = expandMoms ? momHistory : momHistory.slice(0, 2);
+
   // Insights
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const todayStr = today.toLocaleDateString('en-CA');
-  const monthStr = todayStr.substring(0, 7);
 
   const totalMeetings = meetings.length;
   const todayMeetings = meetings.filter(m => m.date === todayStr).length;
@@ -157,7 +192,13 @@ const MeetingsDashboardPage = () => {
 
         {/* 1. Meeting Insights */}
         <div className="mdp-insights mdp-fade-up">
-          <div className="mdp-insight-card">
+          <div
+            className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
+            onClick={() => {
+              setActiveFilter('all');
+              historyRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
             <div className="mdp-insight-icon indigo">
               <BarChart2 style={{ width: 18, height: 18 }} />
             </div>
@@ -167,7 +208,12 @@ const MeetingsDashboardPage = () => {
             </div>
           </div>
 
-          <div className="mdp-insight-card">
+          <div
+            className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
+            onClick={() => {
+              upcomingRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
             <div className="mdp-insight-icon emerald">
               <Calendar style={{ width: 18, height: 18 }} />
             </div>
@@ -177,7 +223,13 @@ const MeetingsDashboardPage = () => {
             </div>
           </div>
 
-          <div className="mdp-insight-card">
+          <div
+            className="mdp-insight-card cursor-pointer transition-transform hover:scale-[1.02]"
+            onClick={() => {
+              setActiveFilter('no_mom');
+              historyRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
             <div className="mdp-insight-icon amber">
               <AlertCircle style={{ width: 18, height: 18 }} />
             </div>
@@ -220,7 +272,7 @@ const MeetingsDashboardPage = () => {
         ))}
 
         {/* 3. Upcoming Meetings — 7-Day Calendar Strip */}
-        <div className="mdp-fade-up">
+        <div className="mdp-fade-up" ref={upcomingRef}>
           <div className="mdp-section-header">
             <span className="mdp-section-title">
               <Calendar style={{ width: 13, height: 13 }} />
@@ -262,8 +314,160 @@ const MeetingsDashboardPage = () => {
           </div>
         </div>
 
+        {/* ── Saved MOMs Card Section ── */}
+        {(hasSavedMom || momHistory.length > 0) && (
+          <div className="mdp-fade-up" style={{ marginBottom: 20 }}>
+            <div className="mdp-section-header">
+              <span className="mdp-section-title">
+                <FileText style={{ width: 13, height: 13 }} />
+                Saved MOMs
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {hasSavedMom && !momHistory.find(m => String(m.id) === String(savedMomId)) && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                  border: '1px solid #bae6fd',
+                  borderRadius: 12,
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10,
+                      background: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <FileText style={{ width: 18, height: 18, color: '#fff' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#0c4a6e' }}>{savedMomName || 'Untitled MOM'} <span className="text-xs bg-sky-200 text-sky-800 px-2 py-0.5 rounded-full ml-2">Just Saved</span></div>
+                      <div style={{ fontSize: 12, color: '#0369a1', fontWeight: 500 }}>
+                        {savedProjName ? `Project: ${savedProjName}` : ''}
+                        {lastSaved ? ` · Saved ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        {` · ${momData.length} action items`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button
+                      onClick={() => navigate('/dashboard/mom/view')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: '#0284c7', color: '#fff', border: 'none',
+                        borderRadius: 8, padding: '8px 16px',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      View MOM <ArrowRight style={{ width: 13, height: 13 }} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMom(savedMomId)}
+                      className="p-2 hover:bg-sky-200 text-sky-700 rounded-lg transition-colors"
+                      title="Delete MOM"
+                    >
+                      <Trash2 style={{ width: 14, height: 14 }} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {displayedMoms.map((momInst, i) => (
+                <div key={momInst.id || i} style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 12,
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10,
+                      background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      border: '1px solid #e2e8f0'
+                    }}>
+                      <FileText style={{ width: 18, height: 18, color: '#64748b' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>{momInst.title || 'Meeting Minutes'}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+                        {new Date(momInst.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {` · ${momInst.duration} mins`}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button
+                      onClick={() => navigate(`/dashboard/meeting/${momInst.id}`)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1',
+                        borderRadius: 8, padding: '8px 16px',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.borderColor = '#94a3b8'; e.currentTarget.style.color = '#0f172a'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.color = '#334155'; }}
+                    >
+                      View MOM <ArrowRight style={{ width: 13, height: 13 }} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteMom(momInst.id); }}
+                      className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                      title="Delete MOM"
+                    >
+                      <Trash2 style={{ width: 14, height: 14 }} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {showMoreMoms && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+                  <button
+                    onClick={() => setExpandMoms(!expandMoms)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: '#f8fafc',
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: '12px',
+                      color: '#475569',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#94a3b8'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                  >
+                    {expandMoms ? (
+                      <>Show Less History</>
+                    ) : (
+                      <>Show {momHistory.length - 2} More Saved Meetings <ChevronRight style={{ width: 14, height: 14 }} /></>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 4. Meeting History Table */}
-        <div className="mdp-table-wrap mdp-fade-up">
+        <div className="mdp-table-wrap mdp-fade-up" ref={historyRef}>
           <div className="mdp-table-header">
             <span className="mdp-section-title">
               <CheckCircle2 style={{ width: 13, height: 13 }} />
@@ -291,6 +495,7 @@ const MeetingsDashboardPage = () => {
               <tr>
                 <th>Meeting Name</th>
                 <th>Date</th>
+                <th>Time</th>
                 <th>Host</th>
                 <th>Status</th>
                 <th></th>
@@ -299,10 +504,10 @@ const MeetingsDashboardPage = () => {
             <tbody>
               {filteredHistory.length === 0 ? (
                 <tr className="mdp-empty-row">
-                  <td colSpan={5}>No records found</td>
+                  <td colSpan={6}>No records found</td>
                 </tr>
               ) : (
-                filteredHistory.map(m => {
+                (expandHistory ? filteredHistory : filteredHistory.slice(0, 5)).map(m => {
                   const { label, cls } = getStatusInfo(m);
                   const host = m.attendees?.[0];
                   const hostName = typeof host === 'string'
@@ -317,6 +522,7 @@ const MeetingsDashboardPage = () => {
                         <span className="mdp-meeting-name-cell">{m.title}</span>
                       </td>
                       <td>{m.date}</td>
+                      <td>{m.time}</td>
                       <td>{hostName}</td>
                       <td>
                         <span className={`mdp-status-pill ${cls}`}>{label}</span>
@@ -336,6 +542,27 @@ const MeetingsDashboardPage = () => {
               )}
             </tbody>
           </table>
+
+          {filteredHistory.length > 5 && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                onClick={() => setExpandHistory(!expandHistory)}
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: '#6366f1',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                {expandHistory ? 'Show Less' : `Show All ${filteredHistory.length} Meetings ↓`}
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
