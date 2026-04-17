@@ -108,7 +108,7 @@ const Dashboard = () => {
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
-    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
+    { id: 'upload-trackers', name: 'Trackers upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
     { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <FileUp className="h-5 w-5" /> }
   ], []);
   const uploadsModules = useMemo(() => [
@@ -747,10 +747,9 @@ const Dashboard = () => {
     const isActive = activeModule === 'upload-trackers';
     const isExpanded = expandedModules['upload-trackers'];
     const hasDynamicModules = uploadTrackerModules.length > 0;
-    const isHovered = hoveredModule === 'upload-trackers';
 
     return (
-      <div key="upload-trackers" className="px-2">
+      <div key="upload-trackers">
         <div
           onMouseEnter={() => setHoveredModule('upload-trackers')}
           onMouseLeave={() => setHoveredModule(null)}
@@ -765,7 +764,7 @@ const Dashboard = () => {
             <FileUp className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
               <span className="text-body font-medium">
-                Trackers
+                Trackers upload
               </span>
             )}
           </div>
@@ -796,7 +795,6 @@ const Dashboard = () => {
 
     const isExpanded = expandedModules['uploads'];
     const isActive = activeModule === 'uploads-main' || uploadsSubmodules.some(s => s.id === activeModule);
-    const isHovered = hoveredModule === 'uploads-main';
 
     return (
       <div key="uploads" className="px-2">
@@ -832,15 +830,15 @@ const Dashboard = () => {
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-4 mt-1 space-y-1 border-l border-border/50">
             {renderUploadTrackersModule()}
             {hasPermission('Budget Upload') && (
-              <button
+              <div
                 key="budget-upload"
                 onMouseEnter={() => setHoveredModule('budget-upload')}
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
+                className={`w-full flex items-center gap-3 cursor-pointer rounded-r-md px-3 py-2 transition-all duration-fast ${
                   activeModule === 'budget-upload'
                     ? 'bg-brand-primary/10 text-brand-primary'
                     : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
@@ -850,7 +848,7 @@ const Dashboard = () => {
                 <span className="text-body font-medium">
                   Budget Upload
                 </span>
-              </button>
+              </div>
             )}
           </div>
         )}
