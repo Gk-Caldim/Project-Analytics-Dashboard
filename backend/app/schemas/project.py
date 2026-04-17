@@ -8,7 +8,11 @@ class ProjectBase(BaseModel):
     budget: float = 0.0
     utilized_budget: float = 0.0
     balance_budget: float = 0.0
-    timeline: str | None = None
+    project_manager: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    timeline_months: Optional[int] = None
+    department: Optional[str] = None
     employee_id: Optional[str] = None
     employee_name: Optional[str] = None
     custom_fields: Dict[str, Any] = {}
