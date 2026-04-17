@@ -725,7 +725,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('project-dashboard', e);
               }}
-              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -775,7 +775,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('upload-trackers', e);
               }}
-              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -824,7 +824,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('uploads', e);
               }}
-              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -842,8 +842,8 @@ const Dashboard = () => {
                 onClick={() => handleModuleClick('budget-upload')}
                 className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                   activeModule === 'budget-upload'
-                    ? 'bg-brand-primary/10 text-brand-primary'
-                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                    ? 'bg-brand-primary/10 text-white font-semibold'
+                    : 'hover:bg-white/5 text-white/70 hover:text-white'
                 }`}
               >
                 <FileUp className="h-4 w-4" />
@@ -891,7 +891,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('mom', e);
               }}
-              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -907,8 +907,8 @@ const Dashboard = () => {
               onClick={() => handleModuleClick('meetings')}
               className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                 activeModule === 'meetings'
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                  ? 'bg-brand-primary/10 text-white font-semibold'
+                  : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
             >
               <Calendar className="h-4 w-4" />
@@ -924,8 +924,8 @@ const Dashboard = () => {
               onClick={() => handleModuleClick('mom-module')}
               className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
                 activeModule === 'mom-module'
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                  ? 'bg-brand-primary/10 text-white font-semibold'
+                  : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
             >
               <Plus className="h-4 w-4" />
@@ -973,7 +973,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('masters', e);
               }}
-              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -993,9 +993,10 @@ const Dashboard = () => {
                   onClick={() => handleModuleClick(submodule.id)}
                   className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSubmoduleActive
                     ? 'bg-brand-primary/10 text-white font-semibold'
-                    : 'hover:bg-white/5 text-white/60 hover:text-white'
+                    : 'hover:bg-white/5 text-white/70 hover:text-white'
                     }`}
                 >
+                  <FileText className="h-4 w-4" />
                   <span className="text-body font-medium">
                     {submodule.name}
                   </span>
@@ -1035,8 +1036,8 @@ const Dashboard = () => {
               }
             }}
             className={`flex-1 flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast cursor-pointer ${isHovered
-              ? 'bg-white/5 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
+              ? 'bg-white/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
           >
             <Layers className="h-4 w-4" />
@@ -1097,8 +1098,8 @@ const Dashboard = () => {
         className={`w-full flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast ${isSelected
           ? 'bg-brand-primary/10 text-white font-semibold'
           : isHovered
-            ? 'bg-white/5 text-white'
-            : 'text-white/60 hover:text-white'
+            ? 'bg-white/10 text-white'
+            : 'text-white/70 hover:text-white'
           }`}
       >
         <span className={`text-body-sm truncate ${isSelected ? 'font-semibold' : 'font-medium'}`}>
@@ -1121,7 +1122,7 @@ const Dashboard = () => {
           className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
             isActive
               ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
+              : 'hover:bg-white/5 text-white/70 hover:text-white'
           }`}
         >
           <Settings className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
