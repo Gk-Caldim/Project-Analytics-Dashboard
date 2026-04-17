@@ -182,16 +182,16 @@ const SystemSettings = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-app-surface">
       {/* Sidebar Navigation - Industrial Settings Design */}
-      <aside className="w-[280px] bg-[#0E1B2E] border-r border-white/5 flex flex-col relative z-20">
+      <aside className="w-[280px] bg-app-surface border-r border-border flex flex-col relative z-20">
         <div className="p-8 pt-10 mb-8">
-          <h1 className="text-h1 font-bold text-white tracking-tight">Settings</h1>
-          <p className="text-caption font-bold text-white/40 uppercase tracking-widest mt-1">ADMINISTRATION</p>
+          <h1 className="text-h1 font-bold text-text-primary tracking-tight">Settings</h1>
+          <p className="text-caption font-bold text-text-muted uppercase tracking-widest mt-1">ADMINISTRATION</p>
         </div>
 
         <nav className="flex-1 px-4 space-y-12">
           {sidebarCategories.map((group) => (
             <div key={group.group} className="space-y-4">
-              <h3 className="text-caption font-bold text-white/30 uppercase tracking-[0.2em] px-4">{group.group}</h3>
+              <h3 className="text-caption font-bold text-text-muted uppercase tracking-[0.2em] px-4">{group.group}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <div key={item.id} className="space-y-1">
@@ -203,14 +203,14 @@ const SystemSettings = () => {
                         }
                       }}
                       className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 group ${activeCategory === item.id
-                        ? 'bg-brand-primary/10 text-white font-semibold'
-                        : 'text-white/60 hover:bg-white/5 hover:text-white'
+                        ? 'bg-brand-primary/5 text-text-primary font-semibold'
+                        : 'text-text-secondary hover:bg-app-bg hover:text-text-primary'
                         }`}
                     >
-                      <item.icon className={`h-5 w-5 transition-colors ${activeCategory === item.id ? 'text-brand-primary' : 'text-white/40 group-hover:text-white'}`} />
+                      <item.icon className={`h-5 w-5 transition-colors ${activeCategory === item.id ? 'text-brand-primary' : 'text-text-muted group-hover:text-text-primary'}`} />
                       <span className="text-body-sm tracking-tight">{item.label}</span>
                       {item.subItems && (
-                        <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-300 ${activeCategory === item.id ? 'rotate-90 text-brand-primary' : 'text-white/20'}`} />
+                        <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-300 ${activeCategory === item.id ? 'rotate-90 text-brand-primary' : 'text-text-muted/30'}`} />
                       )}
                       {!item.subItems && activeCategory === item.id && (
                         <div className="ml-auto w-1 h-1 bg-brand-primary rounded-full" />
@@ -225,8 +225,8 @@ const SystemSettings = () => {
                             key={subItem.id}
                             onClick={() => setActiveSubCategory(subItem.id)}
                             className={`w-full text-left px-4 py-2 rounded-md text-caption font-medium transition-all ${activeSubCategory === subItem.id
-                              ? 'text-brand-primary bg-brand-primary/5'
-                              : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                              ? 'text-brand-primary bg-brand-primary/5 font-semibold'
+                              : 'text-text-muted hover:text-text-secondary hover:bg-app-bg'
                               }`}
                           >
                             {subItem.label}
@@ -241,7 +241,7 @@ const SystemSettings = () => {
           ))}
         </nav>
 
-        <div className="p-6 border-t border-white/5 space-y-4">
+        <div className="p-6 border-t border-border space-y-4">
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}

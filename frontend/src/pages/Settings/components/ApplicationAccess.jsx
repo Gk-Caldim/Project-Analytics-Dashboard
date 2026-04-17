@@ -108,66 +108,66 @@ const ApplicationAccess = () => {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
         <div>
-          <h2 className="text-3xl font-bold text-[#1E293B] tracking-tight">Application Access</h2>
+          <h1 className="text-h2 font-bold text-text-primary tracking-tight">Application Access</h1>
+          <p className="text-body-sm text-text-muted">Manage user credentials and security protocols</p>
         </div>
 
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+        <div className="relative group min-w-[320px]">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted group-focus-within:text-brand-primary transition-colors" />
           <input
             type="text"
-            placeholder="Search by email or name..."
+            placeholder="Search credentials..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-[350px] h-12 pl-12 pr-6 rounded-xl border border-slate-200 bg-white shadow-sm focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100/50 outline-none transition-all font-medium text-slate-700"
+            className="w-full h-11 pl-11 pr-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
           />
         </div>
       </div>
 
-      <div className="bg-app-bg rounded-lg border border-border shadow-sm overflow-hidden">
+      <div className="bg-app-surface rounded-lg border border-border overflow-hidden relative">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-app-surface">
-                <th className="px-8 py-4 text-left text-label font-semibold text-text-muted uppercase tracking-wider border-b border-border">User Details</th>
-                <th className="px-8 py-4 text-left text-label font-semibold text-text-muted uppercase tracking-wider border-b border-border">Email Address</th>
-                <th className="px-8 py-4 text-left text-label font-semibold text-text-muted uppercase tracking-wider border-b border-border">Last Synced</th>
-                <th className="px-8 py-4 text-right text-label font-semibold text-text-muted uppercase tracking-wider border-b border-border">Actions</th>
+              <tr className="bg-app-bg/50 border-b border-border text-left">
+                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">User Profile</th>
+                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">Identity</th>
+                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">Synchronization</th>
+                <th className="px-6 py-3 text-right text-label font-bold text-text-muted uppercase tracking-widest">Controls</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-app-surface transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 bg-brand-primary/5 text-brand-primary rounded-md flex items-center justify-center font-bold text-sm shadow-sm border border-brand-primary/10">
+                  <tr key={record.id} className="border-b last:border-0 border-border hover:bg-app-bg/30 transition-colors group/row">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-brand-primary/5 text-brand-primary rounded flex items-center justify-center font-bold text-xs border border-brand-primary/10">
                           {record.employee_name ? record.employee_name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
                         </div>
                         <div>
-                          <p className="text-body-sm font-semibold text-text-primary tracking-tight">{record.employee_name || 'System User'}</p>
-                          <p className="text-caption font-medium text-text-muted uppercase tracking-wider mt-0.5">ID: {record.id}</p>
+                          <p className="text-body-sm font-bold text-text-primary tracking-tight">{record.employee_name || 'System Principal'}</p>
+                          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5">UID: {record.id}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-5">
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-body-sm font-medium text-text-secondary">
-                        <Mail className="h-4 w-4 text-text-muted" />
+                        <Mail className="h-3.5 w-3.5 text-text-muted" />
                         {record.email}
                       </div>
                     </td>
-                    <td className="px-8 py-5">
-                      <p className="text-caption font-medium text-text-muted uppercase tracking-wider">
-                        {new Date(record.updated_at).toLocaleDateString()}
-                        <span className="text-border mx-2">•</span>
-                        {new Date(record.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                    <td className="px-6 py-4">
+                      <div className="space-y-0.5">
+                        <p className="text-body-sm font-semibold text-text-secondary">{new Date(record.updated_at).toLocaleDateString()}</p>
+                        <p className="text-caption font-bold text-text-muted uppercase tracking-widest">{new Date(record.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
                     </td>
-                    <td className="px-8 py-5 text-right">
+                    <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleEdit(record)}
-                        className="p-2 text-text-muted hover:text-brand-primary hover:bg-brand-primary/5 rounded-md transition-all"
+                        className="p-2 text-text-muted hover:text-brand-primary hover:bg-brand-primary/5 rounded border border-transparent hover:border-brand-primary/10 transition-all"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -190,22 +190,22 @@ const ApplicationAccess = () => {
       {editingRecord && (
         <div className="fixed inset-0 bg-text-primary/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="bg-app-bg rounded-lg w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-border">
-            <div className="p-8 border-b border-border flex items-center justify-between">
+            <div className="p-8 border-b border-border flex items-center justify-between bg-app-surface">
               <div>
-                <h3 className="text-h2 font-semibold text-text-primary tracking-tight">Credential Control</h3>
-                <p className="text-text-muted text-caption font-bold uppercase tracking-widest mt-1">SECURITY LAYER ACTIVATED</p>
+                <h3 className="text-h3 font-bold text-text-primary">Credential Control</h3>
+                <p className="text-caption text-text-muted uppercase tracking-widest font-bold mt-1">IDENTITY MANAGEMENT</p>
               </div>
               <button
                 onClick={() => setEditingRecord(null)}
-                className="p-2 hover:bg-app-surface rounded-md transition-colors group"
+                className="p-2 hover:bg-app-bg rounded-md transition-all"
               >
-                <X className="h-5 w-5 text-text-muted group-hover:text-status-error transition-colors" />
+                <X className="h-5 w-5 text-text-muted" />
               </button>
             </div>
  
             <div className="p-8 space-y-6">
               <div className="space-y-2 group">
-                <label className="text-label font-medium text-text-secondary uppercase tracking-wider px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
+                <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
                   <Mail className="h-3.5 w-3.5" /> Email Address
                 </label>
                 <input
@@ -213,13 +213,13 @@ const ApplicationAccess = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="admin@example.com"
-                  className="w-full h-11 px-4 rounded-sm border border-border bg-app-bg focus:border-brand-primary outline-none transition-all font-medium text-text-primary"
+                  className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
                 />
               </div>
 
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2 group">
-                  <label className="text-label font-medium text-text-secondary uppercase tracking-wider px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
+                  <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
                     <Key className="h-3.5 w-3.5" /> New Password
                   </label>
                   <div className="relative">
@@ -228,21 +228,21 @@ const ApplicationAccess = () => {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder="••••••••"
-                      className="w-full h-11 px-4 rounded-sm border border-border bg-app-bg focus:border-brand-primary outline-none transition-all font-medium text-text-primary"
+                      className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-brand-primary transition-colors"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-brand-primary transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-text-muted font-semibold uppercase tracking-widest px-1">Leave blank to keep current password</p>
+                  <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] px-1 opacity-70">Leave blank to retain current</p>
                 </div>
  
                 <div className="space-y-2 group">
-                  <label className="text-label font-medium text-text-secondary uppercase tracking-wider px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-colors">
+                  <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
                     <Lock className="h-3.5 w-3.5" /> Confirm Password
                   </label>
                   <div className="relative">
@@ -251,43 +251,44 @@ const ApplicationAccess = () => {
                       value={formData.confirm_password}
                       onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
                       placeholder="••••••••"
-                      className="w-full h-11 px-4 rounded-sm border border-border bg-app-bg focus:border-brand-primary outline-none transition-all font-medium text-text-primary"
+                      className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-brand-primary transition-colors"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-brand-primary transition-colors"
                     >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 bg-app-surface flex gap-3 border-t border-border">
+            <div className="p-6 bg-app-surface flex gap-3 border-t border-border">
               <button
                 onClick={() => setEditingRecord(null)}
-                className="flex-1 h-11 rounded-sm font-semibold text-text-secondary hover:bg-app-panel transition-all uppercase tracking-widest text-caption"
+                className="flex-1 h-11 rounded font-bold text-text-secondary hover:bg-app-bg transition-all uppercase tracking-widest text-caption"
               >
-                Cancel
+                DISCARD
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="flex-2 flex-[2] h-11 rounded-sm bg-brand-primary text-white font-semibold shadow-lg shadow-brand-primary/10 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3 uppercase tracking-widest text-caption"
+                className="flex-[2] h-11 rounded bg-text-primary text-white font-bold shadow-md hover:brightness-110 active:scale-95 transition-all disabled:opacity-30 flex items-center justify-center gap-3 uppercase tracking-widest text-caption"
               >
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Changes
+                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                SYNC CREDENTIALS
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3 p-4 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
-        <ShieldCheck className="h-5 w-5 text-brand-primary" />
-        <p className="text-caption font-bold text-brand-primary/80 uppercase tracking-widest">
-          SECURITY PROTOCOL ENFORCED • ALL CHANGES ARE LOGGED FOR AUDIT PURPOSES
+      <div className="flex items-center gap-3 p-4 bg-app-surface rounded border border-border group">
+        <ShieldCheck className="h-4 w-4 text-brand-primary" />
+        <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.25em]">
+          Security Protocol Active • Real-time synchronization enabled • All access events logged
         </p>
       </div>
     </div>

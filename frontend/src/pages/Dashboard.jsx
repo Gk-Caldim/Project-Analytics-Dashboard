@@ -707,8 +707,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick('project-dashboard')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
@@ -725,7 +725,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('project-dashboard', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -757,8 +757,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick('upload-trackers')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
@@ -775,7 +775,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('upload-trackers', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -806,8 +806,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick('uploads-main')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
@@ -824,7 +824,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('uploads', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -873,8 +873,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick('meetings')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
@@ -891,7 +891,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('mom', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -955,8 +955,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick('masters-main')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
@@ -973,7 +973,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('masters', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/5 text-white/20 hover:text-white transition-colors"
             >
               {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -992,8 +992,8 @@ const Dashboard = () => {
                   onMouseLeave={() => setHoveredModule(null)}
                   onClick={() => handleModuleClick(submodule.id)}
                   className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSubmoduleActive
-                    ? 'bg-brand-primary/10 text-brand-primary'
-                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                    ? 'bg-brand-primary/10 text-white font-semibold'
+                    : 'hover:bg-white/5 text-white/60 hover:text-white'
                     }`}
                 >
                   <span className="text-body font-medium">
@@ -1035,8 +1035,8 @@ const Dashboard = () => {
               }
             }}
             className={`flex-1 flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast cursor-pointer ${isHovered
-              ? 'bg-app-bg text-text-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-white/5 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
               }`}
           >
             <Layers className="h-4 w-4" />
@@ -1050,7 +1050,7 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion(uniqueId, e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors text-text-muted hover:text-text-primary"
+              className="p-1 rounded hover:bg-white/5 transition-colors text-white/20 hover:text-white"
             >
               {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
@@ -1095,10 +1095,10 @@ const Dashboard = () => {
           }
         }}
         className={`w-full flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast ${isSelected
-          ? 'bg-brand-primary/10 text-brand-primary'
+          ? 'bg-brand-primary/10 text-white font-semibold'
           : isHovered
-            ? 'bg-app-bg text-text-primary'
-            : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+            ? 'bg-white/5 text-white'
+            : 'text-white/60 hover:text-white'
           }`}
       >
         <span className={`text-body-sm truncate ${isSelected ? 'font-semibold' : 'font-medium'}`}>
@@ -1120,8 +1120,8 @@ const Dashboard = () => {
           onClick={() => handleModuleClick(module.id)}
           className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
             isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
           }`}
         >
           <Settings className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
@@ -1147,8 +1147,8 @@ const Dashboard = () => {
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
             ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-app-surface
-            border-r border-border
+            bg-[#0E1B2E]
+            border-r border-white/5
             transform transition-all duration-250 ease-product lg:transform-none
             flex flex-col
             overflow-hidden
@@ -1164,10 +1164,10 @@ const Dashboard = () => {
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-label font-semibold text-text-primary truncate">
+                  <p className="text-label font-semibold text-white truncate">
                     {companyName || 'Industrial Analytics'}
                   </p>
-                  <p className="text-caption text-text-muted">Platform</p>
+                  <p className="text-caption text-white/40">Platform</p>
                 </div>
               </div>
             ) : (
@@ -1194,15 +1194,15 @@ const Dashboard = () => {
           </div>
 
           {/* User Section at Bottom */}
-          <div className="p-3 border-t border-border">
+          <div className="p-3 border-t border-white/5">
             <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
               <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-semibold">
                 {getUserInitial()}
               </div>
               {isSidebarExpanded && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-medium text-text-primary truncate">{user?.full_name || 'User'}</p>
-                  <p className="text-caption text-text-muted capitalize">{user?.role || 'User'}</p>
+                  <p className="text-body-sm font-medium text-white truncate">{user?.full_name || 'User'}</p>
+                  <p className="text-caption text-white/40 capitalize">{user?.role || 'User'}</p>
                 </div>
               )}
             </div>
