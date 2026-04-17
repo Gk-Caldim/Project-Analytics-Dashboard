@@ -733,12 +733,6 @@ const Dashboard = () => {
               : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <LayoutDashboard className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
-
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
             <BarChart3 className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
 
@@ -839,12 +833,6 @@ const Dashboard = () => {
               : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
             }`}
         >
-
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <CloudUpload className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
-
           <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
             <FolderTree className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
             {isSidebarExpanded && (
@@ -905,23 +893,6 @@ const Dashboard = () => {
         <div
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
-
-          onClick={() => {
-            handleModuleClick('mom-main');
-          }}
-          className={`w-full flex items-center cursor-pointer transition-all duration-300 ${isSidebarExpanded ? 'justify-between px-4 py-3.5' : 'justify-center px-2 py-3.5'
-            } rounded-xl ${isActive
-              ? 'bg-white/20 shadow-md text-white'
-              : isHovered
-                ? 'bg-white/15 shadow-sm text-white'
-                : 'hover:bg-white/10 text-white'
-            }`}
-        >
-          <div className={`flex items-center ${isSidebarExpanded ? 'space-x-3.5' : 'justify-center'}`}>
-            <div className={`transition-colors text-white`}>
-              <MessagesSquare className={`${isSidebarExpanded ? 'h-5 w-5' : 'h-5 w-5'}`} />
-            </div>
-
           onClick={() => handleModuleClick('meetings')}
           className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
             } rounded-r-md ${isActive
@@ -964,17 +935,9 @@ const Dashboard = () => {
                   : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
               }`}
             >
-
-              <div className="text-white">
-                <CalendarDays className="h-5 w-5" />
-              </div>
-              <span className={`text-sm font-medium truncate text-white`}>
-                Meetings
-
               <Calendar className="h-4 w-4" />
               <span className="text-body font-medium">
                 All Meetings
-
               </span>
             </button>
 
@@ -989,15 +952,8 @@ const Dashboard = () => {
                   : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
               }`}
             >
-
-              <div className="text-white">
-                <FilePlus2 className="h-5 w-5" />
-              </div>
-              <span className={`text-sm font-medium truncate text-white`}>
-
               <Plus className="h-4 w-4" />
               <span className="text-body font-medium">
-
                 Create MOM
               </span>
             </button>
@@ -1207,94 +1163,56 @@ const Dashboard = () => {
   const isSidebarExpanded = !sidebarCollapsed;
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-app-bg">
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Clean Surface Color */}
+        {/* Sidebar */}
         <div
           ref={sidebarRef}
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
-            ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-app-surface
-            border-r border-border
-            transform transition-all duration-250 ease-product lg:transform-none
-            flex flex-col
-
-            shadow-xl
-            relative z-30
-            group
+            ${isSidebarExpanded ? 'w-64' : 'w-16'}
+            bg-app-surface border-r border-border
+            transition-all duration-300 ease-in-out
+            flex flex-col shadow-xl lg:shadow-none
+            transform lg:transform-none ${sidebarCollapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}
           `}
         >
-          {/* Subtle pattern overlay */}
-          <div className="absolute inset-0 pointer-events-none opacity-5"
-            style={{
-              backgroundImage: `radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 30%),
-                                   radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.3) 0%, transparent 30%)`
-            }}>
-          </div>
-
-          {/* Sidebar Boundary Toggle Button */}
-          <button
-            onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-            className="absolute top-7 -right-3.5 z-[100] h-7 w-7 rounded-full bg-[#1e3a5f] border-2 border-gray-100 text-white hover:bg-[#2a528a] transition-all duration-300 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100"
-            title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
-          >
-            {sidebarCollapsed ? <ChevronRight className="h-4 w-4 ml-0.5" /> : <ChevronLeft className="h-4 w-4 pr-0.5" />}
-          </button>
-
-          {/* Logo Section */}
-          <div className="relative px-4 py-4 z-10 min-h-[80px] flex items-center justify-center">
+          {/* Logo / Identity Section */}
+          <div className="px-4 py-5 border-b border-border min-h-[70px] flex items-center justify-between">
             {isSidebarExpanded ? (
-              <div className="relative w-full flex justify-center">
-                <img
-                  src={companyLogo || "/caldimlogo.png"}
-                  className={`h-22 w-auto max-w-full object-contain relative ${!companyLogo ? 'brightness-0 invert' : ''}`}
-                  alt="Company Logo"
-                />
-              </div>
-            ) : (
-              <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center shadow-md backdrop-blur-sm">
-                <span className="text-white font-bold text-sm">
-                  {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'CD'}
-                </span>
-
-            overflow-hidden
-          `}
-        >
-          {/* Logo Section */}
-          <div className="px-4 py-5 border-b border-border">
-            {isSidebarExpanded ? (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center shadow-sm">
+                  {companyLogo ? (
+                    <img src={companyLogo} alt="Logo" className="w-6 h-6 object-contain brightness-0 invert" />
+                  ) : (
+                    <span className="text-white font-bold text-sm">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-label font-semibold text-text-primary truncate">
+                  <p className="text-label font-bold text-text-primary truncate uppercase tracking-tighter">
                     {companyName || 'Industrial Analytics'}
                   </p>
-                  <p className="text-caption text-text-muted">Platform</p>
+                  <p className="text-[10px] text-text-muted font-medium uppercase tracking-widest opacity-70">Platform</p>
                 </div>
               </div>
             ) : (
-              <div className="flex justify-center">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
+              <div className="w-full flex justify-center">
+                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center shadow-sm">
                   <span className="text-white font-bold text-sm">
                     {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
                   </span>
                 </div>
-
               </div>
             )}
           </div>
 
-          {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-3 space-y-1">
+          {/* Navigation Section */}
+          <div className="flex-1 overflow-y-auto py-4 space-y-1.5 custom-scrollbar">
             {renderProjectDashboardModule()}
             {renderMOMModule()}
             {renderMastersModule()}
-
+            
             <div className="pt-2">
               {renderUploadsModule()}
               {renderOtherModules()}
@@ -1302,27 +1220,27 @@ const Dashboard = () => {
 
             {/* Recents Sidebar Section */}
             {recentActivity.length > 0 && (
-              <div className="mt-8 mb-4">
+              <div className="mt-8 mb-4 px-2">
                 {isSidebarExpanded ? (
                   <button
                     onClick={() => setRecentsExpanded(!recentsExpanded)}
-                    className="w-full px-4 mb-2 flex items-center justify-between group"
+                    className="w-full px-3 mb-2 flex items-center justify-between group"
                   >
-                    <span className="text-xs font-bold text-white/50 uppercase tracking-wider group-hover:text-white/70 transition-colors">
-                      Recents
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider group-hover:text-text-primary transition-colors">
+                      Recent Activity
                     </span>
-                    <span className="text-white/40 group-hover:text-white/70 transition-colors">
-                      {recentsExpanded
-                        ? <ChevronUp className="h-3.5 w-3.5" />
-                        : <ChevronDown className="h-3.5 w-3.5" />}
+                    <span className="text-text-muted group-hover:text-text-primary transition-colors">
+                      {recentsExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     </span>
                   </button>
-                ) : null}
+                ) : (
+                  <div className="w-full border-t border-border my-4 mx-auto w-8" />
+                )}
 
                 {(recentsExpanded || !isSidebarExpanded) && (
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {recentActivity.map((item, idx) => (
-                      <div key={idx} className="relative group/item">
+                      <div key={`recent-${idx}`} className="relative group/item">
                         <button
                           onClick={() => {
                             if (item.type === 'project') {
@@ -1333,36 +1251,42 @@ const Dashboard = () => {
                             }
                           }}
                           title={!isSidebarExpanded ? item.label : ''}
-                          className={`w-full flex items-center transition-all duration-300 ${isSidebarExpanded ? 'pl-4 pr-8 py-2 space-x-3' : 'justify-center px-2 py-2'} rounded-xl hover:bg-white/10 text-white/80 hover:text-white`}
+                          className={`
+                            w-full flex items-center transition-all duration-200 
+                            ${isSidebarExpanded ? 'px-3 py-1.5 space-x-3' : 'justify-center p-2'} 
+                            rounded-md hover:bg-app-bg text-text-secondary hover:text-text-primary
+                          `}
                         >
                           <div className="flex-shrink-0">
-                            {pinnedRecents.includes(idx)
-                              ? <span className="text-yellow-400"><Box className="h-4 w-4" /></span>
-                              : item.type === 'project' ? <Box className="h-4 w-4" /> : <Layers className="h-4 w-4" />}
+                            {pinnedRecents.includes(idx) ? (
+                              <Pin className="h-3.5 w-3.5 text-brand-primary rotate-45" />
+                            ) : (
+                              item.type === 'project' ? <FolderKanban className="h-3.5 w-3.5 opacity-60" /> : <Layers className="h-3.5 w-3.5 opacity-60" />
+                            )}
                           </div>
                           {isSidebarExpanded && (
-                            <div className="flex flex-col items-start min-w-0 overflow-hidden">
-                              <span className="text-sm font-medium truncate w-full text-left">
+                            <div className="flex-1 min-w-0 flex items-start">
+                              <span className="text-body-sm truncate w-full text-left font-medium">
                                 {item.label}
                               </span>
                             </div>
                           )}
                         </button>
 
-                        {/* Three-dot menu button */}
+                        {/* Three-dot menu */}
                         {isSidebarExpanded && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setRecentMenu(recentMenu === idx ? null : idx); }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-white/0 group-hover/item:text-white/50 hover:!text-white transition-all"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover/item:opacity-100 hover:bg-app-surface text-text-muted hover:text-text-primary transition-all"
                           >
-                            <MoreVertical className="h-3.5 w-3.5" />
+                            <MoreVertical className="h-3 w-3" />
                           </button>
                         )}
 
-                        {/* Dropdown Menu */}
+                        {/* Recent Options Dropdown */}
                         {recentMenu === idx && isSidebarExpanded && (
                           <div
-                            className="absolute right-0 top-full mt-1 z-[200] bg-[#1a2f4a] border border-white/10 rounded-lg shadow-xl overflow-hidden w-36"
+                            className="absolute left-full ml-1 top-0 z-[100] bg-app-surface border border-border rounded-lg shadow-2xl overflow-hidden w-40 py-1"
                             onMouseLeave={() => setRecentMenu(null)}
                           >
                             <button
@@ -1373,10 +1297,10 @@ const Dashboard = () => {
                                 );
                                 setRecentMenu(null);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg transition-colors"
                             >
                               <Pin className="h-3.5 w-3.5" />
-                              {pinnedRecents.includes(idx) ? 'Unpin' : 'Pin'}
+                              {pinnedRecents.includes(idx) ? 'Unpin item' : 'Pin to top'}
                             </button>
                             <button
                               onClick={(e) => {
@@ -1386,10 +1310,10 @@ const Dashboard = () => {
                                 localStorage.setItem('project_dashboard_recents', JSON.stringify(updated));
                                 setRecentMenu(null);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-body-sm text-status-error hover:bg-status-error/10 transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
-                              Delete
+                              Remove from list
                             </button>
                           </div>
                         )}
@@ -1399,171 +1323,134 @@ const Dashboard = () => {
                 )}
               </div>
             )}
-
-
           </div>
 
-          {/* User Section at Bottom */}
-          <div className="p-3 border-t border-border">
+          {/* User Section */}
+          <div className="p-3 border-t border-border mt-auto">
             <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-semibold">
+              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-bold shadow-sm">
                 {getUserInitial()}
               </div>
               {isSidebarExpanded && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-medium text-text-primary truncate">{user?.full_name || 'User'}</p>
-                  <p className="text-caption text-text-muted capitalize">{user?.role || 'User'}</p>
+                  <p className="text-body-sm font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
+                  <p className="text-[10px] text-text-muted font-medium uppercase truncate tracking-tight">{user?.role || 'Access'}</p>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
-
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-white">
-          {/* Header - White background */}
-          <header className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-20 shadow-sm">
-            <div className="px-6 py-4 flex items-center justify-between relative z-10">
-              {/* Left side - Back Button */}
-              <div className="w-48 flex items-center">
-                {!(location.pathname === '/dashboard/projects' && !location.search) && location.pathname !== '/dashboard' && (
-                  <button
-                    onClick={() => navigate(-1)}
-                    className="px-3 py-2 rounded-lg text-[#1e3a5f] hover:bg-gray-100 transition-colors flex items-center gap-2 group"
-                    title="Go Back"
-                  >
-                    <ChevronLeft className="h-5 w-5 transform group-hover:-translate-x-1 transition-transform" />
-                    <span className="font-semibold text-sm text-[15px]">Back</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Center - Title */}
-              <div className="flex-1 flex justify-center items-center">
-                <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">
+        {/* Main Workspace */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
+          {/* Main Header */}
+          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6 sticky top-0 z-20 shadow-sm">
+            {/* Header Content */}
+            <div className="flex items-center justify-between w-full">
+              {/* Left Side: Toggle & Title */}
+              <div className="flex items-center gap-4 flex-1">
+                <button
+                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+                  className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-200"
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                </button>
+                <div className="h-4 w-[1px] bg-border mx-1" />
+                <h1 className="text-h3 font-bold text-text-primary tracking-tight">
                   {getHeaderTitle()}
                 </h1>
               </div>
 
-              {/* Right side - Date/Time and Profile */}
-              <div className="flex items-center space-x-6 min-w-[300px] justify-end">
-                {/* Date and Time - Updated for white header */}
-                <div className="flex items-center space-x-3 bg-gray-50 px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-                  <span className="text-sm font-medium text-gray-700 tabular-nums">{currentTime}</span>
-                  <span className="text-gray-300">|</span>
-                  <span className="text-sm font-medium text-gray-700">{currentDate}</span>
+              {/* Right Side: Tools, Date/Time & Profile */}
+              <div className="flex items-center gap-5">
+                {/* Date/Time Indicator */}
+                <div className="hidden md:flex items-center gap-3 px-4 py-1.5 bg-app-surface border border-border rounded-lg shadow-inner">
+                  <div className="flex flex-col items-end">
+                    <span className="text-body-xs font-bold text-text-primary tabular-nums leading-none mb-0.5">{currentTime}</span>
+                    <span className="text-[9px] font-bold text-text-muted uppercase tracking-tighter leading-none">{currentDate}</span>
+                  </div>
+                  <Clock className="h-4 w-4 text-brand-primary ml-1" />
                 </div>
 
-                {/* Notifications */}
-                <button className="relative p-2 text-gray-500 hover:text-[#1e3a5f] transition-colors rounded-full hover:bg-gray-100">
-                  <Bell className="h-6 w-6" />
-                  {notifications > 0 && (
-                    <span className="absolute top-1 right-1 h-3.5 w-3.5 bg-red-500 border-2 border-white rounded-full flex items-center justify-center text-[10px] text-white font-bold">
-                    </span>
-                  )}
-                </button>
+                {/* Vertical Divider */}
+                <div className="h-6 w-[1px] bg-border" />
 
-                {/* Profile Menu with black background */}
+                {/* Profile Widget */}
                 <div className="relative" ref={profileMenuRef}>
                   <button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="bg-[#1e3a5f] w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base shadow-md hover:shadow-lg transition-all"
-
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
-          {/* Header */}
-          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6">
-            {/* Left - Toggle & Title */}
-            <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-              </button>
-              <h1 className="text-h3 font-semibold text-text-primary">
-                {getHeaderTitle()}
-              </h1>
-            </div>
-
-            {/* Right - Date/Time & Profile */}
-            <div className="flex items-center gap-4">
-              {/* Date and Time */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-app-surface rounded-md">
-                <Clock className="h-4 w-4 text-text-muted" />
-                <span className="text-body-sm font-medium text-text-secondary tabular-nums">{currentTime}</span>
-                <span className="text-border-strong">|</span>
-                <span className="text-body-sm text-text-secondary">{currentDate}</span>
-              </div>
-
-              {/* Profile Menu */}
-              <div className="relative" ref={profileMenuRef}>
-                <button
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold text-body-sm hover:bg-brand-accent transition-colors duration-fast"
-                >
-                  {getUserInitial()}
-                </button>
-
-                {profileMenuOpen && (
-                  <div
-                    className="fixed z-[9999] w-64 bg-app-bg rounded-lg shadow-lg border border-border py-2"
-                    style={{
-                      top: `${profileMenuPosition.top}px`,
-                      right: `${profileMenuPosition.right}px`
-                    }}
+                    className="group flex items-center gap-2 p-1 pr-3 rounded-full hover:bg-app-surface transition-all duration-200"
                   >
-                    <div className="px-4 py-3 border-b border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold">
-                          {getUserInitial()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-body font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
-                          <p className="text-caption text-text-muted truncate">{user?.email || 'user@example.com'}</p>
+                    <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold text-body-sm shadow-md group-hover:scale-105 transition-transform duration-200">
+                      {getUserInitial()}
+                    </div>
+                    <ChevronDown className={`h-3.5 w-3.5 text-text-muted transition-transform duration-300 ${profileMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Profile Dropdown */}
+                  {profileMenuOpen && (
+                    <div
+                      className="fixed z-[9999] w-64 bg-app-surface rounded-xl shadow-2xl border border-border overflow-hidden animate-in fade-in zoom-in duration-200"
+                      style={{
+                        top: `${profileMenuPosition.top}px`,
+                        right: `${profileMenuPosition.right}px`
+                      }}
+                    >
+                      {/* Identity Summary */}
+                      <div className="px-4 py-4 bg-app-bg/50 border-b border-border">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold text-lg">
+                            {getUserInitial()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-body font-bold text-text-primary truncate leading-tight">{user?.full_name || 'User'}</p>
+                            <p className="text-body-xs text-text-muted truncate lowercase">{user?.email || 'user@example.com'}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="py-1">
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
-                        <UserIcon className="h-4 w-4" />
-                        <span>Profile</span>
-                      </button>
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </button>
-                    </div>
+                      {/* Menu Actions */}
+                      <div className="p-1.5">
+                        <button className="w-full px-3 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg rounded-md flex items-center gap-3 transition-colors">
+                          <UserIcon className="h-4 w-4 text-brand-primary/60" />
+                          <span className="font-medium">My Profile</span>
+                        </button>
+                        <button className="w-full px-3 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-bg rounded-md flex items-center gap-3 transition-colors">
+                          <Settings className="h-4 w-4 text-brand-primary/60" />
+                          <span className="font-medium">System Preferences</span>
+                        </button>
+                      </div>
 
-                    <div className="border-t border-border py-1">
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setProfileMenuOpen(false);
-                        }}
-                        className="w-full px-4 py-2 text-left text-body-sm text-status-error hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Sign out</span>
-                      </button>
+                      {/* Footer Actions */}
+                      <div className="border-t border-border p-1.5 bg-app-bg/20">
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setProfileMenuOpen(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-body-sm text-status-error hover:bg-status-error/10 rounded-md flex items-center gap-3 transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span className="font-semibold text-xs uppercase tracking-wider">Secure Sign Out</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </header>
 
-          {/* Main Content */}
-          <main className="flex-1 min-h-0 overflow-hidden bg-app-bg">
-            <div className="h-full overflow-auto">
+          {/* Dynamic Content Outlet */}
+          <main className="flex-1 min-h-0 overflow-hidden relative">
+            <div className="h-full overflow-auto custom-scrollbar p-6 bg-app-bg">
               <Outlet />
             </div>
           </main>
         </div>
       </div>
-    </div>
+    
   );
 };
 
