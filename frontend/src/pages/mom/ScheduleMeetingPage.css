@@ -311,23 +311,14 @@
 /* ──────── EVENT BLOCK ──────── */
 .event-block {
   position: absolute;
-  left: 3px;
-  right: 5px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-  color: white;
-  border-radius: 6px;
-  padding: 5px 7px;
-  font-size: 11px;
+  /* left and right boundaries are handled inline/via react classes */
   z-index: 10;
   cursor: pointer;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.25);
   transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.28);
 }
 .event-block:hover {
-  transform: scale(1.015);
-  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+  filter: brightness(0.95);
   z-index: 20;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil, Plus } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, ChevronDown, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil, Plus } from 'lucide-react';
 import './ScheduleMeetingPage.css';
 import API from '../../utils/api'; // Assuming axios instance is set up
 
@@ -33,6 +33,33 @@ const ScheduleMeetingPage = () => {
   const [miniCalYear, setMiniCalYear] = useState(new Date().getFullYear());
   const [eventColor, setEventColor] = useState('#4f46e5');
   const [activeView, setActiveView] = useState('Week');
+  const [isViewDropOpen, setIsViewDropOpen] = useState(false);
+
+  // ── Existing Meetings State ──
+  const [existingMeetings, setExistingMeetings] = useState([]);
+
+  // ── Zoho-style color map per meeting type ──
+  const MEETING_TYPE_COLORS = {
+    quickSync:      { bg: '#e8f0fe', border: '#4285f4', text: '#1a56db' }, // Google Blue
+    clientMeeting:  { bg: '#fce8e6', border: '#ea4335', text: '#c5221f' }, // Google Red
+    interview:      { bg: '#e6f4ea', border: '#34a853', text: '#1e8e3e' }, // Google Green
+    deepWork:       { bg: '#fef7e0', border: '#fbbc04', text: '#ea8600' }, // Google Yellow
+    webinar:        { bg: '#f3e8fd', border: '#9334e6', text: '#7627bb' }, // Purple
+    custom:         { bg: '#e8f5f0', border: '#00897b', text: '#00695c' }, // Teal
+  };
+
+  const getMeetingColor = (type) => MEETING_TYPE_COLORS[type] || MEETING_TYPE_COLORS['quickSync'];
+
+  // ── Adaptive Timezone ──
+  const adaptiveTimezone = useMemo(() => {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date());
+      const tzPart = parts.find(p => p.type === 'timeZoneName');
+      return tzPart ? tzPart.value : `GMT${new Date().getTimezoneOffset() < 0 ? '+' : '-'}${Math.abs(new Date().getTimezoneOffset() / 60)}`;
+    } catch(e) {
+      return 'GMT';
+    }
+  }, []);
 
   // ── Auto-scroll to 8 AM on mount + live current-time line ──
   useEffect(() => {
@@ -157,6 +184,34 @@ const ScheduleMeetingPage = () => {
     };
     fetchProjects();
   }, [reduxProjects]);
+
+  // --- Fetch Existing Meetings (only within visible window ±1 week) ---
+  useEffect(() => {
+    const fetchAllMeetings = async () => {
+      try {
+        const resp = await API.get('/meetings/');
+        let meetings = [];
+        if (resp.data && resp.data.success) {
+          meetings = resp.data.meetings || [];
+        } else if (Array.isArray(resp.data)) {
+          meetings = resp.data;
+        }
+        // Filter: only show meetings that have a valid future or current-week date
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const filtered = meetings.filter(m => {
+          if (!m.date) return false;
+          const mDate = new Date(m.date);
+          // Only show meetings from today onwards
+          return mDate >= now;
+        });
+        setExistingMeetings(filtered);
+      } catch (err) {
+        console.error('Failed to fetch existing meetings', err);
+      }
+    };
+    fetchAllMeetings();
+  }, [currentWeekStart]);
 
   // --- Auth Intercept Effects ---
   useEffect(() => {
@@ -338,35 +393,86 @@ const ScheduleMeetingPage = () => {
 
   // --- Grid Generation ---
   const weekDays = useMemo(() => {
-    const days = activeView === 'Day' ? 1 : 7;
-    return [...Array(days)].map((_, i) => {
+    if (activeView === 'Day') {
+      const targetDate = selectedDate || new Date();
+      return [targetDate];
+    }
+    if (activeView === 'Work') {
+      return [...Array(5)].map((_, i) => {
+        const d = new Date(currentWeekStart);
+        d.setDate(d.getDate() + 1 + i); // Mon - Fri
+        return d;
+      });
+    }
+    return [...Array(7)].map((_, i) => {
       const d = new Date(currentWeekStart);
       d.setDate(d.getDate() + i);
       return d;
     });
-  }, [currentWeekStart, activeView]);
+  }, [currentWeekStart, activeView, selectedDate]);
 
   const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 to 20:00
 
-  const handleGridSlotSelect = (date, hour, min) => {
+  // ── Drag to Schedule State ──
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragStartInfo, setDragStartInfo] = useState(null);
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) setIsDragging(false);
+      if (isResizing) setIsResizing(false);
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isDragging, isResizing]);
+
+  const handleSlotMouseDown = (date, hour, min) => {
     if (isPastSlot(date, hour, min)) return;
     
-    // Set date
-    setSelectedDate(date);
-    setUseCustomTime(false);
+    const totalMin = hour * 60 + min;
+    setDragStartInfo({ date, totalMin });
+    setIsDragging(true);
     
-    // Convert slot to 24h & 12h
+    setSelectedDate(date);
+    setUseCustomTime(true);
+    
     const start24 = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
     setStartTime(start24);
+    setEndTime(addMinutes(start24, 30));
     
     const period = hour >= 12 ? 'PM' : 'AM';
     const h12 = hour % 12 || 12;
     const time12 = `${h12}:${String(min).padStart(2, '0')} ${period}`;
     setSelectedTime(time12);
-    
-    // End time
-    setEndTime(addMinutes(start24, presetDuration));
     setTimeError('');
+  };
+
+  const handleSlotMouseEnter = (date, hour, min) => {
+    if ((!isDragging && !isResizing) || !dragStartInfo) return;
+    if (date.getDate() !== dragStartInfo.date.getDate()) return; // constrain to same day
+    
+    const currMin = hour * 60 + min;
+
+    if (isDragging) {
+      if (isPastSlot(date, hour, min)) return;
+      const startMin = Math.min(dragStartInfo.totalMin, currMin);
+      const endMin = Math.max(dragStartInfo.totalMin, currMin) + 30; // inclusive
+      
+      const sH = Math.floor(startMin / 60);
+      const sM = startMin % 60;
+      setStartTime(`${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`);
+      
+      const eH = Math.floor(endMin / 60);
+      const eM = endMin % 60;
+      setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+    } else if (isResizing) {
+      if (currMin < dragStartInfo.totalMin) return; // Prevent sizing backwards
+      const endMin = currMin + 30; // Snap to end of target slot
+      const eH = Math.floor(endMin / 60);
+      const eM = endMin % 60;
+      setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+    }
   };
 
   // --- Custom Time Helpers ---
@@ -589,21 +695,6 @@ const ScheduleMeetingPage = () => {
           <p className="text-sm text-gray-500 font-medium mt-1">Configure your workspace</p>
         </div>
 
-        {/* View Switch */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-3 shadow-sm">
-          <div className="flex bg-gray-100 p-1 rounded-xl">
-            {['Day', 'Week'].map(v => (
-              <button 
-                key={v}
-                onClick={() => setActiveView(v)}
-                className={`flex-1 text-xs py-1.5 rounded-lg font-bold transition-all ${activeView === v ? 'bg-white shadow-sm text-indigo-700' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Mini Calendar */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
@@ -766,30 +857,61 @@ const ScheduleMeetingPage = () => {
         {/* Calendar Card (Weekly View) */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm transition-all h-full flex flex-col">
           <div className="flex items-center justify-between mb-4 px-1">
-            <button 
-              className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
-              onClick={handleToday}
-            >
-              Today
-            </button>
             <div className="flex items-center gap-4">
               <button 
-                className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
-                onClick={handlePrevTime}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
+                onClick={handleToday}
               >
-                <ChevronLeft className="h-4 w-4" />
+                Today
               </button>
-              
-              <h2 key={calendarKey} className="text-base font-bold text-gray-800 tracking-tight select-none cal-month-label-anim w-40 text-center">
+              <div className="flex items-center gap-2">
+                <button 
+                  className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
+                  onClick={handlePrevTime}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button 
+                  className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
+                  onClick={handleNextTime}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <h2 key={calendarKey} className="text-base font-bold text-gray-800 tracking-tight select-none cal-month-label-anim ml-2">
                 {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric', day: activeView === 'Day' ? 'numeric' : undefined })}
               </h2>
-              
+            </div>
+            
+            <div className="relative">
               <button 
-                className="p-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-600 text-gray-600 rounded-lg border border-gray-200 transition-colors shadow-sm focus:outline-none" 
-                onClick={handleNextTime}
+                onClick={() => setIsViewDropOpen(!isViewDropOpen)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
               >
-                <ChevronRight className="h-4 w-4" />
+                {activeView === 'Work' ? 'Work Week' : activeView}
+                <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />
               </button>
+              
+              {isViewDropOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsViewDropOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                    {['Day', 'Work', 'Week'].map(v => (
+                      <button 
+                        key={v}
+                        onClick={() => {
+                          setActiveView(v);
+                          setIsViewDropOpen(false);
+                          if (v === 'Day' && !selectedDate) setSelectedDate(new Date());
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-semibold transition-colors ${activeView === v ? 'text-indigo-600 bg-indigo-50/70' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
+                      >
+                        {v === 'Work' ? 'Work Week' : v}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -799,7 +921,7 @@ const ScheduleMeetingPage = () => {
               className="weekly-calendar-header border-b border-gray-200 bg-gray-50/50" 
               style={{ display: 'grid', gridTemplateColumns: `60px repeat(${weekDays.length}, minmax(0, 1fr))` }}
             >
-              <div className="time-gutter-header">GMT{new Date().getTimezoneOffset() < 0 ? '+' : '-'}{Math.abs(new Date().getTimezoneOffset() / 60)}</div>
+              <div className="time-gutter-header">{adaptiveTimezone}</div>
               {weekDays.map(d => (
                 <div key={d.toISOString()} className={`day-header${isToday(d) ? ' today-header' : ''}`}>
                   <span className={`day-name${isToday(d) ? ' today-name' : ''}`}>{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
@@ -811,7 +933,16 @@ const ScheduleMeetingPage = () => {
             <div className="weekly-calendar-scroll-area flex-1 overflow-y-auto custom-scrollbar" ref={timeSlotsRef}>
               <div className="weekly-calendar-body relative">
                 {/* 1. Time Gutter */}
-                <div className="time-gutter">
+                <div className="time-gutter relative">
+                  {/* Zoho style current-time axis pill */}
+                  {currentTimePx !== null && (
+                    <div
+                      className="current-time-axis-pill absolute right-2 -translate-y-1/2 bg-red-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded shadow-sm z-20 pointer-events-none"
+                      style={{ top: `${currentTimePx}px` }}
+                    >
+                      {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                    </div>
+                  )}
                   {hours.map(h => (
                     <div key={h} className="time-label">
                       {h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`}
@@ -834,18 +965,39 @@ const ScheduleMeetingPage = () => {
                   </div>
                 )}
                 {weekDays.map(d => {
-                  // Check if selected block belongs to this day column
+                  // For rendering the selected block visually on the grid
                   const hasSelection = selectedDate && 
                                        selectedDate.getDate() === d.getDate() && 
                                        selectedDate.getMonth() === d.getMonth() &&
-                                       startTime && !useCustomTime;
+                                       startTime && endTime;
                   let topPx = 0;
                   let heightPx = 0;
+                  let isCollision = false;
+
                   if (hasSelection) {
                     const [sh, sm] = startTime.split(':').map(Number);
-                    const dur = presetDuration || 60;
-                    topPx = (sh - hours[0]) * 60 + sm;
-                    heightPx = dur + 1; // 1 min per px
+                    const [eh, em] = endTime.split(':').map(Number);
+                    const startMin = sh * 60 + sm;
+                    const endMin = eh * 60 + em;
+                    
+                    topPx = (startMin - hours[0] * 60);
+                    heightPx = Math.max(endMin - startMin, 15); // min 15px
+
+                    // Collision checking for visual overlap warning
+                    const blockStartMin = startMin;
+                    const blockEndMin = endMin;
+                    
+                    isCollision = existingMeetings.some(m => {
+                      if (!m.date) return false;
+                      const mDate = new Date(m.date);
+                      if (mDate.getDate() !== d.getDate() || mDate.getMonth() !== d.getMonth() || mDate.getFullYear() !== d.getFullYear()) return false;
+                      
+                      const [mH, mM] = (m.time || '00:00').split(':').map(Number);
+                      const mStartMin = mH * 60 + mM;
+                      const mEndMin = mStartMin + (m.duration || 60);
+                      
+                      return blockStartMin < mEndMin && blockEndMin > mStartMin; // Overlap formula
+                    });
                   }
 
                   return (
@@ -855,28 +1007,96 @@ const ScheduleMeetingPage = () => {
                           <div
                             className={`half-hour ${isPastSlot(d, h, 0) ? 'past' : ''}`}
                             data-time={`${h === 12 ? '12' : h > 12 ? h - 12 : h}:00 ${h >= 12 ? 'PM' : 'AM'}`}
-                            onClick={() => handleGridSlotSelect(d, h, 0)}
+                            onMouseDown={() => handleSlotMouseDown(d, h, 0)}
+                            onMouseEnter={() => handleSlotMouseEnter(d, h, 0)}
                           />
                           <div
                             className={`half-hour ${isPastSlot(d, h, 30) ? 'past' : ''}`}
                             data-time={`${h === 12 ? '12' : h > 12 ? h - 12 : h}:30 ${h >= 12 ? 'PM' : 'AM'}`}
-                            onClick={() => handleGridSlotSelect(d, h, 30)}
+                            onMouseDown={() => handleSlotMouseDown(d, h, 30)}
+                            onMouseEnter={() => handleSlotMouseEnter(d, h, 30)}
                           />
                         </div>
                       ))}
                       
+                      
+                      {/* Render EXISTING Meetings for this day */}
+                      {existingMeetings.map(m => {
+                        if (!m.date) return null;
+                        const mDate = new Date(m.date);
+                        if (
+                          mDate.getDate() !== d.getDate() ||
+                          mDate.getMonth() !== d.getMonth() ||
+                          mDate.getFullYear() !== d.getFullYear()
+                        ) return null;
+                        
+                        const [mH, mM] = (m.time || '00:00').split(':').map(Number);
+                        const dur = m.duration || 60;
+                        const blockTop = (mH - hours[0]) * 60 + mM;
+                        const blockHeight = Math.max(dur, 22); // min height for readability
+                        const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
+
+                        return (
+                          <div 
+                            key={m.id || Math.random()}
+                            className="event-block existing-meeting absolute left-0 right-0 flex flex-col justify-start overflow-hidden cursor-pointer z-10"
+                            style={{ 
+                              top: `${blockTop}px`, 
+                              height: `${blockHeight}px`,
+                              backgroundColor: mColor.bg,
+                              borderLeft: `3px solid ${mColor.border}`,
+                              borderRadius: '2px',
+                              padding: '3px 6px',
+                              color: mColor.text,
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              lineHeight: '1.3',
+                            }}
+                            title={`${m.title} (${m.time})`}
+                          >
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</span>
+                            {blockHeight > 28 && (
+                              <span style={{ fontSize: '10px', fontWeight: '500', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {m.time}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Render DRAFT / SELECTION Meeting */}
                       {hasSelection && (
                         <div 
-                          className="event-block active shadow-lg flex flex-col justify-start"
+                          className={`event-block active flex flex-col justify-start absolute left-0 right-0 z-30 transition-all ${isCollision ? 'error-collision' : ''}`}
                           style={{ 
                             top: `${topPx}px`, 
                             height: `${heightPx}px`, 
-                            background: `linear-gradient(135deg, ${eventColor}, ${eventColor}dd)`,
-                            boxShadow: `0 4px 12px ${eventColor}40`
+                            backgroundColor: isCollision ? '#fef2f2' : `${eventColor}25`,
+                            borderLeft: `3px solid ${isCollision ? '#ef4444' : eventColor}`,
+                            borderRadius: '2px',
+                            padding: '3px 6px',
+                            boxShadow: isCollision ? `0 2px 8px rgba(220, 38, 38, 0.15)` : `0 2px 8px ${eventColor}25`,
+                            color: isCollision ? '#c5221f' : eventColor,
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            lineHeight: '1.3',
                           }}
                         >
-                          <span className="font-bold tracking-tight leading-tight">{effectiveTitle}</span>
-                          <span className="opacity-90">{selectedTime}</span>
+                          <span className="truncate">{isCollision ? 'Overlapping Meeting!' : effectiveTitle}</span>
+                          <span className="opacity-80 text-[10px] sm:text-xs font-medium">{selectedTime} {isCollision ? '' : `• ${Math.round(heightPx)}m`}</span>
+                          
+                          {/* Drag handle to resize block downwards visually */}
+                          <div 
+                            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize group"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              setIsResizing(true);
+                              const [sh, sm] = startTime.split(':').map(Number);
+                              setDragStartInfo({ date: selectedDate, totalMin: sh * 60 + sm });
+                            }}
+                          >
+                            <div className="w-6 h-[3px] bg-black/20 rounded-full mx-auto opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                          </div>
                         </div>
                       )}
                     </div>

@@ -69,15 +69,20 @@ function App() {
 
     // ── Global WebSocket Setup for Real-time Notifications ──
     let ws = null;
+    let retryDelay = 5000;
+    let retryTimer = null;
+
     const connectWebSocket = () => {
       try {
         const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
-        // Convert http://host:port/... -> ws://host:port/ws/dashboard
         const wsUrl = baseUrl.replace(/^http/, 'ws').replace(/\/api.*$/, '') + '/ws/dashboard_' + Date.now();
         
         ws = new WebSocket(wsUrl);
         
-        ws.onopen = () => console.log('📡 Connected to Real-time Sync Engine');
+        ws.onopen = () => {
+          console.log('📡 Connected to Real-time Sync Engine');
+          retryDelay = 5000; // reset backoff on successful connection
+        };
         
         ws.onmessage = (event) => {
           const data = JSON.parse(event.data);
@@ -90,17 +95,24 @@ function App() {
         };
 
         ws.onclose = () => {
-          console.log('📡 Connection lost. Reconnecting in 5s...');
-          setTimeout(connectWebSocket, 5000);
+          // Exponential backoff — caps at 60s to avoid console spam
+          retryTimer = setTimeout(connectWebSocket, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 60000);
+        };
+
+        ws.onerror = () => {
+          // Suppress the noisy browser error — onclose will handle retry
+          ws.close();
         };
       } catch (err) {
-        console.warn('Real-time connection failed:', err);
+        // Silent fail — real-time notifications are non-critical
       }
     };
     
     connectWebSocket();
 
     return () => {
+      if (retryTimer) clearTimeout(retryTimer);
       if (ws) ws.close();
     };
   }, [dispatch]);
