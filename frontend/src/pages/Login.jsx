@@ -14,35 +14,41 @@ const Login = () => {
   }, [isAuthenticated, navigate]);
 
   return (
-    <div className="min-h-screen w-full flex bg-app-bg">
-      {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-16 bg-app-surface border-r border-border">
-        <div className="max-w-md">
-          <div className="w-12 h-12 rounded-lg bg-brand-primary flex items-center justify-center mb-6">
+    <div className="min-h-screen w-full flex bg-app-surface">
+      {/* Left side - Branding (MNC Industrial Grade) */}
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-24 bg-[#0E1B2E] relative overflow-hidden">
+        {/* Subtle Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
+          <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+        </div>
+        
+        <div className="max-w-md relative z-10">
+          <div className="w-11 h-11 rounded-lg bg-brand-primary flex items-center justify-center mb-10 shadow-lg shadow-brand-primary/20">
             <span className="text-white font-bold text-lg">IA</span>
           </div>
 
-          <h1 className="text-h1 font-semibold text-text-primary mb-4">
-            Industrial Analytics Platform
+          <h1 className="text-h1 font-bold text-white mb-6 leading-tight tracking-tight">
+            Advanced Project <br />
+            <span className="text-brand-primary">Analytics Platform</span>
           </h1>
 
-          <p className="text-body-lg text-text-secondary leading-relaxed">
-            Streamline your manufacturing operations with data-driven insights.
-            Track projects, manage meetings, and monitor performance.
+          <p className="text-body-lg text-white/60 leading-relaxed font-medium">
+            Enterprise-grade monitoring for manufacturing and industrial excellence. 
+            Real-time insights across your entire operations lifecycle.
           </p>
 
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            <div className="p-4 bg-app-bg rounded-lg border border-border">
-              <p className="text-h3 font-semibold text-brand-primary">50+</p>
-              <p className="text-caption text-text-muted mt-1">Projects</p>
+          <div className="mt-12 grid grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <p className="text-h3 font-bold text-white tracking-tight">50+</p>
+              <p className="text-caption font-bold text-white/30 uppercase tracking-[0.2em]">Projects</p>
             </div>
-            <div className="p-4 bg-app-bg rounded-lg border border-border">
-              <p className="text-h3 font-semibold text-brand-primary">200+</p>
-              <p className="text-caption text-text-muted mt-1">Meetings</p>
+            <div className="space-y-1">
+              <p className="text-h3 font-bold text-white tracking-tight">200+</p>
+              <p className="text-caption font-bold text-white/30 uppercase tracking-[0.2em]">Meetings</p>
             </div>
-            <div className="p-4 bg-app-bg rounded-lg border border-border">
-              <p className="text-h3 font-semibold text-brand-primary">99%</p>
-              <p className="text-caption text-text-muted mt-1">Uptime</p>
+            <div className="space-y-1">
+              <p className="text-h3 font-bold text-white tracking-tight">Industrial</p>
+              <p className="text-caption font-bold text-white/30 uppercase tracking-[0.2em]">Standard</p>
             </div>
           </div>
         </div>

@@ -1379,21 +1379,49 @@ const ProjectMaster = () => {
 
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
-                <button onClick={cancelDelete} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
-                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
-                </button>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
+              <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400">
+                  <AlertTriangle size={20} />
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Permanent Deletion</h3>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Delete project <span className="font-medium">{showDeletePrompt.name}</span>?</p>
-                <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={cancelDelete} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmDeleteProject} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              
+              <div className="p-6">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                  Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-white">"{showDeletePrompt.name}"</span>?
+                </p>
+                
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6">
+                  <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Impact Warning</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    This action is <span className="text-red-600 dark:text-red-400 font-semibold underline">irreversible</span>. The following associated data will also be permanently deleted:
+                  </p>
+                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 list-disc list-inside">
+                    <li>Active Issues & Actions</li>
+                    <li>Meeting Records & MOMs</li>
+                    <li>Budget & Tracker Data</li>
+                    <li>Employee Allocations</li>
+                    <li>Custom Fields & Files</li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={cancelDelete} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmDeleteProject} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Delete Permanently
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1458,23 +1486,42 @@ const ProjectMaster = () => {
 
         {/* Bulk Delete Prompt */}
         {showBulkDeletePrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
-                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
-                </button>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
+              <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400">
+                  <AlertTriangle size={20} />
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Bulk Deletion</h3>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                  Are you sure you want to delete {showBulkDeletePrompt.count} selected project{showBulkDeletePrompt.count > 1 ? 's' : ''}?
+              
+              <div className="p-6">
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                  Are you sure you want to delete <span className="font-bold text-red-600 dark:text-red-400">{showBulkDeletePrompt.count} selected projects</span>?
                 </p>
-                <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmBulkDelete} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                
+                <div className="bg-red-50/50 dark:bg-red-900/10 rounded-lg p-4 border border-red-100 dark:border-red-900/20 mb-6">
+                  <h4 className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2">CRITICAL Bulk Action Warning</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    This will <span className="font-bold">permanently wipe</span> all data for multiple projects at once. This includes all related issues, meetings, trackers, and files across all selected items.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmBulkDelete} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Delete {showBulkDeletePrompt.count} Projects
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -700,21 +700,20 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'project-dashboard';
 
     return (
-      <div key="project-dashboard" className="px-2">
+      <div key="project-dashboard">
         <div
           onMouseEnter={() => setHoveredModule('project-dashboard')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('project-dashboard')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
-            } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+            } ${isActive
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
-          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-            <BarChart3 className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          <div className="flex items-center">
             {isSidebarExpanded && (
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Dashboard
               </span>
             )}
@@ -725,15 +724,15 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('project-dashboard', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
 
         {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {projectDashboardModules.map(projectModule => renderProjectModule(projectModule, 'project-dashboard'))}
           </div>
         )}
@@ -750,21 +749,20 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'upload-trackers';
 
     return (
-      <div key="upload-trackers" className="px-2">
+      <div key="upload-trackers">
         <div
           onMouseEnter={() => setHoveredModule('upload-trackers')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('upload-trackers')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
-            } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+            } ${isActive
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
-          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-            <FileUp className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          <div className="flex items-center">
             {isSidebarExpanded && (
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Trackers
               </span>
             )}
@@ -775,15 +773,15 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('upload-trackers', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
 
         {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {uploadTrackerModules.map(projectModule => renderProjectModule(projectModule, 'upload-trackers'))}
           </div>
         )}
@@ -799,21 +797,20 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'uploads-main';
 
     return (
-      <div key="uploads" className="px-2">
+      <div key="uploads">
         <div
           onMouseEnter={() => setHoveredModule('uploads-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('uploads-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
-            } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+            } ${isActive
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
-          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-            <FolderTree className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          <div className="flex items-center">
             {isSidebarExpanded && (
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Uploads
               </span>
             )}
@@ -824,15 +821,15 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('uploads', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {renderUploadTrackersModule()}
             {hasPermission('Budget Upload') && (
               <button
@@ -840,14 +837,13 @@ const Dashboard = () => {
                 onMouseEnter={() => setHoveredModule('budget-upload')}
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
+                className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
                   activeModule === 'budget-upload'
-                    ? 'bg-brand-primary/10 text-brand-primary'
-                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                    ? 'bg-brand-primary/10 text-white font-semibold'
+                    : 'hover:bg-white/5 text-white/70 hover:text-white'
                 }`}
               >
-                <FileUp className="h-4 w-4" />
-                <span className="text-body font-medium">
+                <span className="text-body-sm font-medium tracking-tight">
                   Budget Upload
                 </span>
               </button>
@@ -866,21 +862,20 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'mom-main';
 
     return (
-      <div key="mom" className="px-2">
+      <div key="mom">
         <div
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('meetings')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
-            } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+            } ${isActive
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
-          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-            <MessageSquare className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          <div className="flex items-center">
             {isSidebarExpanded && (
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Meetings
               </span>
             )}
@@ -891,28 +886,27 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('mom', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             <button
               key="meetings"
               onMouseEnter={() => setHoveredModule('meetings')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
+              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
                 activeModule === 'meetings'
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                  ? 'bg-brand-primary/10 text-white font-semibold'
+                  : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
             >
-              <Calendar className="h-4 w-4" />
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 All Meetings
               </span>
             </button>
@@ -922,14 +916,13 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('mom-module')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${
+              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
                 activeModule === 'mom-module'
-                  ? 'bg-brand-primary/10 text-brand-primary'
-                  : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                  ? 'bg-brand-primary/10 text-white font-semibold'
+                  : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
             >
-              <Plus className="h-4 w-4" />
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Create MOM
               </span>
             </button>
@@ -948,21 +941,20 @@ const Dashboard = () => {
     const isHovered = hoveredModule === 'masters-main';
 
     return (
-      <div key="masters" className="px-2">
+      <div key="masters">
         <div
           onMouseEnter={() => setHoveredModule('masters-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('masters-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center p-2'
-            } rounded-r-md ${isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+            } ${isActive
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/60 hover:text-white'
             }`}
         >
-          <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-            <FolderTree className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          <div className="flex items-center">
             {isSidebarExpanded && (
-              <span className="text-body font-medium">
+              <span className="text-body-sm font-medium tracking-tight">
                 Masters
               </span>
             )}
@@ -973,15 +965,15 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion('masters', e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors"
+              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
             >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           )}
         </div>
 
         {isSidebarExpanded && isExpanded && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {visibleSubmodules.map((submodule) => {
               const isSubmoduleActive = activeModule === submodule.id;
 
@@ -991,12 +983,12 @@ const Dashboard = () => {
                   onMouseEnter={() => setHoveredModule(submodule.id)}
                   onMouseLeave={() => setHoveredModule(null)}
                   onClick={() => handleModuleClick(submodule.id)}
-                  className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSubmoduleActive
-                    ? 'bg-brand-primary/10 text-brand-primary'
-                    : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+                  className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSubmoduleActive
+                    ? 'bg-brand-primary/10 text-white font-semibold'
+                    : 'hover:bg-white/5 text-white/70 hover:text-white'
                     }`}
                 >
-                  <span className="text-body font-medium">
+                  <span className="text-body-sm font-medium tracking-tight">
                     {submodule.name}
                   </span>
                 </button>
@@ -1034,13 +1026,12 @@ const Dashboard = () => {
                 }));
               }
             }}
-            className={`flex-1 flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast cursor-pointer ${isHovered
-              ? 'bg-app-bg text-text-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+            className={`flex-1 flex items-center px-4 py-2 transition-all duration-fast cursor-pointer ${isHovered
+              ? 'bg-white/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
-          >
-            <Layers className="h-4 w-4" />
-            <span className="text-body font-medium truncate">
+            >
+            <span className="text-body-sm font-medium truncate tracking-tight">
               {projectModule.name}
             </span>
           </div>
@@ -1050,15 +1041,15 @@ const Dashboard = () => {
                 e.stopPropagation();
                 toggleModuleExpansion(uniqueId, e);
               }}
-              className="p-1 rounded hover:bg-app-surface transition-colors text-text-muted hover:text-text-primary"
+              className="p-1 mr-2 rounded hover:bg-white/5 transition-colors text-white/20 hover:text-white"
             >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             </button>
           )}
         </div>
 
         {isExpanded && hasFiles && (
-          <div className="ml-6 mt-1 space-y-1">
+          <div className="ml-[1.25rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {projectModule.submodules.map(fileModule => renderFileModule(fileModule, context, projectKey))}
           </div>
         )}
@@ -1094,14 +1085,14 @@ const Dashboard = () => {
             }
           }
         }}
-        className={`w-full flex items-center gap-2 rounded-r-md px-3 py-2 transition-all duration-fast ${isSelected
-          ? 'bg-brand-primary/10 text-brand-primary'
+        className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSelected
+          ? 'bg-brand-primary/10 text-white font-semibold'
           : isHovered
-            ? 'bg-app-bg text-text-primary'
-            : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+            ? 'bg-white/10 text-white'
+            : 'text-white/70 hover:text-white'
           }`}
       >
-        <span className={`text-body-sm truncate ${isSelected ? 'font-semibold' : 'font-medium'}`}>
+        <span className={`text-body-sm truncate tracking-tight ${isSelected ? 'font-semibold' : 'font-medium'}`}>
           {fileModule.displayName || (fileModule.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, '')}
         </span>
       </button>
@@ -1118,15 +1109,14 @@ const Dashboard = () => {
         <button
           key={module.id}
           onClick={() => handleModuleClick(module.id)}
-          className={`w-full flex items-center gap-3 rounded-r-md px-3 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
+          className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
             isActive
-              ? 'bg-brand-primary/10 text-brand-primary'
-              : 'hover:bg-app-bg text-text-secondary hover:text-text-primary'
+              ? 'bg-brand-primary/10 text-white font-semibold'
+              : 'hover:bg-white/5 text-white/70 hover:text-white'
           }`}
         >
-          <Settings className={`${isSidebarExpanded ? 'h-4 w-4' : 'h-5 w-5'}`} />
           {isSidebarExpanded && (
-            <span className="text-body font-medium">
+            <span className="text-body-sm font-medium tracking-tight">
               {module.name}
             </span>
           )}
@@ -1147,33 +1137,33 @@ const Dashboard = () => {
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
             ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-app-surface
-            border-r border-border
+            bg-[#0E1B2E]
+          border-r border-white/5
             transform transition-all duration-250 ease-product lg:transform-none
             flex flex-col
             overflow-hidden
           `}
         >
           {/* Logo Section */}
-          <div className="px-4 py-5 border-b border-border">
+          <div className="px-4 py-6 border-b border-white/5">
             {isSidebarExpanded ? (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
+                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                  <span className="text-white font-bold text-base">
                     {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-label font-semibold text-text-primary truncate">
+                  <p className="text-body-sm font-bold text-white truncate tracking-tight">
                     {companyName || 'Industrial Analytics'}
                   </p>
-                  <p className="text-caption text-text-muted">Platform</p>
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
                 </div>
               </div>
             ) : (
               <div className="flex justify-center">
-                <div className="w-9 h-9 rounded-lg bg-brand-primary flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
+                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                  <span className="text-white font-bold text-base">
                     {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
                   </span>
                 </div>
@@ -1182,27 +1172,24 @@ const Dashboard = () => {
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-3 space-y-1">
+          <div className="flex-1 overflow-y-auto py-4 space-y-0.5 scrollbar-hide">
             {renderProjectDashboardModule()}
             {renderMOMModule()}
             {renderMastersModule()}
-
-            <div className="pt-2">
-              {renderUploadsModule()}
-              {renderOtherModules()}
-            </div>
+            {renderUploadsModule()}
+            {renderOtherModules()}
           </div>
 
           {/* User Section at Bottom */}
-          <div className="p-3 border-t border-border">
+          <div className="p-4 border-t border-white/5 bg-white/5">
             <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white text-caption font-semibold">
+              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
                 {getUserInitial()}
               </div>
               {isSidebarExpanded && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-medium text-text-primary truncate">{user?.full_name || 'User'}</p>
-                  <p className="text-caption text-text-muted capitalize">{user?.role || 'User'}</p>
+                  <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
+                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
                 </div>
               )}
             </div>
