@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Access | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        body { background-color: var(--navy); min-height: 100vh; display: flex; }
+        .left-panel { width: 55%; background-color: var(--navy); padding: 60px; display: flex; flex-direction: column; justify-content: space-between; color: #ffffff; }
+        .right-panel { width: 45%; background-color: var(--cream); padding: 60px; display: flex; align-items: center; justify-content: center; }
+        .logo { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; margin-bottom: 40px; }
+        .logo-icon { width: 28px; height: 28px; background-color: #ff8c00; border-radius: 4px; }
+        .headline { font-family: var(--font-serif); font-size: 42px; line-height: 1.2; margin-bottom: 24px; }
+        .text-red { color: var(--red); }
+        .form-container { width: 100%; max-width: 440px; }
+        .form-title { font-family: var(--font-serif); font-size: 32px; margin-bottom: 8px; }
+        .form-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 32px; }
+        .success-state { text-align: center; display: none; }
+        .success-state h2 { font-family: var(--font-serif); font-size: 32px; margin-bottom: 16px; }
+
+        @media (max-width: 1000px) {
+            body { flex-direction: column; }
+            .left-panel, .right-panel { width: 100%; }
+            .left-panel { min-height: auto; padding: 40px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="left-panel">
+        <div>
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <span>Industrial Analytics Workspace</span>
+            </div>
+            <div class="promo-content">
+                <h1 class="headline">Scale your enterprise<br>with <span class="text-red">Precision Intelligence.</span></h1>
+                <p style="color: rgba(255,255,255,0.6); font-size: 18px;">Join the ranks of Fortune 500 leaders who use IAW to maintain absolute operational control across their global portfolios.</p>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 40px;">© 2026 Industrial Analytics Workspace</div>
+    </div>
+
+    <div class="right-panel">
+        <div class="form-container">
+            <div id="form-content">
+                <h1 class="form-title">Request Workspace Access</h1>
+                <p class="form-subtitle">For enterprise professionals and decision-makers.</p>
+
+                <form id="request-form">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="name" class="form-input" required placeholder="John Doe">
+                    </div>
+                    <div class="form-group">
+                        <label>Work Email</label>
+                        <input type="email" id="email" class="form-input" required placeholder="john@company.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="company" class="form-input" required placeholder="Acme Corp">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div class="form-group">
+                           <label>Role</label>
+                           <input type="text" id="role" class="form-input" required placeholder="VP, Projects">
+                        </div>
+                        <div class="form-group">
+                           <label>Team Size</label>
+                           <select id="size" class="form-input" required>
+                               <option value="" disabled selected>Select</option>
+                               <option value="1-50">1-50</option>
+                               <option value="50-500">50-500</option>
+                               <option value="500+">500+</option>
+                           </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px; margin-top: 16px;" id="submit-btn">
+                        <span class="btn-text">Submit Request</span>
+                        <div class="spinner"></div>
+                    </button>
+                    <a href="/signin.html" style="display: block; text-align: center; margin-top: 24px; font-size: 14px; color: var(--muted);">Already have access? <span style="color: var(--red); font-weight: 600;">Sign in</span></a>
+                </form>
+            </div>
+
+            <div id="success-state" class="success-state">
+                <div style="width: 64px; height: 64px; background: var(--red-light-bg); color: var(--red); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px;">✓</div>
+                <h2>Application Received</h2>
+                <p style="color: var(--muted); line-height: 1.6;">Thank you for your interest. Our identity verification team will set up your enterprise workspace within 48 hours and notify you via email.</p>
+                <button class="btn btn-ghost" style="margin-top: 32px;" onclick="window.location.href='/'">Return Home</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.getElementById('request-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const content = document.getElementById('form-content');
+            const success = document.getElementById('success-state');
+            
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            const formData = {
+                full_name: document.getElementById('name').value,
+                work_email: document.getElementById('email').value,
+                company: document.getElementById('company').value,
+                team_size: document.getElementById('size').value,
+                use_case: `Access Request (${document.getElementById('role').value})`,
+                message: 'Requested via Request Access Page'
+            };
+
+            try {
+                const response = await fetch(`${window.Auth.BASE_URL}/api/enterprise/lead`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    content.style.display = 'none';
+                    success.style.display = 'block';
+                } else {
+                    const err = await response.json();
+                    alert("Error: " + (err.detail || "Request failed"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Network error. Please try again later.");
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

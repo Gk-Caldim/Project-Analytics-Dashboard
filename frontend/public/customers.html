@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        .hero { padding: 80px 40px; text-align: center; background: var(--navy); color: white; }
+        .hero-title { font-family: var(--font-serif); font-size: 48px; margin-bottom: 16px; }
+        .customer-grid { max-width: 1200px; margin: 80px auto; padding: 0 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+        .customer-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 40px; display: flex; flex-direction: column; }
+        .customer-logo { height: 32px; margin-bottom: 32px; font-weight: 700; font-size: 20px; color: var(--navy); opacity: 0.8; }
+        .quote { font-size: 18px; font-style: italic; color: var(--navy); margin-bottom: 32px; flex: 1; line-height: 1.6; }
+        .metric-highlight { border-top: 1px solid var(--border); padding-top: 24px; }
+        .metric-val { font-size: 32px; font-weight: 700; color: var(--red); display: block; }
+        .metric-desc { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        
+        .bottom-cta { background: var(--surface); padding: 80px 40px; text-align: center; border-top: 1px solid var(--border); }
+        .bottom-cta h2 { font-family: var(--font-serif); font-size: 36px; margin-bottom: 32px; }
+    </style>
+</head>
+<body>
+
+    <nav class="zoho-nav">
+        <div class="zoho-nav-inner">
+            <div class="zoho-logo-area" onclick="window.location.href='/'">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-nav-right">
+                <a id="nav-products" class="zoho-nav-link">Products</a>
+                <a id="nav-customers" class="zoho-nav-link">Customers</a>
+                <a id="nav-pricing" class="zoho-nav-link">Pricing</a>
+                <a id="nav-enterprise" class="zoho-nav-link">Enterprise</a>
+                <a id="nav-signin" class="zoho-nav-link">Sign In</a>
+                <button id="access-workspace-btn" class="btn btn-primary">Access Workspace</button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <h1 class="hero-title">Trusted by industry leaders</h1>
+        <p style="color: rgba(255,255,255,0.6);">See how the world's most complex organizations run on IAW.</p>
+    </header>
+
+    <main class="customer-grid">
+        <!-- MAHINDRA -->
+        <article class="customer-card">
+            <div class="customer-logo">MAHINDRA</div>
+            <p class="quote">"IAW has transformed our board reporting. What used to take 2 weeks now happens in 2 hours."</p>
+            <div class="metric-highlight">
+                <span class="metric-val">40%</span>
+                <span class="metric-desc">Faster board reporting</span>
+            </div>
+        </article>
+
+        <!-- HDFC -->
+        <article class="customer-card">
+            <div class="customer-logo">HDFC BANK</div>
+            <p class="quote">"The budget intelligence module gives us real-time variance alerts across our entire branch network."</p>
+            <div class="metric-highlight">
+                <span class="metric-val">₹12Cr</span>
+                <span class="metric-desc">Annual variance saved</span>
+            </div>
+        </article>
+
+        <!-- TATA -->
+        <article class="customer-card">
+            <div class="customer-logo">TATA GROUP</div>
+            <p class="quote">"Governance at scale is no longer a challenge. Audit logs provide absolute accountability."</p>
+            <div class="metric-highlight">
+                <span class="metric-val">100%</span>
+                <span class="metric-desc">Audit readiness</span>
+            </div>
+        </article>
+    </main>
+
+    <section class="bottom-cta">
+        <h2>Ready to join the leaders?</h2>
+        <div style="display: flex; justify-content: center; gap: 16px;">
+            <button class="btn btn-primary" onclick="window.location.href='/pricing.html'">View Pricing</button>
+            <button class="btn btn-ghost" onclick="window.location.href='/enterprise.html'">Talk to Enterprise</button>
+        </div>
+    </section>
+
+    <footer class="zoho-footer">
+        <div class="zoho-footer-inner">
+            <div class="zoho-logo-area">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-footer-text">© 2026 Corporation All rights reserved.</div>
+        </div>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/navbar.js"></script>
+</body>
+</html>

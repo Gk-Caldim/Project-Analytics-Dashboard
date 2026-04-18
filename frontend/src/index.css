@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
 @import "tailwindcss";
 @config "../tailwind.config.js";
@@ -7,6 +7,17 @@
 
 
 :root {
+  /* Industrial Analytics Brand Colors */
+  --brand-red: #C8341A;
+  --brand-navy: #0D1B2A;
+  --brand-surface: #F7F6F3;
+  --brand-border: rgba(13, 27, 42, 0.12);
+  --brand-muted: #6B7280;
+
+  /* Typography */
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'DM Sans', -apple-system, sans-serif;
+
   /* Branding Variables */
   --navy: #0E1B2E;
   --accent: #2E7CF6;

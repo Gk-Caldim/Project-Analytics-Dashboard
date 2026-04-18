@@ -23,11 +23,11 @@
 
 .schedule-meeting-page {
   font-family: 'Inter', sans-serif;
-  background-color: var(--primary-bg);
-  padding: 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #eef2ff 100%);
+  padding: 1rem;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 350px;
-  gap: 1.5rem;
+  grid-template-columns: 240px minmax(0, 1fr) 300px;
+  gap: 1rem;
   min-height: 100%;
 }
 
@@ -39,6 +39,15 @@
 }
 
 /* ──────── COMPONENTS ──────── */
+
+/* Premium Glassmorphism Utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
 
 /* Meeting Type Chips */
 .meeting-type-selector {
@@ -315,11 +324,16 @@
   z-index: 10;
   cursor: pointer;
   overflow: hidden;
-  transition: all 0.18s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.2s ease-out;
 }
 .event-block:hover {
-  filter: brightness(0.95);
   z-index: 20;
+  filter: brightness(0.96);
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.08);
+}
+
+.event-block.active {
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.4);
 }
 
 /* ──────── TIMESLOT GRID ──────── */

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        .pricing-hero { padding: 80px 40px; text-align: center; }
+        .hero-title { font-family: var(--font-serif); font-size: 48px; margin-bottom: 24px; }
+        
+        /* Toggle Switch */
+        .toggle-container { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 64px; }
+        .toggle-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+        .toggle-label.active { color: var(--navy); }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e5e5; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--red); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Pricing Cards */
+        .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; max-width: 1200px; margin: 0 auto; padding-bottom: 80px; }
+        .pricing-card { padding: 48px 32px; border: 1px solid var(--border); border-radius: 16px; background: white; transition: all 0.3s; display: flex; flex-direction: column; }
+        .pricing-card.featured { border-color: var(--red); box-shadow: 0 20px 40px rgba(0,0,0,0.05); transform: translateY(-8px); position: relative; }
+        .popular-badge { position: absolute; top: 16px; right: 24px; background: var(--red); color: white; padding: 4px 12px; border-radius: 99px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .plan-name { font-size: 20px; font-weight: 600; margin-bottom: 32px; }
+        .price-container { margin-bottom: 40px; }
+        .price { font-family: var(--font-serif); font-size: 48px; font-weight: 700; }
+        .period { font-size: 16px; color: var(--muted); font-weight: 400; }
+        .features { list-style: none; margin-bottom: 40px; flex: 1; }
+        .features li { font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .features li::before { content: '✓'; color: var(--red); font-weight: bold; }
+
+        @media (max-width: 900px) {
+            .pricing-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="zoho-nav">
+        <div class="zoho-nav-inner">
+            <div class="zoho-logo-area" onclick="window.location.href='/'">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-nav-right">
+                <a id="nav-products" class="zoho-nav-link">Products</a>
+                <a id="nav-customers" class="zoho-nav-link">Customers</a>
+                <a id="nav-pricing" class="zoho-nav-link">Pricing</a>
+                <a id="nav-enterprise" class="zoho-nav-link">Enterprise</a>
+                <a id="nav-signin" class="zoho-nav-link">Sign In</a>
+                <button id="access-workspace-btn" class="btn btn-primary">Access Workspace</button>
+            </div>
+        </div>
+    </nav>
+
+    <section class="pricing-hero">
+        <h1 class="hero-title">Simple, transparent pricing</h1>
+        <div class="toggle-container">
+            <span id="label-monthly" class="toggle-label active">Monthly</span>
+            <label class="switch">
+                <input type="checkbox" id="pricing-toggle">
+                <span class="slider"></span>
+            </label>
+            <span id="label-annual" class="toggle-label">Annual <span style="color: var(--red); font-weight: 700;">(Save 20%)</span></span>
+        </div>
+
+        <div class="pricing-grid">
+            <!-- STARTER -->
+            <div class="pricing-card">
+                <div class="plan-name">Starter</div>
+                <div class="price-container">
+                    <span id="price-starter" class="price">₹2,999</span>
+                    <span id="period-starter" class="period">/mo</span>
+                </div>
+                <ul class="features">
+                    <li>Single project visibility</li>
+                    <li>Basic meeting capture</li>
+                    <li>Personal dashboard</li>
+                </ul>
+                <button class="btn btn-ghost" onclick="window.location.href='/signin.html?plan=starter'">Start Free Trial</button>
+            </div>
+
+            <!-- BUSINESS -->
+            <div class="pricing-card featured">
+                <div class="popular-badge">Most Popular</div>
+                <div class="plan-name">Business</div>
+                <div class="price-container">
+                    <span id="price-business" class="price">₹7,999</span>
+                    <span id="period-business" class="period">/mo</span>
+                </div>
+                <ul class="features">
+                    <li>Unlimited projects</li>
+                    <li>Auto-minutes generation</li>
+                    <li>Advanced budget alerts</li>
+                    <li>Up to 50 users</li>
+                </ul>
+                <button class="btn btn-primary" onclick="window.location.href='/signin.html?plan=business'">Get Started</button>
+            </div>
+
+            <!-- ENTERPRISE -->
+            <div class="pricing-card">
+                <div class="plan-name">Enterprise</div>
+                <div class="price-container">
+                    <span class="price">Custom</span>
+                </div>
+                <ul class="features">
+                    <li>Dedicated infrastructure</li>
+                    <li>SSO & SAML integration</li>
+                    <li>White-glove onboarding</li>
+                    <li>99.9% Uptime SLA</li>
+                </ul>
+                <button class="btn btn-ghost" onclick="window.location.href='/enterprise.html#contact'">Talk to Sales</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="zoho-footer">
+        <div class="zoho-footer-inner">
+            <div class="zoho-logo-area">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-footer-text">© 2026 Corporation All rights reserved.</div>
+        </div>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        const toggle = document.getElementById('pricing-toggle');
+        const priceStarter = document.getElementById('price-starter');
+        const priceBusiness = document.getElementById('price-business');
+        const periodStarter = document.getElementById('period-starter');
+        const periodBusiness = document.getElementById('period-business');
+        const labelMonthly = document.getElementById('label-monthly');
+        const labelAnnual = document.getElementById('label-annual');
+
+        toggle.addEventListener('change', () => {
+            const isAnnual = toggle.checked;
+            
+            if (isAnnual) {
+                priceStarter.innerText = '₹28,790';
+                priceBusiness.innerText = '₹76,790';
+                periodStarter.innerText = '/yr';
+                periodBusiness.innerText = '/yr';
+                labelAnnual.classList.add('active');
+                labelMonthly.classList.remove('active');
+            } else {
+                priceStarter.innerText = '₹2,999';
+                priceBusiness.innerText = '₹7,999';
+                periodStarter.innerText = '/mo';
+                periodBusiness.innerText = '/mo';
+                labelMonthly.classList.add('active');
+                labelAnnual.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

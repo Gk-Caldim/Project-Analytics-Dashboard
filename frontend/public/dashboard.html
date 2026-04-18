@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace Dashboard | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        body { background: var(--surface); }
+        .dashboard-container { display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--navy); color: white; padding: 32px 24px; display: flex; flex-direction: column; position: fixed; height: 100vh; }
+        .sidebar-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 48px; }
+        .sidebar-nav { flex: 1; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.6); transition: all 0.2s; margin-bottom: 8px; cursor: pointer; }
+        .sidebar-item:hover, .sidebar-item.active { background: rgba(255,255,255,0.1); color: white; }
+        .sidebar-item.signout { margin-top: auto; color: var(--red); }
+
+        /* Main Content */
+        .main-content { margin-left: 260px; flex: 1; padding: 48px 64px; }
+        .welcome-header { margin-bottom: 48px; }
+        .welcome-header h1 { font-family: var(--font-serif); font-size: 32px; margin-bottom: 8px; }
+        .welcome-header p { color: var(--muted); font-size: 16px; }
+
+        /* Widget Grid */
+        .widget-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; margin-bottom: 48px; }
+        .kpi-card { background: white; padding: 32px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.02); }
+        .kpi-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 24px; }
+        .kpi-val { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+        .kpi-trend { font-size: 14px; color: #059669; font-weight: 600; }
+
+        /* Module Cards */
+        .module-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .module-card { background: white; padding: 24px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s; cursor: pointer; }
+        .module-card:hover { border-color: var(--red); transform: translateY(-4px); }
+        .module-icon { width: 40px; height: 40px; background: var(--red-light-bg); border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; color: var(--red); font-weight: 700; }
+        .module-name { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+        .module-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+        @media (max-width: 1200px) {
+            .module-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="zoho-logo-box"></div>
+                <span style="font-weight: 600;">IAW Workspace</span>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="sidebar-item active">Home</div>
+                <div class="sidebar-item">Analytics</div>
+                <div class="sidebar-item">Meetings</div>
+                <div class="sidebar-item">Budget</div>
+                <div class="sidebar-item">Governance</div>
+                <div class="sidebar-item">Settings</div>
+            </nav>
+            <div class="sidebar-item signout" onclick="window.Auth.logout()">Sign Out</div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <header class="welcome-header">
+                <h1 id="welcome-text">Loading...</h1>
+                <p id="company-text">Accessing your secure corporate portal</p>
+            </header>
+
+            <div class="widget-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Revenue YTD</div>
+                    <div class="kpi-val">₹48.2Cr</div>
+                    <div class="kpi-trend">↑ 14.3% vs plan</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Active Projects</div>
+                    <div class="kpi-val">137</div>
+                    <div class="kpi-trend">8 new this month</div>
+                </div>
+            </div>
+
+            <h2 style="font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 24px;">Your Suite</h2>
+            <div class="module-grid">
+                <div class="module-card" onclick="window.location.href='/analytics.html'">
+                    <div class="module-icon">A</div>
+                    <div class="module-name">Analytics</div>
+                    <div class="module-desc">Portfolio health & KPI tracking</div>
+                </div>
+                <div class="module-card" onclick="window.location.href='/meetings.html'">
+                    <div class="module-icon">M</div>
+                    <div class="module-name">Meetings</div>
+                    <div class="module-desc">Minutes capture & action items</div>
+                </div>
+                <div class="module-card" onclick="window.location.href='/budget.html'">
+                    <div class="module-icon">B</div>
+                    <div class="module-name">Budget</div>
+                    <div class="module-desc">Variance & expense tracking</div>
+                </div>
+                <div class="module-card" onclick="window.location.href='/team.html'">
+                    <div class="module-icon">G</div>
+                    <div class="module-name">Governance</div>
+                    <div class="module-desc">Roles & compliance logs</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = window.Auth.getUser();
+            const token = window.Auth.getToken();
+            
+            if (user) {
+                document.getElementById('welcome-text').innerText = `Welcome back, ${user.full_name || user.name}`;
+                document.getElementById('company-text').innerText = `${user.company || 'Industrial Analytics'} • ${user.role}`;
+            }
+
+            // Fetch real summary stats
+            try {
+                const response = await fetch(`${window.Auth.BASE_URL}/api/dashboard/summary`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const projects = await response.json();
+                    // Assuming projects is an array of health cards
+                    const activeCount = projects.length;
+                    const onTrackCount = projects.filter(p => !p.delayed_count).length;
+                    
+                    // Note: Update IDs in HTML if needed, let's use the existing structure
+                    document.querySelectorAll('.kpi-val')[1].innerText = activeCount;
+                    document.querySelectorAll('.kpi-trend')[1].innerText = `${activeCount} projects registered`;
+                }
+            } catch (err) {
+                console.error('Dashboard Stats Error:', err);
+            }
+        });
+    </script>
+</body>
+</html>

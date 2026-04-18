@@ -24,6 +24,16 @@ import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
 import LandingPage from './pages/LandingPage';
 
+// Import new module pages
+import AnalyticsPage from './pages/modules/AnalyticsPage';
+import MeetingsPage from './pages/modules/MeetingsPage';
+import BudgetPage from './pages/modules/BudgetPage';
+import GovernancePage from './pages/modules/GovernancePage';
+
+import WorkspaceLogin from './pages/WorkspaceLogin';
+import WorkspaceDashboard from './pages/WorkspaceDashboard';
+import PricingPage from './pages/PricingPage';
+
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
@@ -164,6 +174,16 @@ function App() {
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
             <Route path="settings" element={<SystemSettings />} />
           </Route>
+
+          {/* Module Inner Pages */}
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
+
+          <Route path="/workspace-login" element={<WorkspaceLogin />} />
+          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+          <Route path="/pricing" element={<PricingPage />} />
 
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<LandingPage />} />
