@@ -4,8 +4,8 @@ import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download,
 import API from '../../utils/api';
 
 const MODULE_LIST = [
-  'Dashboard', 'MOM', 'Employee Master', 'Project Master', 
-  'Upload Trackers', 
+  'Dashboard', 'MOM', 'Employee Master', 'Project Master',
+  'Upload Trackers',
   'Budget Upload', 'Settings'
 ];
 
@@ -26,13 +26,13 @@ const EmployeeMaster = () => {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [newEmployee, setNewEmployee] = useState({ 
+  const [newEmployee, setNewEmployee] = useState({
     employee_id: '',
     name: '',
     email: '',
     department: '',
-    role: 'Employee', 
-    status: 'Active', 
+    role: 'Employee',
+    status: 'Active',
     modules: [],
     password: '',
     confirmPassword: '',
@@ -40,7 +40,7 @@ const EmployeeMaster = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ 
+  const [editForm, setEditForm] = useState({
     employee_id: '',
     name: '',
     email: '',
@@ -101,7 +101,6 @@ const EmployeeMaster = () => {
   const [dynamicRoles, setDynamicRoles] = useState([]);
 
   // Filter Dropdown state
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filterDraft, setFilterDraft] = useState({});
 
   // Freeze states - Updated to support multiple frozen rows and columns
@@ -112,6 +111,18 @@ const EmployeeMaster = () => {
   // Temporary states for modal selections
   const [tempFrozenRows, setTempFrozenRows] = useState([]);
   const [tempFrozenColumns, setTempFrozenColumns] = useState([]);
+
+  // UI state for dropdowns
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showColumnsDropdown, setShowColumnsDropdown] = useState(false);
+
+  // Bulk Filter state
+  const [activeFilters, setActiveFilters] = useState({
+    department: [],
+    role: [],
+    status: [],
+    project_name: []
+  });
 
   // Get permissions from Redux store
   const { user } = useSelector((state) => state.auth);
@@ -168,7 +179,7 @@ const EmployeeMaster = () => {
           required: col.is_required
         }));
         setCustomColumns(formattedCustomCols);
-        
+
         // Sync with columns state
         setColumns([...initialColumns, ...formattedCustomCols]);
       }
@@ -375,7 +386,7 @@ const EmployeeMaster = () => {
 
     const columnId = showDeleteColumnPrompt.id;
     const col = columns.find(c => c.id === columnId);
-    
+
     if (col && col.db_id) {
       try {
         await API.delete(`/employees/columns/${col.db_id}`);
@@ -408,16 +419,34 @@ const EmployeeMaster = () => {
 
   // Columns are now managed by backend, no need for localStorage sync
 
-  // Filter employees - exclude dummy or missing data
+  // Unique values for filters
+  const filterOptions = useMemo(() => {
+    return {
+      department: [...new Set(employees.map(emp => emp.department).filter(Boolean))].sort(),
+      role: [...new Set(employees.map(emp => emp.role).filter(Boolean))].sort(),
+      status: [...new Set(employees.map(emp => emp.status).filter(Boolean))].sort(),
+      project_name: [...new Set(employees.map(emp => emp.project_name).filter(Boolean))].sort()
+    };
+  }, [employees]);
+
+  // Filter employees - exclude dummy or missing data and apply bulk filters
   const filteredEmployees = employees.filter(emp => {
     // Basic validation for name and email to avoid dummy entries
     if (!emp.name || !emp.email) return false;
 
-    const matchesSearch = Object.values(emp).some(value =>
+    // Search term check
+    const matchesSearch = searchTerm === '' || Object.values(emp).some(value =>
       String(value).toLowerCase().includes(searchTerm.toLowerCase())
     );
+    if (!matchesSearch) return false;
 
-    return matchesSearch;
+    // Bulk filter checks
+    if (activeFilters.department.length > 0 && !activeFilters.department.includes(emp.department)) return false;
+    if (activeFilters.role.length > 0 && !activeFilters.role.includes(emp.role)) return false;
+    if (activeFilters.status.length > 0 && !activeFilters.status.includes(emp.status)) return false;
+    if (activeFilters.project_name.length > 0 && !activeFilters.project_name.includes(emp.project_name)) return false;
+
+    return true;
   });
 
   // Sort employees
@@ -702,7 +731,7 @@ const EmployeeMaster = () => {
           data_type: 'text',
           is_required: false
         });
-        
+
         await fetchColumns();
         setNewColumnName('');
         setShowColumnAddPrompt({ show: false, columnName: '' });
@@ -877,15 +906,14 @@ const EmployeeMaster = () => {
       return (
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
-            isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
-          }`}>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+            }`}>
             {value || 'Inactive'}
           </span>
         </div>
       );
     }
-    
+
     if (column.id === 'role') {
       const getRoleStyles = (role) => {
         switch (role) {
@@ -896,7 +924,7 @@ const EmployeeMaster = () => {
           default: return 'bg-slate-50 text-slate-700 border-slate-100';
         }
       };
-      
+
       return (
         <span className={`px-2 py-0.5 rounded border text-[11px] font-medium ${getRoleStyles(value)}`}>
           {value || 'User'}
@@ -906,7 +934,7 @@ const EmployeeMaster = () => {
 
     if (column.id === 'employee_id') {
       return (
-        <span className="text-[13px] text-slate-500 dark:text-slate-400 font-mono tracking-tight">{value || '-'}</span>
+        <span className="text-sm text-slate-700 dark:text-slate-300">{value || '-'}</span>
       )
     }
 
@@ -1131,13 +1159,12 @@ const EmployeeMaster = () => {
                     const actualColumnIndex = columns.findIndex(col => col.id === column.id);
                     const isFrozen = tempFrozenColumns.includes(actualColumnIndex);
                     return (
-                      <label 
-                        key={column.id} 
-                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
-                          isFrozen 
-                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800' 
+                      <label
+                        key={column.id}
+                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isFrozen
+                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
                             : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
-                        }`}
+                          }`}
                       >
                         <div className="relative flex items-center">
                           <input
@@ -1207,13 +1234,12 @@ const EmployeeMaster = () => {
                     const actualRowIndex = (currentPage - 1) * pageSize + index;
                     const isFrozen = tempFrozenRows.includes(actualRowIndex);
                     return (
-                      <label 
-                        key={emp.id} 
-                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${
-                          isFrozen 
-                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800' 
+                      <label
+                        key={emp.id}
+                        className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isFrozen
+                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
                             : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
-                        }`}
+                          }`}
                       >
                         <div className="relative flex items-center">
                           <input
@@ -1334,7 +1360,7 @@ const EmployeeMaster = () => {
                             >
                               {column.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                             </button>
-                            
+
                             {!isEditing && (
                               <button
                                 onClick={() => startEditColumn(column.id, column.label)}
@@ -1628,35 +1654,112 @@ const EmployeeMaster = () => {
                       />
                     </div>
 
-                    {/* Filter Button */}
+                    {/* Bulk Filter Button */}
                     <div className="relative">
                       <button
-                        onClick={() => {
-                          if (!showFilterDropdown) {
-                            const draft = {};
-                            columns.forEach(col => { draft[col.id] = col.visible; });
-                            setFilterDraft(draft);
-                          }
-                          setShowFilterDropdown(!showFilterDropdown);
-                        }}
-                        className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 master-table-tooltip"
-                        data-tooltip="Filter columns"
+                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${Object.values(activeFilters).some(v => v.length > 0)
+                            ? 'bg-blue-50 border-blue-200 text-blue-600'
+                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+                          }`}
                       >
-                        <Filter className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-slate-300">Filter</span>
+                        <Filter className="h-4 w-4" />
+                        <span className="hidden sm:inline font-medium">Bulk Filter</span>
+                        {Object.values(activeFilters).flat().length > 0 && (
+                          <span className="bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center pointer-events-none ml-1">
+                            {Object.values(activeFilters).flat().length}
+                          </span>
+                        )}
                       </button>
 
                       {showFilterDropdown && (
                         <>
-                          <div
-                            className="fixed inset-0 z-40"
-                            onClick={() => setShowFilterDropdown(false)}
-                          />
-                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 p-3">
-                            <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">Visible Columns</h4>
-                            <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                          <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+                          <div className="absolute left-0 mt-1 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-4 max-h-[85vh] flex flex-col overflow-hidden animate-slideInUp">
+                            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
+                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight">Bulk Filters</h4>
+                              <button
+                                onClick={() => setActiveFilters({ department: [], role: [], status: [], project_name: [] })}
+                                className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
+                              >
+                                Clear All
+                              </button>
+                            </div>
+
+                            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+                              {/* Filter Sections */}
+                              {[
+                                { id: 'department', label: 'Department', options: filterOptions.department },
+                                { id: 'role', label: 'Role', options: filterOptions.role },
+                                { id: 'status', label: 'Status', options: filterOptions.status },
+                                { id: 'project_name', label: 'Project Name', options: filterOptions.project_name }
+                              ].map(section => (
+                                <div key={section.id} className="filter-section">
+                                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1.5">{section.label}</label>
+                                  <div className="grid grid-cols-1 gap-1.5 pl-1">
+                                    {section.options.length > 0 ? section.options.map(option => (
+                                      <label key={option} className="flex items-center gap-2 group cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={activeFilters[section.id].includes(option)}
+                                          onChange={(e) => {
+                                            const current = activeFilters[section.id];
+                                            const updated = e.target.checked
+                                              ? [...current, option]
+                                              : current.filter(o => o !== option);
+                                            setActiveFilters({ ...activeFilters, [section.id]: updated });
+                                          }}
+                                          className="h-3.5 w-3.5 text-blue-600 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500 cursor-pointer"
+                                        />
+                                        <span className="text-[13px] text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors truncate">
+                                          {option}
+                                        </span>
+                                      </label>
+                                    )) : (
+                                      <span className="text-[11px] text-slate-400 italic">No options available</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                              <button
+                                onClick={() => setShowFilterDropdown(false)}
+                                className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                              >
+                                Apply Bulk Filters
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Column Visibility Toggle */}
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          const draft = {};
+                          columns.forEach(col => { draft[col.id] = col.visible; });
+                          setFilterDraft(draft);
+                          setShowColumnsDropdown(!showColumnsDropdown);
+                        }}
+                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${showColumnsDropdown ? 'bg-slate-100 border-slate-400' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+                          }`}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="hidden sm:inline font-medium">Columns</span>
+                      </button>
+
+                      {showColumnsDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowColumnsDropdown(false)} />
+                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-3 animate-slideInUp">
+                            <h4 className="text-[11px] font-bold uppercase text-slate-500 mb-3 px-1">Visible Columns</h4>
+                            <div className="space-y-1 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
                               {columns.map(col => (
-                                <label key={col.id} className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-1.5 rounded transition-colors group">
+                                <label key={col.id} className="flex items-center space-x-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 p-2 rounded-lg transition-colors group">
                                   <input
                                     type="checkbox"
                                     checked={filterDraft[col.id] !== false}
@@ -1665,28 +1768,24 @@ const EmployeeMaster = () => {
                                     }}
                                     className="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                                   />
-                                  <span className="text-[13px] text-slate-700 dark:text-slate-300 select-none group-hover:text-blue-600 dark:group-hover:text-blue-400">{col.label}</span>
+                                  <span className="text-[13px] text-slate-700 dark:text-slate-300 select-none group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
+                                    {col.label}
+                                  </span>
                                 </label>
                               ))}
                             </div>
-                            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-2">
-                              <button
-                                onClick={() => setShowFilterDropdown(false)}
-                                className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 rounded transition-colors"
-                              >
-                                Cancel
-                              </button>
+                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-2">
                               <button
                                 onClick={() => {
                                   setColumns(columns.map(col => ({
                                     ...col,
                                     visible: filterDraft[col.id] !== false
                                   })));
-                                  setShowFilterDropdown(false);
+                                  setShowColumnsDropdown(false);
                                 }}
-                                className="px-3 py-1.5 text-xs bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors shadow-sm"
+                                className="w-full bg-blue-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                               >
-                                Apply
+                                Update View
                               </button>
                             </div>
                           </div>
@@ -1785,259 +1884,265 @@ const EmployeeMaster = () => {
               {/* TABLE SECTION - SCROLLABLE */}
               <div className="master-table-scroll">
                 <div className="master-table-scroll-inner">
-                <table className="master-table">
-                  <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                    <tr className="border-b border-slate-200 dark:border-slate-700">
-                      {/* Checkbox column */}
-                      <th
-                        className={`text-left py-3 px-4 font-medium cursor-pointer w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''
-                          }`}
-                        style={{
-                          left: isColumnFrozen(0) ? '0' : 'auto',
-                          zIndex: isColumnFrozen(0) ? 35 : 30
-                        }}
-                      >
-                        <div className="flex items-center justify-center">
-                          <button
-                            onClick={toggleSelectAll}
-                            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-slate-100 transition-colors"
-                          >
-                            {selectAll ? (
-                              <CheckSquare className="h-4 w-4 text-blue-600" />
-                            ) : (
-                              <Square className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                      </th>
-                      {visibleColumns.map((col) => {
-                        const actualColumnIndex = columns.findIndex(c => c.id === col.id);
-                        return (
-                          <th
-                            key={col.id}
-                            className={`text-left py-3 px-4 font-medium whitespace-nowrap group ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''
-                              }`}
-                            style={{
-                              left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
-                              zIndex: isColumnFrozen(actualColumnIndex) ? 35 : 30
-                            }}
-                          >
-                            <div className="flex items-center justify-between space-x-2">
-                              {/* Left side, label and required star */}
-                              <div className="flex items-center space-x-1.5 flex-1">
-                                <span className="font-medium text-[13px]">{col.label}</span>
-                                {col.required && <span className="text-red-400">*</span>}
-                              </div>
-
-                              {/* Right side, sort icon and dropdown */}
-                              <div className="flex items-center space-x-1 relative">
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id);
-                                  }}
-                                  className={`p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${activeDropdownColumn === col.id ? 'bg-slate-200 dark:bg-slate-600 text-slate-700' : ''}`}
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </button>
-
-                                {/* Dropdown Menu */}
-                                {activeDropdownColumn === col.id && (
-                                  <div
-                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {col.sortable && (
-                                      <>
-                                        <button
-                                          onClick={() => handleSortFromMenu(col.id, 'ascending')}
-                                          className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                        >
-                                          <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
-                                          Sort Ascending
-                                        </button>
-                                        <button
-                                          onClick={() => handleSortFromMenu(col.id, 'descending')}
-                                          className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                        >
-                                          <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
-                                          Sort Descending
-                                        </button>
-                                        <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
-                                      </>
-                                    )}
-                                    <button
-                                      onClick={() => handleCopyColumnName(col.label)}
-                                      className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                    >
-                                      <Copy className="h-3.5 w-3.5 text-slate-400" />
-                                      Copy name
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        startEditColumn(col.id, col.label);
-                                        setShowColumnModal(true);
-                                        setActiveDropdownColumn(null);
-                                      }}
-                                      className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                    >
-                                      <Edit className="h-3.5 w-3.5 text-slate-400" />
-                                      Edit column
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleFreezeColumnMenu(actualColumnIndex)}
-                                      className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                    >
-                                      {isColumnFrozen(actualColumnIndex) ? (
-                                        <>
-                                          <Snowflake className="h-3.5 w-3.5 text-blue-500" />
-                                          <span className="text-blue-600">Unfreeze column</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Snowflake className="h-3.5 w-3.5 text-slate-400" />
-                                          Freeze column
-                                        </>
-                                      )}
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        toggleFreezeRow();
-                                        setActiveDropdownColumn(null);
-                                      }}
-                                      className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
-                                    >
-                                      {frozenRows.length > 0 ? (
-                                        <>
-                                          <Snowflake className="h-3.5 w-3.5 text-blue-500" />
-                                          <span className="text-blue-600">Unfreeze row(s)</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Snowflake className="h-3.5 w-3.5 text-slate-400" />
-                                          Freeze row(s)
-                                        </>
-                                      )}
-                                    </button>
-
-                                    <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
-                                    <button
-                                      onClick={() => {
-                                        handleDeleteColumn(col.id);
-                                        setActiveDropdownColumn(null);
-                                      }}
-                                      className="w-full text-left px-4 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      Delete column
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </th>
-                        );
-                      })}
-                      {/* Actions Header - Sticky Right */}
-                      <th className="sticky right-0 bg-slate-100 dark:bg-slate-700 z-20 px-6 py-3 text-right font-medium border-l border-slate-200 dark:border-slate-700 w-24">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/50">
-                    {paginatedEmployees.map((emp, rowIndex) => {
-                      const actualRowIndex = (currentPage - 1) * pageSize + rowIndex;
-                      const isRowCurrentlyFrozen = isRowFrozen(actualRowIndex);
-
-                      return (
-                        <tr
-                          key={emp.id}
-                          className={`group transition-colors duration-150 ${isRowCurrentlyFrozen ? 'frozen-row' : ''
-                            } ${selectedEmployees.includes(emp.id) ? 'row-selected bg-blue-50/40 dark:bg-blue-900/10' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'}`}
+                  <table className="master-table">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        {/* Checkbox column */}
+                        <th
+                          className={`text-left py-3 px-4 font-medium cursor-pointer w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''
+                            }`}
                           style={{
-                            top: isRowCurrentlyFrozen ? getFrozenRowTop(actualRowIndex) : 'auto'
+                            left: isColumnFrozen(0) ? '0' : 'auto',
+                            zIndex: isColumnFrozen(0) ? 35 : 30
                           }}
                         >
-                          {/* Checkbox cell */}
-                          <td
-                            className={`py-3 px-4 whitespace-nowrap w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''
-                              }`}
+                          <div className="flex items-center justify-center">
+                            <button
+                              onClick={toggleSelectAll}
+                              className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-slate-100 transition-colors"
+                            >
+                              {selectAll ? (
+                                <CheckSquare className="h-4 w-4 text-blue-600" />
+                              ) : (
+                                <Square className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </th>
+                        {visibleColumns.map((col) => {
+                          const actualColumnIndex = columns.findIndex(c => c.id === col.id);
+                          return (
+                            <th
+                              key={col.id}
+                              className={`text-left py-3 px-4 font-medium whitespace-nowrap group relative ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''
+                                }`}
+                              style={{
+                                left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
+                                zIndex: isColumnFrozen(actualColumnIndex) ? 35 : 30
+                              }}
+                            >
+                              <div className="flex items-center w-full min-w-0">
+                                {/* Left side, label and required star */}
+                                <div className="flex items-center space-x-1.5 min-w-0 cursor-pointer" onClick={() => handleSort(col.id)}>
+                                  <span className="font-medium text-[13px] truncate">{col.label}</span>
+                                  {col.required && <span className="text-red-400 shrink-0">*</span>}
+                                  {sortConfig.key === col.id && (
+                                    <span className="ml-1.5 shrink-0 text-blue-600 dark:text-blue-400">
+                                      {getSortIcon(col.id)}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Right side, icon at 'tab-space' (ml-4) */}
+                                <div className="ml-5 flex items-center shrink-0">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id);
+                                    }}
+                                    className={`p-1.5 rounded-md transition-all ${activeDropdownColumn === col.id
+                                        ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100'
+                                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                      }`}
+                                  >
+                                    <ChevronDown className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Dropdown Menu */}
+                              {activeDropdownColumn === col.id && (
+                                <div
+                                  className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {col.sortable && (
+                                    <>
+                                      <button
+                                        onClick={() => handleSortFromMenu(col.id, 'ascending')}
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                      >
+                                        <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
+                                        Sort Ascending
+                                      </button>
+                                      <button
+                                        onClick={() => handleSortFromMenu(col.id, 'descending')}
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                      >
+                                        <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
+                                        Sort Descending
+                                      </button>
+                                      <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                                    </>
+                                  )}
+                                  <button
+                                    onClick={() => handleCopyColumnName(col.label)}
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                  >
+                                    <Copy className="h-3.5 w-3.5 text-slate-400" />
+                                    Copy name
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      startEditColumn(col.id, col.label);
+                                      setShowColumnModal(true);
+                                      setActiveDropdownColumn(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                  >
+                                    <Edit className="h-3.5 w-3.5 text-slate-400" />
+                                    Edit column
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleFreezeColumnMenu(actualColumnIndex)}
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                  >
+                                    {isColumnFrozen(actualColumnIndex) ? (
+                                      <>
+                                        <Snowflake className="h-3.5 w-3.5 text-blue-500" />
+                                        <span className="text-blue-600">Unfreeze column</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Snowflake className="h-3.5 w-3.5 text-slate-400" />
+                                        Freeze column
+                                      </>
+                                    )}
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      toggleFreezeRow();
+                                      setActiveDropdownColumn(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                  >
+                                    {frozenRows.length > 0 ? (
+                                      <>
+                                        <Snowflake className="h-3.5 w-3.5 text-blue-500" />
+                                        <span className="text-blue-600">Unfreeze row(s)</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Snowflake className="h-3.5 w-3.5 text-slate-400" />
+                                        Freeze row(s)
+                                      </>
+                                    )}
+                                  </button>
+
+                                  <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                                  <button
+                                    onClick={() => {
+                                      handleDeleteColumn(col.id);
+                                      setActiveDropdownColumn(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete column
+                                  </button>
+                                </div>
+                              )}
+                            </th>
+                          );
+                        })}
+                        {/* Actions Header - Sticky Right */}
+                        <th className="sticky right-0 bg-slate-100 dark:bg-slate-700 z-20 px-6 py-3 text-right font-medium border-l border-slate-200 dark:border-slate-700 w-24">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/50">
+                      {paginatedEmployees.map((emp, rowIndex) => {
+                        const actualRowIndex = (currentPage - 1) * pageSize + rowIndex;
+                        const isRowCurrentlyFrozen = isRowFrozen(actualRowIndex);
+
+                        return (
+                          <tr
+                            key={emp.id}
+                            className={`group transition-colors duration-150 ${isRowCurrentlyFrozen ? 'frozen-row' : ''
+                              } ${selectedEmployees.includes(emp.id) ? 'row-selected bg-blue-50/40 dark:bg-blue-900/10' : 'hover:bg-slate-50/50 dark:hover:bg-slate-800/50'}`}
                             style={{
-                              left: isColumnFrozen(0) ? '0' : 'auto',
-                              zIndex: isColumnFrozen(0) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto'
+                              top: isRowCurrentlyFrozen ? getFrozenRowTop(actualRowIndex) : 'auto'
                             }}
                           >
-                            <div className={`flex items-center justify-center ${selectedEmployees.includes(emp.id) ? 'opacity-100' : 'master-table-checkbox-cell'}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedEmployees.includes(emp.id)}
-                                onChange={() => toggleEmployeeSelection(emp.id)}
-                                className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 cursor-pointer"
-                              />
-                            </div>
-                          </td>
-                          {visibleColumns.map((col) => {
-                            const actualColumnIndex = columns.findIndex(c => c.id === col.id);
-                            return (
-                              <td
-                                key={col.id}
-                                className={`py-3 px-4 whitespace-nowrap ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''
-                                  }`}
-                                style={{
-                                  left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
-                                  zIndex: isColumnFrozen(actualColumnIndex) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto'
-                                }}
-                              >
-                                {renderCellContent(col, emp[col.id], emp)}
-                              </td>
-                            );
-                          })}
-                          {/* Actions Cell - Sticky Right */}
-                          <td className={`sticky right-0 z-10 py-3 px-4 text-right whitespace-nowrap w-[100px] border-l border-slate-100 dark:border-slate-700 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${
-                            selectedEmployees.includes(emp.id) 
-                              ? 'bg-[#f8faff] dark:bg-[#1e293b]' 
-                              : 'bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50'
-                          }`}>
-                            <div className="flex items-center justify-end gap-1 transition-opacity duration-200">
-                              {hasPermission('Employee Master', 'EDIT') && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); startEditing(emp); }}
-                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                                  title="Edit"
+                            {/* Checkbox cell */}
+                            <td
+                              className={`py-3 px-4 whitespace-nowrap w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''
+                                }`}
+                              style={{
+                                left: isColumnFrozen(0) ? '0' : 'auto',
+                                zIndex: isColumnFrozen(0) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto'
+                              }}
+                            >
+                              <div className={`flex items-center justify-center ${selectedEmployees.includes(emp.id) ? 'opacity-100' : 'master-table-checkbox-cell'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedEmployees.includes(emp.id)}
+                                  onChange={() => toggleEmployeeSelection(emp.id)}
+                                  className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 cursor-pointer"
+                                />
+                              </div>
+                            </td>
+                            {visibleColumns.map((col) => {
+                              const actualColumnIndex = columns.findIndex(c => c.id === col.id);
+                              return (
+                                <td
+                                  key={col.id}
+                                  className={`py-3 px-4 whitespace-nowrap ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''
+                                    }`}
+                                  style={{
+                                    left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
+                                    zIndex: isColumnFrozen(actualColumnIndex) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto'
+                                  }}
                                 >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                              )}
-                              {hasPermission('Employee Master', 'DELETE') && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setShowDeletePrompt({ id: emp.id, name: emp.name }); }}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
+                                  {renderCellContent(col, emp[col.id], emp)}
+                                </td>
+                              );
+                            })}
+                            {/* Actions Cell - Sticky Right */}
+                            <td className={`sticky right-0 z-10 py-3 px-4 text-right whitespace-nowrap w-[100px] border-l border-slate-100 dark:border-slate-700 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${selectedEmployees.includes(emp.id)
+                                ? 'bg-[#f8faff] dark:bg-[#1e293b]'
+                                : 'bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50'
+                              }`}>
+                              <div className="flex items-center justify-end gap-1 transition-opacity duration-200">
+                                {hasPermission('Employee Master', 'EDIT') && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); startEditing(emp); }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {hasPermission('Employee Master', 'DELETE') && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setShowDeletePrompt({ id: emp.id, name: emp.name }); }}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* Empty state */}
+                      {paginatedEmployees.length === 0 && (
+                        <tr>
+                          <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
+                            No employees found
                           </td>
                         </tr>
-                      );
-                    })}
-
-                    {/* Empty state */}
-                    {paginatedEmployees.length === 0 && (
-                      <tr>
-                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                          No employees found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 

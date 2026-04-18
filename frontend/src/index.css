@@ -29,6 +29,17 @@
   --font-mono: 'DM Mono', monospace;
 }
 
+/* Utils */
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
 @layer base {
   body {
     @apply antialiased;
@@ -38,7 +49,12 @@
     color: var(--text-primary);
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-primary);
   }
 
@@ -214,7 +230,7 @@
     width: 220px;
     flex-shrink: 0;
   }
-  
+
   .app-sidebar.collapsed {
     width: 72px;
   }
@@ -262,7 +278,7 @@
   }
 
   .sidebar-scroll {
-    @apply flex-1 overflow-y-auto relative z-10;
+    @apply flex-1 overflow-y-auto overflow-x-hidden relative z-10;
   }
 
   .sidebar-scroll::-webkit-scrollbar {
@@ -274,47 +290,11 @@
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
-  }
-
-  .sidebar-nav-item {
-    @apply w-full flex items-center justify-between cursor-pointer transition-all duration-200 rounded-xl select-none;
-  }
-
-  .sidebar-nav-item-active {
-    @apply bg-white/60 text-indigo-700 shadow-md ring-1 ring-white/60 font-medium;
-  }
-
-  .sidebar-nav-item-hover {
-    @apply hover:bg-white/50 hover:text-slate-800;
-  }
-
-  .sidebar-nav-item-inactive {
-    @apply text-slate-600;
-  }
-
-  .sidebar-subnav-item {
-    @apply w-full flex items-center cursor-pointer transition-all duration-200 rounded-lg px-3 py-2.5 space-x-3 select-none text-sm;
-  }
-
-  .sidebar-subnav-item-active {
-    @apply bg-white/60 text-indigo-700 shadow-md font-medium ring-1 ring-white/60;
-  }
-
-  .sidebar-subnav-item-hover {
-    @apply hover:bg-white/40 hover:text-slate-800;
-  }
-
-  .sidebar-subnav-item-inactive {
-    @apply text-slate-600;
-  }
-
-  .sidebar-fixed-btn {
-    @apply absolute top-6 bg-white/90 hover:bg-white rounded-lg p-1.5 border border-white/50 shadow-md z-50 transition-colors text-slate-700;
   }
 
   /* ========================================================================== */

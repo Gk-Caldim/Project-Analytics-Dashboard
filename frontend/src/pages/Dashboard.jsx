@@ -837,11 +837,10 @@ const Dashboard = () => {
                 onMouseEnter={() => setHoveredModule('budget-upload')}
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
-                  activeModule === 'budget-upload'
+                className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'budget-upload'
                     ? 'bg-brand-primary/10 text-white font-semibold'
                     : 'hover:bg-white/5 text-white/70 hover:text-white'
-                }`}
+                  }`}
               >
                 <span className="text-body-sm font-medium tracking-tight">
                   Budget Upload
@@ -900,11 +899,10 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('meetings')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
-                activeModule === 'meetings'
+              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'meetings'
                   ? 'bg-brand-primary/10 text-white font-semibold'
                   : 'hover:bg-white/5 text-white/70 hover:text-white'
-              }`}
+                }`}
             >
               <span className="text-body-sm font-medium tracking-tight">
                 All Meetings
@@ -916,11 +914,10 @@ const Dashboard = () => {
               onMouseEnter={() => setHoveredModule('mom-module')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${
-                activeModule === 'mom-module'
+              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'mom-module'
                   ? 'bg-brand-primary/10 text-white font-semibold'
                   : 'hover:bg-white/5 text-white/70 hover:text-white'
-              }`}
+                }`}
             >
               <span className="text-body-sm font-medium tracking-tight">
                 Create MOM
@@ -1030,7 +1027,7 @@ const Dashboard = () => {
               ? 'bg-white/10 text-white font-semibold'
               : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
-            >
+          >
             <span className="text-body-sm font-medium truncate tracking-tight">
               {projectModule.name}
             </span>
@@ -1109,11 +1106,10 @@ const Dashboard = () => {
         <button
           key={module.id}
           onClick={() => handleModuleClick(module.id)}
-          className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${
-            isActive
+          className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${isActive
               ? 'bg-brand-primary/10 text-white font-semibold'
               : 'hover:bg-white/5 text-white/70 hover:text-white'
-          }`}
+            }`}
         >
           {isSidebarExpanded && (
             <span className="text-body-sm font-medium tracking-tight">
@@ -1172,7 +1168,7 @@ const Dashboard = () => {
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto py-4 space-y-0.5 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
             {renderProjectDashboardModule()}
             {renderMOMModule()}
             {renderMastersModule()}
