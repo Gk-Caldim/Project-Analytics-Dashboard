@@ -35,33 +35,33 @@ const Connections = ({ settings, onUpdate }) => {
     <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">External Connections</h2>
-          <p className="text-sm text-slate-500 font-medium mt-1">Manage your third-party integrations and service credentials</p>
+          <h2 className="text-h2 font-semibold text-text-primary tracking-tight">External Connections</h2>
+          <p className="text-caption text-text-secondary font-bold uppercase tracking-wider mt-1">Manage your third-party integrations and service credentials</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
           {/* SMTP Configuration Card */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-sm space-y-8 hover:shadow-md transition-shadow">
+          <div className="bg-app-bg p-6 rounded-lg border border-border shadow-sm space-y-8">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm border border-indigo-100/20">
+                <div className="p-3 bg-brand-primary/5 text-brand-primary rounded-md shadow-sm border border-brand-primary/10">
                   <Mail className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-800 text-sm tracking-widest uppercase">SMTP Configuration</h3>
-                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">Email delivery service settings</p>
+                  <h3 className="font-semibold text-text-primary text-body-sm tracking-wide uppercase">SMTP Configuration</h3>
+                  <p className="text-caption text-text-muted font-bold uppercase tracking-wider mt-0.5">Email delivery service settings</p>
                 </div>
               </div>
               
               <button
                 onClick={testConnection}
                 disabled={isTesting}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-sm font-semibold text-caption tracking-widest uppercase transition-all shadow-sm ${
                   isTesting 
-                    ? 'bg-slate-100 text-slate-400' 
-                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100'
+                    ? 'bg-app-surface text-text-muted' 
+                    : 'bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 border border-brand-primary/10'
                 }`}
               >
                 {isTesting ? <RefreshCcw className="h-3.5 w-3.5 animate-spin" /> : <Wifi className="h-3.5 w-3.5" />}
@@ -70,80 +70,80 @@ const Connections = ({ settings, onUpdate }) => {
             </div>
 
             {testResult && (
-              <div className={`p-4 rounded-2xl flex items-center gap-3 animate-in zoom-in-95 duration-300 ${
-                testResult.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'
+              <div className={`p-3 rounded-md flex items-center gap-3 animate-in zoom-in-95 duration-300 border ${
+                testResult.type === 'success' ? 'bg-status-success/5 text-status-success border-status-success/20' : 'bg-status-error/5 text-status-error border-status-error/20'
               }`}>
                 {testResult.type === 'success' ? <Check className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                <p className="text-xs font-bold tracking-tight">{testResult.message}</p>
+                <p className="text-caption font-bold tracking-wider uppercase">{testResult.message}</p>
               </div>
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="group md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
+                <label className="block text-label font-semibold text-text-primary uppercase tracking-wider mb-2 px-1 transition-colors group-focus-within:text-brand-primary">
                   SMTP Host
                 </label>
                 <div className="relative">
-                  <Server className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Server className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                   <input
                     type="text"
                     value={getValue('smtp_host')}
                     onChange={(e) => onUpdate('smtp_host', e.target.value)}
-                    className="w-full h-14 pl-12 pr-6 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-bold text-slate-700 shadow-sm"
+                    className="w-full h-11 pl-12 pr-4 bg-app-surface border border-border rounded-sm focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary focus:bg-app-bg transition-all font-medium text-text-primary shadow-sm"
                     placeholder="smtp.gmail.com"
                   />
                 </div>
               </div>
 
               <div className="group md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
+                <label className="block text-label font-semibold text-text-primary uppercase tracking-wider mb-2 px-1 transition-colors group-focus-within:text-brand-primary">
                   SMTP Port
                 </label>
                 <div className="relative">
-                  <Database className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Database className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                   <input
                     type="number"
                     value={getValue('smtp_port')}
                     onChange={(e) => onUpdate('smtp_port', e.target.value)}
-                    className="w-full h-14 pl-12 pr-6 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-bold text-slate-700 shadow-sm"
+                    className="w-full h-11 pl-12 pr-4 bg-app-surface border border-border rounded-sm focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary focus:bg-app-bg transition-all font-medium text-text-primary shadow-sm"
                     placeholder="587"
                   />
                 </div>
               </div>
 
               <div className="group md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
+                <label className="block text-label font-semibold text-text-primary uppercase tracking-wider mb-2 px-1 transition-colors group-focus-within:text-brand-primary">
                   SMTP Username
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                   <input
                     type="text"
                     value={getValue('smtp_user')}
                     onChange={(e) => onUpdate('smtp_user', e.target.value)}
-                    className="w-full h-14 pl-12 pr-6 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-bold text-slate-700 shadow-sm"
+                    className="w-full h-11 pl-12 pr-4 bg-app-surface border border-border rounded-sm focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary focus:bg-app-bg transition-all font-medium text-text-primary shadow-sm"
                     placeholder="user@example.com"
                   />
                 </div>
               </div>
 
               <div className="group md:col-span-1">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
+                <label className="block text-label font-semibold text-text-primary uppercase tracking-wider mb-2 px-1 transition-colors group-focus-within:text-brand-primary">
                   SMTP Password
                 </label>
                 <div className="relative">
-                  <Key className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={getValue('smtp_pass')}
                     onChange={(e) => onUpdate('smtp_pass', e.target.value)}
-                    className="w-full h-14 pl-12 pr-12 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-bold text-slate-700 shadow-sm"
+                    className="w-full h-11 pl-12 pr-12 bg-app-surface border border-border rounded-sm focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary focus:bg-app-bg transition-all font-medium text-text-primary shadow-sm"
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-app-surface rounded-md transition-colors text-text-muted hover:text-brand-primary"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -151,14 +151,14 @@ const Connections = ({ settings, onUpdate }) => {
               </div>
             </div>
 
-            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-4">
-              <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100 text-slate-400">
+            <div className="p-4 bg-app-surface rounded-lg border border-border flex items-start gap-4">
+              <div className="p-2 bg-app-bg rounded-md shadow-sm border border-border text-text-muted">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Security Notice</h4>
-                <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
-                  Credentials are encrypted before storage and used solely for system-generated notifications and reports. Ensure your SMTP provider allows third-party application access.
+                <h4 className="text-caption font-bold text-text-primary uppercase tracking-widest">Security Notice</h4>
+                <p className="text-caption text-text-muted font-medium leading-relaxed uppercase tracking-wider">
+                  Credentials are encrypted before storage. Ensure your SMTP provider allows third-party application access.
                 </p>
               </div>
             </div>
@@ -166,46 +166,46 @@ const Connections = ({ settings, onUpdate }) => {
         </div>
 
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-indigo-600 p-8 rounded-[32px] text-white shadow-xl shadow-indigo-200 relative overflow-hidden group">
+          <div className="bg-brand-primary p-6 rounded-lg text-white shadow-lg shadow-brand-primary/20 relative overflow-hidden group">
             <div className="absolute -right-8 -top-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
               <Wifi className="h-48 w-48" />
             </div>
             
             <div className="relative z-10 space-y-6">
-              <div className="h-12 w-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30">
+              <div className="h-10 w-10 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/20">
                 <Wifi className="h-6 w-6" />
               </div>
               
               <div>
-                <h3 className="text-xl font-black tracking-tight leading-tight">Connection Hub</h3>
-                <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-2">Active Integrations</p>
+                <h3 className="text-h3 font-semibold tracking-tight leading-tight">Connection Hub</h3>
+                <p className="text-white/60 text-caption font-bold uppercase tracking-widest mt-2">Active Integrations</p>
               </div>
 
               <div className="space-y-4 pt-4">
-                <div className="flex items-center justify-between p-4 bg-white/10 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-md border border-white/10">
                   <div className="flex items-center gap-3">
                     <Mail className="h-4 w-4 opacity-60" />
-                    <span className="text-xs font-black tracking-widest uppercase">SMTP Relay</span>
+                    <span className="text-caption font-bold tracking-widest uppercase">SMTP Relay</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black tracking-widest uppercase text-emerald-300">Live</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-300">Live</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-slate-100 space-y-4">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Knowledge Base</h4>
+          <div className="bg-app-bg p-4 rounded-lg border border-border space-y-4 shadow-sm">
+            <h4 className="text-label font-semibold text-text-muted uppercase tracking-wider px-1">Knowledge Base</h4>
             <div className="space-y-1">
-              <button className="w-full text-left p-3 hover:bg-slate-50 rounded-xl transition-all group">
-                <p className="text-[12px] font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">SMTP with Gmail</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">How to use app passwords</p>
+              <button className="w-full text-left p-3 hover:bg-app-surface rounded-md transition-all group">
+                <p className="text-body-sm font-semibold text-text-primary group-hover:text-brand-primary transition-colors">SMTP with Gmail</p>
+                <p className="text-caption text-text-muted mt-0.5 font-medium">How to use app passwords</p>
               </button>
-              <button className="w-full text-left p-3 hover:bg-slate-50 rounded-xl transition-all group">
-                <p className="text-[12px] font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">TLS vs SSL</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">Port selection guide</p>
+              <button className="w-full text-left p-3 hover:bg-app-surface rounded-md transition-all group">
+                <p className="text-body-sm font-semibold text-text-primary group-hover:text-brand-primary transition-colors">TLS vs SSL</p>
+                <p className="text-caption text-text-muted mt-0.5 font-medium">Port selection guide</p>
               </button>
             </div>
           </div>

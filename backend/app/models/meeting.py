@@ -8,7 +8,7 @@ class Meeting(Base):
     __tablename__ = 'meetings'
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     user_id = Column(String, nullable=True, index=True) # Optional now that we're centralizing
     title = Column(String, nullable=False)
     description = Column(Text, nullable=True)

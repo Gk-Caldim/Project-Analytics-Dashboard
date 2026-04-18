@@ -244,7 +244,18 @@ const ScheduleMeetingPage = () => {
   const initialCustomTypes = useMemo(() => {
     try {
       const stored = localStorage.getItem('custom_event_types');
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      // Re-hydrate the JSX icon because React elements cannot be serialized to JSON.
+      // If we don't do this, React will throw: "Objects are not valid as a React child"
+      return parsed.map(t => ({
+        ...t,
+        icon: (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/>
+          </svg>
+        )
+      }));
     } catch (e) {
       return [];
     }
@@ -268,14 +279,24 @@ const ScheduleMeetingPage = () => {
   const saveCustomEventType = (e) => {
     e.preventDefault();
     if (!customReasonInput.trim()) return;
+
+    // Define the icon for the new type
+    const icon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>;
+
     const newType = {
       id: `custom_${Date.now()}`,
       label: customReasonInput.trim(),
-      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+      icon
     };
+
     const updated = [...customEventTypes, newType];
     setCustomEventTypes(updated);
-    localStorage.setItem('custom_event_types', JSON.stringify(updated));
+
+    // Save to localStorage, but strip the icon JSX because it can't be serialized.
+    // It will be re-added in initialCustomTypes via useMemo on next load.
+    const toSave = updated.map(({ icon, ...rest }) => rest);
+    localStorage.setItem('custom_event_types', JSON.stringify(toSave));
+
     setMeetingType(newType.id);
     setCustomReasonInput('');
   };
