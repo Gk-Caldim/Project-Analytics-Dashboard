@@ -518,12 +518,18 @@ const ScheduleMeetingPage = () => {
     return `${h} hr ${m} min`;
   };
 
-  const to12Hour = (time24) => {
-    if (!time24) return '';
-    const [h, m] = time24.split(':').map(Number);
+  const to12Hour = (timeStr) => {
+    if (!timeStr) return '';
+    if (typeof timeStr === 'string' && timeStr.includes('T')) {
+      const d = new Date(timeStr);
+      timeStr = `${d.getHours()}:${d.getMinutes()}`;
+    }
+    const parts = String(timeStr).split(':');
+    const h = Number(parts[0]) || 0;
+    const m = parts.length > 1 ? Number(parts[1]) : 0;
     const period = h >= 12 ? 'PM' : 'AM';
     const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+    return `${hour}:${String(m || 0).padStart(2, '0')} ${period}`;
   };
 
   // Add preset duration minutes to a 24h time string
@@ -719,7 +725,7 @@ const ScheduleMeetingPage = () => {
         </div>
 
         {/* Mini Calendar */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        <div className="glass-panel rounded-2xl border border-gray-200/50 p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-800 text-sm">
               {new Date(miniCalYear, miniCalMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -798,8 +804,8 @@ const ScheduleMeetingPage = () => {
         </div>
 
         {/* Meeting Type Selection */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Event Type</label>
+        <div className="glass-panel rounded-2xl border border-gray-200/50 p-4 shadow-sm hover:shadow-md transition-shadow">
+          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Event Type</label>
           <div className="flex flex-col gap-2">
             {meetingTypes.map(type => (
               <button
@@ -849,8 +855,8 @@ const ScheduleMeetingPage = () => {
         </div>
         
         {/* Color Coding */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm mb-4">
-           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Event Color</label>
+        <div className="glass-panel rounded-2xl border border-gray-200/50 p-4 shadow-sm mb-4 hover:shadow-md transition-shadow">
+           <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Event Color</label>
            <div className="flex flex-wrap gap-2">
             {[
               '#4f46e5', // indigo
@@ -876,11 +882,11 @@ const ScheduleMeetingPage = () => {
       </div>
 
       {/* ───── CENTER COLUMN (CALENDAR) ───── */}
-      <div className="calendar-column h-full overflow-y-auto pb-6 pr-2 custom-scrollbar">
+      <div className="calendar-column h-full overflow-y-auto pb-6 pr-1 custom-scrollbar">
         {/* Calendar Card (Weekly View) */}
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm transition-all h-full flex flex-col">
-          <div className="flex items-center justify-between mb-4 px-1">
-            <div className="flex items-center gap-4">
+        <div className="glass-panel rounded-2xl border border-gray-200/50 p-4 shadow-sm transition-all h-full flex flex-col hover:shadow-md">
+          <div className="flex flex-wrap items-center justify-between mb-3 px-1 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button 
                 className="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-colors shadow-sm"
                 onClick={handleToday}
@@ -901,7 +907,7 @@ const ScheduleMeetingPage = () => {
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-              <h2 key={calendarKey} className="text-base font-bold text-gray-800 tracking-tight select-none cal-month-label-anim ml-2">
+              <h2 key={calendarKey} className="text-sm lg:text-base font-bold text-gray-800 tracking-tight select-none cal-month-label-anim ml-1 whitespace-nowrap truncate max-w-[130px] sm:max-w-none">
                 {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric', day: activeView === 'Day' ? 'numeric' : undefined })}
               </h2>
             </div>
@@ -919,7 +925,7 @@ const ScheduleMeetingPage = () => {
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setIsViewDropOpen(false)} />
                   <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden py-1">
-                    {['Day', 'Work', 'Week'].map(v => (
+                    {['Day', 'Work', 'Week', 'Agenda'].map(v => (
                       <button 
                         key={v}
                         onClick={() => {
@@ -940,6 +946,51 @@ const ScheduleMeetingPage = () => {
 
           {/* Timeline Grid */}
           <div key={calendarKey} className={`weekly-calendar-container flex-1 overflow-hidden flex flex-col cal-slide-${calendarDir === -1 ? 'from-left' : 'from-right'}`}>
+            {activeView === 'Agenda' ? (
+              <div className="agenda-view-wrapper flex-1 overflow-y-auto px-6 py-4 custom-scrollbar bg-gray-50/30">
+                {(() => {
+                  const futureMeetings = existingMeetings.filter(m => !isPastSlot(m.date, parseInt((m.time||'0').split(':')[0]), parseInt((m.time||'0').split(':')[1])));
+                  futureMeetings.sort((a,b) => new Date(a.date) - new Date(b.date));
+                  if(futureMeetings.length === 0) return <div className="text-gray-400 mt-10 text-center font-medium">No upcoming meetings. Enjoy your time back!</div>;
+                  
+                  let lastDate = '';
+                  return futureMeetings.map(m => {
+                    const mDateStr = new Date(m.date).toLocaleDateString();
+                    const showHeader = mDateStr !== lastDate;
+                    lastDate = mDateStr;
+                    const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
+                    return (
+                      <React.Fragment key={m.id || Math.random()}>
+                        {showHeader && <div className="text-sm font-extrabold text-gray-800 mt-6 mb-3 border-b border-gray-100 pb-1">{new Date(m.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>}
+                        <div 
+                          className="flex items-center gap-4 py-3 px-4 mb-2 bg-white hover:bg-gray-50 rounded-xl cursor-pointer transition-colors shadow-sm border border-gray-100"
+                          onClick={(e) => handleExistingMeetingClick(e, m)}
+                        >
+                          <div className="w-20 text-xs font-bold text-gray-500 whitespace-nowrap text-right pr-2">{to12Hour(m.time)}</div>
+                          <div className="w-1 h-10 rounded-full" style={{ backgroundColor: mColor.border }}></div>
+                          <div className="flex-1">
+                            <div className="font-bold text-gray-900 text-sm">{m.title}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{m.duration} min • {m.meeting_type || 'General'}</div>
+                          </div>
+                          {m.attendees && (
+                            <div className="flex flex-shrink-0 -space-x-1.5 overflow-hidden hidden sm:flex pl-2">
+                              {Array.isArray(m.attendees) ? m.attendees.filter(a => a).map((a, i) => {
+                                const initial = (typeof a === 'object' ? (a.name || a.email || '?') : String(a)).trim().charAt(0).toUpperCase() || '?';
+                                return (
+                                <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: mColor.bg, color: mColor.text, borderColor: mColor.border, borderWidth: '1px' }}>
+                                  {initial !== '?' && initial !== '[' ? initial : 'A'}
+                                </div>
+                              )}) : null}
+                            </div>
+                          )}
+                        </div>
+                      </React.Fragment>
+                    );
+                  });
+                })()}
+              </div>
+            ) : (
+            <>
             <div 
               className="weekly-calendar-header border-b border-gray-200 bg-gray-50/50" 
               style={{ display: 'grid', gridTemplateColumns: `60px repeat(${weekDays.length}, minmax(0, 1fr))` }}
@@ -1078,10 +1129,17 @@ const ScheduleMeetingPage = () => {
                             }}
                             title={`${m.title} (${m.time})`}
                           >
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</span>
-                            {blockHeight > 28 && (
+                            <span className="leading-tight" style={{ 
+                              display: '-webkit-box', 
+                              WebkitLineClamp: blockHeight > 45 ? 2 : 1, 
+                              WebkitBoxOrient: 'vertical', 
+                              overflow: 'hidden' 
+                            }}>
+                              {m.title}
+                            </span>
+                            {blockHeight > 30 && (
                               <span style={{ fontSize: '10px', fontWeight: '500', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {m.time}
+                                {to12Hour(m.time)}
                               </span>
                             )}
                           </div>
@@ -1129,13 +1187,15 @@ const ScheduleMeetingPage = () => {
               </div>
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>
 
       {/* ───── RIGHT COLUMN (FORM) ───── */}
-      <div className="form-column h-full overflow-y-auto pb-6 pl-2 custom-scrollbar">
-        <div className="sticky-panel bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+      <div className="form-column h-full overflow-y-auto pb-6 pl-1 custom-scrollbar">
+        <div className="sticky-panel glass-panel border border-gray-200/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
 
           {/* Live Summary Box */}
           <div className="summary-box mb-8 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-5 rounded-xl text-sm">
@@ -1411,7 +1471,7 @@ const ScheduleMeetingPage = () => {
       {/* ───── ZO-STYLE MEETING POPOVER ───── */}
       {selectedMeetingForDetails && popoverAnchor && (
         <div 
-          className="meeting-popover fixed z-[100] w-[300px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-fadeIn animate-scaleIn"
+          className="meeting-popover fixed z-[100] w-[300px] glass-panel rounded-2xl shadow-xl border border-white/60 overflow-hidden animate-fadeIn animate-scaleIn"
           style={{ left: popoverAnchor.x, top: popoverAnchor.y }}
         >
           <div className="p-5">
@@ -1428,12 +1488,21 @@ const ScheduleMeetingPage = () => {
                   </span>
                 </div>
               </div>
-              <button 
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                onClick={() => setSelectedMeetingForDetails(null)}
-              >
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
+              <div className="flex gap-1 -mt-1">
+                <button className="p-1.5 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-gray-400 transition-colors" title="Edit">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors" title="Delete">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+                <div className="w-px h-4 bg-gray-200 self-center ml-1" />
+                <button 
+                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors ml-1"
+                  onClick={() => setSelectedMeetingForDetails(null)}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3.5 mb-6">
@@ -1447,34 +1516,40 @@ const ScheduleMeetingPage = () => {
               </div>
               {selectedMeetingForDetails.attendees && (
                 <div className="flex items-start gap-3 text-sm text-gray-600 font-medium">
-                  <Users className="w-4 h-4 text-indigo-500 mt-0.5" />
-                  <div className="flex -space-x-2 overflow-hidden">
+                  <Users className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
+                  <div className="flex -space-x-2 overflow-hidden flex-wrap gap-y-1">
                     {Array.isArray(selectedMeetingForDetails.attendees) ? (
-                      selectedMeetingForDetails.attendees.map((a, i) => (
+                      selectedMeetingForDetails.attendees.filter(a => a).map((a, i) => {
+                        const initial = (typeof a === 'object' ? (a.name || a.email || '?') : String(a)).trim().charAt(0).toUpperCase() || '?';
+                        return (
                         <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-200">
-                          {String(a).charAt(0).toUpperCase()}
+                          {initial !== '?' && initial !== '[' ? initial : 'A'}
                         </div>
-                      ))
+                      )})
                     ) : (
-                      <span className="text-gray-500 text-xs">{selectedMeetingForDetails.attendees}</span>
+                      <span className="text-gray-500 text-xs truncate max-w-[200px]">{selectedMeetingForDetails.attendees}</span>
                     )}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-2 pt-4 border-t border-gray-50">
+            <div className="pt-4 mt-2 border-t border-gray-100">
               <button 
-                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 mb-2"
                 onClick={() => navigate(`/dashboard/meeting/${selectedMeetingForDetails.id || selectedMeetingForDetails.project_id}`)}
               >
-                <ArrowRight className="w-3.5 h-3.5" /> Open Room
+                <Video className="w-4 h-4" /> Join Virtual Room
               </button>
               <button 
-                className="px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold transition-all border border-gray-100"
-                onClick={() => setSelectedMeetingForDetails(null)}
+                className="w-full py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center justify-center gap-2"
+                onClick={(e) => {
+                   e.preventDefault();
+                   navigator.clipboard.writeText(window.location.origin + `/dashboard/meeting/${selectedMeetingForDetails.id || selectedMeetingForDetails.project_id}`);
+                }}
               >
-                Close
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                Copy Invite Link
               </button>
             </div>
           </div>
