@@ -35,7 +35,8 @@ const EmployeeMaster = () => {
     status: 'Active', 
     modules: [],
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    custom_fields: {}
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState(null);
@@ -48,7 +49,8 @@ const EmployeeMaster = () => {
     status: 'Active',
     modules: [],
     password: '',
-    confirmPassword: '' 
+    confirmPassword: '',
+    custom_fields: {}
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -61,11 +63,9 @@ const EmployeeMaster = () => {
   const [pageSize, setPageSize] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50, 100];
 
-  // Load columns from localStorage
-  const [columns, setColumns] = useState(() => {
-    const savedColumns = localStorage.getItem('employee_columns_v5');
-    return savedColumns ? JSON.parse(savedColumns) : initialColumns;
-  });
+  // Load columns from backend (and combine with initialColumns)
+  const [columns, setColumns] = useState(initialColumns);
+  const [customColumns, setCustomColumns] = useState([]);
 
   const [editingColumn, setEditingColumn] = useState(null);
   const [tempColumnName, setTempColumnName] = useState('');
@@ -141,6 +141,7 @@ const EmployeeMaster = () => {
     setLoading(true);
     setError(null);
     try {
+      await fetchColumns();
       await fetchEmployees();
       await fetchDynamicRoles();
     } catch (err) {
@@ -149,6 +150,30 @@ const EmployeeMaster = () => {
       showNotification('Failed to load data', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchColumns = async () => {
+    try {
+      const res = await API.get('/employees/columns/all');
+      if (Array.isArray(res.data)) {
+        const formattedCustomCols = res.data.map(col => ({
+          id: col.column_name,
+          db_id: col.id, // Keep track of database ID for updates/deletes
+          label: col.column_label,
+          visible: true,
+          sortable: true,
+          type: col.data_type,
+          deletable: true,
+          required: col.is_required
+        }));
+        setCustomColumns(formattedCustomCols);
+        
+        // Sync with columns state
+        setColumns([...initialColumns, ...formattedCustomCols]);
+      }
+    } catch (err) {
+      console.error("Error fetching columns", err);
     }
   };
 
@@ -287,14 +312,33 @@ const EmployeeMaster = () => {
     setTempColumnName(currentLabel);
   };
 
-  const saveEditColumn = (columnId) => {
+  const saveEditColumn = async (columnId) => {
     if (tempColumnName.trim()) {
-      setColumns(columns.map(col =>
-        col.id === columnId ? { ...col, label: tempColumnName } : col
-      ));
-      setEditingColumn(null);
-      setTempColumnName('');
-      showNotification('Column updated successfully');
+      const col = columns.find(c => c.id === columnId);
+      if (!col.db_id) {
+        // This is a fixed column, we only update it locally if needed, 
+        // but backend doesn't support updating fixed columns via this API
+        setColumns(columns.map(c =>
+          c.id === columnId ? { ...c, label: tempColumnName } : c
+        ));
+        setEditingColumn(null);
+        setTempColumnName('');
+        showNotification('Column updated locally');
+        return;
+      }
+
+      try {
+        await API.put(`/employees/columns/${col.db_id}`, {
+          column_label: tempColumnName
+        });
+        await fetchColumns();
+        setEditingColumn(null);
+        setTempColumnName('');
+        showNotification('Column updated successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error updating column', 'error');
+      }
     }
   };
 
@@ -326,14 +370,27 @@ const EmployeeMaster = () => {
     });
   };
 
-  const confirmDeleteColumn = () => {
+  const confirmDeleteColumn = async () => {
     if (!showDeleteColumnPrompt) return;
 
     const columnId = showDeleteColumnPrompt.id;
-    setColumns(columns.filter(col => col.id !== columnId));
-    setShowDeleteColumnPrompt(null);
-    setShowColumnModal(false);
-    showNotification('Column deleted successfully');
+    const col = columns.find(c => c.id === columnId);
+    
+    if (col && col.db_id) {
+      try {
+        await API.delete(`/employees/columns/${col.db_id}`);
+        await fetchColumns();
+        setShowDeleteColumnPrompt(null);
+        setShowColumnModal(false);
+        showNotification('Column deleted successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error deleting column', 'error');
+      }
+    } else {
+      // Should not happen for fixed columns based on handleDeleteColumn check
+      setShowDeleteColumnPrompt(null);
+    }
   };
 
   // Sorting
@@ -349,10 +406,7 @@ const EmployeeMaster = () => {
     return sortConfig.direction === 'ascending' ? <ChevronUp className="h-3 w-3 sm:h-4 sm:w-4" /> : <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />;
   };
 
-  // Save columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('employee_columns_v5', JSON.stringify(columns));
-  }, [columns]);
+  // Columns are now managed by backend, no need for localStorage sync
 
   // Filter employees - exclude dummy or missing data
   const filteredEmployees = employees.filter(emp => {
@@ -441,13 +495,25 @@ const EmployeeMaster = () => {
       status: 'Active',
       password: '',
       confirmPassword: '',
-      modules: []
+      modules: [],
+      custom_fields: {}
     });
   };
 
   // Handle new employee input change
   const handleNewEmployeeChange = (field, value) => {
     setNewEmployee(prev => {
+      // Handle custom fields
+      if (customColumns.find(c => c.id === field)) {
+        return {
+          ...prev,
+          custom_fields: {
+            ...prev.custom_fields,
+            [field]: value
+          }
+        };
+      }
+
       const updated = { ...prev, [field]: value };
       // Auto-toggle permissions if role is dynamic
       if (field === 'role') {
@@ -530,7 +596,8 @@ const EmployeeMaster = () => {
       id: employee.id,
       password: '',
       confirmPassword: '',
-      modules: employee.modules || []
+      modules: employee.modules || [],
+      custom_fields: employee.custom_fields || {}
     });
     setEditingId(employee.id);
   };
@@ -583,6 +650,17 @@ const EmployeeMaster = () => {
   // Handle edit form change
   const handleEditFormChange = (field, value) => {
     setEditForm(prev => {
+      // Handle custom fields
+      if (customColumns.find(c => c.id === field)) {
+        return {
+          ...prev,
+          custom_fields: {
+            ...prev.custom_fields,
+            [field]: value
+          }
+        };
+      }
+
       const updated = { ...prev, [field]: value };
       // Auto-toggle permissions if role is dynamic
       if (field === 'role') {
@@ -608,7 +686,7 @@ const EmployeeMaster = () => {
     });
   };
 
-  const confirmAddColumn = () => {
+  const confirmAddColumn = async () => {
     if (newColumnName.trim()) {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
@@ -617,21 +695,23 @@ const EmployeeMaster = () => {
         return;
       }
 
-      const newColumn = {
-        id: newColumnId,
-        label: newColumnName,
-        visible: true,
-        sortable: true,
-        type: 'text',
-        deletable: true,
-        required: false
-      };
-
-      setColumns([...columns, newColumn]);
-      setNewColumnName('');
-      setShowColumnAddPrompt({ show: false, columnName: '' });
-      setShowColumnModal(false);
-      showNotification('Column added successfully');
+      try {
+        await API.post('/employees/columns/create', {
+          column_name: newColumnId,
+          column_label: newColumnName,
+          data_type: 'text',
+          is_required: false
+        });
+        
+        await fetchColumns();
+        setNewColumnName('');
+        setShowColumnAddPrompt({ show: false, columnName: '' });
+        setShowColumnModal(false);
+        showNotification('Column added successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error adding column', 'error');
+      }
     }
   };
 
@@ -840,6 +920,13 @@ const EmployeeMaster = () => {
         </span>
       );
     }
+
+    // Handle custom fields
+    if (customColumns.find(c => c.id === column.id)) {
+      const customValue = emp.custom_fields ? emp.custom_fields[column.id] : null;
+      return <span className="text-sm text-slate-700 dark:text-slate-300">{customValue || '-'}</span>;
+    }
+
     return <span className="text-sm text-slate-700 dark:text-slate-300">{value || '-'}</span>;
   };
 
@@ -1355,6 +1442,29 @@ const EmployeeMaster = () => {
                 </div>
               </div>
 
+              {/* Custom Fields Section */}
+              {customColumns.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">Additional Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {customColumns.map((col) => (
+                      <div key={col.id}>
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          {col.label} {col.required && <span className="text-red-500">*</span>}
+                        </label>
+                        <input
+                          type={col.type === 'number' ? 'number' : 'text'}
+                          value={newEmployee.custom_fields?.[col.id] || ''}
+                          onChange={(e) => handleNewEmployeeChange(col.id, e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                          placeholder={`Enter ${col.label.toLowerCase()}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
 
 
               <div className="flex justify-end space-x-2">
@@ -1457,6 +1567,29 @@ const EmployeeMaster = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Custom Fields Section */}
+              {customColumns.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-3">Additional Details</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {customColumns.map((col) => (
+                      <div key={col.id}>
+                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                          {col.label} {col.required && <span className="text-red-500">*</span>}
+                        </label>
+                        <input
+                          type={col.type === 'number' ? 'number' : 'text'}
+                          value={editForm.custom_fields?.[col.id] || ''}
+                          onChange={(e) => handleEditFormChange(col.id, e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                          placeholder={`Enter ${col.label.toLowerCase()}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
 
 
@@ -1597,7 +1730,7 @@ const EmployeeMaster = () => {
                     )}
 
                     {/* Add Column Button */}
-                    {hasPermission('Employee Master', 'CUSTOM_COLUMNS') && (
+                    {hasPermission('Employee Master', 'ADD') && (
                       <button
                         onClick={() => setShowColumnModal(true)}
                         className="flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 whitespace-nowrap master-table-tooltip"
