@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  BarChart2, 
-  MessageSquare, 
-  Wallet, 
-  Gavel, 
-  Settings, 
-  HelpCircle, 
+import {
+  LayoutDashboard,
+  BarChart2,
+  MessageSquare,
+  Wallet,
+  Gavel,
+  Settings,
+  HelpCircle,
   LogOut,
   ArrowRight,
   Clock,
@@ -28,35 +28,35 @@ const WorkspaceDashboard = () => {
   ];
 
   const modules = [
-    { 
-      id: 'analytics', 
-      title: 'Analytics', 
-      status: 'Connected', 
-      statusType: 'green', 
+    {
+      id: 'analytics',
+      title: 'Analytics',
+      status: 'Connected',
+      statusType: 'green',
       icon: <BarChart2 size={24} />,
       cta: 'View dashboards'
     },
-    { 
-      id: 'meetings', 
-      title: 'Minutes & Meetings', 
-      status: 'Connected', 
-      statusType: 'green', 
+    {
+      id: 'meetings',
+      title: 'Minutes & Meetings',
+      status: 'Connected',
+      statusType: 'green',
       icon: <MessageSquare size={24} />,
       cta: 'View records'
     },
-    { 
-      id: 'budget', 
-      title: 'Budget Intelligence', 
-      status: 'Not configured', 
-      statusType: 'amber', 
+    {
+      id: 'budget',
+      title: 'Budget Intelligence',
+      status: 'Not configured',
+      statusType: 'amber',
       icon: <Wallet size={24} />,
       cta: 'Setup module'
     },
-    { 
-      id: 'governance', 
-      title: 'Team Governance', 
-      status: 'Not configured', 
-      statusType: 'amber', 
+    {
+      id: 'governance',
+      title: 'Team Governance',
+      status: 'Not configured',
+      statusType: 'amber',
       icon: <Gavel size={24} />,
       cta: 'Setup module'
     },
@@ -64,7 +64,7 @@ const WorkspaceDashboard = () => {
 
   return (
     <div className="ws-dash-root">
-      
+
       {/* ── SIDEBAR ── */}
       <aside className="ws-sidebar">
         <div className="ws-sidebar-top">
@@ -74,23 +74,23 @@ const WorkspaceDashboard = () => {
           </div>
 
           <nav className="ws-side-nav">
-            <div className="ws-nav-item active">
+            <div className="ws-nav-item active" style={{cursor:'pointer'}} onClick={() => navigate('/workspace-dashboard')}>
               <LayoutDashboard size={18} />
               <span>Overview</span>
             </div>
-            <div className="ws-nav-item">
+            <div className="ws-nav-item" style={{cursor:'pointer'}} onClick={() => navigate('/analytics')}>
               <BarChart2 size={18} />
               <span>Analytics</span>
             </div>
-            <div className="ws-nav-item">
+            <div className="ws-nav-item" style={{cursor:'pointer'}} onClick={() => navigate('/meetings')}>
               <MessageSquare size={18} />
               <span>Meetings</span>
             </div>
-            <div className="ws-nav-item">
+            <div className="ws-nav-item" style={{cursor:'pointer'}} onClick={() => navigate('/budget')}>
               <Wallet size={18} />
               <span>Budget</span>
             </div>
-            <div className="ws-nav-item">
+            <div className="ws-nav-item" style={{cursor:'pointer'}} onClick={() => navigate('/governance')}>
               <Gavel size={18} />
               <span>Governance</span>
             </div>
@@ -98,7 +98,7 @@ const WorkspaceDashboard = () => {
         </div>
 
         <div className="ws-sidebar-bottom">
-          <div className="ws-nav-item">
+          <div className="ws-nav-item" style={{cursor:'pointer'}} onClick={() => navigate('/dashboard/settings')}>
             <Settings size={18} />
             <span>Settings</span>
           </div>
@@ -119,7 +119,7 @@ const WorkspaceDashboard = () => {
 
       {/* ── MAIN CONTENT ── */}
       <main className="ws-main">
-        
+
         {/* Navbar */}
         <header className="ws-navbar">
           <div className="ws-nav-inner">
@@ -156,12 +156,12 @@ const WorkspaceDashboard = () => {
           </div>
 
           <div className="ws-dashboard-grid">
-            
+
             {/* Module Grid */}
             <div className="ws-grid-left">
               <div className="ws-module-grid">
                 {modules.map(mod => (
-                  <div key={mod.id} className="ws-module-card">
+                  <div key={mod.id} className="ws-module-card" style={{cursor:'pointer'}} onClick={() => navigate(`/${mod.id}`)}>  
                     <div className="ws-mod-header">
                       <div className="ws-mod-icon-wrapper">
                         {mod.icon}
@@ -172,7 +172,7 @@ const WorkspaceDashboard = () => {
                     </div>
                     <div className="ws-mod-body">
                       <h4 className="ws-mod-title">{mod.title}</h4>
-                      <a href="#" className="ws-mod-cta">{mod.cta} →</a>
+                      <span className="ws-mod-cta">{mod.cta} →</span>
                     </div>
                   </div>
                 ))}
@@ -197,10 +197,10 @@ const WorkspaceDashboard = () => {
               <div className="ws-quick-actions-card">
                 <h3 className="ws-qa-title">Quick Actions</h3>
                 <div className="ws-qa-buttons">
-                  <button className="ws-qa-btn">View Analytics</button>
-                  <button className="ws-qa-btn">Start a Meeting</button>
-                  <button className="ws-qa-btn">Check Budget</button>
-                  <button className="ws-qa-btn">Manage Users</button>
+                  <button className="ws-qa-btn" onClick={() => navigate('/analytics')}>View Analytics</button>
+                  <button className="ws-qa-btn" onClick={() => navigate('/meetings')}>Start a Meeting</button>
+                  <button className="ws-qa-btn" onClick={() => navigate('/budget')}>Check Budget</button>
+                  <button className="ws-qa-btn" onClick={() => navigate('/governance')}>Manage Users</button>
                 </div>
               </div>
             </aside>

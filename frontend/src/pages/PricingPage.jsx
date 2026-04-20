@@ -87,10 +87,10 @@ const PricingPage = () => {
             <span className="zoho-logo-text">Industrial Analytics Workspace</span>
           </div>
           <div className="zoho-nav-right">
-            <a href="#products" className="zoho-nav-link" onClick={() => navigate('/')}>Products</a>
-            <a href="#customers" className="zoho-nav-link">Customers</a>
+            <a href="/#products" className="zoho-nav-link" onClick={() => navigate('/')}>Products</a>
+            <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
             <a href="/pricing" className="zoho-nav-link active" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise_v1.html" className="zoho-nav-link">Enterprise</a>
+            <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
             <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
             <button className="zoho-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
           </div>

@@ -67,10 +67,10 @@ const LandingPage = () => {
           </div>
           
           <div className="zoho-nav-right">
-            <a href="#products" className="zoho-nav-link">Products</a>
-            <a href="#customers" className="zoho-nav-link">Customers</a>
+            <a href="#products" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); const el = document.getElementById('products'); if(el) el.scrollIntoView({behavior: 'smooth'}); }}>Products</a>
+            <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
             <a href="/pricing" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise_v1.html" className="zoho-nav-link">Enterprise</a>
+            <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
             <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>
               Sign In
             </button>
