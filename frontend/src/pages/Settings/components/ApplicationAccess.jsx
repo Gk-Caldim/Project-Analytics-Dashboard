@@ -1,296 +1,308 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Users, Key, Search, Edit, Trash2, X, Check, Save,
-  AlertCircle, Loader2, ShieldCheck, Mail, Lock, User, Eye, EyeOff
+  Shield, User, Mail, Plus, X, Trash2, Edit, Save, Loader2, Check, Lock, Eye, EyeOff
 } from 'lucide-react';
 import API from '../../../utils/api';
 
 const ApplicationAccess = () => {
-  const [accessRecords, setAccessRecords] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingRecord, setEditingRecord] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [notification, setNotification] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Edit Form State
   const [formData, setFormData] = useState({
+    username: '',
     email: '',
-    password: '',
-    confirm_password: ''
+    role: '',
+    password: ''
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   useEffect(() => {
-    fetchAccessRecords();
+    fetchUsersAndRoles();
   }, []);
 
-  const fetchAccessRecords = async () => {
+  const fetchUsersAndRoles = async () => {
     try {
       setLoading(true);
-      const response = await API.get('/application-access');
-      setAccessRecords(response.data);
+      const [usersRes, rolesRes] = await Promise.all([
+        API.get('/auth/users/'),
+        API.get('/roles/')
+      ]);
+      setUsers(usersRes.data);
+      setRoles(rolesRes.data);
     } catch (error) {
-      console.error('Error fetching access records:', error);
-      showNotification('Failed to load application access data', 'error');
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: '' });
+    }, 3000);
   };
 
-  const handleEdit = (record) => {
-    setEditingRecord(record);
-    setFormData({
-      email: record.email,
-      password: '',
-      confirm_password: ''
-    });
-    setShowPassword(false);
-    setShowConfirmPassword(false);
-  };
-
-  const handleSave = async () => {
-    if (!formData.email) {
-      showNotification('Email is required', 'error');
+  const handleCreateUser = async () => {
+    if (!formData.username || !formData.email || !formData.role || !formData.password) {
+      showNotification('Please fill all required fields', 'error');
       return;
     }
-
-    if (formData.password && formData.password !== formData.confirm_password) {
-      showNotification('Passwords do not match', 'error');
-      return;
-    }
-
-    setIsSaving(true);
     try {
-      const response = await API.patch(`/application-access/${editingRecord.id}`, formData);
-      setAccessRecords(prev => prev.map(r => r.id === editingRecord.id ? response.data : r));
-      setEditingRecord(null);
-      showNotification('Application access updated successfully');
+      setSaving(true);
+      await API.post('/auth/register/', formData);
+      await fetchUsersAndRoles();
+      setShowAddModal(false);
+      setFormData({ username: '', email: '', role: '', password: '' });
+      showNotification('User created successfully');
     } catch (error) {
-      console.error('Error updating access:', error);
-      const detail = error.response?.data?.detail || 'Failed to update access';
-      showNotification(detail, 'error');
+      console.error('Error creating user:', error);
+      showNotification('Failed to create user', 'error');
     } finally {
-      setIsSaving(false);
+      setSaving(false);
     }
   };
 
-  const filteredRecords = accessRecords.filter(record =>
-    record.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (record.employee_name && record.employee_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+    try {
+      setSaving(true);
+      await API.patch(`/auth/users/${selectedUser.id}/`, {
+        role: formData.role
+      });
+      await fetchUsersAndRoles();
+      setShowEditModal(false);
+      showNotification('User updated successfully');
+    } catch (error) {
+      console.error('Error updating user:', error);
+      showNotification('Failed to update user', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      await API.delete(`/auth/users/${id}/`);
+      await fetchUsersAndRoles();
+      showNotification('User deleted successfully');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      showNotification('Failed to delete user', 'error');
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-        <p className="text-text-secondary text-caption font-bold tracking-widest uppercase animate-pulse">Loading application access logs...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-[#0E1B2E]" />
+        <p className="text-gray-400 text-xs font-bold tracking-widest uppercase">Syncing account directory...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {notification && (
-        <div className={`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg shadow-xl z-[100] animate-in slide-in-from-top-10 duration-500 flex items-center gap-4 ${notification.type === 'success' ? 'bg-text-primary text-white' : 'bg-status-error text-white'
-          }`}>
-          {notification.type === 'success' ? <Check className="h-5 w-5 text-brand-primary" /> : <AlertCircle className="h-5 w-5" />}
-          <span className="text-caption font-bold tracking-widest uppercase">{notification.message}</span>
+    <div className="space-y-12">
+      {notification.show && (
+        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[300] animate-in fade-in slide-in-from-right-8 duration-300 ${notification.type === 'success' ? 'bg-[#0E1B2E] text-white border-white/10' : 'bg-red-600 text-white border-none'}`}>
+          <p className="text-xs font-bold tracking-wider uppercase">{notification.message}</p>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-h2 font-bold text-text-primary tracking-tight">Application Access</h1>
-          <p className="text-body-sm text-text-muted">Manage user credentials and security protocols</p>
+          <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Application Access</h2>
+          <p className="text-sm text-gray-500 mt-2">Manage user accounts, authentication profiles and system access levels.</p>
         </div>
-
-        <div className="relative group min-w-[320px]">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted group-focus-within:text-brand-primary transition-colors" />
-          <input
-            type="text"
-            placeholder="Search credentials..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-11 pr-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
-          />
-        </div>
+        <button
+          onClick={() => {
+            setFormData({ username: '', email: '', role: '', password: '' });
+            setShowAddModal(true);
+          }}
+          className="h-11 px-6 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center gap-3"
+        >
+          <Plus className="h-4 w-4" />
+          Add Account
+        </button>
       </div>
 
-      <div className="bg-app-surface rounded-lg border border-border overflow-hidden relative">
+      <div className="bg-white border border-gray-200 rounded-none overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-app-bg/50 border-b border-border text-left">
-                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">User Profile</th>
-                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">Identity</th>
-                <th className="px-6 py-3 text-label font-bold text-text-muted uppercase tracking-widest">Synchronization</th>
-                <th className="px-6 py-3 text-right text-label font-bold text-text-muted uppercase tracking-widest">Controls</th>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">User Profile</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Identity</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Security Level</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Joined</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((record) => (
-                  <tr key={record.id} className="border-b last:border-0 border-border hover:bg-app-bg/30 transition-colors group/row">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-brand-primary/5 text-brand-primary rounded flex items-center justify-center font-bold text-xs border border-brand-primary/10">
-                          {record.employee_name ? record.employee_name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
-                        </div>
-                        <div>
-                          <p className="text-body-sm font-bold text-text-primary tracking-tight">{record.employee_name || 'System Principal'}</p>
-                          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-0.5">UID: {record.id}</p>
-                        </div>
+            <tbody className="divide-y divide-gray-100">
+              {users.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0E1B2E] font-bold text-xs uppercase">
+                        {user.username.charAt(0)}
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-body-sm font-medium text-text-secondary">
-                        <Mail className="h-3.5 w-3.5 text-text-muted" />
-                        {record.email}
+                      <div>
+                        <p className="text-sm font-bold text-[#0E1B2E]">{user.username}</p>
+                        <p className="text-[11px] text-gray-400 font-medium uppercase tracking-tight">{user.is_active ? 'Active Connection' : 'Inactive'}</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-0.5">
-                        <p className="text-body-sm font-semibold text-text-secondary">{new Date(record.updated_at).toLocaleDateString()}</p>
-                        <p className="text-caption font-bold text-text-muted uppercase tracking-widest">{new Date(record.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleEdit(record)}
-                        className="p-2 text-text-muted hover:text-brand-primary hover:bg-brand-primary/5 rounded border border-transparent hover:border-brand-primary/10 transition-all"
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <p className="text-xs text-gray-500 font-medium">{user.email}</p>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="px-3 py-1 bg-[#0E1B2E] text-white text-[9px] font-bold tracking-widest uppercase border border-white/10">
+                      {user.role || 'Unassigned'}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <p className="text-xs text-gray-400 font-medium">
+                      {new Date(user.date_joined).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+                    </p>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-4">
+                      <button 
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setFormData({ role: user.role });
+                          setShowEditModal(true);
+                        }}
+                        className="text-gray-400 hover:text-[#0E1B2E] transition-colors"
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <Edit className="h-4 w-4" />
                       </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <ShieldCheck className="h-10 w-10 text-border" />
-                      <p className="text-text-muted font-bold text-caption tracking-widest uppercase">No access records found</p>
+                      <button 
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
       </div>
-      {/* Edit Modal */}
-      {editingRecord && (
-        <div className="fixed inset-0 bg-text-primary/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-app-bg rounded-lg w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-border">
-            <div className="p-8 border-b border-border flex items-center justify-between bg-app-surface">
-              <div>
-                <h3 className="text-h3 font-bold text-text-primary">Credential Control</h3>
-                <p className="text-caption text-text-muted uppercase tracking-widest font-bold mt-1">IDENTITY MANAGEMENT</p>
-              </div>
-              <button
-                onClick={() => setEditingRecord(null)}
-                className="p-2 hover:bg-app-bg rounded-md transition-all"
-              >
-                <X className="h-5 w-5 text-text-muted" />
-              </button>
-            </div>
- 
-            <div className="p-8 space-y-6">
-              <div className="space-y-2 group">
-                <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
-                  <Mail className="h-3.5 w-3.5" /> Email Address
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="admin@example.com"
-                  className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
-                />
-              </div>
 
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2 group">
-                  <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
-                    <Key className="h-3.5 w-3.5" /> New Password
-                  </label>
-                  <div className="relative">
+      {(showAddModal || showEditModal) && (
+        <div className="fixed inset-0 bg-[#0E1B2E]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg border border-gray-200 flex flex-col shadow-2xl">
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#0E1B2E]">
+               <h3 className="text-xl font-bold uppercase tracking-tight">
+                 {showAddModal ? 'New Account Profile' : 'Modify Access Level'}
+               </h3>
+               <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-gray-400 hover:text-[#0E1B2E]">
+                 <X className="h-6 w-6" />
+               </button>
+            </div>
+            
+            <div className="p-8 space-y-8">
+              {showAddModal && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Username</label>
                     <input
-                      type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="••••••••"
-                      className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                      placeholder="e.g. john_doe"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-brand-primary transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
                   </div>
-                  <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em] px-1 opacity-70">Leave blank to retain current</p>
-                </div>
- 
-                <div className="space-y-2 group">
-                  <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-brand-primary transition-all">
-                    <Lock className="h-3.5 w-3.5" /> Confirm Password
-                  </label>
-                  <div className="relative">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
                     <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={formData.confirm_password}
-                      onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
-                      placeholder="••••••••"
-                      className="w-full h-11 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                      placeholder="john@enterprise.com"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-text-muted hover:text-brand-primary transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Security Level (Role)</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium appearance-none"
+                    >
+                      <option value="">Select Role</option>
+                      {roles.map(role => (
+                        <option key={role.id} value={role.name}>{role.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Initial Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                        placeholder="••••••••"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0E1B2E]"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {showEditModal && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Access Level for {selectedUser?.username}</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium appearance-none"
+                  >
+                    {roles.map(role => (
+                      <option key={role.id} value={role.name}>{role.name}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="p-6 bg-app-surface flex gap-3 border-t border-border">
+            <div className="p-8 bg-gray-50 border-t border-gray-100 flex gap-4">
               <button
-                onClick={() => setEditingRecord(null)}
-                className="flex-1 h-11 rounded font-bold text-text-secondary hover:bg-app-bg transition-all uppercase tracking-widest text-caption"
+                onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
+                className="flex-1 h-12 font-bold text-gray-400 hover:text-[#0E1B2E] uppercase tracking-widest text-[10px] transition-colors"
               >
-                DISCARD
+                Discard
               </button>
               <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-[2] h-11 rounded bg-text-primary text-white font-bold shadow-md hover:brightness-110 active:scale-95 transition-all disabled:opacity-30 flex items-center justify-center gap-3 uppercase tracking-widest text-caption"
+                onClick={showAddModal ? handleCreateUser : handleUpdateUser}
+                disabled={saving}
+                className="flex-[2] h-12 bg-[#0E1B2E] text-white font-bold uppercase tracking-widest text-[10px] hover:opacity-90 disabled:opacity-30 transition-all"
               >
-                {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                SYNC CREDENTIALS
+                {saving ? 'Processing...' : (showAddModal ? 'Register Profile' : 'Save Alignment')}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <div className="flex items-center gap-3 p-4 bg-app-surface rounded border border-border group">
-        <ShieldCheck className="h-4 w-4 text-brand-primary" />
-        <p className="text-[10px] font-black text-text-muted uppercase tracking-[0.25em]">
-          Security Protocol Active • Real-time synchronization enabled • All access events logged
-        </p>
-      </div>
     </div>
   );
 };

@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { refreshUserProfile } from '../../../store/slices/authSlice';
 import {
-  Shield, UserCheck, Lock, ChevronRight, CheckCircle2, Circle, Search, Plus, Boxes, LayoutDashboard,
-  FileText, Settings, Users, ClipboardList, Briefcase, FileSearch, HelpCircle, Key, Activity,
-  Info, AlertCircle, Save, X, ToggleLeft, ToggleRight, Trash2, Loader2
+  Shield, Edit, Trash2, X, Save, Plus, Loader2, Check
 } from 'lucide-react';
 import API from '../../../utils/api';
 
@@ -31,7 +29,6 @@ const AccessControl = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
 
-  // Show notification component
   const showNotification = (message, type = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => {
@@ -48,7 +45,7 @@ const AccessControl = () => {
         { name: 'MOM', description: 'Minutes of Meeting management', tags: ['CREATE', 'VIEW'] },
       ]
     },
-  {
+    {
       id: 'masters',
       label: 'MASTER DATA',
       permissions: [
@@ -116,12 +113,7 @@ const AccessControl = () => {
     return [...rolesList].sort((a, b) => {
       const orderA = ROLE_ORDER[a.name] || 999;
       const orderB = ROLE_ORDER[b.name] || 999;
-
-      if (orderA !== orderB) {
-        return orderA - orderB;
-      }
-
-      // For roles with the same priority (mostly custom roles), sort alphabetically
+      if (orderA !== orderB) return orderA - orderB;
       return a.name.localeCompare(b.name);
     });
   };
@@ -132,7 +124,6 @@ const AccessControl = () => {
       const response = await API.get('/roles/');
       const sortedRoles = sortRoles(response.data);
       setRoles(sortedRoles);
-
       if (sortedRoles.length > 0 && !selectedRole) {
         setSelectedRole(sortedRoles[0]);
       } else if (selectedRole) {
@@ -148,34 +139,26 @@ const AccessControl = () => {
 
   const handleTogglePermission = (moduleName, subPermId = null) => {
     if (!selectedRole) return;
-
     let currentPermissions = selectedRole.permissions || [];
     let updatedPermissions;
-
-    // Find the module object to know its sub-permissions
     const moduleObj = permissionsGroups.flatMap(g => g.permissions).find(p => p.name === moduleName);
     const moduleSubPermIds = moduleObj?.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${moduleName}:${sp.id}`) || [];
 
     if (subPermId) {
-      // Toggle a specific sub-permission
       const fullSubPerm = subPermId.includes('_') ? subPermId : `${moduleName}:${subPermId}`;
       updatedPermissions = currentPermissions.includes(fullSubPerm)
         ? currentPermissions.filter(p => p !== fullSubPerm)
         : [...currentPermissions, fullSubPerm];
     } else {
-      // Toggle the main module
       const isEnabled = currentPermissions.includes(moduleName);
       if (isEnabled) {
-        // Disable main module AND its specific sub-permissions ONLY
         updatedPermissions = currentPermissions.filter(p =>
           p !== moduleName && !moduleSubPermIds.includes(p)
         );
       } else {
-        // Enable main module AND all its sub-permissions by default
         updatedPermissions = [...new Set([...currentPermissions, moduleName, ...moduleSubPermIds])];
       }
     }
-
     setSelectedRole({ ...selectedRole, permissions: updatedPermissions });
     setRoles(roles.map(r => r.id === selectedRole.id ? { ...r, permissions: updatedPermissions } : r));
   };
@@ -187,16 +170,13 @@ const AccessControl = () => {
       await API.patch(`/roles/${selectedRole.id}`, {
         permissions: selectedRole.permissions
       });
-      
-      // Auto-reflect: Refresh the user's profile if the updated role is the current user's role
       if (selectedRole.name === currentUser?.role) {
         await dispatch(refreshUserProfile());
       }
-      
-      showNotification('Permissions updated successfully!');
+      showNotification('Permissions synced successfully!');
     } catch (error) {
       console.error('Error saving role changes:', error);
-      showNotification('Failed to update permissions.', 'error');
+      showNotification('Failed to sync permissions.', 'error');
     } finally {
       setSaving(false);
     }
@@ -218,10 +198,10 @@ const AccessControl = () => {
       setNewRoleName('');
       setNewRoleDescription('');
       setNewRolePermissions([]);
-      showNotification(`Role "${response.data.name}" created successfully!`);
+      showNotification(`Role created successfully!`);
     } catch (error) {
       console.error('Error creating role:', error);
-      showNotification('Failed to create custom role.', 'error');
+      showNotification('Failed to create role.', 'error');
     } finally {
       setSaving(false);
     }
@@ -248,22 +228,16 @@ const AccessControl = () => {
     }
   };
 
-  const handleDeleteRole = (role) => {
-    setRoleToDelete(role);
-    setShowDeleteModal(true);
-  };
-
   const Toggle = ({ enabled, onChange, disabled }) => (
     <button
       onClick={() => !disabled && onChange && onChange(!enabled)}
       type="button"
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A] focus-visible:ring-opacity-75 ${enabled ? 'bg-[#1E3A8A]' : 'bg-slate-200'
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 outline-none ${enabled ? 'bg-[#0E1B2E]' : 'bg-gray-200'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
-      <span className="sr-only">Toggle permission</span>
       <span
         aria-hidden="true"
-        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-300 ease-in-out ${enabled ? 'translate-x-[18px]' : 'translate-x-0.5'
+        className={`inline-block h-4 w-4 transform bg-white transition duration-200 ease-in-out ${enabled ? 'translate-x-[18px]' : 'translate-x-0.5'
           }`}
       />
     </button>
@@ -272,77 +246,58 @@ const AccessControl = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-        <p className="text-text-secondary text-caption font-bold tracking-widest uppercase animate-pulse">Loading synchronization layer...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-[#0E1B2E]" />
+        <p className="text-gray-400 text-xs font-bold tracking-widest uppercase">Initializing access layer...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
-      {/* Notification Banner */}
+    <div className="space-y-12 pb-20">
+      {/* Notification */}
       {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 rounded-lg shadow-xl z-[200] flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-300 border ${notification.type === 'success'
-          ? 'bg-status-success/5 border-status-success/20 text-status-success'
-          : 'bg-status-error/5 border-status-error/20 text-status-error'
+        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[200] flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-300 ${notification.type === 'success'
+          ? 'bg-[#0E1B2E] border-white/10 text-white'
+          : 'bg-red-600 border-none text-white'
           }`}>
-          {notification.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-          <p className="text-caption font-bold tracking-wider uppercase">{notification.message}</p>
-          <button
-            onClick={() => setNotification({ ...notification, show: false })}
-            className="ml-2 p-1 hover:bg-black/5 rounded transition-colors"
-          >
-            <X className="h-4 w-4 opacity-50" />
-          </button>
+          <p className="text-xs font-bold tracking-wider uppercase">{notification.message}</p>
         </div>
       )}
 
-      <div className="mb-2">
-        <h1 className="text-h2 font-bold text-text-primary tracking-tight">Access Control</h1>
-        <p className="text-body-sm text-text-muted">Manage system roles and functional permissions</p>
+      <div>
+        <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Access Control</h2>
+        <p className="text-sm text-gray-500 mt-2">Manage system roles and functional permissions mapping.</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Available Roles */}
-        <div className="xl:col-span-3 lg:col-span-4 space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <h3 className="text-label font-bold text-text-muted uppercase tracking-widest">Available Roles</h3>
-              <span className="px-1.5 py-0.5 bg-app-bg border border-border text-text-muted rounded text-[10px] font-bold">{roles.length}</span>
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Roles */}
+        <div className="xl:col-span-3 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-200 pb-4">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Available Roles</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5 h-8 px-3 bg-brand-primary text-white rounded font-bold text-caption hover:brightness-110 active:scale-95 transition-all shadow-md shadow-brand-primary/10 uppercase tracking-widest"
+              className="h-8 px-3 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity"
             >
               <Plus className="h-3.5 w-3.5" />
-              CREATE
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             {roles.map((role) => (
-              <div key={role.id} className="relative group/role">
+              <div key={role.id} className="group relative">
                 <button
                   onClick={() => setSelectedRole(role)}
-                  className={`w-full text-left p-4 rounded-lg border transition-all relative overflow-hidden ${selectedRole?.id === role.id
-                    ? 'bg-app-surface border-brand-primary shadow-sm'
-                    : 'bg-app-bg border-border hover:border-brand-primary/20 hover:bg-app-surface'
+                  className={`w-full text-left px-4 py-4 border transition-all ${selectedRole?.id === role.id
+                    ? 'bg-[#0E1B2E] border-[#0E1B2E] text-white font-bold'
+                    : 'bg-white border-gray-200 text-gray-500 hover:border-[#0E1B2E] hover:text-[#0E1B2E]'
                     }`}
                 >
-                  <div className="flex items-center gap-3 pr-6">
-                    <div className={`p-2 rounded border transition-colors ${selectedRole?.id === role.id ? 'bg-brand-primary/5 border-brand-primary/20 text-brand-primary' : 'bg-app-bg border-border text-text-muted opacity-50'
-                      }`}>
-                      <Shield className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={`text-body-sm transition-all truncate ${selectedRole?.id === role.id ? 'font-bold text-text-primary' : 'font-medium text-text-secondary'}`}>{role.name}</h4>
-                    </div>
-                  </div>
+                  <span className="text-xs uppercase tracking-tight truncate block pr-8">{role.name}</span>
                 </button>
                 {!role.is_default && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteRole(role); }}
-                    className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 text-text-muted hover:text-status-error opacity-0 group-hover/role:opacity-100 transition-all"
+                    onClick={(e) => { e.stopPropagation(); setRoleToDelete(role); setShowDeleteModal(true); }}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 transition-opacity ${selectedRole?.id === role.id ? 'text-white/60 hover:text-white' : 'text-gray-400 hover:text-red-600'}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -352,63 +307,56 @@ const AccessControl = () => {
           </div>
         </div>
 
-        {/* Right Column: Permissions Dashboard */}
-        <div className="xl:col-span-9 lg:col-span-8 bg-app-bg rounded-lg border border-border shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+        {/* Right Column: Permissions */}
+        <div className="xl:col-span-9 bg-white border border-gray-200 p-0 overflow-hidden flex flex-col min-h-[600px]">
           {selectedRole ? (
             <>
-              <div className="p-6 border-b border-border flex items-center justify-between bg-app-surface sticky top-0 z-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-brand-primary/10 text-brand-primary rounded flex items-center justify-center border border-brand-primary/20">
-                    <Shield className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-h3 font-bold text-text-primary lg:text-h2">{selectedRole.name}</h2>
-                    <p className="text-caption text-text-muted uppercase tracking-widest font-bold">Permissions Profile</p>
-                  </div>
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                <div>
+                  <h3 className="text-xl font-bold text-[#0E1B2E]">{selectedRole.name}</h3>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-[0.2em] font-bold mt-1">Permission Profile</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   <button
                     onClick={() => setSelectedRole(roles.find(r => r.id === selectedRole.id))}
-                    className="h-9 px-4 text-text-secondary rounded font-bold text-caption tracking-widest uppercase hover:bg-app-bg transition-all"
+                    className="h-10 px-6 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0E1B2E] transition-colors"
                   >
-                    DISCARD
+                    Discard
                   </button>
                   <button
                     onClick={handleSaveChanges}
                     disabled={saving}
-                    className="h-9 px-6 bg-text-primary text-white rounded font-bold text-caption tracking-widest uppercase shadow-md active:scale-95 transition-all disabled:opacity-30 flex items-center gap-2"
+                    className="h-10 px-8 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity disabled:opacity-30"
                   >
-                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    SYNC CHANGES
+                    {saving ? '...' : 'Sync Changes'}
                   </button>
                 </div>
               </div>
 
-              <div className="p-8 space-y-4">
+              <div className="p-8 space-y-12">
                 {permissionsGroups.map((group) => (
-                  <div key={group.id} className="space-y-4">
-                    <h4 className="text-caption font-black text-text-muted uppercase tracking-[0.2em] px-1">{group.label}</h4>
-                    <div className="space-y-3">
+                  <div key={group.id} className="space-y-6">
+                    <h4 className="text-[11px] font-bold text-gray-300 uppercase tracking-[0.3em] px-1">{group.label}</h4>
+                    <div className="space-y-2">
                       {group.permissions.map((perm) => {
                         const isEnabled = selectedRole.permissions?.includes(perm.name);
                         return (
                           <div
                             key={perm.name}
-                            className={`p-5 rounded-lg border transition-all ${perm.special ? 'bg-brand-primary/5 border-brand-primary/20' : 'bg-app-surface border-border hover:border-brand-primary/30'
-                              } ${!isEnabled && !perm.special ? 'opacity-50 grayscale' : ''}`}
+                            className={`p-6 border transition-all ${perm.special ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-100 hover:border-gray-200'
+                              } ${!isEnabled && !perm.special ? 'opacity-40 grayscale' : ''}`}
                           >
-                            <div className="flex items-start justify-between gap-6">
-                              <div className="flex-1 space-y-1">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  {perm.special && <Lock className="h-3.5 w-3.5 text-brand-primary" />}
-                                  <h3 className="text-body font-bold text-text-primary">{perm.name}</h3>
+                            <div className="flex items-start justify-between gap-8">
+                              <div className="flex-1 space-y-2">
+                                <div className="flex items-center gap-4 flex-wrap">
+                                  <h3 className="text-sm font-bold text-[#0E1B2E] uppercase tracking-tight">{perm.name}</h3>
                                   {perm.tags?.map(tag => (
-                                    <span key={tag} className="px-1.5 py-0.5 bg-app-bg text-text-primary text-[9px] font-bold tracking-widest uppercase rounded border border-border">
+                                    <span key={tag} className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[9px] font-bold tracking-widest uppercase border border-gray-200">
                                       {tag}
                                     </span>
                                   ))}
                                 </div>
-                                <p className="text-body-sm text-text-secondary leading-relaxed max-w-2xl">
+                                <p className="text-xs text-gray-500 leading-relaxed max-w-2xl font-medium">
                                   {perm.description}
                                 </p>
                               </div>
@@ -418,14 +366,13 @@ const AccessControl = () => {
                               />
                             </div>
  
-                            {/* Granular Sub-Permissions */}
                             {isEnabled && perm.subPermissions && (
-                              <div className="mt-6 pt-6 border-t border-border grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
+                              <div className="mt-8 pt-8 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                                 {perm.subPermissions.map(sub => {
                                   const isSubEnabled = selectedRole.permissions?.includes(sub.id.includes('_') ? sub.id : `${perm.name}:${sub.id}`);
                                   return (
-                                    <div key={sub.id} className="flex items-center justify-between px-4 py-2.5 rounded bg-app-bg border border-border group/sub">
-                                      <span className="text-caption font-bold text-text-muted uppercase tracking-widest group-hover/sub:text-text-primary transition-colors">{sub.label}</span>
+                                    <div key={sub.id} className="flex items-center justify-between p-4 bg-gray-50 border border-gray-100 hover:bg-white transition-colors group/sub">
+                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover/sub:text-[#0E1B2E] transition-colors">{sub.label}</span>
                                       <Toggle
                                         enabled={isSubEnabled}
                                         onChange={() => handleTogglePermission(perm.name, sub.id)}
@@ -444,141 +391,117 @@ const AccessControl = () => {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 p-12">
-              <Shield className="h-16 w-16 mb-4 opacity-20" />
-              <p className="font-bold text-sm tracking-widest">SELECT A ROLE TO MANAGE PERMISSIONS</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-12 bg-gray-50">
+              <p className="font-bold text-xs text-gray-300 tracking-[0.3em] uppercase">Select role to configure</p>
             </div>
           )}
 
-          <div className="mt-auto p-4 bg-app-surface border-t border-border">
-            <p className="text-caption text-text-muted font-bold text-center uppercase tracking-[0.2em]">
-              Role Synchronization Active • Security Level: High
+          <div className="mt-auto p-4 bg-gray-50 border-t border-gray-100">
+            <p className="text-[9px] text-gray-400 font-bold text-center uppercase tracking-[0.3em]">
+              Security synchronization active • Production Grade Controls
             </p>
           </div>
         </div>
       </div>
-      {/* Create Role Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-text-primary/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-app-bg rounded-lg w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-border">
-            <div className="p-8 border-b border-border flex items-center justify-between bg-app-surface">
-              <div>
-                <h3 className="text-h3 font-bold text-text-primary">Create Role</h3>
-                <p className="text-caption text-text-muted uppercase tracking-widest font-bold mt-1">NEW SECURITY PROFILE</p>
-              </div>
-              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-app-bg rounded-md transition-all">
-                <X className="h-5 w-5 text-text-muted" />
-              </button>
-            </div>
-            <div className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1">Role Name</label>
-                <input
-                  type="text"
-                  value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
-                  placeholder="e.g. Quality Inspector"
-                  className="w-full h-12 px-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary text-body-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1">Description</label>
-                <textarea
-                  value={newRoleDescription}
-                  onChange={(e) => setNewRoleDescription(e.target.value)}
-                  placeholder="Define role scope..."
-                  className="w-full min-h-[100px] p-5 rounded border border-border bg-app-surface focus:border-brand-primary outline-none transition-all font-medium text-text-primary resize-none text-body-sm"
-                />
-              </div>
 
-              {/* Permission Checklist */}
-              <div className="space-y-4">
-                <label className="text-label font-bold text-text-muted uppercase tracking-widest px-1">Initial Permissions</label>
-                <div className="max-h-[260px] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-                  {permissionsGroups.map(group => (
-                    <div key={group.id} className="space-y-2">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {group.permissions.map(perm => {
-                          const isChecked = newRolePermissions.includes(perm.name);
-                          return (
-                            <div
-                              key={perm.name}
-                              onClick={() => {
-                                if (isChecked) {
-                                  const subPermsToRemove = perm.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${perm.name}:${sp.id}`) || [];
-                                  setNewRolePermissions(newRolePermissions.filter(p => p !== perm.name && !p.startsWith(`${perm.name}:`) && !subPermsToRemove.includes(p)));
-                                } else {
-                                  const subPerms = perm.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${perm.name}:${sp.id}`) || [];
-                                  setNewRolePermissions([...newRolePermissions, perm.name, ...subPerms]);
-                                }
-                              }}
-                              className={`p-3 rounded border cursor-pointer transition-all flex items-center justify-between ${isChecked ? 'bg-brand-primary/5 border-brand-primary/20' : 'bg-app-surface border-border hover:border-text-muted'
-                                }`}
-                            >
-                              <span className={`text-[11px] font-bold uppercase tracking-wider ${isChecked ? 'text-brand-primary' : 'text-text-muted'}`}>
-                                {perm.name}
-                              </span>
-                              {isChecked ? <CheckCircle2 className="h-4 w-4 text-brand-primary" /> : <div className="h-4 w-4 rounded-full border border-border" />}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {/* Modals */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-[#0E1B2E]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-xl border border-gray-200">
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#0E1B2E]">
+               <h3 className="text-xl font-bold uppercase tracking-tight">Create Role</h3>
+               <button onClick={() => setShowCreateModal(false)} className="hover:opacity-60"><X className="h-5 w-5" /></button>
             </div>
-            <div className="p-6 bg-app-surface flex gap-3 border-t border-border">
-              <button
+            <div className="p-8 space-y-8">
+               <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Role Name</label>
+                 <input
+                   type="text"
+                   value={newRoleName}
+                   onChange={(e) => setNewRoleName(e.target.value)}
+                   className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                 />
+               </div>
+               <div className="space-y-4">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Initial Permissions Mapping</label>
+                 <div className="max-h-[300px] overflow-y-auto pr-4 space-y-4 border-l border-gray-100 ml-1">
+                   {permissionsGroups.map(group => (
+                     <div key={group.id} className="space-y-3 pl-4">
+                        <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.25em] mb-4">{group.label}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {group.permissions.map(perm => {
+                            const isChecked = newRolePermissions.includes(perm.name);
+                            return (
+                              <div
+                                key={perm.name}
+                                onClick={() => {
+                                  if (isChecked) {
+                                    const subPermsToRemove = perm.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${perm.name}:${sp.id}`) || [];
+                                    setNewRolePermissions(newRolePermissions.filter(p => p !== perm.name && !p.startsWith(`${perm.name}:`) && !subPermsToRemove.includes(p)));
+                                  } else {
+                                    const subPerms = perm.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${perm.name}:${sp.id}`) || [];
+                                    setNewRolePermissions([...newRolePermissions, perm.name, ...subPerms]);
+                                  }
+                                }}
+                                className={`p-4 border cursor-pointer flex items-center justify-between transition-colors ${isChecked ? 'bg-[#0E1B2E] border-[#0E1B2E] text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                              >
+                                <span className="text-[10px] font-bold uppercase tracking-widest">{perm.name}</span>
+                                {isChecked && <Check className="h-3 w-3" />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+            </div>
+            <div className="p-8 bg-gray-50 flex gap-4 border-t border-gray-100">
+              <button 
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 h-11 rounded font-bold text-text-secondary hover:bg-app-bg transition-all uppercase tracking-widest text-caption"
+                className="flex-1 h-12 font-bold text-gray-400 hover:text-[#0E1B2E] uppercase tracking-widest text-[10px]"
               >
-                DISCARD
+                Discard
               </button>
-              <button
+              <button 
                 onClick={handleCreateRole}
                 disabled={saving || !newRoleName.trim()}
-                className="flex-1 h-11 rounded bg-text-primary text-white font-bold shadow-md hover:brightness-110 transition-all disabled:opacity-30 uppercase tracking-widest text-caption"
+                className="flex-[2] h-12 bg-[#0E1B2E] text-white font-bold uppercase tracking-widest text-[10px] hover:opacity-90 disabled:opacity-30"
               >
-                {saving ? 'CREATING...' : 'CREATE ROLE'}
+                Create Role Profile
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-text-primary/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-app-bg rounded-lg w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-border">
-            <div className="p-8 text-center flex flex-col items-center">
-              <div className="w-14 h-14 bg-status-error/5 rounded-md flex items-center justify-center text-status-error mb-6 border border-status-error/10">
-                <Trash2 className="h-7 w-7" />
-              </div>
-              <h3 className="text-h3 font-bold text-text-primary mb-2">Delete Role?</h3>
-              <p className="text-caption text-text-secondary font-bold leading-relaxed uppercase tracking-widest">
-                Confirm deletion of <span className="text-text-primary">"{roleToDelete?.name}"</span>. This action is irreversible.
-              </p>
-            </div>
-            <div className="p-6 bg-app-surface flex gap-3 border-t border-border">
-              <button
-                onClick={() => { setShowDeleteModal(false); setRoleToDelete(null); }}
-                className="flex-1 h-11 rounded font-bold text-text-secondary hover:bg-app-bg transition-all uppercase tracking-widest text-caption"
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={confirmDeleteRole}
-                disabled={saving}
-                className="flex-1 h-11 rounded bg-status-error text-white font-bold shadow-lg shadow-status-error/10 hover:brightness-110 transition-all disabled:opacity-30 uppercase tracking-widest text-caption"
-              >
-                {saving ? 'DELETING...' : 'DELETE'}
-              </button>
-            </div>
+        <div className="fixed inset-0 bg-[#0E1B2E]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm border border-gray-200 p-10 text-center">
+             <div className="w-16 h-16 bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-8">
+                <Trash2 className="h-8 w-8" />
+             </div>
+             <h3 className="text-xl font-bold text-[#0E1B2E] mb-2">Delete Role?</h3>
+             <p className="text-xs text-gray-500 font-medium uppercase tracking-widest leading-relaxed">
+               Destroying role profile <span className="text-[#0E1B2E] font-bold">"{roleToDelete?.name}"</span>. This action cannot be reversed.
+             </p>
+             <div className="mt-10 flex gap-3">
+                <button 
+                  onClick={() => { setShowDeleteModal(false); setRoleToDelete(null); }}
+                  className="flex-1 h-11 font-bold text-gray-400 hover:text-[#0E1B2E] uppercase tracking-widest text-[10px]"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDeleteRole}
+                  className="flex-[2] h-11 bg-red-600 text-white font-bold uppercase tracking-widest text-[10px] hover:opacity-90"
+                >
+                  Confirm Delete
+                </button>
+             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
