@@ -9,3 +9,4 @@ from app.models.employee_project import EmployeeProjectMap
 from app.models.project_permission import ProjectPermission
 from app.models.audit_log import AuditLog
 from app.models.application_access import ApplicationAccess
+from app.models.chat_history import ChatHistory

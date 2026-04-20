@@ -10,9 +10,11 @@ import {
   setSelectedUploadFileId,
   setActiveProjectName,
   setSidebarCollapsed,
-  setBranding
+  setBranding,
+  setActiveView
 } from '../store/slices/navSlice';
 import { logout } from '../store/slices/authSlice';
+import AgentView from './AgentView';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
@@ -62,7 +64,8 @@ const Dashboard = () => {
     activeProjectName,
     sidebarCollapsed,
     companyLogo,
-    companyName
+    companyName,
+    activeView
   } = useSelector(state => state.nav);
 
   // Fetch settings on mount
@@ -1128,145 +1131,191 @@ const Dashboard = () => {
     <div className="h-screen flex flex-col overflow-hidden bg-app-bg">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Clean Surface Color */}
-        <div
-          ref={sidebarRef}
-          className={`
-            fixed lg:relative inset-y-0 left-0 z-30
-            ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-[#0E1B2E]
-          border-r border-white/5
-            transform transition-all duration-250 ease-product lg:transform-none
-            flex flex-col
-            overflow-hidden
-          `}
-        >
-          {/* Logo Section */}
-          <div className="px-4 py-6 border-b border-white/5">
-            {isSidebarExpanded ? (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                  <span className="text-white font-bold text-base">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
+        {activeView !== 'agent' && (
+          <div
+            ref={sidebarRef}
+            className={`
+              fixed lg:relative inset-y-0 left-0 z-30
+              ${isSidebarExpanded ? 'w-60' : 'w-16'}
+              bg-[#0E1B2E]
+            border-r border-white/5
+              transform transition-all duration-250 ease-product lg:transform-none
+              flex flex-col
+              overflow-hidden
+            `}
+          >
+            {/* Logo Section */}
+            <div className="px-4 py-6 border-b border-white/5">
+              {isSidebarExpanded ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                    <span className="text-white font-bold text-base">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-bold text-white truncate tracking-tight">
+                      {companyName || 'Industrial Analytics'}
+                    </p>
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-bold text-white truncate tracking-tight">
-                    {companyName || 'Industrial Analytics'}
-                  </p>
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                  <span className="text-white font-bold text-base">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
-            {renderProjectDashboardModule()}
-            {renderMOMModule()}
-            {renderMastersModule()}
-            {renderUploadsModule()}
-            {renderOtherModules()}
-          </div>
-
-          {/* User Section at Bottom */}
-          <div className="p-4 border-t border-white/5 bg-white/5">
-            <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
-                {getUserInitial()}
-              </div>
-              {isSidebarExpanded && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
+              ) : (
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                    <span className="text-white font-bold text-base">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Navigation */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
+              {renderProjectDashboardModule()}
+              {renderMOMModule()}
+              {renderMastersModule()}
+              {renderUploadsModule()}
+              {renderOtherModules()}
+            </div>
+
+            {/* User Section at Bottom */}
+            <div className="p-4 border-t border-white/5 bg-white/5">
+              <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
+                  {getUserInitial()}
+                </div>
+                {isSidebarExpanded && (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#171717]' : 'bg-app-bg'}`}>
           {/* Header */}
-          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6">
+          <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent' 
+            ? 'bg-[#171717] border-b border-white/5' 
+            : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Toggle & Title */}
             <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-              </button>
-              <h1 className="text-h3 font-semibold text-text-primary">
-                {getHeaderTitle()}
+              {activeView !== 'agent' && (
+                <button
+                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+                  className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                </button>
+              )}
+              <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
+                {activeView === 'agent' ? 'AI Agent' : getHeaderTitle()}
               </h1>
             </div>
 
+            {/* Center - View Toggle */}
+            <div className="flex-1 flex justify-center">
+              <div className={`flex p-1 rounded-lg border transition-colors duration-300 ${activeView === 'agent' 
+                ? 'bg-[#212121] border-white/10' 
+                : 'bg-app-surface border-border'}`}>
+                <button
+                  onClick={() => dispatch(setActiveView('dashboard'))}
+                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'dashboard'
+                      ? 'bg-brand-primary text-white shadow-sm'
+                      : activeView === 'agent' 
+                        ? 'text-white/40 hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => dispatch(setActiveView('agent'))}
+                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'agent'
+                      ? 'bg-brand-primary text-white shadow-sm'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`}
+                >
+                  Agent
+                </button>
+              </div>
+            </div>
+
             {/* Right - Date/Time & Profile */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1 justify-end">
               {/* Date and Time */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-app-surface rounded-md">
-                <Clock className="h-4 w-4 text-text-muted" />
-                <span className="text-body-sm font-medium text-text-secondary tabular-nums">{currentTime}</span>
-                <span className="text-border-strong">|</span>
-                <span className="text-body-sm text-text-secondary">{currentDate}</span>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors duration-300 ${activeView === 'agent'
+                ? 'bg-[#212121] border border-white/5'
+                : 'bg-app-surface'}`}>
+                <Clock className={`h-4 w-4 ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`} />
+                <span className={`text-body-sm font-medium tabular-nums ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentTime}</span>
+                <span className={activeView === 'agent' ? 'text-white/10' : 'text-border-strong'}>|</span>
+                <span className={`text-body-sm ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentDate}</span>
               </div>
 
               {/* Profile Menu */}
               <div className="relative" ref={profileMenuRef}>
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold text-body-sm hover:bg-brand-accent transition-colors duration-fast"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-body-sm transition-colors duration-fast ${activeView === 'agent'
+                    ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                    : 'bg-brand-primary text-white hover:bg-brand-accent'}`}
                 >
                   {getUserInitial()}
                 </button>
 
                 {profileMenuOpen && (
                   <div
-                    className="fixed z-[9999] w-64 bg-app-bg rounded-lg shadow-lg border border-border py-2"
+                    className={`fixed z-[9999] w-64 rounded-lg shadow-lg border py-2 ${activeView === 'agent'
+                      ? 'bg-[#212121] border-white/10 text-white'
+                      : 'bg-app-bg border-border text-text-primary'}`}
                     style={{
                       top: `${profileMenuPosition.top}px`,
                       right: `${profileMenuPosition.right}px`
                     }}
                   >
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className={`px-4 py-3 border-b ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary'}`}>
                           {getUserInitial()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-body font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
-                          <p className="text-caption text-text-muted truncate">{user?.email || 'user@example.com'}</p>
+                          <p className={`text-body font-semibold truncate ${activeView === 'agent' ? 'text-white' : 'text-text-primary'}`}>{user?.full_name || 'User'}</p>
+                          <p className={`text-caption truncate ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`}>{user?.email || 'user@example.com'}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="py-1">
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                        ? 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
                         <UserIcon className="h-4 w-4" />
                         <span>Profile</span>
                       </button>
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                        ? 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
                         <Settings className="h-4 w-4" />
                         <span>Settings</span>
                       </button>
                     </div>
 
-                    <div className="border-t border-border py-1">
+                    <div className={`border-t py-1 ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
                       <button
                         onClick={() => {
                           handleLogout();
                           setProfileMenuOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-body-sm text-status-error hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast"
+                        className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                          ? 'text-red-400 hover:bg-white/5'
+                          : 'text-status-error hover:bg-app-surface'}`}
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Sign out</span>
@@ -1280,9 +1329,13 @@ const Dashboard = () => {
 
           {/* Main Content */}
           <main className="flex-1 min-h-0 overflow-hidden bg-app-bg">
-            <div className="h-full overflow-auto">
-              <Outlet />
-            </div>
+            {activeView === 'agent' ? (
+              <AgentView />
+            ) : (
+              <div className="h-full overflow-auto">
+                <Outlet />
+              </div>
+            )}
           </main>
         </div>
       </div>
