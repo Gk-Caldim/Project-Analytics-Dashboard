@@ -1172,7 +1172,7 @@ const Dashboard = () => {
             </div>
 
             {/* Navigation */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5">
               {renderProjectDashboardModule()}
               {renderMOMModule()}
               {renderMastersModule()}

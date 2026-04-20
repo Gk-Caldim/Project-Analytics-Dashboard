@@ -21,7 +21,7 @@ import {
   MessageSquare, Mic, Volume2, User, Settings, RefreshCcw, 
   ChevronLeft, PanelLeftClose, PanelLeft, FolderKanban, Users, 
   Database, FileUp, BarChart3, Calendar, Clock, ChevronDown,
-  Pin, Trash2, Edit2, Check, X, Navigation, AlertCircle
+  Pin, Trash2, Edit2, Check, X, Navigation, AlertCircle, Send
 } from 'lucide-react';
 
 const AgentView = () => {
@@ -35,10 +35,13 @@ const AgentView = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [activeMenu, setActiveMenu] = useState(null);
-const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [showModules, setShowModules] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null); // { type: 'add_employee', data: { name, email } }
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState(null); // { id, title, type }
+  const [pendingAction, setPendingAction] = useState(null); // { type, data, subType }
   
   // Filter chat history by current user email
   const userChatHistory = chatHistory.filter(c => c.userEmail === user?.email);
@@ -47,7 +50,11 @@ const [editingId, setEditingId] = useState(null);
   const combinedHistory = [
     ...userChatHistory.map(c => ({ ...c, type: 'chat', sortDate: c.timestamp })),
     ...navigationHistory.map(n => ({ ...n, type: 'nav', title: n.name, sortDate: n.timestamp }))
-  ].sort((a, b) => {
+  ].filter(item => {
+    if (!searchQuery) return true;
+    const title = (item.type === 'nav' ? item.name : item.title) || '';
+    return title.toLowerCase().includes(searchQuery.toLowerCase());
+  }).sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
     return new Date(b.sortDate) - new Date(a.sortDate);
@@ -159,6 +166,9 @@ const [editingId, setEditingId] = useState(null);
     const chatId = currentChatId || `chat_${Date.now()}`;
     if (!currentChatId) dispatch(setCurrentChatId(chatId));
 
+    // Capture pending state
+    const activePendingAction = pendingAction;
+
     setTimeout(async () => {
       let response = "";
       let navigationModule = null;
@@ -175,14 +185,26 @@ const [editingId, setEditingId] = useState(null);
         const match = msg.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/i);
         return match ? match[1].trim() : null;
       };
-      const extractId = (msg) => {
-        const match = msg.match(/(?:id|code|identifier)\s+([a-zA-Z0-9-]+)/i);
-        return match ? match[1].trim() : null;
-      };
       const extractUpdateValue = (msg, field) => {
         const regex = new RegExp(`(?:set|update|change)\\s+${field}\\s+(?:to|is)\\s+([a-zA-Z0-9\\s]+?)(?:\s+and|$|\\.)`, 'i');
         const match = msg.match(regex);
         return match ? match[1].trim() : null;
+      };
+
+      const detectRole = (msg) => {
+        const roles = ['Admin', 'Super Admin', 'User', 'Project Manager'];
+        for (const role of roles) {
+          if (msg.toLowerCase().includes(role.toLowerCase())) return role;
+        }
+        return null;
+      };
+
+      const detectStatus = (msg) => {
+        const statuses = ['Active', 'Completed', 'On Hold', 'Archived'];
+        for (const status of statuses) {
+          if (msg.toLowerCase().includes(status.toLowerCase())) return status;
+        }
+        return null;
       };
 
       // 1. CRUD Operations Logic
@@ -192,15 +214,15 @@ const [editingId, setEditingId] = useState(null);
         const isEdit = lowerMsg.includes('edit') || lowerMsg.includes('update') || lowerMsg.includes('change') || lowerMsg.includes('modify') || lowerMsg.includes('set');
         const isDelete = lowerMsg.includes('delete') || lowerMsg.includes('remove') || lowerMsg.includes('destroy');
 
-        const isEmployee = lowerMsg.includes('employee') || lowerMsg.includes('user') || lowerMsg.includes('staff');
+        const emailInMsg = extractEmail(userMessage);
+        const isEmployee = lowerMsg.includes('employee') || lowerMsg.includes('user') || lowerMsg.includes('staff') || !!emailInMsg;
         const isProject = lowerMsg.includes('project') || lowerMsg.includes('task') || lowerMsg.includes('work');
 
         // --- Handle Multi-step Pending Actions ---
-        if (pendingAction && !isList && !isAdd && !isEdit && !isDelete) {
-          if (pendingAction.type === 'add_employee') {
-            const name = pendingAction.data.name || (userMessage.length < 50 ? userMessage : null);
-            const email = pendingAction.data.email || extractEmail(userMessage);
-            
+        if (activePendingAction && !isList && !isAdd && !isEdit && !isDelete) {
+          if (activePendingAction.type === 'add_employee') {
+            const name = activePendingAction.data.name || (userMessage.length < 50 ? userMessage : null);
+            const email = activePendingAction.data.email || extractEmail(userMessage);
             if (name && email) {
               const res = await API.post('/employees', { name, email, employee_id: `EMP${Math.floor(Math.random()*10000)}`, role: 'User', department_id: 1 });
               response = `✅ Successfully added employee: **${res.data.name}**. I've updated the table below.`;
@@ -210,123 +232,171 @@ const [editingId, setEditingId] = useState(null);
               setPendingAction(null);
             } else if (name && !email) {
               response = `Got it, the name is **${name}**. Now, what is the **email address** for this employee?`;
-              setPendingAction({ ...pendingAction, data: { ...pendingAction.data, name } });
-            } else {
-              response = "I'm sorry, I couldn't quite catch that. Please provide the **name** and **email** for the new employee.";
+              setPendingAction({ ...activePendingAction, data: { ...activePendingAction.data, name } });
             }
-          }
-        }
-        // --- EMPLOYEES ---
-        else if (isEmployee) {
-          dataType = 'employee';
-          const res = await API.get('/employees');
-          fetchedData = res.data;
-
-          if (isList) {
-            response = `I've fetched the employee list for you. There are ${res.data.length} employees registered.`;
-          }
-          else if (isAdd) {
-            const name = extractName(userMessage);
-            const email = extractEmail(userMessage);
-
-            if (name && email) {
-              const addRes = await API.post('/employees', { name, email, employee_id: `EMP${Math.floor(Math.random()*10000)}`, role: 'User', department_id: 1 });
-              response = `✅ Successfully added employee: **${addRes.data.name}**. I've refreshed the table for you.`;
+          } else if (activePendingAction.type === 'edit_employee') {
+            const { target } = activePendingAction.data;
+            const newRole = detectRole(userMessage);
+            const newName = extractUpdateValue(userMessage, 'name');
+            if (newRole || newName) {
+              const updateData = { ...target };
+              if (newRole) updateData.role = newRole;
+              if (newName) updateData.name = newName;
+              await API.put(`/employees/${target.id}`, updateData);
+              response = `✅ Updated **${target.name}**. Table refreshed.`;
               const refresh = await API.get('/employees');
               fetchedData = refresh.data;
-            } else {
-              response = "I've displayed the current employee table below. To add a new one, please tell me the **name** of the person you'd like to add.";
-              setPendingAction({ type: 'add_employee', data: { name, email } });
+              dataType = 'employee';
+              setPendingAction(null);
+            } else if (lowerMsg.includes('delete')) {
+              await API.delete(`/employees/${target.id}`);
+              response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
+              const refresh = await API.get('/employees');
+              fetchedData = refresh.data;
+              dataType = 'employee';
+              setPendingAction(null);
             }
-          }
-          else if (isEdit) {
-            const email = extractEmail(userMessage);
-            if (email) {
-              const target = res.data.find(e => e.email.toLowerCase() === email.toLowerCase());
-              if (target) {
-                const newRole = extractUpdateValue(userMessage, 'role');
-                const newName = extractUpdateValue(userMessage, 'name');
-                if (newRole || newName) {
-                  const updateData = { ...target };
-                  if (newRole) updateData.role = newRole;
-                  if (newName) updateData.name = newName;
-                  await API.put(`/employees/${target.id}`, updateData);
-                  response = `✅ Updated **${target.name}**. Table refreshed.`;
-                  const refresh = await API.get('/employees');
-                  fetchedData = refresh.data;
-                } else {
-                  response = `I found **${target.name}**. What would you like to update? (e.g., 'set role to Admin')`;
-                }
-              } else {
-                response = `Couldn't find an employee with email **${email}**. See the table below for existing users.`;
-              }
-            } else {
-              response = "I've fetched the employees for you. Which one would you like to edit? Please provide their **email**.";
-            }
-          }
-          else if (isDelete) {
-            const email = extractEmail(userMessage);
-            if (email) {
-              const target = res.data.find(e => e.email.toLowerCase() === email.toLowerCase());
-              if (target) {
-                await API.delete(`/employees/${target.id}`);
-                response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
-                const refresh = await API.get('/employees');
-                fetchedData = refresh.data;
-              } else {
-                response = `Couldn't find employee **${email}** to delete.`;
-              }
-            } else {
-              response = "Please provide the **email** of the employee you want to remove from the list below.";
-            }
-          }
-        }
-        // --- PROJECTS ---
-        else if (isProject) {
-          dataType = 'project';
-          const res = await API.get('/projects');
-          fetchedData = res.data;
-
-          if (isList) {
-            response = `I've fetched all projects. We have ${res.data.length} active projects in the system.`;
-          }
-          else if (isAdd) {
-            const name = extractName(userMessage);
-            if (name) {
-              const addRes = await API.post('/projects', { name, project_code: `PRJ-${Math.floor(Math.random()*1000)}`, status: 'Active' });
-              response = `✅ Created project: **${addRes.data.name}**. Table refreshed.`;
+          } else if (activePendingAction.type === 'edit_project') {
+            const { target } = activePendingAction.data;
+            const newStatus = detectStatus(userMessage);
+            const newName = extractUpdateValue(userMessage, 'name');
+            if (newStatus || newName) {
+              const updateData = { ...target };
+              if (newStatus) updateData.status = newStatus;
+              if (newName) updateData.name = newName;
+              await API.put(`/projects/${target.project_id}`, updateData);
+              response = `✅ Updated project **${target.name}**.`;
               const refresh = await API.get('/projects');
               fetchedData = refresh.data;
-            } else {
-              response = "I've pulled up the project list. What **name** should I give to the new project?";
-              setPendingAction({ type: 'add_project', data: { name: null } });
+              dataType = 'project';
+              setPendingAction(null);
+            } else if (lowerMsg.includes('delete')) {
+              await API.delete(`/projects/${target.project_id}`);
+              response = `🗑️ Deleted project **${target.name}**. Table refreshed.`;
+              const refresh = await API.get('/projects');
+              fetchedData = refresh.data;
+              dataType = 'project';
+              setPendingAction(null);
             }
-          }
-          else if (isEdit) {
-            const name = extractName(userMessage);
-            if (name) {
-              const target = res.data.find(p => p.name.toLowerCase().includes(name.toLowerCase()));
+          } else if (activePendingAction.type === 'select_for_action') {
+              // We were waiting for an email or project name
+              const res = await (activePendingAction.dataType === 'employee' ? API.get('/employees') : API.get('/projects'));
+              const email = extractEmail(userMessage);
+              const name = extractName(userMessage) || userMessage.trim();
+              
+              const target = activePendingAction.dataType === 'employee' 
+                ? res.data.find(e => e.email?.toLowerCase() === email?.toLowerCase())
+                : res.data.find(p => p.name?.toLowerCase().includes(name.toLowerCase()) || p.project_code?.toLowerCase() === name.toLowerCase());
+
               if (target) {
-                const newStatus = extractUpdateValue(userMessage, 'status');
-                const newName = extractUpdateValue(userMessage, 'name');
-                if (newStatus || newName) {
-                  const updateData = { ...target };
-                  if (newStatus) updateData.status = newStatus;
-                  if (newName) updateData.name = newName;
-                  await API.put(`/projects/${target.project_id}`, updateData);
-                  response = `✅ Updated project **${target.name}**.`;
-                  const refresh = await API.get('/projects');
-                  fetchedData = refresh.data;
+                if (activePendingAction.subType === 'delete') {
+                    const deleteId = activePendingAction.dataType === 'employee' ? target.id : target.project_id;
+                    await API.delete(`/${activePendingAction.dataType}s/${deleteId}`);
+                    response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
+                    const refresh = await API.get(`/${activePendingAction.dataType}s`);
+                    fetchedData = refresh.data;
+                    dataType = activePendingAction.dataType;
+                    setPendingAction(null);
                 } else {
-                  response = `Found **${target.name}**. What should I update? (e.g., 'set status to Completed')`;
+                    response = `I found **${target.name}**. What would you like to do? (e.g., 'set role to Admin' or 'delete')`;
+                    setPendingAction({ type: `edit_${activePendingAction.dataType}`, data: { target } });
+                    fetchedData = res.data;
+                    dataType = activePendingAction.dataType;
                 }
-              } else {
-                response = `Couldn't find project **${name}**. See the list below.`;
               }
-            } else {
-              response = "Which project would you like to edit? Please provide the **name** from the list below.";
-            }
           }
+        }
+
+        // --- NEW COMMANDS ---
+        if (!response) {
+            if (isEmployee) {
+                dataType = 'employee';
+                const res = await API.get('/employees');
+                fetchedData = res.data;
+                const email = emailInMsg;
+                const target = email ? res.data.find(e => e.email?.toLowerCase() === email.toLowerCase()) : null;
+
+                if (target) {
+                    if (isDelete) {
+                        await API.delete(`/employees/${target.id}`);
+                        response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
+                        const refresh = await API.get('/employees');
+                        fetchedData = refresh.data;
+                    } else {
+                        const newRole = detectRole(userMessage);
+                        if (newRole) {
+                            await API.put(`/employees/${target.id}`, { ...target, role: newRole });
+                            response = `✅ Updated **${target.name}** to **${newRole}**.`;
+                            const refresh = await API.get('/employees');
+                            fetchedData = refresh.data;
+                        } else {
+                            response = `I found **${target.name}**. What would you like to do? (e.g., 'edit role to Admin' or 'delete')`;
+                            setPendingAction({ type: 'edit_employee', data: { target } });
+                        }
+                    }
+                } else if (isList) {
+                    response = `I've fetched the employee list. There are ${res.data.length} employees.`;
+                } else if (isAdd) {
+                    const name = extractName(userMessage);
+                    if (name && email) {
+                        const addRes = await API.post('/employees', { name, email, employee_id: `EMP${Math.floor(Math.random()*10000)}`, role: 'User', department_id: 1 });
+                        response = `✅ Added employee: **${addRes.data.name}**.`;
+                        const refresh = await API.get('/employees');
+                        fetchedData = refresh.data;
+                    } else {
+                        response = "Please provide the **name** and **email** for the new employee.";
+                        setPendingAction({ type: 'add_employee', data: { name, email } });
+                    }
+                } else if (isEdit || isDelete || email) {
+                    if (email) response = `Couldn't find an employee with email **${email}**.`;
+                    else {
+                        response = `Which employee would you like to ${isDelete ? 'delete' : 'edit'}? Please provide their **email**.`;
+                        setPendingAction({ type: 'select_for_action', subType: isDelete ? 'delete' : 'edit', dataType: 'employee', data: {} });
+                    }
+                }
+            } else if (isProject) {
+                dataType = 'project';
+                const res = await API.get('/projects');
+                fetchedData = res.data;
+                const projectName = extractName(userMessage) || userMessage.trim();
+                const target = projectName ? res.data.find(p => p.name?.toLowerCase().includes(projectName.toLowerCase()) || p.project_code?.toLowerCase() === projectName.toLowerCase()) : null;
+
+                if (target && !isList && !isAdd) {
+                    if (isDelete) {
+                        await API.delete(`/projects/${target.project_id}`);
+                        response = `🗑️ Deleted project **${target.name}**.`;
+                        const refresh = await API.get('/projects');
+                        fetchedData = refresh.data;
+                    } else {
+                        const newStatus = detectStatus(userMessage);
+                        if (newStatus) {
+                            await API.put(`/projects/${target.project_id}`, { ...target, status: newStatus });
+                            response = `✅ Updated **${target.name}** to **${newStatus}**.`;
+                            const refresh = await API.get('/projects');
+                            fetchedData = refresh.data;
+                        } else {
+                            response = `Found project **${target.name}**. What would you like to do? (e.g., 'set status to Completed' or 'delete')`;
+                            setPendingAction({ type: 'edit_project', data: { target } });
+                        }
+                    }
+                } else if (isList) {
+                    response = `I've fetched all projects. We have ${res.data.length} active projects.`;
+                } else if (isAdd) {
+                    const name = extractName(userMessage);
+                    if (name) {
+                        const addRes = await API.post('/projects', { name, project_code: `PRJ-${Math.floor(Math.random()*1000)}`, status: 'Active' });
+                        response = `✅ Created project: **${addRes.data.name}**.`;
+                        const refresh = await API.get('/projects');
+                        fetchedData = refresh.data;
+                    } else {
+                        response = "What **name** should I give to the new project?";
+                        setPendingAction({ type: 'add_project', data: { name: null } });
+                    }
+                } else if (isEdit || isDelete) {
+                    response = `Which project would you like to ${isDelete ? 'delete' : 'edit'}? Please provide the **name**.`;
+                    setPendingAction({ type: 'select_for_action', subType: isDelete ? 'delete' : 'edit', dataType: 'project', data: {} });
+                }
+            }
         }
       } catch (err) {
         response = `⚠️ Action failed: ${err.response?.data?.detail || err.message}`;
@@ -407,6 +477,23 @@ const [editingId, setEditingId] = useState(null);
       }
     }
     setEditingId(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmItem) return;
+    
+    const { id, type } = deleteConfirmItem;
+    if (type === 'nav') {
+      dispatch(deleteHistoryItem(id));
+    } else {
+      dispatch(deleteChat(id));
+      try {
+        await API.delete(`/chats/${id}`);
+      } catch (err) {
+        console.error("Failed to delete chat in DB:", err);
+      }
+    }
+    setDeleteConfirmItem(null);
   };
 
   const renderHistoryItem = (item, type, index) => (
@@ -504,18 +591,13 @@ const [editingId, setEditingId] = useState(null);
               </button>
               <div className="h-px bg-white/5 my-1"></div>
               <button 
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
-                  if (type === 'nav') {
-                    dispatch(deleteHistoryItem(item.id));
-                  } else {
-                    dispatch(deleteChat(item.id));
-                    try {
-                      await API.delete(`/chats/${item.id}`);
-                    } catch (err) {
-                      console.error("Failed to delete chat in DB:", err);
-                    }
-                  }
+                  setDeleteConfirmItem({ 
+                    id: item.id, 
+                    title: type === 'nav' ? item.name : item.title, 
+                    type 
+                  });
                   setActiveMenu(null);
                 }}
                 className="w-full px-3 py-1.5 text-left text-xs hover:bg-white/5 flex items-center gap-2 text-red-400 hover:text-red-300 transition-colors"
@@ -547,13 +629,51 @@ const [editingId, setEditingId] = useState(null);
             <span>New chat</span>
           </button>
           
-          <button className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium">
-            <Search size={18} />
-            <span>Search chats</span>
-          </button>
+          <div className="relative group/search">
+            {isSearching ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 mx-0">
+                <Search size={16} className="text-white/40" />
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search chats..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => {
+                    if (!searchQuery) setIsSearching(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setSearchQuery('');
+                      setIsSearching(false);
+                    }
+                  }}
+                  className="bg-transparent border-none focus:ring-0 text-sm p-0 w-full text-white placeholder-white/20"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button 
+                onClick={() => setIsSearching(true)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium"
+              >
+                <Search size={18} />
+                <span>Search chats</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-1 scrollbar-hide">
+          {searchQuery && combinedHistory.length === 0 && (
+            <div className="px-3 py-4 text-center">
+              <p className="text-xs text-white/40 italic">No results found for "{searchQuery}"</p>
+            </div>
+          )}
           {combinedHistory.length > 0 && (
             <>
               <button 
@@ -573,9 +693,9 @@ const [editingId, setEditingId] = useState(null);
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 flex flex-col relative">
+      <div className="flex-1 min-w-0 flex flex-col relative min-h-0">
         {/* Top Header Controls */}
-        <div className="flex items-center justify-between p-4 absolute top-0 left-0 right-0 z-10">
+        <div className="flex items-center justify-between p-4 absolute top-0 left-0 right-0 z-10 bg-[#171717]">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -587,14 +707,16 @@ const [editingId, setEditingId] = useState(null);
         </div>
 
         {/* Central Content */}
-        <div className="flex-1 flex flex-col items-center px-4 max-w-5xl mx-auto w-full pt-20">
+        <div className={`flex-1 flex flex-col items-center px-4 max-w-5xl mx-auto w-full min-h-0 ${chatMessages.length === 0 ? 'justify-center' : 'pt-6'}`}>
           {chatMessages.length === 0 ? (
-            <h2 className="text-3xl font-semibold mb-8 text-white/90 text-center">What's on your mind today?</h2>
+            <div className="pb-8">
+              <h2 className="text-3xl font-semibold text-white/90 text-center">What's on your mind today?</h2>
+            </div>
           ) : (
-            <div className="w-full flex-1 overflow-y-auto mb-8 space-y-6 scrollbar-hide px-2">
+            <div className="w-full flex-1 overflow-y-auto mb-4 space-y-6 scrollbar-hide px-2">
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
+                  <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
                     msg.role === 'user' 
                       ? 'bg-brand-primary text-white' 
                       : 'bg-[#2f2f2f] text-white/90 border border-white/5 shadow-lg'
@@ -621,7 +743,7 @@ const [editingId, setEditingId] = useState(null);
                             {msg.data.map((item, i) => (
                               <tr key={i} className="hover:bg-white/5 transition-colors">
                                 <td className="px-3 py-2 text-white/80 font-medium">
-                                  {msg.dataType === 'employee' ? item.name : item.name}
+                                  {item.name}
                                 </td>
                                 <td className="px-3 py-2 text-white/40">
                                   {msg.dataType === 'employee' ? item.email : item.project_code}
@@ -684,14 +806,14 @@ const [editingId, setEditingId] = useState(null);
                   <Mic size={20} />
                 </button>
                 <button type="submit" className={`p-2 rounded-full transition-all ${message.trim() ? 'bg-white text-black' : 'bg-white/10 text-white/20'}`}>
-                  <Volume2 size={20} />
+                  <Send size={20} />
                 </button>
               </div>
             </div>
           </form>
 
           {/* Module Navigation Toggle / Grid */}
-          <div className="w-full mb-12">
+          <div className="w-full mb-4">
             {chatMessages.length > 0 ? (
               <div className="flex flex-col items-center">
                 <button 
@@ -743,6 +865,36 @@ const [editingId, setEditingId] = useState(null);
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmItem && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="bg-[#1e1e1e] border border-white/10 rounded-2xl w-[400px] p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-semibold text-white mb-4">Delete {deleteConfirmItem.type === 'nav' ? 'navigation' : 'chat'}?</h3>
+            <p className="text-white/80 text-sm mb-8 leading-relaxed">
+              This will delete <span className="font-bold text-white">{deleteConfirmItem.title}</span>.
+            </p>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmItem(null)}
+                className="px-6 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-6 py-2 rounded-full bg-[#e11d48] hover:bg-[#be123c] text-white text-sm font-medium transition-colors shadow-lg shadow-red-500/20"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
