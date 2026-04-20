@@ -53,14 +53,14 @@ const AuditHistory = () => {
     const act = action.toLowerCase();
     if (act.includes('created') || act.includes('added')) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
     if (act.includes('deleted') || act.includes('removed')) return 'text-red-600 bg-red-50 border-red-100';
-    if (act.includes('updated') || act.includes('synced')) return 'text-[#0E1B2E] bg-gray-100 border-gray-200';
+    if (act.includes('updated') || act.includes('synced')) return 'text-[#0004ab] bg-gray-100 border-gray-200';
     return 'text-gray-500 bg-gray-50 border-gray-100';
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0E1B2E]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#0004ab]" />
         <p className="text-gray-400 text-xs font-bold tracking-widest uppercase">Fetching immutable ledger...</p>
       </div>
     );
@@ -70,10 +70,10 @@ const AuditHistory = () => {
     <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">System Audit Log</h2>
+          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">System Audit Log</h2>
           <p className="text-sm text-gray-500 mt-2">Historical record of all administrative actions, data mutations, and security events.</p>
         </div>
-        <button className="h-11 px-6 border border-gray-200 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
+        <button className="h-11 px-6 border border-gray-200 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
           <Download className="h-4 w-4" />
           Export Ledger
         </button>
@@ -87,7 +87,7 @@ const AuditHistory = () => {
             placeholder="SEARCH BY ACTIVITY OR USER..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
+            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#0004ab] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
           />
         </div>
         
@@ -95,7 +95,7 @@ const AuditHistory = () => {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
+            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#0004ab] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
           >
             <option value="ALL">ALL CATEGORIES</option>
             <option value="SECURITY">SECURITY</option>
@@ -106,7 +106,7 @@ const AuditHistory = () => {
 
         <button 
            onClick={() => { setSearchTerm(''); setActiveFilter('ALL'); }}
-           className="h-11 border border-gray-200 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0E1B2E] transition-colors rounded-full"
+           className="h-11 border border-gray-200 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0004ab] transition-colors rounded-full"
         >
           Reset Filters
         </button>
@@ -129,7 +129,7 @@ const AuditHistory = () => {
                 <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-8 py-5">
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-[#0E1B2E]">
+                      <p className="text-xs font-bold text-[#0004ab]">
                         {dayjs(log.timestamp).format('DD MMM, YYYY').toUpperCase()}
                       </p>
                       <p className="text-[10px] text-gray-400 font-bold tracking-tighter uppercase">
@@ -139,7 +139,7 @@ const AuditHistory = () => {
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0E1B2E] font-bold text-[10px]">
+                      <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0004ab] font-bold text-[10px]">
                         {log.performed_by?.charAt(0).toUpperCase()}
                       </div>
                       <p className="text-xs font-bold text-gray-600 uppercase tracking-tight">{log.performed_by}</p>
@@ -181,7 +181,7 @@ const AuditHistory = () => {
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0E1B2E] hover:border-[#0E1B2E] transition-colors disabled:opacity-30"
+                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0004ab] hover:border-[#0004ab] transition-colors disabled:opacity-30"
               >
                  ◀
               </button>
@@ -189,7 +189,7 @@ const AuditHistory = () => {
                 <button 
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`h-8 w-8 border ${currentPage === i + 1 ? 'border-[#0E1B2E] bg-[#0E1B2E] text-white' : 'border-gray-200 text-gray-400'} flex items-center justify-center text-[10px] font-bold`}
+                  className={`h-8 w-8 border ${currentPage === i + 1 ? 'border-[#0004ab] bg-[#0004ab] text-white' : 'border-gray-200 text-gray-400'} flex items-center justify-center text-[10px] font-bold`}
                 >
                    {i + 1}
                 </button>
@@ -197,7 +197,7 @@ const AuditHistory = () => {
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0E1B2E] hover:border-[#0E1B2E] transition-colors disabled:opacity-30"
+                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0004ab] hover:border-[#0004ab] transition-colors disabled:opacity-30"
               >
                  ▶
               </button>

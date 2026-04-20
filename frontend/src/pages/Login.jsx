@@ -16,7 +16,7 @@ const Login = () => {
   return (
     <div className="min-h-screen w-full flex bg-app-surface">
       {/* Left side - Branding (MNC Industrial Grade) */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-24 bg-[#0E1B2E] relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-24 bg-[#0004ab] relative overflow-hidden">
         {/* Subtle Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
           <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>

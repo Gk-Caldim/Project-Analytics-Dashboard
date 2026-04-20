@@ -35,7 +35,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Organization Profile</h2>
+        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Organization Profile</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
@@ -54,7 +54,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                   type="text"
                   value={getValue('company_name')}
                   onChange={(e) => onUpdate('company_name', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0E1B2E] outline-none transition-colors text-sm font-medium"
+                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
                   placeholder="e.g. CALTIMS INDUSTRIAL"
                 />
               </div>
@@ -67,7 +67,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                   type="text"
                   value={getValue('operational_country') || 'India'}
                   onChange={(e) => onUpdate('operational_country', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0E1B2E] outline-none transition-colors text-sm font-medium"
+                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
                 />
               </div>
 
@@ -79,7 +79,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                   rows={3}
                   value={getValue('hq_address')}
                   onChange={(e) => onUpdate('hq_address', e.target.value)}
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0E1B2E] outline-none transition-colors text-sm font-medium resize-none"
+                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium resize-none"
                   placeholder="123 Enterprise Way, Tech City..."
                 />
               </div>
@@ -91,7 +91,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                 <select 
                   value={getValue('base_currency') || 'USD ($)'}
                   onChange={(e) => onUpdate('base_currency', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0E1B2E] outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
+                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
                 >
                   <option>USD ($)</option>
                   <option>INR (₹)</option>
@@ -131,7 +131,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
 
               <div className="flex-1 space-y-6 w-full max-w-sm">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[#0E1B2E]">Company Logo</h4>
+                  <h4 className="text-sm font-bold text-[#0004ab]">Company Logo</h4>
                   <p className="text-xs text-gray-500 leading-relaxed">
                     Upload your institution's logo. This will be used in the navigation sidebar, reports, and system-wide branding. Recommended size: 512x512px.
                   </p>
@@ -140,7 +140,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                 <div className="grid grid-cols-1 gap-3">
                   <button 
                     onClick={() => document.getElementById('logo-upload-input').click()}
-                    className="h-10 bg-[#0E1B2E] text-white rounded-full font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity"
+                    className="h-10 bg-[#0004ab] text-white rounded-full font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity"
                   >
                     Upload New
                   </button>
@@ -148,7 +148,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                     <button 
                       onClick={handleEditExistingLogo}
                       disabled={!getValue('company_logo')}
-                      className="h-10 border border-gray-200 text-[#0E1B2E] rounded-full font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                      className="h-10 border border-gray-200 text-[#0004ab] rounded-full font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 disabled:opacity-30 transition-colors"
                     >
                       Edit Logo
                     </button>

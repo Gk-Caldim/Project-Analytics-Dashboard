@@ -29,7 +29,7 @@ const Connections = ({ settings, onUpdate }) => {
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">External Connections</h2>
+        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">External Connections</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your third-party integrations, SMTP services, and bridge credentials.</p>
       </div>
 
@@ -40,7 +40,7 @@ const Connections = ({ settings, onUpdate }) => {
             <button
               onClick={testConnection}
               disabled={isTesting}
-              className="h-10 px-6 border border-gray-100 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 disabled:opacity-50 rounded-full"
+              className="h-10 px-6 border border-gray-100 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 disabled:opacity-50 rounded-full"
             >
               {isTesting ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
               {isTesting ? 'Testing' : 'Test Bridge'}
@@ -60,7 +60,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="text"
                 value={getValue('smtp_host')}
                 onChange={(e) => onUpdate('smtp_host', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                 placeholder="smtp.example.com"
               />
             </div>
@@ -70,7 +70,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="number"
                 value={getValue('smtp_port')}
                 onChange={(e) => onUpdate('smtp_port', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                 placeholder="587"
               />
             </div>
@@ -80,7 +80,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="text"
                 value={getValue('smtp_user')}
                 onChange={(e) => onUpdate('smtp_user', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                 placeholder="user@example.com"
               />
             </div>
@@ -91,13 +91,13 @@ const Connections = ({ settings, onUpdate }) => {
                   type={showPassword ? "text" : "password"}
                   value={getValue('smtp_pass')}
                   onChange={(e) => onUpdate('smtp_pass', e.target.value)}
-                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0E1B2E]"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0004ab]"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -107,7 +107,7 @@ const Connections = ({ settings, onUpdate }) => {
         </div>
 
         <div className="space-y-8">
-          <div className="bg-[#0E1B2E] border border-[#1a2e4a] p-10 rounded-none text-white space-y-6">
+          <div className="bg-[#0004ab] border border-[#1a2e4a] p-10 rounded-none text-white space-y-6">
             <Database className="h-10 w-10 opacity-20" />
             <div className="space-y-2">
               <h3 className="text-xl font-bold uppercase tracking-tight">External Analytics Node</h3>
@@ -115,7 +115,7 @@ const Connections = ({ settings, onUpdate }) => {
                 Connect your institutional data lake for high-level cross-project comparisons and global industrial trend analysis.
               </p>
             </div>
-            <button className="h-11 w-full bg-white text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-100 transition-colors rounded-full">
+            <button className="h-11 w-full bg-white text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-100 transition-colors rounded-full">
                Establish Connection
             </button>
           </div>
@@ -125,7 +125,7 @@ const Connections = ({ settings, onUpdate }) => {
                <ShieldCheck className="h-6 w-6 text-gray-300" />
             </div>
             <div className="space-y-1">
-               <p className="text-xs font-bold text-[#0E1B2E] uppercase tracking-tight">Encryption protocol</p>
+               <p className="text-xs font-bold text-[#0004ab] uppercase tracking-tight">Encryption protocol</p>
                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-relaxed">
                   All external credentials are encrypted using AES-256 standard before being committed to the system vault.
                </p>

@@ -12,11 +12,12 @@
 
 :root {
   /* Industrial Analytics Brand Colors - Redesign 2026 */
-  --brand-navy: #0E1B2E;
+  --brand-navy: #0004ab;
   --brand-primary-bg: #F4F6F9;
   
   /* Redesign Specs */
-  --secondary: #0E1B2E; /* Navy for primary actions and text */
+  --secondary: #0004ab; /* New brand blue for primary actions and text */
+  --sidebar-bg: #1a1a1a; /* Medium dark black for sidebar */
   --primary: #F4F6F9;   /* Light Gray for surfaces and background */
 
   /* Typography */
@@ -231,7 +232,7 @@
   /* ========================================================================== */
   .app-sidebar {
     @apply z-30 flex flex-col transition-all duration-300 ease-in-out;
-    background-color: var(--navy);
+    background-color: var(--sidebar-bg);
     width: 220px;
     flex-shrink: 0;
   }

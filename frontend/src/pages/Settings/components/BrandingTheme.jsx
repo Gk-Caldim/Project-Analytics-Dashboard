@@ -3,7 +3,7 @@ import { Palette, RefreshCw } from 'lucide-react';
 
 const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
   const primaryColor = settings.find(s => s.key === 'primary_color')?.value || '#f4f6f9';
-  const secondaryColor = settings.find(s => s.key === 'secondary_color')?.value || '#0e1b2e';
+  const secondaryColor = settings.find(s => s.key === 'secondary_color')?.value || '#0004ab';
   const displayMode = settings.find(s => s.key === 'display_mode')?.value || 'light';
 
   const ColorInput = ({ label, value, onChange }) => (
@@ -20,7 +20,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent border-none focus:ring-0 font-mono text-sm font-bold text-[#0E1B2E] uppercase flex-1"
+          className="bg-transparent border-none focus:ring-0 font-mono text-sm font-bold text-[#0004ab] uppercase flex-1"
         />
       </div>
     </div>
@@ -29,7 +29,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Institutional Branding</h2>
+        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Institutional Branding</h2>
         <p className="text-sm text-gray-500 mt-2">Manage global visual identity, color protocols and display characteristics.</p>
       </div>
 
@@ -65,7 +65,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
                 onClick={() => onUpdate('display_mode', m)}
                 className={`flex items-center justify-between px-6 py-4 rounded-full border transition-all ${
                   displayMode === m 
-                  ? 'bg-[#0E1B2E] text-white border-[#0E1B2E]' 
+                  ? 'bg-[#0004ab] text-white border-[#0004ab]' 
                   : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
                 }`}
               >
@@ -83,7 +83,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
                <RefreshCw className="h-6 w-6 text-gray-300" />
             </div>
             <div className="space-y-2">
-               <p className="text-xs font-bold text-[#0E1B2E] uppercase tracking-tight">Identity Synchronization</p>
+               <p className="text-xs font-bold text-[#0004ab] uppercase tracking-tight">Identity Synchronization</p>
                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-relaxed">
                   Changes to the branding core will trigger a system-wide interface rebuild for all active institutional users.
                </p>

@@ -149,26 +149,26 @@ const SystemSettings = () => {
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
       <aside className="w-[280px] bg-[#F4F6F9] border-r border-gray-200 flex flex-col z-20">
         <div className="p-8 pt-12">
-          <h1 className="text-2xl font-bold text-[#0E1B2E] tracking-tight uppercase">Settings</h1>
-          <div className="h-0.5 w-6 bg-[#0E1B2E]/20 mt-4" />
+          <h1 className="text-2xl font-bold text-[#0004ab] tracking-tight uppercase">Settings</h1>
+          <div className="h-0.5 w-6 bg-[#0004ab]/20 mt-4" />
         </div>
 
         <nav className="flex-1 px-6 mt-8 space-y-10 overflow-y-auto custom-scrollbar">
           {sidebarCategories.map((group) => (
             <div key={group.group} className="space-y-4">
-              <h3 className="text-[10px] font-bold text-[#0E1B2E]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
+              <h3 className="text-[10px] font-bold text-[#0004ab]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setActiveCategory(item.id)}
                     className={`w-full flex items-center px-4 py-3 rounded-none transition-all group ${activeCategory === item.id
-                      ? 'text-[#0E1B2E] bg-gray-50/50'
-                      : 'text-[#0E1B2E]/30 hover:bg-gray-50 hover:text-[#0E1B2E]'
+                      ? 'text-[#0004ab] bg-gray-50/50'
+                      : 'text-[#0004ab]/30 hover:bg-gray-50 hover:text-[#0004ab]'
                       }`}
                   >
                     <span className={`text-[11px] font-bold uppercase tracking-widest ${activeCategory === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>{item.label}</span>
-                    {activeCategory === item.id && <div className="ml-auto w-1 h-4 bg-[#0E1B2E]" />}
+                    {activeCategory === item.id && <div className="ml-auto w-1 h-4 bg-[#0004ab]" />}
                   </button>
                 ))}
               </div>
@@ -180,7 +180,7 @@ const SystemSettings = () => {
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}
-            className="w-full h-12 bg-[#0E1B2E] text-white rounded-full font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
+            className="w-full h-12 bg-[#0004ab] text-white rounded-full font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
           >
             {isSaving ? '...' : 'Commit Changes'}
           </button>
@@ -191,7 +191,7 @@ const SystemSettings = () => {
         <div className="max-w-5xl mx-auto pb-24">
           {notification && (
             <div className={`fixed bottom-12 left-[calc(280px+50%)] -translate-x-1/2 px-8 py-4 border z-50 text-[10px] font-bold uppercase tracking-[0.2em] animate-in slide-in-from-bottom-10 shadow-2xl ${
-              notification.type === 'success' ? 'bg-[#0E1B2E] text-white border-white/10' : 'bg-red-600 text-white border-none'
+              notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'
             }`}>
               {notification.message}
             </div>

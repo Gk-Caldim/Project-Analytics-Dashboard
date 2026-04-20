@@ -259,7 +259,7 @@ const AccessControl = () => {
     <button
       onClick={(e) => { e.stopPropagation(); !disabled && onChange && onChange(!enabled); }}
       type="button"
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all duration-300 outline-none ${enabled ? 'bg-[#0E1B2E]' : 'bg-gray-200'} ${disabled ? 'opacity-30 cursor-not-allowed' : 'active:scale-95'}`}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-all duration-300 outline-none ${enabled ? 'bg-[#0004ab]' : 'bg-gray-200'} ${disabled ? 'opacity-30 cursor-not-allowed' : 'active:scale-95'}`}
     >
       <span
         aria-hidden="true"
@@ -289,17 +289,17 @@ const AccessControl = () => {
                 const totalOptions = 1 + (perm.subPermissions?.length || 0);
 
                 return (
-                  <div key={perm.id} className={`transition-all duration-300 rounded-none overflow-hidden border ${isActive ? 'border-[#0E1B2E] bg-slate-50/30' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                  <div key={perm.id} className={`transition-all duration-300 rounded-none overflow-hidden border ${isActive ? 'border-[#0004ab] bg-slate-50/30' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
                     <button
                       onClick={() => setActiveModuleId(isActive ? null : perm.id)}
-                      className={`w-full flex items-center justify-between p-3.5 transition-colors group border-l-4 ${isActive ? 'border-[#0E1B2E]' : 'border-transparent hover:border-slate-300'}`}
+                      className={`w-full flex items-center justify-between p-3.5 transition-colors group border-l-4 ${isActive ? 'border-[#0004ab]' : 'border-transparent hover:border-slate-300'}`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-1.5 h-1.5 rounded-full transition-colors ${enabledCount > 0 ? 'bg-[#0E1B2E]' : 'bg-slate-300'}`} />
+                        <div className={`w-1.5 h-1.5 rounded-full transition-colors ${enabledCount > 0 ? 'bg-[#0004ab]' : 'bg-slate-300'}`} />
                         <div className="text-left flex items-center gap-3">
-                          <span className={`text-[12px] font-bold uppercase tracking-tight block ${isActive ? 'text-[#0E1B2E]' : 'text-slate-800'}`}>{perm.name}</span>
+                          <span className={`text-[12px] font-bold uppercase tracking-tight block ${isActive ? 'text-[#0004ab]' : 'text-slate-800'}`}>{perm.name}</span>
                           {!isActive && enabledCount > 0 && (
-                            <span className="text-[9px] font-bold text-[#0E1B2E] bg-[#0E1B2E]/5 px-2 py-0.5 rounded-full border border-[#0E1B2E]/10">
+                            <span className="text-[9px] font-bold text-[#0004ab] bg-[#0004ab]/5 px-2 py-0.5 rounded-full border border-[#0004ab]/10">
                               {enabledCount} / {totalOptions} Active
                             </span>
                           )}
@@ -309,7 +309,7 @@ const AccessControl = () => {
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                           {isActive ? 'Hide' : 'Configure'}
                         </span>
-                        {isActive ? <ChevronUp className="h-4 w-4 text-[#0E1B2E]" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                        {isActive ? <ChevronUp className="h-4 w-4 text-[#0004ab]" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                       </div>
                     </button>
                     
@@ -337,11 +337,11 @@ const AccessControl = () => {
                                     <div 
                                       key={sub.id} 
                                       onClick={() => onToggle(perm.name, sub.id)}
-                                      className={`flex items-center justify-between p-3 cursor-pointer rounded-md border transition-all ${isSubEnabled ? 'bg-white border-[#0E1B2E] shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
+                                      className={`flex items-center justify-between p-3 cursor-pointer rounded-md border transition-all ${isSubEnabled ? 'bg-white border-[#0004ab] shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}
                                     >
                                       <div className="flex items-center gap-2">
-                                         <div className={`w-1 h-1 rounded-full ${isSubEnabled ? 'bg-[#0E1B2E]' : 'bg-slate-300'}`} />
-                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isSubEnabled ? 'text-[#0E1B2E]' : 'text-slate-600'}`}>{sub.label}</span>
+                                         <div className={`w-1 h-1 rounded-full ${isSubEnabled ? 'bg-[#0004ab]' : 'bg-slate-300'}`} />
+                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isSubEnabled ? 'text-[#0004ab]' : 'text-slate-600'}`}>{sub.label}</span>
                                       </div>
                                       <Toggle enabled={isSubEnabled} onChange={() => onToggle(perm.name, sub.id)} />
                                     </div>
@@ -365,8 +365,8 @@ const AccessControl = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0E1B2E]" />
-        <p className="text-[#0E1B2E]/40 text-[10px] font-bold tracking-[0.3em] uppercase">Syncing roles...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-[#0004ab]" />
+        <p className="text-[#0004ab]/40 text-[10px] font-bold tracking-[0.3em] uppercase">Syncing roles...</p>
       </div>
     );
   }
@@ -376,7 +376,7 @@ const AccessControl = () => {
       {/* Notification */}
       {notification.show && (
         <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[500] flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-300 rounded-full shadow-xl ${notification.type === 'success'
-          ? 'bg-[#0E1B2E] border-white/10 text-white'
+          ? 'bg-[#0004ab] border-white/10 text-white'
           : 'bg-red-600 border-none text-white'
           }`}>
           <p className="text-[10px] font-bold tracking-widest uppercase">{notification.message}</p>
@@ -385,7 +385,7 @@ const AccessControl = () => {
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Role Management</h2>
+          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Role Management</h2>
           <p className="text-sm text-gray-500 mt-2">Manage system access profiles, functional groups, and secure permission mappings.</p>
         </div>
         <button
@@ -393,7 +393,7 @@ const AccessControl = () => {
             setNewRolePermissions([]);
             setShowCreateModal(true);
           }}
-          className="h-11 px-6 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase rounded-full hover:opacity-90 transition-all flex items-center gap-3"
+          className="h-11 px-6 bg-[#0004ab] text-white font-bold text-[10px] tracking-widest uppercase rounded-full hover:opacity-90 transition-all flex items-center gap-3"
         >
           <Plus className="h-4 w-4" />
           Create New Role
@@ -405,12 +405,12 @@ const AccessControl = () => {
         {roles.map((role) => (
           <div 
             key={role.id} 
-            className="group relative p-6 cursor-default bg-white border border-gray-100 rounded-none transition-all duration-300 hover:border-[#0E1B2E]/20 hover:shadow-lg flex flex-col justify-between min-h-[220px]"
+            className="group relative p-6 cursor-default bg-white border border-gray-100 rounded-none transition-all duration-300 hover:border-[#0004ab]/20 hover:shadow-lg flex flex-col justify-between min-h-[220px]"
           >
             <div className="space-y-6">
                <div className="flex items-start justify-between">
-                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 border border-gray-100 group-hover:bg-[#0E1B2E]/5 transition-colors">
-                    <span className="text-[#0E1B2E]">{getRoleIcon(role.name)}</span>
+                  <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 border border-gray-100 group-hover:bg-[#0004ab]/5 transition-colors">
+                    <span className="text-[#0004ab]">{getRoleIcon(role.name)}</span>
                   </div>
                   {!role.is_default && (
                     <button
@@ -423,7 +423,7 @@ const AccessControl = () => {
                </div>
                
                <div className="space-y-1">
-                  <p className="text-[12px] font-bold uppercase tracking-tight text-[#0E1B2E] leading-none">{role.name}</p>
+                  <p className="text-[12px] font-bold uppercase tracking-tight text-[#0004ab] leading-none">{role.name}</p>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
                      {role.permissions?.length || 0} Modules Assigned
                   </p>
@@ -436,7 +436,7 @@ const AccessControl = () => {
                 setActiveModuleId(null);
                 setShowConfigModal(true);
               }}
-              className="mt-8 w-full h-9 border border-[#0E1B2E]/10 group-hover:border-[#0E1B2E] text-[#0E1B2E] font-bold text-[9px] tracking-widest uppercase rounded-full transition-all flex items-center justify-center gap-2 hover:bg-[#0E1B2E] hover:text-white"
+              className="mt-8 w-full h-9 border border-[#0004ab]/10 group-hover:border-[#0004ab] text-[#0004ab] font-bold text-[9px] tracking-widest uppercase rounded-full transition-all flex items-center justify-center gap-2 hover:bg-[#0004ab] hover:text-white"
             >
               <Settings2 className="h-3 w-3" />
               Configure Role
@@ -451,7 +451,7 @@ const AccessControl = () => {
           <div className="bg-white w-full max-w-2xl border border-slate-200 rounded-none shadow-2xl flex flex-col max-h-[90vh]">
              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex flex-col">
-                   <h3 className="text-xl font-bold text-[#0E1B2E] uppercase tracking-tight">{selectedRole.name}</h3>
+                   <h3 className="text-xl font-bold text-[#0004ab] uppercase tracking-tight">{selectedRole.name}</h3>
                    <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] font-bold mt-1">Permission Settings</p>
                 </div>
                 <button onClick={() => setShowConfigModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
@@ -469,14 +469,14 @@ const AccessControl = () => {
              <div className="p-6 bg-slate-50/50 flex gap-4 border-t border-slate-100">
                 <button
                   onClick={() => fetchRoles()}
-                  className="flex-1 h-11 text-slate-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0E1B2E] rounded-full transition-all"
+                  className="flex-1 h-11 text-slate-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0004ab] rounded-full transition-all"
                 >
                   Discard
                 </button>
                 <button
                   onClick={handleSaveChanges}
                   disabled={saving}
-                  className="flex-[2] h-11 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase rounded-full hover:opacity-90 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+                  className="flex-[2] h-11 bg-[#0004ab] text-white font-bold text-[10px] tracking-widest uppercase rounded-full hover:opacity-90 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                 >
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                   {saving ? 'UPDATING...' : 'Update Permissions'}
@@ -490,7 +490,7 @@ const AccessControl = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[500] flex items-center justify-center p-6 animate-in fade-in duration-200 font-['Inter']">
           <div className="bg-white w-full max-w-2xl border border-slate-200 rounded-none shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 text-[#0E1B2E]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 text-[#0004ab]">
                <div>
                   <h3 className="text-xl font-bold uppercase tracking-tight">Provision Role</h3>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Create system access profile</p>
@@ -507,7 +507,7 @@ const AccessControl = () => {
                    type="text"
                    value={newRoleName}
                    onChange={(e) => setNewRoleName(e.target.value)}
-                   className="w-full h-12 px-5 border border-slate-200 bg-slate-50 focus:border-[#0E1B2E] focus:bg-white outline-none text-sm font-bold text-[#0E1B2E] rounded-md transition-all placeholder:text-gray-200"
+                   className="w-full h-12 px-5 border border-slate-200 bg-slate-50 focus:border-[#0004ab] focus:bg-white outline-none text-sm font-bold text-[#0004ab] rounded-md transition-all placeholder:text-gray-200"
                    placeholder="e.g. OPERATIONS_EXECUTIVE"
                  />
                </div>
@@ -524,14 +524,14 @@ const AccessControl = () => {
             <div className="p-6 bg-slate-50/50 flex gap-4 border-t border-slate-100">
               <button 
                 onClick={() => setShowCreateModal(false)}
-                className="flex-1 h-11 font-bold text-slate-400 hover:text-[#0E1B2E] hover:bg-white uppercase tracking-widest text-[10px] rounded-full transition-all"
+                className="flex-1 h-11 font-bold text-slate-400 hover:text-[#0004ab] hover:bg-white uppercase tracking-widest text-[10px] rounded-full transition-all"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleCreateRole}
                 disabled={saving || !newRoleName.trim()}
-                className="flex-[2] h-11 bg-[#0E1B2E] text-white font-bold uppercase tracking-widest text-[10px] rounded-full hover:opacity-90 disabled:opacity-30 transition-all"
+                className="flex-[2] h-11 bg-[#0004ab] text-white font-bold uppercase tracking-widest text-[10px] rounded-full hover:opacity-90 disabled:opacity-30 transition-all"
               >
                 {saving ? 'SAVING...' : 'Save Role'}
               </button>
@@ -547,14 +547,14 @@ const AccessControl = () => {
             <div className="w-20 h-20 bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-8 rounded-full border border-red-100">
               <Trash2 className="h-10 w-10" />
             </div>
-            <h3 className="text-xl font-bold text-[#0E1B2E] mb-2 uppercase tracking-tight">Delete Role?</h3>
+            <h3 className="text-xl font-bold text-[#0004ab] mb-2 uppercase tracking-tight">Delete Role?</h3>
             <p className="text-[11px] text-slate-400 font-medium uppercase tracking-widest leading-relaxed">
                The profile <span className="text-red-600 font-bold">"{roleToDelete?.name}"</span> will be permanently removed.
             </p>
             <div className="mt-10 flex gap-3">
               <button 
                 onClick={() => { setShowDeleteModal(false); setRoleToDelete(null); }}
-                className="flex-1 h-11 font-bold text-slate-400 hover:text-[#0E1B2E] hover:bg-slate-50 uppercase tracking-widest text-[10px] rounded-full transition-all"
+                className="flex-1 h-11 font-bold text-slate-400 hover:text-[#0004ab] hover:bg-slate-50 uppercase tracking-widest text-[10px] rounded-full transition-all"
               >
                 Cancel
               </button>

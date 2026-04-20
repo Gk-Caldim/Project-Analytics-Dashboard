@@ -102,7 +102,7 @@ const ApplicationAccess = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0E1B2E]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#0004ab]" />
         <p className="text-gray-400 text-xs font-bold tracking-widest uppercase">Syncing account directory...</p>
       </div>
     );
@@ -111,14 +111,14 @@ const ApplicationAccess = () => {
   return (
     <div className="space-y-12">
       {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[300] animate-in fade-in slide-in-from-right-8 duration-300 ${notification.type === 'success' ? 'bg-[#0E1B2E] text-white border-white/10' : 'bg-red-600 text-white border-none'}`}>
+        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[300] animate-in fade-in slide-in-from-right-8 duration-300 ${notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'}`}>
           <p className="text-xs font-bold tracking-wider uppercase">{notification.message}</p>
         </div>
       )}
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">Application Access</h2>
+          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Application Access</h2>
           <p className="text-sm text-gray-500 mt-2">Manage user accounts, authentication profiles and system access levels.</p>
         </div>
         <button
@@ -126,7 +126,7 @@ const ApplicationAccess = () => {
             setFormData({ username: '', email: '', role: '', password: '' });
             setShowAddModal(true);
           }}
-          className="h-11 px-6 bg-[#0E1B2E] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center gap-3 rounded-full"
+          className="h-11 px-6 bg-[#0004ab] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity flex items-center gap-3 rounded-full"
         >
           <Plus className="h-4 w-4" />
           Add Account
@@ -150,11 +150,11 @@ const ApplicationAccess = () => {
                 <tr key={user.id} className="hover:bg-gray-50/50 transition-colors rounded-full">
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0E1B2E] font-bold text-xs uppercase">
+                      <div className="w-10 h-10 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0004ab] font-bold text-xs uppercase">
                         {user.username.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-[#0E1B2E]">{user.username}</p>
+                        <p className="text-sm font-bold text-[#0004ab]">{user.username}</p>
                         <p className="text-[11px] text-gray-400 font-medium uppercase tracking-tight">{user.is_active ? 'Active Connection' : 'Inactive'}</p>
                       </div>
                     </div>
@@ -163,7 +163,7 @@ const ApplicationAccess = () => {
                     <p className="text-xs text-gray-500 font-medium">{user.email}</p>
                   </td>
                   <td className="px-8 py-5">
-                    <span className="px-3 py-1 bg-[#0E1B2E] text-white text-[9px] font-bold tracking-widest uppercase border border-white/10 rounded-full">
+                    <span className="px-3 py-1 bg-[#0004ab] text-white text-[9px] font-bold tracking-widest uppercase border border-white/10 rounded-full">
                       {user.role || 'Unassigned'}
                     </span>
                   </td>
@@ -180,7 +180,7 @@ const ApplicationAccess = () => {
                           setFormData({ role: user.role });
                           setShowEditModal(true);
                         }}
-                        className="text-gray-400 hover:text-[#0E1B2E] transition-colors"
+                        className="text-gray-400 hover:text-[#0004ab] transition-colors"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -200,13 +200,13 @@ const ApplicationAccess = () => {
       </div>
 
       {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 bg-[#0E1B2E]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-[#0004ab]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg border border-gray-200 flex flex-col shadow-2xl">
-            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#0E1B2E]">
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#0004ab]">
                <h3 className="text-xl font-bold uppercase tracking-tight">
                  {showAddModal ? 'New Account Profile' : 'Modify Access Level'}
                </h3>
-               <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-gray-400 hover:text-[#0E1B2E] w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100">
+               <button onClick={() => { setShowAddModal(false); setShowEditModal(false); }} className="text-gray-400 hover:text-[#0004ab] w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100">
                  <X className="h-6 w-6" />
                </button>
             </div>
@@ -220,7 +220,7 @@ const ApplicationAccess = () => {
                       type="text"
                       value={formData.username}
                       onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                       placeholder="e.g. john_doe"
                     />
                   </div>
@@ -230,7 +230,7 @@ const ApplicationAccess = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                       placeholder="john@enterprise.com"
                     />
                   </div>
@@ -239,7 +239,7 @@ const ApplicationAccess = () => {
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium appearance-none rounded-md"
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium appearance-none rounded-md"
                     >
                       <option value="">Select Role</option>
                       {roles.map(role => (
@@ -254,13 +254,13 @@ const ApplicationAccess = () => {
                         type={showPassword ? "text" : "password"}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
+                        className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
                         placeholder="••••••••"
                       />
                       <button 
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0E1B2E]"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0004ab]"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
@@ -275,7 +275,7 @@ const ApplicationAccess = () => {
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium appearance-none rounded-md"
+                    className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium appearance-none rounded-md"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.name}>{role.name}</option>
@@ -288,14 +288,14 @@ const ApplicationAccess = () => {
             <div className="p-8 bg-gray-50 border-t border-gray-100 flex gap-4">
               <button
                 onClick={() => { setShowAddModal(false); setShowEditModal(false); }}
-                className="flex-1 h-12 font-bold text-gray-400 hover:text-[#0E1B2E] uppercase tracking-widest text-[10px] transition-all rounded-full"
+                className="flex-1 h-12 font-bold text-gray-400 hover:text-[#0004ab] uppercase tracking-widest text-[10px] transition-all rounded-full"
               >
                 Discard
               </button>
               <button
                 onClick={showAddModal ? handleCreateUser : handleUpdateUser}
                 disabled={saving}
-                className="flex-[2] h-12 bg-[#0E1B2E] text-white font-bold uppercase tracking-widest text-[10px] hover:opacity-90 disabled:opacity-30 transition-all rounded-full"
+                className="flex-[2] h-12 bg-[#0004ab] text-white font-bold uppercase tracking-widest text-[10px] hover:opacity-90 disabled:opacity-30 transition-all rounded-full"
               >
                 {saving ? 'Processing...' : (showAddModal ? 'Register Profile' : 'Save Alignment')}
               </button>
