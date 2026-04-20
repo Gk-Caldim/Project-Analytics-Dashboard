@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/ws", tags=["WebSockets"])
 
 class ConnectionManager:
     def __init__(self):
@@ -54,7 +54,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # NOTE: More specific routes must come BEFORE wildcard routes in FastAPI
-@router.websocket("/ws/capture/{meeting_id}/{client_id}")
+@router.websocket("/capture/{meeting_id}/{client_id}")
 async def capture_websocket_endpoint(websocket: WebSocket, meeting_id: str, client_id: str):
     """Room-based WebSocket for MeetingCapture live collaboration."""
     await manager.connect(websocket, meeting_id)
@@ -69,12 +69,15 @@ async def capture_websocket_endpoint(websocket: WebSocket, meeting_id: str, clie
     except WebSocketDisconnect:
         manager.disconnect(websocket, meeting_id)
 
-@router.websocket("/ws/{client_id}")
+@router.websocket("/status/{client_id}")
 async def global_websocket_endpoint(websocket: WebSocket, client_id: str):
     """Global WebSocket for system-wide notifications (MOM_SAVED, etc.)."""
+    logger.info(f"WS Attempt: {client_id}")
     await manager.connect(websocket)
     try:
+        logger.info(f"WS Connected: {client_id}")
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        logger.info(f"WS Disconnected: {client_id}")
         manager.disconnect(websocket)

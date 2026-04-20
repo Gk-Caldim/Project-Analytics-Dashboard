@@ -407,7 +407,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login', { replace: true });
+    navigate('/workspace-login', { replace: true });
   };
 
   // Open master submodule

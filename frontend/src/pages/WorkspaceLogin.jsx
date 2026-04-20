@@ -1,17 +1,38 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
+import API from '../utils/api';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import './WorkspaceLogin.css';
 
 const WorkspaceLogin = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    navigate('/workspace-dashboard');
+    setError('');
+    dispatch(loginStart());
+    try {
+      const response = await API.post('/auth/login', { email, password });
+      if (response.data && response.data.access_token) {
+        const { access_token, user } = response.data;
+        dispatch(loginSuccess({ token: access_token, user }));
+        navigate('/dashboard');
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
+      dispatch(loginFailure(errorMessage));
+      setError(errorMessage);
+    }
   };
 
   return (
@@ -142,8 +163,14 @@ const WorkspaceLogin = () => {
               </div>
             </div>
 
-            <button type="submit" className="ws-signin-btn">
-              Sign In
+            {error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{error}</p>
+              </div>
+            )}
+
+            <button type="submit" className="ws-signin-btn" disabled={loading}>
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
