@@ -40,7 +40,7 @@ const Connections = ({ settings, onUpdate }) => {
             <button
               onClick={testConnection}
               disabled={isTesting}
-              className="h-10 px-6 border border-gray-100 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 disabled:opacity-50"
+              className="h-10 px-6 border border-gray-100 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 disabled:opacity-50 rounded-full"
             >
               {isTesting ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
               {isTesting ? 'Testing' : 'Test Bridge'}
@@ -60,7 +60,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="text"
                 value={getValue('smtp_host')}
                 onChange={(e) => onUpdate('smtp_host', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
                 placeholder="smtp.example.com"
               />
             </div>
@@ -70,7 +70,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="number"
                 value={getValue('smtp_port')}
                 onChange={(e) => onUpdate('smtp_port', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
                 placeholder="587"
               />
             </div>
@@ -80,7 +80,7 @@ const Connections = ({ settings, onUpdate }) => {
                 type="text"
                 value={getValue('smtp_user')}
                 onChange={(e) => onUpdate('smtp_user', e.target.value)}
-                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
                 placeholder="user@example.com"
               />
             </div>
@@ -91,7 +91,7 @@ const Connections = ({ settings, onUpdate }) => {
                   type={showPassword ? "text" : "password"}
                   value={getValue('smtp_pass')}
                   onChange={(e) => onUpdate('smtp_pass', e.target.value)}
-                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium"
+                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0E1B2E] outline-none text-sm font-medium rounded-md"
                   placeholder="••••••••"
                 />
                 <button
@@ -115,7 +115,7 @@ const Connections = ({ settings, onUpdate }) => {
                 Connect your institutional data lake for high-level cross-project comparisons and global industrial trend analysis.
               </p>
             </div>
-            <button className="h-11 w-full bg-white text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-100 transition-colors">
+            <button className="h-11 w-full bg-white text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-100 transition-colors rounded-full">
                Establish Connection
             </button>
           </div>

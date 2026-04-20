@@ -104,7 +104,7 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
                 max={3}
                 step={0.1}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="flex-1 h-1 bg-gray-100 rounded-none appearance-none cursor-pointer accent-[#0E1B2E]"
+                className="flex-1 h-1 bg-gray-100 rounded-full appearance-none cursor-pointer accent-[#0E1B2E]"
               />
               <ZoomIn className="h-4 w-4 text-gray-400" />
            </div>

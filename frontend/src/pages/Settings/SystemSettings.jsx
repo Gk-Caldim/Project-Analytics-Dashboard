@@ -163,11 +163,12 @@ const SystemSettings = () => {
                     key={item.id}
                     onClick={() => setActiveCategory(item.id)}
                     className={`w-full flex items-center px-4 py-3 rounded-none transition-all group ${activeCategory === item.id
-                      ? 'bg-[#0E1B2E] text-white'
-                      : 'text-[#0E1B2E]/60 hover:bg-[#0E1B2E]/5 hover:text-[#0E1B2E]'
+                      ? 'text-[#0E1B2E] bg-gray-50/50'
+                      : 'text-[#0E1B2E]/30 hover:bg-gray-50 hover:text-[#0E1B2E]'
                       }`}
                   >
-                    <span className="text-xs font-bold uppercase tracking-widest">{item.label}</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-widest ${activeCategory === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>{item.label}</span>
+                    {activeCategory === item.id && <div className="ml-auto w-1 h-4 bg-[#0E1B2E]" />}
                   </button>
                 ))}
               </div>
@@ -179,7 +180,7 @@ const SystemSettings = () => {
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}
-            className="w-full h-12 bg-[#0E1B2E] text-white rounded-none font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
+            className="w-full h-12 bg-[#0E1B2E] text-white rounded-full font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
           >
             {isSaving ? '...' : 'Commit Changes'}
           </button>

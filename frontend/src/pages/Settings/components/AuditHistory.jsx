@@ -73,7 +73,7 @@ const AuditHistory = () => {
           <h2 className="text-3xl font-bold text-[#0E1B2E] tracking-tight">System Audit Log</h2>
           <p className="text-sm text-gray-500 mt-2">Historical record of all administrative actions, data mutations, and security events.</p>
         </div>
-        <button className="h-11 px-6 border border-gray-200 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3">
+        <button className="h-11 px-6 border border-gray-200 text-[#0E1B2E] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
           <Download className="h-4 w-4" />
           Export Ledger
         </button>
@@ -87,7 +87,7 @@ const AuditHistory = () => {
             placeholder="SEARCH BY ACTIVITY OR USER..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 rounded-none focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase"
+            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
           />
         </div>
         
@@ -95,7 +95,7 @@ const AuditHistory = () => {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-none focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer"
+            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#0E1B2E] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
           >
             <option value="ALL">ALL CATEGORIES</option>
             <option value="SECURITY">SECURITY</option>
@@ -106,7 +106,7 @@ const AuditHistory = () => {
 
         <button 
            onClick={() => { setSearchTerm(''); setActiveFilter('ALL'); }}
-           className="h-11 border border-gray-200 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0E1B2E] transition-colors"
+           className="h-11 border border-gray-200 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0E1B2E] transition-colors rounded-full"
         >
           Reset Filters
         </button>

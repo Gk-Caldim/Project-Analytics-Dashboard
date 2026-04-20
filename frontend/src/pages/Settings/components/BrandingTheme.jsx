@@ -11,9 +11,9 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
       <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
         {label}
       </label>
-      <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 p-2 rounded-none">
+      <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 p-2 rounded-md">
         <div 
-          className="w-10 h-10 border border-gray-200 shrink-0" 
+          className="w-10 h-10 border border-gray-200 shrink-0 rounded-sm" 
           style={{ backgroundColor: value }}
         />
         <input
@@ -63,14 +63,14 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
               <button
                 key={m}
                 onClick={() => onUpdate('display_mode', m)}
-                className={`flex items-center justify-between px-6 py-4 rounded-none border transition-colors ${
+                className={`flex items-center justify-between px-6 py-4 rounded-full border transition-all ${
                   displayMode === m 
                   ? 'bg-[#0E1B2E] text-white border-[#0E1B2E]' 
                   : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
                 }`}
               >
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{m} Mode</span>
-                {displayMode === m && <div className="w-1.5 h-1.5 bg-white" />}
+                {displayMode === m && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
               </button>
             ))}
           </div>
@@ -79,7 +79,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
 
       <div className="bg-gray-50 border border-gray-200 p-12 rounded-none flex items-center justify-center">
          <div className="text-center space-y-6 max-w-md">
-            <div className="inline-flex p-4 bg-white border border-gray-200">
+            <div className="inline-flex p-4 bg-white border border-gray-200 rounded-md">
                <RefreshCw className="h-6 w-6 text-gray-300" />
             </div>
             <div className="space-y-2">
