@@ -1193,29 +1193,15 @@ const Dashboard = () => {
               overflow-hidden
             `}
           >
-            {/* Logo Section */}
-            <div className="px-4 py-6 border-b border-white/5">
+            {/* Logo Section - Aligned with Header */}
+            <div className="h-14 flex items-center px-4 border-b border-white/5">
               {isSidebarExpanded ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                    <span className="text-white font-bold text-base">
-                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-bold text-white truncate tracking-tight">
-                      {companyName || 'Industrial Analytics'}
-                    </p>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-bold text-lg tracking-[0.1em] font-primary">CALDIM</span>
                 </div>
               ) : (
-                <div className="flex justify-center">
-                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                    <span className="text-white font-bold text-base">
-                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                    </span>
-                  </div>
+                <div className="flex justify-center w-full">
+                  <span className="text-white font-bold text-lg">C</span>
                 </div>
               )}
             </div>
