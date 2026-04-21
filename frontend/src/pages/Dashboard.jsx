@@ -10,9 +10,12 @@ import {
   setSelectedUploadFileId,
   setActiveProjectName,
   setSidebarCollapsed,
-  setBranding
+  setBranding,
+  setActiveView,
+  markNotificationsRead
 } from '../store/slices/navSlice';
 import { logout } from '../store/slices/authSlice';
+import AgentView from './AgentView';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
@@ -62,7 +65,8 @@ const Dashboard = () => {
     activeProjectName,
     sidebarCollapsed,
     companyLogo,
-    companyName
+    companyName,
+    activeView
   } = useSelector(state => state.nav);
 
   // Fetch settings on mount
@@ -89,13 +93,33 @@ const Dashboard = () => {
   const [projectDashboardModules, setProjectDashboardModules] = useState([]);
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [notifications] = useState(3);
+  const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
+  const unreadNotifications = useSelector(state => state.nav.unreadNotifications);
   const [hoveredModule, setHoveredModule] = useState(null);
 
   const profileMenuRef = useRef(null);
+  const notificationMenuRef = useRef(null);
   const sidebarRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
+  const [notificationMenuPosition, setNotificationMenuPosition] = useState({ top: 0, right: 0 });
+
+  const HARDCODED_NOTIFICATIONS = [
+    {
+      id: 1,
+      title: "Project Alpha Updated",
+      description: "The milestone 'Development Finish' has been marked as complete.",
+      time: "2 hours ago",
+      type: "project"
+    },
+    {
+      id: 2,
+      title: "New Meeting Scheduled",
+      description: "Q2 Strategy Review meeting has been scheduled for tomorrow at 10:00 AM.",
+      time: "5 hours ago",
+      type: "meeting"
+    }
+  ];
 
   // Masters submodules
   const mastersSubmodules = useMemo(() => [
@@ -367,18 +391,21 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Click outside for profile menu
+  // Click outside for menus
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
         setProfileMenuOpen(false);
+      }
+      if (notificationMenuRef.current && !notificationMenuRef.current.contains(event.target)) {
+        setNotificationMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Update profile menu position when opened
+  // Update menu positions when opened
   useEffect(() => {
     if (profileMenuOpen && profileMenuRef.current) {
       const rect = profileMenuRef.current.getBoundingClientRect();
@@ -387,7 +414,14 @@ const Dashboard = () => {
         right: window.innerWidth - rect.right
       });
     }
-  }, [profileMenuOpen]);
+    if (notificationMenuOpen && notificationMenuRef.current) {
+      const rect = notificationMenuRef.current.getBoundingClientRect();
+      setNotificationMenuPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right
+      });
+    }
+  }, [profileMenuOpen, notificationMenuOpen]);
 
   // Handle window resize for profile menu
   useEffect(() => {
@@ -478,9 +512,11 @@ const Dashboard = () => {
 
     window.addEventListener('openProjectDashboardMain', handleOpenProjectDashboardMain);
     window.addEventListener('resetProjectDashboardMain', handleResetProjectDashboardMain);
+    window.addEventListener('openNotifications', () => setNotificationMenuOpen(true));
     return () => {
       window.removeEventListener('openProjectDashboardMain', handleOpenProjectDashboardMain);
       window.removeEventListener('resetProjectDashboardMain', handleResetProjectDashboardMain);
+      window.removeEventListener('openNotifications', () => setNotificationMenuOpen(true));
     };
   }, [projectDashboardModules]);
 
@@ -838,8 +874,8 @@ const Dashboard = () => {
                 onMouseLeave={() => setHoveredModule(null)}
                 onClick={() => handleModuleClick('budget-upload')}
                 className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'budget-upload'
-                    ? 'bg-brand-primary/10 text-white font-semibold'
-                    : 'hover:bg-white/5 text-white/70 hover:text-white'
+                  ? 'bg-brand-primary/10 text-white font-semibold'
+                  : 'hover:bg-white/5 text-white/70 hover:text-white'
                   }`}
               >
                 <span className="text-body-sm font-medium tracking-tight">
@@ -900,8 +936,8 @@ const Dashboard = () => {
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('meetings')}
               className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'meetings'
-                  ? 'bg-brand-primary/10 text-white font-semibold'
-                  : 'hover:bg-white/5 text-white/70 hover:text-white'
+                ? 'bg-brand-primary/10 text-white font-semibold'
+                : 'hover:bg-white/5 text-white/70 hover:text-white'
                 }`}
             >
               <span className="text-body-sm font-medium tracking-tight">
@@ -915,8 +951,8 @@ const Dashboard = () => {
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
               className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'mom-module'
-                  ? 'bg-brand-primary/10 text-white font-semibold'
-                  : 'hover:bg-white/5 text-white/70 hover:text-white'
+                ? 'bg-brand-primary/10 text-white font-semibold'
+                : 'hover:bg-white/5 text-white/70 hover:text-white'
                 }`}
             >
               <span className="text-body-sm font-medium tracking-tight">
@@ -1107,8 +1143,8 @@ const Dashboard = () => {
           key={module.id}
           onClick={() => handleModuleClick(module.id)}
           className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/70 hover:text-white'
+            ? 'bg-brand-primary/10 text-white font-semibold'
+            : 'hover:bg-white/5 text-white/70 hover:text-white'
             }`}
         >
           {isSidebarExpanded && (
@@ -1128,145 +1164,275 @@ const Dashboard = () => {
     <div className="h-screen flex flex-col overflow-hidden bg-app-bg">
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Clean Surface Color */}
-        <div
-          ref={sidebarRef}
-          className={`
-            fixed lg:relative inset-y-0 left-0 z-30
-            ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-[#1a1a1a]
-          border-r border-white/5
-            transform transition-all duration-250 ease-product lg:transform-none
-            flex flex-col
-            overflow-hidden
-          `}
-        >
-          {/* Logo Section */}
-          <div className="px-4 py-6 border-b border-white/5">
-            {isSidebarExpanded ? (
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                  <span className="text-white font-bold text-base">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
+        {activeView !== 'agent' && (
+          <div
+            ref={sidebarRef}
+            className={`
+              fixed lg:relative inset-y-0 left-0 z-30
+              ${isSidebarExpanded ? 'w-60' : 'w-16'}
+              bg-[#0E1B2E]
+            border-r border-white/5
+              transform transition-all duration-250 ease-product lg:transform-none
+              flex flex-col
+              overflow-hidden
+            `}
+          >
+            {/* Logo Section */}
+            <div className="px-4 py-6 border-b border-white/5">
+              {isSidebarExpanded ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                    <span className="text-white font-bold text-base">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-bold text-white truncate tracking-tight">
+                      {companyName || 'Industrial Analytics'}
+                    </p>
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-bold text-white truncate tracking-tight">
-                    {companyName || 'Industrial Analytics'}
-                  </p>
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                  <span className="text-white font-bold text-base">
-                    {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
-            {renderProjectDashboardModule()}
-            {renderMOMModule()}
-            {renderMastersModule()}
-            {renderUploadsModule()}
-            {renderOtherModules()}
-          </div>
-
-          {/* User Section at Bottom */}
-          <div className="p-4 border-t border-white/5 bg-white/5">
-            <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
-                {getUserInitial()}
-              </div>
-              {isSidebarExpanded && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
-                  <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
+              ) : (
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
+                    <span className="text-white font-bold text-base">
+                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Navigation */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5">
+              {renderProjectDashboardModule()}
+              {renderMOMModule()}
+              {renderMastersModule()}
+              {renderUploadsModule()}
+              {renderOtherModules()}
+            </div>
+
+            {/* User Section at Bottom */}
+            <div className="p-4 border-t border-white/5 bg-white/5">
+              <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
+                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
+                  {getUserInitial()}
+                </div>
+                {isSidebarExpanded && (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
+                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-app-bg">
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#171717]' : 'bg-app-bg'}`}>
           {/* Header */}
-          <header className="h-14 bg-app-bg border-b border-border flex-shrink-0 flex items-center px-6">
+          <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
+            ? 'bg-[#171717] border-b border-white/5'
+            : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Toggle & Title */}
             <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-              </button>
-              <h1 className="text-h3 font-semibold text-text-primary">
-                {getHeaderTitle()}
+              {activeView !== 'agent' && (
+                <button
+                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
+                  className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
+                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                </button>
+              )}
+              <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
+                {activeView === 'agent' ? 'AI Agent' : getHeaderTitle()}
               </h1>
             </div>
 
+            {/* Center - View Toggle */}
+            <div className="flex-1 flex justify-center">
+              <div className={`flex p-1 rounded-lg border transition-colors duration-300 ${activeView === 'agent'
+                ? 'bg-[#212121] border-white/10'
+                : 'bg-app-surface border-border'}`}>
+                <button
+                  onClick={() => dispatch(setActiveView('dashboard'))}
+                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'dashboard'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : activeView === 'agent'
+                      ? 'text-white/40 hover:text-white hover:bg-white/5'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => dispatch(setActiveView('agent'))}
+                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'agent'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                    }`}
+                >
+                  Agent
+                </button>
+              </div>
+            </div>
+
             {/* Right - Date/Time & Profile */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1 justify-end">
               {/* Date and Time */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-app-surface rounded-md">
-                <Clock className="h-4 w-4 text-text-muted" />
-                <span className="text-body-sm font-medium text-text-secondary tabular-nums">{currentTime}</span>
-                <span className="text-border-strong">|</span>
-                <span className="text-body-sm text-text-secondary">{currentDate}</span>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors duration-300 ${activeView === 'agent'
+                ? 'bg-[#212121] border border-white/5'
+                : 'bg-app-surface'}`}>
+                <Clock className={`h-4 w-4 ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`} />
+                <span className={`text-body-sm font-medium tabular-nums ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentTime}</span>
+                <span className={activeView === 'agent' ? 'text-white/10' : 'text-border-strong'}>|</span>
+                <span className={`text-body-sm ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentDate}</span>
+              </div>
+
+              {/* Notifications Menu */}
+              <div className="relative mr-2 flex items-center justify-center" ref={notificationMenuRef}>
+                <button
+                  onClick={() => {
+                    setNotificationMenuOpen(!notificationMenuOpen);
+                  }}
+                  className={`p-2 rounded-full transition-colors duration-fast relative ${activeView === 'agent'
+                    ? (notificationMenuOpen ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10')
+                    : (notificationMenuOpen ? 'text-text-primary bg-app-surface' : 'text-text-secondary hover:text-text-primary hover:bg-app-surface')}`}
+                  title="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1 right-1.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-error opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-status-error"></span>
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {notificationMenuOpen && (
+                  <div
+                    className={`fixed z-[9999] w-80 rounded-lg shadow-lg border overflow-hidden ${activeView === 'agent'
+                      ? 'bg-[#212121] border-white/10 text-white'
+                      : 'bg-app-bg border-border text-text-primary'}`}
+                    style={{
+                      top: `${notificationMenuPosition.top}px`,
+                      right: `${notificationMenuPosition.right}px`
+                    }}
+                  >
+                    <div className={`px-4 py-3 border-b flex items-center justify-between ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-body">Notifications</h3>
+                        {unreadNotifications > 0 && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-status-error text-[10px] font-bold text-white">
+                            {unreadNotifications}
+                          </span>
+                        )}
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dispatch(markNotificationsRead());
+                        }}
+                        className={`text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity ${activeView === 'agent' ? 'text-white/40' : 'text-brand-primary'}`}
+                      >
+                        Mark All as Read
+                      </button>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {HARDCODED_NOTIFICATIONS.map((notif) => (
+                        <div 
+                          key={notif.id}
+                          className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${activeView === 'agent' 
+                            ? 'border-white/5 hover:bg-white/5' 
+                            : 'border-border hover:bg-app-surface'}`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary/10'}`}>
+                            {notif.type === 'project' ? <FolderKanban className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="text-body-sm font-semibold truncate">{notif.title}</p>
+                              <span className="text-[10px] opacity-40 shrink-0 font-medium">{notif.time}</span>
+                            </div>
+                            <p className="text-body-xs opacity-60 mt-1 leading-relaxed line-clamp-2">
+                              {notif.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-2">
+                      <button className={`w-full py-2 text-center text-body-xs font-bold uppercase tracking-widest transition-colors duration-fast rounded-md ${activeView === 'agent'
+                        ? 'text-white/40 hover:text-white hover:bg-white/5'
+                        : 'text-text-muted hover:text-text-primary hover:bg-app-surface'}`}>
+                        View All Activity
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Profile Menu */}
               <div className="relative" ref={profileMenuRef}>
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold text-body-sm hover:bg-brand-accent transition-colors duration-fast"
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-body-sm transition-colors duration-fast ${activeView === 'agent'
+                    ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                    : 'bg-brand-primary text-white hover:bg-brand-accent'}`}
                 >
                   {getUserInitial()}
                 </button>
 
                 {profileMenuOpen && (
                   <div
-                    className="fixed z-[9999] w-64 bg-app-bg rounded-lg shadow-lg border border-border py-2"
+                    className={`fixed z-[9999] w-64 rounded-lg shadow-lg border py-2 ${activeView === 'agent'
+                      ? 'bg-[#212121] border-white/10 text-white'
+                      : 'bg-app-bg border-border text-text-primary'}`}
                     style={{
                       top: `${profileMenuPosition.top}px`,
                       right: `${profileMenuPosition.right}px`
                     }}
                   >
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className={`px-4 py-3 border-b ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center text-white font-semibold">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary'}`}>
                           {getUserInitial()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-body font-semibold text-text-primary truncate">{user?.full_name || 'User'}</p>
-                          <p className="text-caption text-text-muted truncate">{user?.email || 'user@example.com'}</p>
+                          <p className={`text-body font-semibold truncate ${activeView === 'agent' ? 'text-white' : 'text-text-primary'}`}>{user?.full_name || 'User'}</p>
+                          <p className={`text-caption truncate ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`}>{user?.email || 'user@example.com'}</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="py-1">
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                        ? 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
                         <UserIcon className="h-4 w-4" />
                         <span>Profile</span>
                       </button>
-                      <button className="w-full px-4 py-2 text-left text-body-sm text-text-secondary hover:text-text-primary hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast">
+                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                        ? 'text-white/60 hover:text-white hover:bg-white/5'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
                         <Settings className="h-4 w-4" />
                         <span>Settings</span>
                       </button>
                     </div>
 
-                    <div className="border-t border-border py-1">
+                    <div className={`border-t py-1 ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
                       <button
                         onClick={() => {
                           handleLogout();
                           setProfileMenuOpen(false);
                         }}
-                        className="w-full px-4 py-2 text-left text-body-sm text-status-error hover:bg-app-surface flex items-center gap-3 transition-colors duration-fast"
+                        className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
+                          ? 'text-red-400 hover:bg-white/5'
+                          : 'text-status-error hover:bg-app-surface'}`}
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Sign out</span>
@@ -1280,9 +1446,13 @@ const Dashboard = () => {
 
           {/* Main Content */}
           <main className="flex-1 min-h-0 overflow-hidden bg-app-bg">
-            <div className="h-full overflow-auto">
-              <Outlet />
-            </div>
+            {activeView === 'agent' ? (
+              <AgentView />
+            ) : (
+              <div className="h-full overflow-auto">
+                <Outlet />
+              </div>
+            )}
           </main>
         </div>
       </div>

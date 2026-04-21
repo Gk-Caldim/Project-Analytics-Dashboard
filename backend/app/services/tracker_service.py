@@ -81,8 +81,17 @@ def process_tracker_upload(
     )
 
     # ------------------------------------------------------------------
-    # 2. Create Upload record immediately (status=Processing)
-    #    so it's visible even if parsing fails later.
+    # 2. Parse Excel structurally first
+    #    If required columns are missing, this raises ValueError before
+    #    any DB record is created.
+    # ------------------------------------------------------------------
+    result = parse_tracker_excel(file_path)
+    records = result["records"]
+    errors = result["errors"]
+    total = len(records) + len(errors)
+
+    # ------------------------------------------------------------------
+    # 3. Create Upload record (status=Processing)
     # ------------------------------------------------------------------
     new_upload = Upload(
         project_id=project_id,
@@ -98,16 +107,8 @@ def process_tracker_upload(
     logger.info("[tracker_service] Upload record created  id=%s", upload_id)
 
     try:
-        # --------------------------------------------------------------
-        # 3. Parse Excel
-        # --------------------------------------------------------------
-        result  = parse_tracker_excel(file_path)
-        records = result["records"]
-        errors  = result["errors"]
-        total   = len(records) + len(errors)
-
         logger.info(
-            "[tracker_service] upload_id=%s  PARSED: total_excel_rows=%s  valid=%s  invalid=%s",
+            "[tracker_service] upload_id=%s  PROCESSING BLOB: total_excel_rows=%s  valid=%s  invalid=%s",
             upload_id, total, len(records), len(errors),
         )
 

@@ -39,6 +39,7 @@ from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
 from app.models.transcript import Transcript  # noqa: F401
 from app.models.mom import MOMSession  # noqa: F401
+from app.models.chat_history import ChatHistory # noqa: F401
 
 # Import routers
 from app.api.auth import router as auth_router
@@ -57,10 +58,10 @@ from app.api.project_team import router as project_team_router
 from app.api.audit_logs import router as audit_logs_router
 from app.api.teams import router as teams_router
 from app.api.application_access import router as application_access_router
+from app.api.chats import router as chat_router
 from app.api.enterprise import router as enterprise_router
 from app.crud.role import seed_default_roles
 
-Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="MyFastAPIApp",
     version="1.0.0",
@@ -78,6 +79,7 @@ async def test_websocket_endpoint(websocket: WebSocket, client_id: str):
 
 @app.on_event("startup")
 async def startup_event():
+    Base.metadata.create_all(bind=engine)
     db = next(get_db())
     try:
         seed_default_roles(db)
@@ -133,6 +135,7 @@ app.include_router(project_team_router, prefix=API_PREFIX)
 app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
 app.include_router(application_access_router, prefix=API_PREFIX)
+app.include_router(chat_router, prefix=API_PREFIX)
 app.include_router(enterprise_router, prefix=API_PREFIX)
 
 from app.api.transcript import router as transcript_router

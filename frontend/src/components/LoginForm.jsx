@@ -72,19 +72,19 @@ const LoginForm = ({ onLoginSuccess, onLoginStart }) => {
   return (
     <div className="w-full">
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email */}
+        {/* Email or ID */}
         <div>
           <label className="block text-label font-medium text-text-secondary mb-1.5">
-            Email
+            Email or Employee ID
           </label>
           <input
-            type="email"
+            type="text"
             name="email"
             value={formData.email}
             onChange={handleChange}
             required
             className="w-full px-3 py-2.5 bg-app-bg border border-border rounded-sm focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/10 transition-all duration-fast text-body text-text-primary placeholder-text-muted"
-            placeholder="name@company.com"
+            placeholder="name@company.com or EMP001"
           />
         </div>
 
