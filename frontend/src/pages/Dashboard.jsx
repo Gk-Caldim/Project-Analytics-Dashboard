@@ -1133,7 +1133,7 @@ const Dashboard = () => {
           className={`
             fixed lg:relative inset-y-0 left-0 z-30
             ${isSidebarExpanded ? 'w-60' : 'w-16'}
-            bg-[#0E1B2E]
+            bg-[#1a1a1a]
           border-r border-white/5
             transform transition-all duration-250 ease-product lg:transform-none
             flex flex-col
