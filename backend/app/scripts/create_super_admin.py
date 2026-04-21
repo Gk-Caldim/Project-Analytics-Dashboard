@@ -8,6 +8,8 @@ if backend_dir not in sys.path:
 
 from app.core.database import SessionLocal
 from app.models.employee import Employee
+from app.models.department import Department
+from app.models.role import Role
 from app.core.security import hash_password
 
 def create_super_admin():

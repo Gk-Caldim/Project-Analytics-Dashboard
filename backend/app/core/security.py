@@ -12,8 +12,8 @@ from app.core.config import (
 )
 
 # ---------------- PASSWORD HASHING ----------------
-# Argon2 instead of bcrypt
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+# Support both Argon2 (new) and Bcrypt (legacy)
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 def hash_password(password: str) -> str:

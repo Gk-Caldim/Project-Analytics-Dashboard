@@ -7,6 +7,8 @@ from typing import List, Optional
 from sqlalchemy import func
 from app.models.employee_project import EmployeeProjectMap
 from app.models.project import Project
+from app.models.project_permission import ProjectPermission
+from app.models.application_access import ApplicationAccess
 
 def get_employees(db: Session, skip: int = 0, limit: int = 1000) -> List[Employee]:
     """Get all employees with their assigned project names"""
@@ -155,13 +157,35 @@ def delete_employee(db: Session, employee_id: int) -> bool:
     if not db_employee:
         return False
     
-    db.delete(db_employee)
-    db.commit()
-    return True
+    try:
+        # Manually cascade deletes
+        if db_employee.employee_id:
+            db.query(EmployeeProjectMap).filter(EmployeeProjectMap.employee_id == db_employee.employee_id).delete(synchronize_session=False)
+            db.query(ProjectPermission).filter(ProjectPermission.employee_id == db_employee.employee_id).delete(synchronize_session=False)
+            db.query(Project).filter(Project.employee_id == db_employee.employee_id).update({"employee_id": None}, synchronize_session=False)
+            
+        db.query(ApplicationAccess).filter(ApplicationAccess.employee_id == db_employee.id).delete(synchronize_session=False)
+        
+        db.delete(db_employee)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e
 
 def bulk_delete_employees(db: Session, employee_ids: List[int]) -> bool:
     """Bulk delete employees"""
     try:
+        employees = db.query(Employee).filter(Employee.id.in_(employee_ids)).all()
+        emp_str_ids = [e.employee_id for e in employees if e.employee_id]
+        
+        if emp_str_ids:
+            db.query(EmployeeProjectMap).filter(EmployeeProjectMap.employee_id.in_(emp_str_ids)).delete(synchronize_session=False)
+            db.query(ProjectPermission).filter(ProjectPermission.employee_id.in_(emp_str_ids)).delete(synchronize_session=False)
+            db.query(Project).filter(Project.employee_id.in_(emp_str_ids)).update({"employee_id": None}, synchronize_session=False)
+            
+        db.query(ApplicationAccess).filter(ApplicationAccess.employee_id.in_(employee_ids)).delete(synchronize_session=False)
+        
         db.query(Employee).filter(Employee.id.in_(employee_ids)).delete(synchronize_session=False)
         db.commit()
         return True
