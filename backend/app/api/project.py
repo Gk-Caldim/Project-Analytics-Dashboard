@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Any, Dict
+from pydantic import BaseModel
 
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.project_column import ProjectColumnCreate, ProjectColumnUpdate, ProjectColumnOut
@@ -284,6 +285,30 @@ def delete_column(column_id: int, db: Session = Depends(get_db)):
     return None
 
 
+class DashboardConfigUpdate(BaseModel):
+    dashboard_config: Dict[str, Any]
+
+@router.patch("/{project_id}/config")
+def update_dashboard_config(
+    project_id: int,
+    config_update: DashboardConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Updates only the dashboard configuration JSON for a project"""
+    db_project = crud_project.get_project(db, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    if not check_project_permission(db_project, current_user, "edit"):
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this project")
+        
+    # The frontend sends { "dashboard_config": { ... } }
+    db_project.dashboard_config = config_update.dashboard_config
+    db.commit()
+    db.refresh(db_project)
+    return {"message": "Dashboard configuration updated", "config": db_project.dashboard_config}
+
 # ---------------------------------------------------------------------------
 # GET /projects/{project_id}/structure
 # Real hierarchy: Project → Modules → milestone count
@@ -303,6 +328,7 @@ def get_project_structure(
     {
         "project_id": 1,
         "project_name": "...",
+        "dashboard_config": {...},
         "modules": [{ "module_name": "...", "milestones_count": N }],
         "uploads": [...]
     }
@@ -373,6 +399,7 @@ def get_project_structure(
     return {
         "project_id":   project_id,
         "project_name": project.name,
+        "dashboard_config": project.dashboard_config,
         "modules":      flat_modules,   # ← flat list — sidebar uses this
         "uploads":      uploads_out,
     }
@@ -460,6 +487,7 @@ def get_all_project_structures(
         result.append({
             "project_id":   p.id,
             "project_name": p.name,
+            "dashboard_config": p.dashboard_config,
             "modules":      flat_mods,      # ← flat deduplicated module list
             "uploads":      uploads_out,
         })
