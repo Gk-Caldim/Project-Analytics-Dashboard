@@ -72,7 +72,7 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
     <div className="fixed inset-0 bg-[#0004ab]/80 backdrop-blur-sm z-[300] flex items-center justify-center p-6 animate-in fade-in duration-200">
       <div className="bg-white max-w-2xl w-full border border-gray-200 overflow-hidden flex flex-col shadow-2xl rounded-none">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-           <h3 className="text-xl font-bold text-[#0004ab] uppercase tracking-tight">Identity Precision</h3>
+           <h3 className="text-xl font-bold text-[#000000] uppercase tracking-tight">Identity Precision</h3>
            <button onClick={onCancel} className="text-gray-400 hover:text-[#0004ab] transition-colors">
               <X className="h-5 w-5" />
            </button>

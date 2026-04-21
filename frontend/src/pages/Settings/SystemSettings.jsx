@@ -149,22 +149,22 @@ const SystemSettings = () => {
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
       <aside className="w-[280px] bg-[#F4F6F9] border-r border-gray-200 flex flex-col z-20">
         <div className="p-8 pt-12">
-          <h1 className="text-2xl font-bold text-[#0004ab] tracking-tight uppercase">Settings</h1>
+          <h1 className="text-2xl font-bold text-[#000000] tracking-tight uppercase">Settings</h1>
           <div className="h-0.5 w-6 bg-[#0004ab]/20 mt-4" />
         </div>
 
         <nav className="flex-1 px-6 mt-8 space-y-10 overflow-y-auto custom-scrollbar">
           {sidebarCategories.map((group) => (
             <div key={group.group} className="space-y-4">
-              <h3 className="text-[10px] font-bold text-[#0004ab]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
+              <h3 className="text-[10px] font-bold text-[#000000]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setActiveCategory(item.id)}
                     className={`w-full flex items-center px-4 py-3 rounded-none transition-all group ${activeCategory === item.id
-                      ? 'text-[#0004ab] bg-gray-50/50'
-                      : 'text-[#0004ab]/30 hover:bg-gray-50 hover:text-[#0004ab]'
+                      ? 'text-[#000000] bg-gray-50/50'
+                      : 'text-[#000000]/30 hover:bg-gray-50 hover:text-[#000000]'
                       }`}
                   >
                     <span className={`text-[11px] font-bold uppercase tracking-widest ${activeCategory === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>{item.label}</span>

@@ -341,7 +341,7 @@ const AccessControl = () => {
                                     >
                                       <div className="flex items-center gap-2">
                                          <div className={`w-1 h-1 rounded-full ${isSubEnabled ? 'bg-[#0004ab]' : 'bg-slate-300'}`} />
-                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isSubEnabled ? 'text-[#0004ab]' : 'text-slate-600'}`}>{sub.label}</span>
+                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isSubEnabled ? 'text-[#000000]' : 'text-slate-600'}`}>{sub.label}</span>
                                       </div>
                                       <Toggle enabled={isSubEnabled} onChange={() => onToggle(perm.name, sub.id)} />
                                     </div>
@@ -366,7 +366,7 @@ const AccessControl = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-[#0004ab]" />
-        <p className="text-[#0004ab]/40 text-[10px] font-bold tracking-[0.3em] uppercase">Syncing roles...</p>
+        <p className="text-[#000000]/40 text-[10px] font-bold tracking-[0.3em] uppercase">Syncing roles...</p>
       </div>
     );
   }
@@ -385,7 +385,7 @@ const AccessControl = () => {
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Role Management</h2>
+          <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Role Management</h2>
           <p className="text-sm text-gray-500 mt-2">Manage system access profiles, functional groups, and secure permission mappings.</p>
         </div>
         <button
@@ -405,7 +405,7 @@ const AccessControl = () => {
         {roles.map((role) => (
           <div 
             key={role.id} 
-            className="group relative p-6 cursor-default bg-white border border-gray-100 rounded-none transition-all duration-300 hover:border-[#0004ab]/20 hover:shadow-lg flex flex-col justify-between min-h-[220px]"
+            className="group relative p-6 cursor-default bg-white border border-gray-100 rounded-none transition-all duration-300 hover:border-[#000000]/20 hover:shadow-lg flex flex-col justify-between min-h-[220px]"
           >
             <div className="space-y-6">
                <div className="flex items-start justify-between">
@@ -423,7 +423,7 @@ const AccessControl = () => {
                </div>
                
                <div className="space-y-1">
-                  <p className="text-[12px] font-bold uppercase tracking-tight text-[#0004ab] leading-none">{role.name}</p>
+                  <p className="text-[12px] font-bold uppercase tracking-tight text-[#000000] leading-none">{role.name}</p>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">
                      {role.permissions?.length || 0} Modules Assigned
                   </p>
@@ -451,7 +451,7 @@ const AccessControl = () => {
           <div className="bg-white w-full max-w-2xl border border-slate-200 rounded-none shadow-2xl flex flex-col max-h-[90vh]">
              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex flex-col">
-                   <h3 className="text-xl font-bold text-[#0004ab] uppercase tracking-tight">{selectedRole.name}</h3>
+                   <h3 className="text-xl font-bold text-[#000000] uppercase tracking-tight">{selectedRole.name}</h3>
                    <p className="text-[9px] text-slate-400 uppercase tracking-[0.2em] font-bold mt-1">Permission Settings</p>
                 </div>
                 <button onClick={() => setShowConfigModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">
@@ -490,7 +490,7 @@ const AccessControl = () => {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[500] flex items-center justify-center p-6 animate-in fade-in duration-200 font-['Inter']">
           <div className="bg-white w-full max-w-2xl border border-slate-200 rounded-none shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 text-[#0004ab]">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 text-[#000000]">
                <div>
                   <h3 className="text-xl font-bold uppercase tracking-tight">Provision Role</h3>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Create system access profile</p>
@@ -507,7 +507,7 @@ const AccessControl = () => {
                    type="text"
                    value={newRoleName}
                    onChange={(e) => setNewRoleName(e.target.value)}
-                   className="w-full h-12 px-5 border border-slate-200 bg-slate-50 focus:border-[#0004ab] focus:bg-white outline-none text-sm font-bold text-[#0004ab] rounded-md transition-all placeholder:text-gray-200"
+                   className="w-full h-12 px-5 border border-slate-200 bg-slate-50 focus:border-[#0004ab] focus:bg-white outline-none text-sm font-bold text-[#000000] rounded-md transition-all placeholder:text-gray-200"
                    placeholder="e.g. OPERATIONS_EXECUTIVE"
                  />
                </div>
@@ -547,7 +547,7 @@ const AccessControl = () => {
             <div className="w-20 h-20 bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-8 rounded-full border border-red-100">
               <Trash2 className="h-10 w-10" />
             </div>
-            <h3 className="text-xl font-bold text-[#0004ab] mb-2 uppercase tracking-tight">Delete Role?</h3>
+            <h3 className="text-xl font-bold text-[#000000] mb-2 uppercase tracking-tight">Delete Role?</h3>
             <p className="text-[11px] text-slate-400 font-medium uppercase tracking-widest leading-relaxed">
                The profile <span className="text-red-600 font-bold">"{roleToDelete?.name}"</span> will be permanently removed.
             </p>

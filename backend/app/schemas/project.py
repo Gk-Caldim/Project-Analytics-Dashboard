@@ -16,6 +16,7 @@ class ProjectBase(BaseModel):
     employee_id: Optional[str] = None
     employee_name: Optional[str] = None
     custom_fields: Dict[str, Any] = {}
+    dashboard_config: Dict[str, Any] = {}
 
 class ProjectCreate(ProjectBase):
     pass

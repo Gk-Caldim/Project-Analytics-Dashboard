@@ -7,7 +7,7 @@ import {
   Users, Package, Building, Briefcase,
   UserCog, FolderOpen, Square, Layers, BarChart3, FileUp,
   Shield, FolderKanban, Download, Share2, Star, MoreVertical,
-  Filter, Grid, List, Sparkles, Bookmark, Activity, Zap
+  Filter, Grid, List, Sparkles, Bookmark, Activity, Zap, Wallet
 } from 'lucide-react';
 
 // File Content Viewer Component (enhanced)
@@ -315,6 +315,19 @@ const Masters = () => {
       borderColor: 'border-[#1e3a5f]/20',
       iconBg: 'bg-[#1e3a5f]',
       
+    },
+    {
+      id: 4,
+      name: 'Budget Master',
+      masterModuleId: 'budget-master',
+      path: 'masters/budget-master',
+      type: 'master',
+      description: 'Manage project budgets and revision workflows',
+      icon: <Wallet className="h-5 w-5" />,
+      gradient: 'from-[#1e3a5f] to-[#2d4b72]',
+      lightGradient: 'from-[#e6eef8] to-[#d1e0f0]',
+      borderColor: 'border-[#1e3a5f]/20',
+      iconBg: 'bg-[#1e3a5f]',
     },
 
   ];

@@ -19,7 +19,7 @@ import AgentView from './AgentView';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
-  MessageSquare, Layers, FolderTree, Calendar
+  MessageSquare, Layers, FolderTree, Calendar, Wallet
 } from 'lucide-react';
 
 import API from "../utils/api";
@@ -125,6 +125,7 @@ const Dashboard = () => {
   const mastersSubmodules = useMemo(() => [
     { id: 'employee-master', name: 'Employee Master', path: 'masters/employees', icon: <Users className="h-5 w-5" />, color: '#000000' },
     { id: 'project-master', name: 'Project Master', path: 'masters/project-master', icon: <FolderKanban className="h-5 w-5" />, color: '#333333' },
+    { id: 'budget-master', name: 'Budget Master', path: 'masters/budget-master', icon: <Wallet className="h-5 w-5" />, color: '#333333' },
   ], []);
 
   const mastersModules = useMemo(() => [
@@ -670,7 +671,8 @@ const Dashboard = () => {
   // ==========================================================================
   const handleProjectFileClick = (fileModule) => {
     // Set the project-specific selected file ID
-    dispatch(setSelectedProjectFileId(fileModule.trackerId));
+    const idToSelect = fileModule.trackerId || fileModule.id || fileModule.moduleId;
+    dispatch(setSelectedProjectFileId(idToSelect));
 
     // Ensure we're on project dashboard
     if (activeModule !== 'project-dashboard') {
@@ -681,6 +683,7 @@ const Dashboard = () => {
     dispatch(setExpandedModules({ 'project-dashboard': true }));
 
     // Also expand the parent project module
+    let projectKey = null;
     if (fileModule.projectName) {
       const project = projectDashboardModules.find(p =>
         p.name === fileModule.projectName ||
@@ -688,7 +691,7 @@ const Dashboard = () => {
       );
 
       if (project) {
-        const projectKey = project.id || project.projectId || project.name;
+        projectKey = project.id || project.projectId || project.name;
         dispatch(setExpandedModules({
           [`project-dashboard-${projectKey}`]: true
         }));
@@ -698,13 +701,27 @@ const Dashboard = () => {
     if (fileModule.type === 'budget') {
       navigate(`/dashboard/budget-summary/${encodeURIComponent(fileModule.projectName)}`);
     } else {
-      navigate('/dashboard/projects');
+      // Find project ID for search params
+      let pId = fileModule.dbProjectId;
+      if (!pId && idToSelect && String(idToSelect).startsWith('module-')) {
+        pId = String(idToSelect).split('-')[1];
+      }
+      if (!pId && projectKey) pId = projectKey;
+
+      const searchParams = new URLSearchParams();
+      if (pId) searchParams.set('projectId', pId);
+      if (idToSelect) searchParams.set('submoduleId', idToSelect);
+      
+      navigate({
+        pathname: '/dashboard/projects',
+        search: searchParams.toString()
+      });
     }
 
-    // Dispatch event for ProjectDashboard to handle
+    // Dispatch event for ProjectDashboard to handle (legacy support)
     window.dispatchEvent(new CustomEvent('openProjectDashboardFile', {
       detail: {
-        trackerId: fileModule.trackerId,
+        trackerId: idToSelect,
         fileModule: fileModule,
         projectName: fileModule.projectName || 'Unknown'
       }
@@ -1177,35 +1194,21 @@ const Dashboard = () => {
               overflow-hidden
             `}
           >
-            {/* Logo Section */}
-            <div className="px-4 py-6 border-b border-white/5">
+            {/* Logo Section - Aligned with Header */}
+            <div className="h-14 flex items-center px-4 border-b border-white/5">
               {isSidebarExpanded ? (
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                    <span className="text-white font-bold text-base">
-                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-bold text-white truncate tracking-tight">
-                      {companyName || 'Industrial Analytics'}
-                    </p>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-0.5">PLATFORM</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-bold text-lg tracking-[0.1em] font-primary">CALDIM</span>
                 </div>
               ) : (
-                <div className="flex justify-center">
-                  <div className="w-10 h-10 rounded-lg bg-brand-primary flex items-center justify-center shadow-lg shadow-brand-primary/20">
-                    <span className="text-white font-bold text-base">
-                      {companyName ? companyName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'IA'}
-                    </span>
-                  </div>
+                <div className="flex justify-center w-full">
+                  <span className="text-white font-bold text-lg">C</span>
                 </div>
               )}
             </div>
 
             {/* Navigation */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
               {renderProjectDashboardModule()}
               {renderMOMModule()}
               {renderMastersModule()}
@@ -1213,20 +1216,7 @@ const Dashboard = () => {
               {renderOtherModules()}
             </div>
 
-            {/* User Section at Bottom */}
-            <div className="p-4 border-t border-white/5 bg-white/5">
-              <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
-                  {getUserInitial()}
-                </div>
-                {isSidebarExpanded && (
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* User Section at Bottom removed as per request */}
           </div>
         )}
 

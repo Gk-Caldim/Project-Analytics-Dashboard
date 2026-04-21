@@ -22,7 +22,7 @@ from app.models import employee  # noqa: F401
 from app.models import employee_column  # noqa: F401
 from app.models import project  # noqa: F401
 from app.models import upload_tracker # noqa: F401
-from app.models import budget # noqa: F401
+from app.models import budget # noqa: F401  ← registers budget_summaries + budget_revisions tables
 from app.models import project_sub_category # noqa: F401
 from app.models import meeting # noqa: F401
 from app.models import user_session # noqa: F401

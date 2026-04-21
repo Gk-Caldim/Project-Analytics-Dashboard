@@ -118,7 +118,7 @@ const ApplicationAccess = () => {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Application Access</h2>
+          <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Application Access</h2>
           <p className="text-sm text-gray-500 mt-2">Manage user accounts, authentication profiles and system access levels.</p>
         </div>
         <button
@@ -154,7 +154,7 @@ const ApplicationAccess = () => {
                         {user.username.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-[#0004ab]">{user.username}</p>
+                        <p className="text-sm font-bold text-[#000000]">{user.username}</p>
                         <p className="text-[11px] text-gray-400 font-medium uppercase tracking-tight">{user.is_active ? 'Active Connection' : 'Inactive'}</p>
                       </div>
                     </div>
@@ -202,7 +202,7 @@ const ApplicationAccess = () => {
       {(showAddModal || showEditModal) && (
         <div className="fixed inset-0 bg-[#0004ab]/80 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-lg border border-gray-200 flex flex-col shadow-2xl">
-            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#0004ab]">
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50 text-[#000000]">
                <h3 className="text-xl font-bold uppercase tracking-tight">
                  {showAddModal ? 'New Account Profile' : 'Modify Access Level'}
                </h3>
@@ -239,7 +239,7 @@ const ApplicationAccess = () => {
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium appearance-none rounded-md"
+                      className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#000000] outline-none text-sm font-medium appearance-none rounded-md"
                     >
                       <option value="">Select Role</option>
                       {roles.map(role => (
@@ -275,7 +275,7 @@ const ApplicationAccess = () => {
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium appearance-none rounded-md"
+                    className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#000000] outline-none text-sm font-medium appearance-none rounded-md"
                   >
                     {roles.map(role => (
                       <option key={role.id} value={role.name}>{role.name}</option>

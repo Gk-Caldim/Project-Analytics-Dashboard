@@ -22,7 +22,7 @@ class Project(Base):
     department = Column(String, nullable=True)
     employee_id = Column(String, ForeignKey("employees.employee_id", ondelete="SET NULL"), nullable=True)
     employee_name = Column(String, nullable=True)
-    custom_fields = Column(JSONB, default={})
+    dashboard_config = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship to Employee model

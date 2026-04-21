@@ -29,7 +29,7 @@ const Connections = ({ settings, onUpdate }) => {
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">External Connections</h2>
+        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">External Connections</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your third-party integrations, SMTP services, and bridge credentials.</p>
       </div>
 
@@ -91,7 +91,7 @@ const Connections = ({ settings, onUpdate }) => {
                   type={showPassword ? "text" : "password"}
                   value={getValue('smtp_pass')}
                   onChange={(e) => onUpdate('smtp_pass', e.target.value)}
-                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#0004ab] outline-none text-sm font-medium rounded-md"
+                  className="w-full h-12 px-5 border border-gray-200 bg-gray-50 focus:border-[#000000] outline-none text-sm font-medium rounded-md"
                   placeholder="••••••••"
                 />
                 <button
@@ -125,7 +125,7 @@ const Connections = ({ settings, onUpdate }) => {
                <ShieldCheck className="h-6 w-6 text-gray-300" />
             </div>
             <div className="space-y-1">
-               <p className="text-xs font-bold text-[#0004ab] uppercase tracking-tight">Encryption protocol</p>
+               <p className="text-xs font-bold text-[#000000] uppercase tracking-tight">Encryption protocol</p>
                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-relaxed">
                   All external credentials are encrypted using AES-256 standard before being committed to the system vault.
                </p>

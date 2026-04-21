@@ -35,7 +35,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Organization Profile</h2>
+        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Organization Profile</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
@@ -131,7 +131,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
 
               <div className="flex-1 space-y-6 w-full max-w-sm">
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[#0004ab]">Company Logo</h4>
+                  <h4 className="text-sm font-bold text-[#000000]">Company Logo</h4>
                   <p className="text-xs text-gray-500 leading-relaxed">
                     Upload your institution's logo. This will be used in the navigation sidebar, reports, and system-wide branding. Recommended size: 512x512px.
                   </p>

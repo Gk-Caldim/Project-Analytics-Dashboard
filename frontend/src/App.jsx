@@ -12,6 +12,7 @@ import EmployeeMaster from './pages/Masters/EmployeeMaster';
 import ProjectMaster from './pages/Masters/ProjectMaster';
 
 import Masters from './pages/Masters/Masters';
+import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
@@ -187,6 +188,7 @@ function App() {
             <Route path="masters" element={<Masters />} />
             <Route path="masters/employees" element={<EmployeeMaster />} />
             <Route path="masters/project-master" element={<ProjectMaster />} />
+            <Route path="masters/budget-master" element={<BudgetMaster />} />
 
             <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
             
@@ -198,6 +200,17 @@ function App() {
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
             <Route path="settings" element={<SystemSettings />} />
           </Route>
+
+          <Route path="/workspace-login" element={<WorkspaceLogin />} />
+          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/enterprise" element={<EnterprisePage />} />
+          
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
 
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<LandingPage />} />
