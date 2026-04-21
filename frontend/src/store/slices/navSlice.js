@@ -18,7 +18,8 @@ const initialState = {
   activeView: sessionStorage.getItem('active_view') || 'dashboard',
   navigationHistory: JSON.parse(sessionStorage.getItem('navigation_history')) || [],
   chatHistory: JSON.parse(sessionStorage.getItem('chat_history')) || [],
-  currentChatId: null
+  currentChatId: null,
+  unreadNotifications: 2
 };
 
 const navSlice = createSlice({
@@ -179,6 +180,9 @@ const navSlice = createSlice({
       state.chatHistory = action.payload;
       sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
     },
+    markNotificationsRead: (state) => {
+      state.unreadNotifications = 0;
+    },
   },
 });
 
@@ -203,7 +207,8 @@ export const {
   togglePinChat,
   renameChat,
   deleteChat,
-  setChatHistory
+  setChatHistory,
+  markNotificationsRead
 } = navSlice.actions;
 
 export default navSlice.reducer;
