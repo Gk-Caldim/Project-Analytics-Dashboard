@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        .hero { padding: 80px 40px; text-align: center; background: white; border-bottom: 1px solid var(--border); }
+        .hero-title { font-family: var(--font-serif); font-size: 48px; margin-bottom: 16px; }
+        .products-grid { max-width: 1200px; margin: 80px auto; padding: 0 40px; display: grid; grid-template-columns: 1fr; gap: 64px; }
+        .product-card { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .product-card:nth-child(even) { direction: rtl; }
+        .product-card:nth-child(even) .product-info { direction: ltr; }
+        .product-visual { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; height: 400px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .product-info h2 { font-family: var(--font-serif); font-size: 36px; margin-bottom: 24px; }
+        .feature-list { list-style: none; margin-bottom: 32px; }
+        .feature-list li { margin-bottom: 12px; font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+        .feature-list li::before { content: '→'; color: var(--red); font-weight: bold; }
+        .module-badge { padding: 4px 12px; background: var(--red-light-bg); color: var(--red); border-radius: 99px; font-size: 12px; font-weight: 700; margin-bottom: 16px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <nav class="zoho-nav">
+        <div class="zoho-nav-inner">
+            <div class="zoho-logo-area" onclick="window.location.href='/'">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-nav-right">
+                <a id="nav-products" class="zoho-nav-link">Products</a>
+                <a id="nav-customers" class="zoho-nav-link">Customers</a>
+                <a id="nav-pricing" class="zoho-nav-link">Pricing</a>
+                <a id="nav-enterprise" class="zoho-nav-link">Enterprise</a>
+                <a id="nav-signin" class="zoho-nav-link">Sign In</a>
+                <button id="access-workspace-btn" class="btn btn-primary">Access Workspace</button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <h1 class="hero-title">The Modules</h1>
+        <p class="muted">Specialized intelligence components for every layer of your enterprise.</p>
+    </header>
+
+    <main class="products-grid">
+        <!-- ANALYTICS -->
+        <article class="product-card">
+            <div class="product-info">
+                <span class="module-badge">MODULE 01</span>
+                <h2>Portfolio Analytics</h2>
+                <ul class="feature-list">
+                    <li>Real-time board-level summaries</li>
+                    <li>Unit-level drill down in 2 clicks</li>
+                    <li>Custom KPI builder with 40+ widgets</li>
+                    <li>Automated PDF report distribution</li>
+                </ul>
+                <button class="btn btn-primary" onclick="window.location.href='/signin.html'">Try Analytics</button>
+            </div>
+            <div class="product-visual">
+                <div style="background: white; width: 80%; height: 70%; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); padding: 20px;">
+                    <div style="width: 40%; height: 10px; background: var(--surface); margin-bottom: 20px;"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="height: 100px; background: var(--red); opacity: 0.1; border-radius: 4px;"></div>
+                        <div style="height: 100px; background: var(--navy); opacity: 0.05; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- MEETINGS -->
+        <article class="product-card">
+            <div class="product-info">
+                <span class="module-badge">MODULE 02</span>
+                <h2>Minutes & Meetings</h2>
+                <ul class="feature-list">
+                    <li>AI-powered meeting transcription</li>
+                    <li>Auto-extraction of action items</li>
+                    <li>Decision audit trail & persistence</li>
+                    <li>Attendance & participation health</li>
+                </ul>
+                <button class="btn btn-primary" onclick="window.location.href='/signin.html'">Try Meetings</button>
+            </div>
+            <div class="product-visual">
+                <div style="background: white; width: 80%; height: 70%; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); padding: 20px;">
+                   <!-- Meeting Mockup -->
+                </div>
+            </div>
+        </article>
+
+        <!-- BUDGET -->
+        <article class="product-card">
+            <div class="product-info">
+                <span class="module-badge">MODULE 03</span>
+                <h2>Budget Intelligence</h2>
+                <ul class="feature-list">
+                    <li>Global variance alerts & escalation</li>
+                    <li>Multi-currency departmental budgets</li>
+                    <li>Forecast vs Actual reconciliation</li>
+                    <li>Capex/Opex expenditure control</li>
+                </ul>
+                <button class="btn btn-primary" onclick="window.location.href='/signin.html'">Try Budget</button>
+            </div>
+            <div class="product-visual"></div>
+        </article>
+
+    </main>
+
+    <footer class="zoho-footer">
+        <div class="zoho-footer-inner">
+            <div class="zoho-logo-area">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-footer-text">© 2026 Corporation All rights reserved.</div>
+        </div>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/navbar.js"></script>
+</body>
+</html>

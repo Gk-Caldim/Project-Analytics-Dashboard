@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Analytics Workspace | Enterprise OS</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        .hero { padding: 80px 40px; background: #fff; }
+        .hero-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+        .hero-title { font-family: var(--font-serif); font-size: 56px; line-height: 1.1; margin-bottom: 24px; }
+        .text-red { color: var(--red); }
+        .hero-desc { font-size: 18px; color: var(--muted); margin-bottom: 32px; max-width: 500px; }
+        .hero-actions { display: flex; gap: 16px; margin-bottom: 40px; }
+        .logo-strip { padding: 40px 0; background: var(--surface); border-top: 1px solid var(--border); text-align: center; }
+        .logo-logos { display: flex; justify-content: center; gap: 32px; opacity: 0.6; font-weight: 700; font-size: 18px; }
+        .featured-grid { padding: 80px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1200px; margin: 0 auto; }
+        .app-card { padding: 32px; border: 1px solid var(--border); border-radius: 12px; transition: all 0.2s; }
+        .app-card:hover { border-color: var(--red); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .app-title { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+        .app-desc { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+        .app-link { color: var(--red); font-weight: 600; font-size: 14px; }
+        
+        @media (max-width: 900px) {
+            .hero-inner, .featured-grid { grid-template-columns: 1fr; }
+            .hero-title { font-size: 36px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR -->
+    <nav class="zoho-nav">
+        <div class="zoho-nav-inner">
+            <div class="zoho-logo-area" onclick="window.location.href='/'">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-nav-right">
+                <a id="nav-products" class="zoho-nav-link">Products</a>
+                <a id="nav-customers" class="zoho-nav-link">Customers</a>
+                <a id="nav-pricing" class="zoho-nav-link">Pricing</a>
+                <a id="nav-enterprise" class="zoho-nav-link">Enterprise</a>
+                <a id="nav-signin" class="zoho-nav-link">Sign In</a>
+                <button id="access-workspace-btn" class="btn btn-primary">Access Workspace</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-inner">
+            <div class="hero-content">
+                <h1 class="hero-title">The operating system for <span class="text-red">business intelligence.</span></h1>
+                <p class="hero-desc">Manage your corporate portfolio, track meeting workflows, and monitor budgets through a single unified suite.</p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary" onclick="window.location.href='/signin.html'">Get Started</button>
+                    <button class="btn btn-ghost" onclick="window.location.href='/enterprise.html'">Request a Demo</button>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <!-- Dashboard Mockup Placeholder -->
+                <div style="background: #fdfdfd; border: 1px solid var(--border); border-radius: 12px; height: 300px; padding: 24px;">
+                    <div style="font-weight: 600; margin-bottom: 20px;">Portfolio Status — Q2 2026</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="padding: 16px; background: #fafafa; border-radius: 8px;">
+                            <div style="font-size: 12px; color: var(--muted);">Revenue YTD</div>
+                            <div style="font-size: 18px; font-weight: 600;">₹48.2Cr</div>
+                        </div>
+                        <div style="padding: 16px; background: #fafafa; border-radius: 8px;">
+                            <div style="font-size: 12px; color: var(--muted);">Active Projects</div>
+                            <div style="font-size: 18px; font-weight: 600;">137</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LOGO STRIP -->
+    <section class="logo-strip">
+        <div class="logo-logos">
+            <span>MAHINDRA</span> <span>·</span> <span>TATA GROUP</span> <span>·</span> <span>AIRBUS</span> <span>·</span> <span>HDFC</span>
+        </div>
+    </section>
+
+    <!-- PRODUCTS GRID -->
+    <section class="featured-grid">
+        <div class="app-card">
+            <h3 class="app-title">Analytics</h3>
+            <p class="app-desc">Drill down from board-level summaries to unit-level data in seconds. Designed for absolute operational control.</p>
+            <a href="/products.html" class="app-link">Learn more →</a>
+        </div>
+        <div class="app-card">
+            <h3 class="app-title">Minutes & Meetings</h3>
+            <p class="app-desc">Intelligent scheduling with auto-capture meeting records. Action items assigned and tracked automatically.</p>
+            <a href="/products.html" class="app-link">Learn more →</a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="zoho-footer">
+        <div class="zoho-footer-inner">
+            <div class="zoho-logo-area">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-footer-text">© 2026 Corporation All rights reserved.</div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script src="/js/auth.js"></script>
+    <script src="/js/navbar.js"></script>
+</body>
+</html>

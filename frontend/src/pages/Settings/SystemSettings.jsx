@@ -1,24 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setBranding } from '../../store/slices/navSlice';
-import {
-  Plus, Search, Edit, Trash2, X, Check,
-  ChevronRight, Layout, Settings, Shield,
-  Palette, FileText, Bell, Globe, Search as SearchIcon,
-  RefreshCcw, Save, AlertCircle, Inbox, Command, Activity, Cpu, Briefcase, Boxes, ClipboardList, ShieldCheck,
-  CreditCard, Key, Activity as ActivityIcon, HelpCircle, BookOpen, Menu, User, LifeBuoy, Link as LinkIcon
-} from 'lucide-react';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
 
-// Import sub-components
+// Import all sub-components
 import GeneralInfo from './components/GeneralInfo';
-import BrandingTheme from './components/BrandingTheme';
 import AccessControl from './components/AccessControl';
-
 import AuditHistory from './components/AuditHistory';
 import ApplicationAccess from './components/ApplicationAccess';
 import Connections from './components/Connections';
+import BrandingTheme from './components/BrandingTheme';
 
 const SystemSettings = () => {
   const dispatch = useDispatch();
@@ -26,36 +18,33 @@ const SystemSettings = () => {
   const [settings, setSettings] = useState([]);
   const [modifiedSettings, setModifiedSettings] = useState({});
   const [activeCategory, setActiveCategory] = useState('Organization');
-  const [activeSubCategory, setActiveSubCategory] = useState('Access Control');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeSubCategory, setActiveSubCategory] = useState('Identity');
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState(null);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
 
-  useEffect(() => {
-    console.log('SystemSettings: Current user role:', user?.role);
-    console.log('SystemSettings: isAdmin:', isAdmin);
-  }, [user, isAdmin]);
-
-  // Categories definition matching Enterprise Console reference
   const sidebarCategories = [
     {
-      group: 'GLOBAL SETTINGS',
+      group: 'ORGANIZATION',
       items: [
-        { id: 'Organization', label: 'Organization', icon: Boxes },
-        {
-          id: 'Controls',
-          label: 'Controls',
-          icon: Shield,
-          subItems: [
-            ...(isAdmin ? [{ id: 'Access Control', label: 'Access Control' }] : []),
-            ...(isAdmin ? [{ id: 'Application Access', label: 'Application Access' }] : []),
-          ]
-        },
-        { id: 'Audit Logs', label: 'Audit Logs', icon: ClipboardList },
-        { id: 'Connections', label: 'Connections', icon: LinkIcon },
+        { id: 'Organization', label: 'Identity' },
+        { id: 'Branding', label: 'Visual Branding' },
+      ]
+    },
+    {
+        group: 'SECURE CONTROLS',
+        items: [
+          { id: 'Access Control', label: 'Role Management' },
+          { id: 'Application Access', label: 'Account Directory' },
+        ]
+    },
+    {
+      group: 'INFRASTRUCTURE',
+      items: [
+        { id: 'Connections', label: 'External Bridges' },
+        { id: 'Audit Logs', label: 'System Ledger' },
       ]
     }
   ];
@@ -96,27 +85,17 @@ const SystemSettings = () => {
     } else {
       file = imageSource.target.files[0];
     }
-
     if (!file) return;
-
     const formData = new FormData();
     formData.append('file', file);
-
     try {
       setIsSaving(true);
       const response = await API.post('/settings/upload-logo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       const logoUrl = response.data.url;
-
-      // Update local state
       setSettings(prev => prev.map(s => s.key === 'company_logo' ? { ...s, value: logoUrl } : s));
-
-      // Update Redux globally
       dispatch(setBranding({ companyLogo: logoUrl }));
-
       showNotification('Logo uploaded successfully');
     } catch (error) {
       console.error('Error uploading logo:', error);
@@ -135,23 +114,20 @@ const SystemSettings = () => {
         return { key, value, category: original?.category || 'General', type: original?.type || 'text' };
       });
       await API.patch('/settings/bulk', { settings: settingsToUpdate });
-
-      // Update Redux if branding changed
       if (modifiedSettings.company_name || modifiedSettings.base_currency) {
         dispatch(setBranding({ 
           companyName: modifiedSettings.company_name,
           baseCurrency: modifiedSettings.base_currency
         }));
       }
-
       if (modifiedSettings.primary_color || modifiedSettings.secondary_color || modifiedSettings.display_mode) {
         refreshTheme();
       }
       setModifiedSettings({});
-      showNotification('Institutional settings synced successfully');
+      showNotification('Settings saved successfully');
     } catch (error) {
       console.error('Error syncing settings:', error);
-      showNotification('Failed to sync updates', 'error');
+      showNotification('Failed to save updates', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -159,128 +135,70 @@ const SystemSettings = () => {
 
   const renderContent = () => {
     switch (activeCategory) {
-      case 'Organization':
-        return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
-      case 'Controls':
-        switch (activeSubCategory) {
-          case 'Access Control':
-            return <AccessControl />;
-          case 'Application Access':
-            return <ApplicationAccess />;
-          default:
-            return <AccessControl />;
-        }
-      case 'Audit Logs':
-        return <AuditHistory />;
-      case 'Connections':
-        return <Connections settings={settings} onUpdate={handleUpdate} />;
-      default:
-        return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
+      case 'Organization': return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
+      case 'Branding': return <BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />;
+      case 'Access Control': return <AccessControl />;
+      case 'Application Access': return <ApplicationAccess />;
+      case 'Connections': return <Connections settings={settings} onUpdate={handleUpdate} />;
+      case 'Audit Logs': return <AuditHistory />;
+      default: return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
     }
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-app-surface">
-      {/* Sidebar Navigation - Industrial Settings Design */}
-      <aside className="w-[280px] bg-app-surface border-r border-border flex flex-col relative z-20">
-        <div className="p-8 pt-10 mb-8">
-          <h1 className="text-h1 font-bold text-text-primary tracking-tight">Settings</h1>
-          <p className="text-caption font-bold text-text-muted uppercase tracking-widest mt-1">ADMINISTRATION</p>
+    <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
+      <aside className="w-[280px] bg-[#F4F6F9] border-r border-gray-200 flex flex-col z-20">
+        <div className="p-8 pt-12">
+          <h1 className="text-2xl font-bold text-[#0004ab] tracking-tight uppercase">Settings</h1>
+          <div className="h-0.5 w-6 bg-[#0004ab]/20 mt-4" />
         </div>
 
-        <nav className="flex-1 px-4 space-y-12">
+        <nav className="flex-1 px-6 mt-8 space-y-10 overflow-y-auto custom-scrollbar">
           {sidebarCategories.map((group) => (
             <div key={group.group} className="space-y-4">
-              <h3 className="text-caption font-bold text-text-muted uppercase tracking-[0.2em] px-4">{group.group}</h3>
+              <h3 className="text-[10px] font-bold text-[#0004ab]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
               <div className="space-y-1">
                 {group.items.map((item) => (
-                  <div key={item.id} className="space-y-1">
-                    <button
-                      onClick={() => {
-                        setActiveCategory(item.id);
-                        if (item.subItems && item.subItems.length > 0) {
-                          setActiveSubCategory(item.subItems[0].id);
-                        }
-                      }}
-                      className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 group ${activeCategory === item.id
-                        ? 'bg-brand-primary/5 text-text-primary font-semibold'
-                        : 'text-text-secondary hover:bg-app-bg hover:text-text-primary'
-                        }`}
-                    >
-                      <item.icon className={`h-5 w-5 transition-colors ${activeCategory === item.id ? 'text-brand-primary' : 'text-text-muted group-hover:text-text-primary'}`} />
-                      <span className="text-body-sm tracking-tight">{item.label}</span>
-                      {item.subItems && (
-                        <ChevronRight className={`ml-auto h-4 w-4 transition-transform duration-300 ${activeCategory === item.id ? 'rotate-90 text-brand-primary' : 'text-text-muted/30'}`} />
-                      )}
-                      {!item.subItems && activeCategory === item.id && (
-                        <div className="ml-auto w-1 h-1 bg-brand-primary rounded-full" />
-                      )}
-                    </button>
-
-                    {/* Sub Items */}
-                    {item.subItems && activeCategory === item.id && (
-                      <div className="pl-12 space-y-1 animate-in slide-in-from-top-2 duration-300">
-                        {item.subItems.map((subItem) => (
-                          <button
-                            key={subItem.id}
-                            onClick={() => setActiveSubCategory(subItem.id)}
-                            className={`w-full text-left px-4 py-2 rounded-md text-caption font-medium transition-all ${activeSubCategory === subItem.id
-                              ? 'text-brand-primary bg-brand-primary/5 font-semibold'
-                              : 'text-text-muted hover:text-text-secondary hover:bg-app-bg'
-                              }`}
-                          >
-                            {subItem.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveCategory(item.id)}
+                    className={`w-full flex items-center px-4 py-3 rounded-none transition-all group ${activeCategory === item.id
+                      ? 'text-[#0004ab] bg-gray-50/50'
+                      : 'text-[#0004ab]/30 hover:bg-gray-50 hover:text-[#0004ab]'
+                      }`}
+                  >
+                    <span className={`text-[11px] font-bold uppercase tracking-widest ${activeCategory === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>{item.label}</span>
+                    {activeCategory === item.id && <div className="ml-auto w-1 h-4 bg-[#0004ab]" />}
+                  </button>
                 ))}
               </div>
             </div>
           ))}
         </nav>
 
-        <div className="p-6 border-t border-border space-y-4">
+        <div className="p-8 border-t border-gray-200 mt-auto">
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}
-            className="w-full h-11 bg-brand-primary text-white rounded-md font-semibold text-caption tracking-widest flex items-center justify-center gap-3 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-brand-primary/20 disabled:opacity-30 disabled:shadow-none"
+            className="w-full h-12 bg-[#0004ab] text-white rounded-full font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
           >
-            <RefreshCcw className={`h-4 w-4 ${isSaving ? 'animate-spin' : ''}`} />
-            SYNC UPDATES
+            {isSaving ? '...' : 'Commit Changes'}
           </button>
-
-          <div className="space-y-1">
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-slate-500 hover:text-indigo-600 transition-colors">
-              <HelpCircle className="h-5 w-5" />
-              <span className="text-[13px] font-medium">Support</span>
-            </button>
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-slate-500 hover:text-indigo-600 transition-colors">
-              <BookOpen className="h-5 w-5" />
-              <span className="text-[13px] font-medium">Documentation</span>
-            </button>
-          </div>
         </div>
       </aside>
 
-      {/* Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-
-        <main className="flex-1 overflow-y-auto p-12 scroll-smooth">
-          <div className="max-w-7xl mx-auto">
-            {notification && (
-              <div className={`fixed top-8 left-1/2 -translate-x-1/2 px-8 py-3 rounded-lg shadow-xl z-50 animate-in slide-in-from-top-10 duration-500 flex items-center gap-4 ${notification.type === 'success' ? 'bg-text-primary text-white' : 'bg-status-error text-white'
-                }`}>
-                <Check className="h-5 w-5 text-brand-primary" />
-                <span className="text-caption font-bold tracking-widest uppercase">{notification.message}</span>
-              </div>
-            )}
-            {renderContent()}
-          </div>
-        </main>
-      </div>
+      <main className="flex-1 overflow-y-auto bg-[#F4F6F9] p-16">
+        <div className="max-w-5xl mx-auto pb-24">
+          {notification && (
+            <div className={`fixed bottom-12 left-[calc(280px+50%)] -translate-x-1/2 px-8 py-4 border z-50 text-[10px] font-bold uppercase tracking-[0.2em] animate-in slide-in-from-bottom-10 shadow-2xl ${
+              notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'
+            }`}>
+              {notification.message}
+            </div>
+          )}
+          {renderContent()}
+        </div>
+      </main>
     </div>
   );
 };

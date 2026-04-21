@@ -21,22 +21,34 @@ REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", 7))
 # ------------------------
 # Database Settings
 # ------------------------
-# Primary method: Use DATABASE_URL directly (recommended for Supabase / Render)
-DATABASE_URL = os.getenv("DATABASE_URL")
+DB_TYPE = os.getenv("DB_TYPE", "cloud").lower()
 
-# Fallback method: Build URL from individual components (optional)
+# Cloud Database URL (Supabase)
+CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL")
+
+# Local Database Settings (PostgreSQL)
+LOCAL_DB_HOST = os.getenv("LOCAL_DB_HOST", "localhost")
+LOCAL_DB_PORT = os.getenv("LOCAL_DB_PORT", "5432")
+LOCAL_DB_NAME = os.getenv("LOCAL_DB_NAME", "postgres")
+LOCAL_DB_USER = os.getenv("LOCAL_DB_USER", "postgres")
+LOCAL_DB_PASSWORD = os.getenv("LOCAL_DB_PASSWORD", "password")
+
+LOCAL_DATABASE_URL = (
+    f"postgresql://{LOCAL_DB_USER}:{LOCAL_DB_PASSWORD}"
+    f"@{LOCAL_DB_HOST}:{LOCAL_DB_PORT}/{LOCAL_DB_NAME}"
+)
+
+# Determine final DATABASE_URL
+if DB_TYPE == "local":
+    DATABASE_URL = LOCAL_DATABASE_URL
+    print("\n[DB CONFIG] Mode: LOCAL (PostgreSQL)")
+else:
+    DATABASE_URL = CLOUD_DATABASE_URL
+    print("\n[DB CONFIG] Mode: CLOUD (Supabase)")
+
+# Flag for database-specific engine configurations (like SSL for Supabase)
+IS_CLOUD_DB = (DB_TYPE == "cloud")
+
+# Ensure DATABASE_URL exists for the selected type
 if not DATABASE_URL:
-    DB_HOST = os.getenv("DB_HOST", "localhost")
-    DB_PORT = os.getenv("DB_PORT", "5432")
-    DB_NAME = os.getenv("DB_NAME", "postgres")
-    DB_USER = os.getenv("DB_USER", "postgres")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-
-    DATABASE_URL = (
-        f"postgresql://{DB_USER}:{DB_PASSWORD}"
-        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
-
-# Ensure DATABASE_URL exists
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set!")
+    raise ValueError(f"DATABASE_URL for '{DB_TYPE}' environment is not set!")

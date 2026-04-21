@@ -151,6 +151,25 @@ def login(data: dict, db: Session = Depends(get_db)):
 
 
 
+# ---------- FORGOT PASSWORD ----------
+@router.post("/forgot-password")
+def forgot_password(data: dict, db: Session = Depends(get_db)):
+    email = data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+        
+    # Check if email exists in any of our user sources
+    exists = db.query(ApplicationAccess).filter(ApplicationAccess.email == email).first() or \
+             db.query(Employee).filter(Employee.email == email).first() or \
+             db.query(User).filter(User.email == email).first()
+             
+    if not exists:
+         raise HTTPException(status_code=404, detail="Email not found in our records")
+         
+    # In a real app, we would send an email here. 
+    # For this prototype, we just return success to confirm "real-time" validation.
+    return {"message": "Reset link sent successfully"}
+
 # ---------- ME ----------
 @router.get("/me")
 def me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):

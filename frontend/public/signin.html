@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        body { background-color: var(--navy); height: 100vh; overflow: hidden; display: flex; }
+        .left-panel { width: 55%; background-color: var(--navy); padding: 60px; display: flex; flex-direction: column; justify-content: space-between; color: #ffffff; }
+        .right-panel { width: 45%; background-color: var(--cream); padding: 60px; display: flex; align-items: center; justify-content: center; }
+        .logo { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; }
+        .logo-icon { width: 28px; height: 28px; background-color: #ff8c00; border-radius: 4px; }
+        .headline { font-family: var(--font-serif); font-size: 42px; line-height: 1.2; margin-bottom: 24px; }
+        .text-red { color: var(--red); }
+        .bullets { margin-bottom: 48px; }
+        .bullet { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 15px; color: rgba(255, 255, 255, 0.7); }
+        .card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .card { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 20px; }
+        .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255, 255, 255, 0.4); margin-bottom: 8px; }
+        .card-val { font-size: 18px; font-weight: 600; }
+        .form-container { width: 100%; max-width: 380px; }
+        .form-title { font-family: var(--font-serif); font-size: 32px; margin-bottom: 32px; }
+        .plan-banner { background: var(--red-hover); color: white; padding: 10px; border-radius: 8px; margin-bottom: 24px; font-size: 13px; font-weight: 600; text-align: center; display: none; }
+        .input-group { position: relative; margin-bottom: 24px; }
+        .input-group input { width: 100%; padding: 24px 16px 8px; background: #ffffff; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; outline: none; }
+        .input-group label { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 15px; pointer-events: none; transition: all 0.2s; }
+        .input-group input:focus + label, .input-group input:not(:placeholder-shown) + label { top: 8px; transform: translateY(0); font-size: 11px; color: var(--red); font-weight: 600; }
+        .forgot-link { display: block; text-align: right; margin-top: -16px; margin-bottom: 24px; font-size: 13px; color: var(--red); font-weight: 500; }
+        .divider { display: flex; align-items: center; gap: 16px; margin: 32px 0; color: var(--muted); font-size: 13px; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background-color: var(--border); }
+        .request-access { display: block; text-align: center; font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+        .request-access span { color: var(--red); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="left-panel">
+        <div class="logo">
+            <div class="logo-icon"></div>
+            <span>Industrial Analytics Workspace</span>
+        </div>
+        <div class="promo-content">
+            <h1 class="headline">One platform.<br><span class="text-red">Complete operational</span> clarity.</h1>
+            <div class="bullets">
+                <div class="bullet">Real-time portfolio dashboards</div>
+                <div class="bullet">Auto-captured meeting minutes</div>
+                <div class="bullet">Variance alerts before escalation</div>
+            </div>
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">Analytics</div>
+                    <div class="card-val">137 active projects</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Dashboard</div>
+                    <div class="card-val">24 on track</div>
+                </div>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.3);">© 2026 Industrial Analytics Workspace</div>
+    </div>
+
+    <div class="right-panel">
+        <div class="form-container">
+            <h1 class="form-title">Welcome Back</h1>
+            <div id="plan-banner" class="plan-banner"></div>
+
+            <form id="signin-form">
+                <div class="input-group">
+                    <input type="email" id="email" placeholder=" " required>
+                    <label for="email">Email address</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" placeholder=" " required>
+                    <label for="password">Password</label>
+                </div>
+                <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px;" id="submit-btn">
+                    <span class="btn-text">Sign In</span>
+                    <div class="spinner"></div>
+                </button>
+            </form>
+
+            <div class="divider">or continue with</div>
+            <a href="/request-access.html" class="request-access">New here? <span>Request access →</span></a>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('signin-form');
+            const submitBtn = document.getElementById('submit-btn');
+            const planBanner = document.getElementById('plan-banner');
+
+            // 1. Read URL Params
+            const params = new URLSearchParams(window.location.search);
+            const plan = params.get('plan');
+            if (plan) {
+                planBanner.innerText = `You selected ${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`;
+                planBanner.style.display = 'block';
+            }
+
+            // 2. Form Submit
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                // Show loader
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+
+                try {
+                    // Call real Auth.login
+                    await window.Auth.login(email, password);
+                } catch (error) {
+                    console.error('Login failed:', error);
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                    
+                    // Shake animation on failure
+                    submitBtn.classList.add('invalid');
+                    setTimeout(() => submitBtn.classList.remove('invalid'), 400);
+
+                    alert(error.message || 'Invalid credentials. Please try again.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

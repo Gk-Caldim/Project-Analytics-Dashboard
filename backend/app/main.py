@@ -1,7 +1,7 @@
 import os
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -59,12 +59,23 @@ from app.api.audit_logs import router as audit_logs_router
 from app.api.teams import router as teams_router
 from app.api.application_access import router as application_access_router
 from app.api.chats import router as chat_router
+from app.api.enterprise import router as enterprise_router
 from app.crud.role import seed_default_roles
 
 app = FastAPI(
     title="MyFastAPIApp",
     version="1.0.0",
 )
+
+@app.websocket("/ws/test/{client_id}")
+async def test_websocket_endpoint(websocket: WebSocket, client_id: str):
+    await websocket.accept()
+    logger.info(f"📡 TEST WS CONNECTED: {client_id}")
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        logger.info(f"🔌 TEST WS DISCONNECTED: {client_id}")
 
 @app.on_event("startup")
 async def startup_event():
@@ -94,15 +105,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     return response
 
 # CORS
-origins = [
-    "https://automated-manufacturing.vercel.app",   
-    "https://automated-manufact-git-6ff091-gokulakrishnans-projects-78c7d2dd.vercel.app",  # preview
-    "https://automated-manufacturing-kdmeekg5b.vercel.app", 
-    "http://localhost:5173",  # local frontend testing
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+origins = ["*"]
 
 if FRONTEND_URL and FRONTEND_URL not in origins:
     origins.append(FRONTEND_URL)
@@ -133,6 +136,7 @@ app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
 app.include_router(application_access_router, prefix=API_PREFIX)
 app.include_router(chat_router, prefix=API_PREFIX)
+app.include_router(enterprise_router, prefix=API_PREFIX)
 
 from app.api.transcript import router as transcript_router
 app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])
@@ -149,9 +153,6 @@ app.include_router(dashboard_router, prefix=API_PREFIX)
 from app.api.issues import router as issues_router, mom_router
 app.include_router(issues_router, prefix=API_PREFIX, tags=["Issues"])
 app.include_router(mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
-
-from app.api.websockets import router as ws_router
-app.include_router(ws_router)
 
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"

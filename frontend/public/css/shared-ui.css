@@ -1,0 +1,231 @@
+/* Shared UI Styles for Industrial Analytics Workspace Workspace */
+
+:root {
+    --navy: #0d1117;
+    --red: #e8442a;
+    --red-hover: #c93a24;
+    --cream: #f5f0e8;
+    --white: #ffffff;
+    --muted: #86868b;
+    --surface: #f8f9fa;
+    --border: rgba(0, 0, 0, 0.08);
+    --font-sans: 'DM Sans', -apple-system, sans-serif;
+    --font-serif: 'Playfair Display', serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    color: var(--navy);
+    background-color: var(--white);
+    opacity: 1; /* Initialized by navbar.js fade-in */
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* ── COMMON NAVBAR ── */
+.zoho-nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: #ffffff;
+    border-bottom: 1px solid var(--border);
+    padding: 16px 40px;
+}
+
+.zoho-nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.zoho-logo-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.zoho-logo-box {
+    width: 24px;
+    height: 24px;
+    background-color: var(--red);
+    border-radius: 4px;
+}
+
+.zoho-logo-text {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--navy);
+    letter-spacing: -0.01em;
+}
+
+.zoho-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.zoho-nav-link {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.zoho-nav-link:hover, 
+.zoho-nav-link.active {
+    color: var(--red);
+}
+
+.zoho-nav-login {
+    background: none;
+    border: none;
+    color: var(--navy);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    gap: 8px;
+}
+
+.btn-primary {
+    background-color: var(--red);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: var(--red-hover);
+}
+
+.btn-ghost {
+    background-color: transparent;
+    color: var(--navy);
+    border: 1px solid var(--border);
+}
+
+.btn-ghost:hover {
+    background-color: var(--surface);
+    border-color: var(--navy);
+}
+
+/* ── FOOTER ── */
+.zoho-footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 40px 40px;
+    margin-top: auto;
+}
+
+.zoho-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.zoho-footer-text {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* ── FORM UTILS ── */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--navy);
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    background-color: white;
+}
+
+.form-input:focus {
+    border-color: var(--red);
+}
+
+.form-input.invalid {
+    border-color: var(--red);
+    animation: shake 0.4s;
+}
+
+.error-hint {
+    color: var(--red);
+    font-size: 11px;
+    margin-top: 4px;
+    display: none;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    75% { transform: translateX(8px); }
+}
+
+/* ── SPINNER ── */
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 0.8s linear infinite;
+    display: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.btn.loading .spinner {
+    display: block;
+}
+
+.btn.loading .btn-text {
+    opacity: 0.7;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .zoho-nav-right {
+        display: none; /* In real version, we'd add hamburger */
+    }
+}
