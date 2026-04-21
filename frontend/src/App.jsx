@@ -12,6 +12,7 @@ import EmployeeMaster from './pages/Masters/EmployeeMaster';
 import ProjectMaster from './pages/Masters/ProjectMaster';
 
 import Masters from './pages/Masters/Masters';
+import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
@@ -187,6 +188,7 @@ function App() {
             <Route path="masters" element={<Masters />} />
             <Route path="masters/employees" element={<EmployeeMaster />} />
             <Route path="masters/project-master" element={<ProjectMaster />} />
+            <Route path="masters/budget-master" element={<BudgetMaster />} />
 
             <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
             
