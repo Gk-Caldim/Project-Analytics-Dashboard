@@ -1221,7 +1221,7 @@ const Dashboard = () => {
             </div>
 
             {/* Navigation */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
               {renderProjectDashboardModule()}
               {renderMOMModule()}
               {renderMastersModule()}
@@ -1229,20 +1229,7 @@ const Dashboard = () => {
               {renderOtherModules()}
             </div>
 
-            {/* User Section at Bottom */}
-            <div className="p-4 border-t border-white/5 bg-white/5">
-              <div className={`flex items-center gap-3 ${!isSidebarExpanded && 'justify-center'}`}>
-                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white text-caption font-bold border border-white/5 shadow-inner">
-                  {getUserInitial()}
-                </div>
-                {isSidebarExpanded && (
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-sm font-bold text-white truncate tracking-tight mb-0.5">{user?.full_name || 'User'}</p>
-                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest leading-none">{user?.role || 'User'}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* User Section at Bottom removed as per request */}
           </div>
         )}
 

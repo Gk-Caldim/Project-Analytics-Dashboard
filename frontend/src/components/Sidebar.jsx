@@ -299,7 +299,7 @@ const Sidebar = ({
         >
             <LogoBlock />
 
-            <div className="sidebar-scroll">
+            <div className="sidebar-scroll scrollbar-hide">
                 {!sidebarCollapsed && <div className="sidebar-section-label">WORKSPACE</div>}
                 {(!hasAccess || hasAccess('Dashboard')) && renderProjectDashboardModule()}
                 {(!hasAccess || hasAccess('MOM')) && renderMOMModule()}
@@ -308,23 +308,6 @@ const Sidebar = ({
                 {renderMastersModule()}
                 {(!hasAccess || hasAccess('Upload Trackers')) && renderUploadTrackersModule()}
                 {renderOtherModules()}
-            </div>
-
-            <div className="sidebar-footer">
-                <div style={{ 
-                    width: '30px', height: '30px', borderRadius: '50%', 
-                    background: 'rgba(255,255,255,0.1)', display: 'flex', 
-                    alignItems: 'center', justifyContent: 'center',
-                    fontSize: '11px', color: '#fff', fontWeight: 'bold'
-                }}>
-                    PR
-                </div>
-                {!sidebarCollapsed && (
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <div style={{ color: '#fff', fontSize: '12px', fontWeight: '500', truncate: 'true' }}>Pradeep R.</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>Administrator</div>
-                    </div>
-                )}
             </div>
         </motion.div>
     );

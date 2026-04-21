@@ -73,7 +73,7 @@ const WorkspaceDashboard = () => {
             <span className="ws-logo-text">Industrial Analytics</span>
           </div>
 
-          <nav className="ws-side-nav">
+          <nav className="ws-side-nav scrollbar-hide">
             <div className="ws-nav-item active" style={{cursor:'pointer'}} onClick={() => navigate('/workspace-dashboard')}>
               <LayoutDashboard size={18} />
               <span>Overview</span>
@@ -106,14 +106,7 @@ const WorkspaceDashboard = () => {
             <HelpCircle size={18} />
             <span>Help</span>
           </div>
-          <div className="ws-user-profile">
-            <div className="ws-user-avatar">PK</div>
-            <div className="ws-user-info">
-              <span className="ws-user-name">Pradeep K.</span>
-              <span className="ws-user-role">Admin</span>
-            </div>
-            <LogOut size={14} className="ws-logout-icon" onClick={() => navigate('/workspace-login')} />
-          </div>
+          {/* User profile section removed as per request */}
         </div>
       </aside>
 
