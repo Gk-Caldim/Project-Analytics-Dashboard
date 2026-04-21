@@ -199,6 +199,17 @@ function App() {
             <Route path="settings" element={<SystemSettings />} />
           </Route>
 
+          <Route path="/workspace-login" element={<WorkspaceLogin />} />
+          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/enterprise" element={<EnterprisePage />} />
+          
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
+
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<LandingPage />} />
         </Routes>
