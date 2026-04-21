@@ -370,12 +370,16 @@ const ProjectTitleDashboard = () => {
 
   const activeProject = useMemo(() => {
     if (!projectId) return null;
-    return projects.find(p => p.id === projectId || p.name === projectId);
+    return projects.find(p => String(p.id) === String(projectId) || p.name === projectId);
   }, [projectId, projects]);
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    return activeProject.submodules?.find(s => s.id === submoduleId || s.trackerId === submoduleId || `project-file-${s.trackerId}` === submoduleId);
+    return activeProject.submodules?.find(s => 
+      String(s.id) === String(submoduleId) || 
+      String(s.trackerId) === String(submoduleId) || 
+      `project-file-${s.trackerId}` === submoduleId
+    );
   }, [activeProject, submoduleId]);
 
   const setShowSimulateModal = (show) => {
@@ -606,12 +610,15 @@ const ProjectTitleDashboard = () => {
       let resolvedProjectId = null;
       let resolvedModule = null;
 
-      if (selectedFileId && selectedFileId.startsWith('module-')) {
-        const parts = selectedFileId.split('-');
+      // Prioritize URL submoduleId, then Redux selectedFileId
+      const idToResolve = submoduleId || selectedFileId;
+
+      if (idToResolve && String(idToResolve).startsWith('module-')) {
+        const parts = String(idToResolve).split('-');
         resolvedProjectId = parts[1];
         resolvedModule = parts.slice(2).join('-') || null;
-      } else if (activeProject?.dbProjectId) {
-        resolvedProjectId = activeProject.dbProjectId;
+      } else if (projectId) {
+        resolvedProjectId = projectId;
         resolvedModule = null;
       } else {
         return;
@@ -623,7 +630,7 @@ const ProjectTitleDashboard = () => {
         })
         .catch(console.error);
     });
-  }, [selectedFileId, activeProject]);
+  }, [selectedFileId, submoduleId, projectId]);
 
 
   // BUFFER STATE for Dashboard Configuration Modal
@@ -1491,7 +1498,8 @@ const ProjectTitleDashboard = () => {
   };
 
   // Render table for submodule data
-  const renderSubmoduleTable = (data, fileName) => {
+  const renderSubmoduleTable = (data, fileName, trackerIdArg = null) => {
+    // If it's a module from dashboard, data comes from dashboardData.milestones
     if (!data) {
       return (
         <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>
@@ -1533,15 +1541,17 @@ const ProjectTitleDashboard = () => {
       );
     }
 
+    const tId = trackerIdArg || selectedSubmodule?.trackerId;
+
     return (
       <ExcelTableViewer
-        key={`excel-viewer-${selectedSubmodule.trackerId}`}
+        key={`excel-viewer-${tId || fileName}`}
         columns={columns}
         data={rows}
         fileName={fileName || 'Dataset'}
-        onDataUpdate={(updatedRows, updatedHeaders) => handleSubmoduleDataUpdate(selectedSubmodule.trackerId, updatedRows, updatedHeaders)}
-        onProcessData={(indices) => handleSubmoduleProcess(selectedSubmodule.trackerId, indices)}
-        onRefresh={() => loadSubmoduleData(selectedSubmodule.trackerId)}
+        onDataUpdate={tId ? (updatedRows, updatedHeaders) => handleSubmoduleDataUpdate(tId, updatedRows, updatedHeaders) : null}
+        onProcessData={tId ? (indices) => handleSubmoduleProcess(tId, indices) : null}
+        onRefresh={tId ? () => loadSubmoduleData(tId) : () => loadDashboard(selectedProjectId, selectedFileId?.replace('module-', '').replace(/^\d+-/, ''))}
         loading={loading}
       />
     );
@@ -3701,7 +3711,10 @@ const ProjectTitleDashboard = () => {
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
           <div style={{ padding: '0 25px 25px 25px' }}>
-            {renderSubmoduleTable(submoduleData[selectedSubmodule.trackerId], getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName))}
+            {renderSubmoduleTable(
+              selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones, 
+              getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
+            )}
           </div>
         ) : (
           /* Active Project Dashboard */

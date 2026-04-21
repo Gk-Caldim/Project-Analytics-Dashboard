@@ -20,7 +20,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent border-none focus:ring-0 font-mono text-sm font-bold text-[#0004ab] uppercase flex-1"
+          className="bg-transparent border-none focus:ring-0 font-mono text-sm font-bold text-[#000000] uppercase flex-1"
         />
       </div>
     </div>
@@ -29,7 +29,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">Institutional Branding</h2>
+        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Institutional Branding</h2>
         <p className="text-sm text-gray-500 mt-2">Manage global visual identity, color protocols and display characteristics.</p>
       </div>
 
@@ -83,7 +83,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
                <RefreshCw className="h-6 w-6 text-gray-300" />
             </div>
             <div className="space-y-2">
-               <p className="text-xs font-bold text-[#0004ab] uppercase tracking-tight">Identity Synchronization</p>
+               <p className="text-xs font-bold text-[#000000] uppercase tracking-tight">Identity Synchronization</p>
                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-relaxed">
                   Changes to the branding core will trigger a system-wide interface rebuild for all active institutional users.
                </p>

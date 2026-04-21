@@ -53,7 +53,7 @@ const AuditHistory = () => {
     const act = action.toLowerCase();
     if (act.includes('created') || act.includes('added')) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
     if (act.includes('deleted') || act.includes('removed')) return 'text-red-600 bg-red-50 border-red-100';
-    if (act.includes('updated') || act.includes('synced')) return 'text-[#0004ab] bg-gray-100 border-gray-200';
+    if (act.includes('updated') || act.includes('synced')) return 'text-[#0004ab] bg-[#0004ab]/5 border-[#0004ab]/20';
     return 'text-gray-500 bg-gray-50 border-gray-100';
   };
 
@@ -70,10 +70,10 @@ const AuditHistory = () => {
     <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-[#0004ab] tracking-tight">System Audit Log</h2>
+          <h2 className="text-3xl font-bold text-[#000000] tracking-tight">System Audit Log</h2>
           <p className="text-sm text-gray-500 mt-2">Historical record of all administrative actions, data mutations, and security events.</p>
         </div>
-        <button className="h-11 px-6 border border-gray-200 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
+        <button className="h-11 px-6 border border-gray-100 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
           <Download className="h-4 w-4" />
           Export Ledger
         </button>
@@ -87,7 +87,7 @@ const AuditHistory = () => {
             placeholder="SEARCH BY ACTIVITY OR USER..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#0004ab] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
+            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#000000] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
           />
         </div>
         
@@ -95,7 +95,7 @@ const AuditHistory = () => {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#0004ab] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
+            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#000000] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
           >
             <option value="ALL">ALL CATEGORIES</option>
             <option value="SECURITY">SECURITY</option>
@@ -129,7 +129,7 @@ const AuditHistory = () => {
                 <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-8 py-5">
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-[#0004ab]">
+                      <p className="text-xs font-bold text-[#000000]">
                         {dayjs(log.timestamp).format('DD MMM, YYYY').toUpperCase()}
                       </p>
                       <p className="text-[10px] text-gray-400 font-bold tracking-tighter uppercase">
@@ -139,7 +139,7 @@ const AuditHistory = () => {
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#0004ab] font-bold text-[10px]">
+                      <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#000000] font-bold text-[10px]">
                         {log.performed_by?.charAt(0).toUpperCase()}
                       </div>
                       <p className="text-xs font-bold text-gray-600 uppercase tracking-tight">{log.performed_by}</p>

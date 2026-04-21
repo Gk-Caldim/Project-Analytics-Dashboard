@@ -670,7 +670,8 @@ const Dashboard = () => {
   // ==========================================================================
   const handleProjectFileClick = (fileModule) => {
     // Set the project-specific selected file ID
-    dispatch(setSelectedProjectFileId(fileModule.trackerId));
+    const idToSelect = fileModule.trackerId || fileModule.id || fileModule.moduleId;
+    dispatch(setSelectedProjectFileId(idToSelect));
 
     // Ensure we're on project dashboard
     if (activeModule !== 'project-dashboard') {
@@ -681,6 +682,7 @@ const Dashboard = () => {
     dispatch(setExpandedModules({ 'project-dashboard': true }));
 
     // Also expand the parent project module
+    let projectKey = null;
     if (fileModule.projectName) {
       const project = projectDashboardModules.find(p =>
         p.name === fileModule.projectName ||
@@ -688,7 +690,7 @@ const Dashboard = () => {
       );
 
       if (project) {
-        const projectKey = project.id || project.projectId || project.name;
+        projectKey = project.id || project.projectId || project.name;
         dispatch(setExpandedModules({
           [`project-dashboard-${projectKey}`]: true
         }));
@@ -698,13 +700,27 @@ const Dashboard = () => {
     if (fileModule.type === 'budget') {
       navigate(`/dashboard/budget-summary/${encodeURIComponent(fileModule.projectName)}`);
     } else {
-      navigate('/dashboard/projects');
+      // Find project ID for search params
+      let pId = fileModule.dbProjectId;
+      if (!pId && idToSelect && String(idToSelect).startsWith('module-')) {
+        pId = String(idToSelect).split('-')[1];
+      }
+      if (!pId && projectKey) pId = projectKey;
+
+      const searchParams = new URLSearchParams();
+      if (pId) searchParams.set('projectId', pId);
+      if (idToSelect) searchParams.set('submoduleId', idToSelect);
+      
+      navigate({
+        pathname: '/dashboard/projects',
+        search: searchParams.toString()
+      });
     }
 
-    // Dispatch event for ProjectDashboard to handle
+    // Dispatch event for ProjectDashboard to handle (legacy support)
     window.dispatchEvent(new CustomEvent('openProjectDashboardFile', {
       detail: {
-        trackerId: fileModule.trackerId,
+        trackerId: idToSelect,
         fileModule: fileModule,
         projectName: fileModule.projectName || 'Unknown'
       }
