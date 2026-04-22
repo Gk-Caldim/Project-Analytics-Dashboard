@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import PublicNavbar from '../components/PublicNavbar';
+import { LeadModal } from '../components/LeadModal';
 import './PricingPage.css';
 
 const PricingPage = () => {
   const navigate = useNavigate();
   const [isAnnual, setIsAnnual] = useState(true);
   const [openFaq, setOpenFaq] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalUseCase, setModalUseCase] = useState('General Inquiry');
+  const [modalMode, setModalMode] = useState('sales');
+
+  const openModal = (mode = 'sales', useCase = 'General Inquiry') => {
+    setModalMode(mode);
+    setModalUseCase(useCase);
+    setIsModalOpen(true);
+  };
+
+  const handleCheckout = (plan) => {
+    navigate(`/checkout?plan=${plan}&billing=${isAnnual ? 'annual' : 'monthly'}`);
+  };
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -79,27 +94,18 @@ const PricingPage = () => {
   return (
     <div className="pricing-root">
       
-      {/* ── NAVBAR ── */}
-      <nav className="zoho-nav">
-        <div className="zoho-nav-inner">
-          <div className="zoho-logo-area" onClick={() => navigate('/')} style={{cursor: 'pointer'}}>
-            <div className="zoho-logo-box"></div>
-            <span className="zoho-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="zoho-nav-right">
-            <a href="/#products" className="zoho-nav-link" onClick={() => navigate('/')}>Products</a>
-            <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
-            <a href="/pricing" className="zoho-nav-link active" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="zoho-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase={modalUseCase}
+        mode={modalMode}
+      />
 
       {/* ── HERO SECTION ── */}
       <section className="pricing-hero">
-        <div className="pricing-hero-inner">
+        <div className="pricing-hero-inner" style={{ paddingTop: '120px' }}>
           <div className="pricing-badge-wrapper text-center">
             <span className="pricing-badge">Simple, transparent pricing</span>
           </div>
@@ -150,7 +156,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> 5GB data storage</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Standard integrations</div>
               </div>
-              <button className="card-btn ghost" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
+              <button className="card-btn ghost" onClick={() => handleCheckout('starter')}>Start Free Trial</button>
             </div>
 
             {/* CARD 2 — BUSINESS */}
@@ -180,7 +186,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Advanced integrations + API</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Role-based access control</div>
               </div>
-              <button className="card-btn primary" onClick={() => navigate('/workspace-login')}>Get Started</button>
+              <button className="card-btn primary" onClick={() => handleCheckout('business')}>Get Started</button>
             </div>
 
             {/* CARD 3 — ENTERPRISE */}
@@ -202,7 +208,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> 99.9% uptime guarantee</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> On-premise deployment</div>
               </div>
-              <button className="card-btn ghost" onClick={() => navigate('/workspace-login')}>Talk to Enterprise Sales</button>
+              <button className="card-btn ghost" onClick={() => openModal('enterprise')}>Talk to Enterprise Sales</button>
               <p className="onboarding-text">Typical onboarding in under 2 weeks</p>
             </div>
 
@@ -278,7 +284,7 @@ const PricingPage = () => {
           <p className="bottom-cta-desc">Our enterprise team has helped 200+ companies choose the right tier.</p>
           <div className="bottom-cta-actions">
             <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
-            <button className="cta-btn-ghost" onClick={() => navigate('/workspace-login')}>Talk to Sales</button>
+            <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Sales</button>
           </div>
         </div>
       </section>

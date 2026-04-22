@@ -1,33 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Globe, Lock, Cpu, BarChart3, Users, Zap, CheckCircle2 } from 'lucide-react';
+import { Shield, Globe, Lock, Cpu, BarChart3, Users, Zap } from 'lucide-react';
+import PublicNavbar from '../components/PublicNavbar';
+import { LeadModal } from '../components/LeadModal';
 import './modules/ModulePages.css';
 
 const EnterprisePage = () => {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalUseCase, setModalUseCase] = useState('Team governance');
+  const [modalMode, setModalMode] = useState('sales');
+
+  const openModal = (mode = 'sales', useCase = 'Team governance') => {
+    setModalMode(mode);
+    setModalUseCase(useCase);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="module-page-root">
-      {/* ── NAVBAR ── */}
-      <nav className="mod-nav">
-        <div className="mod-nav-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-nav-right">
-            <a href="/#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/#products'); }}>Products</a>
-            <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise" className="mod-nav-link active" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
-          </div>
-        </div>
-      </nav>
+      
+      <PublicNavbar />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase={modalUseCase}
+        mode={modalMode}
+      />
 
       {/* ── HERO ── */}
       <section className="mod-hero">
-        <div className="mod-hero-inner">
+        <div className="mod-hero-inner" style={{ paddingTop: '100px' }}>
           <div className="mod-hero-content">
             <div className="mod-breadcrumb"><span>Enterprise</span> Grade</div>
             <h1 className="mod-hero-title">Operational clarity at global scale.</h1>
@@ -36,8 +40,8 @@ const EnterprisePage = () => {
               Deploy across thousands of units with millisecond precision.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Contact Sales</button>
-              <button className="mod-btn-ghost" onClick={() => navigate('/workspace-login')}>Request Demo</button>
+              <button className="mod-btn-primary" onClick={() => openModal('sales')}>Contact Sales</button>
+              <button className="mod-btn-ghost" onClick={() => openModal('demo')}>Request Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -142,9 +146,9 @@ const EnterprisePage = () => {
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">
-        <div className="mod-bottom-inner">
+        <div className="mod-bottom-inner" style={{ padding: '80px 0' }}>
           <h2 className="mod-bottom-title">Consolidate your operations today.</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/workspace-login')}>Request Enterprise Pilot</button>
+          <button className="mod-btn-white" onClick={() => openModal('pilot')}>Request Enterprise Pilot</button>
         </div>
       </section>
 

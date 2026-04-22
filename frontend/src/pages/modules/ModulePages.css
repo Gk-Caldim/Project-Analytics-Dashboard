@@ -142,10 +142,11 @@
 .mod-hero-title {
   font-family: var(--font-serif);
   font-weight: 700;
-  font-size: 48px;
-  line-height: 1.15;
+  font-size: 56px;
+  line-height: 1.35;
   color: var(--navy);
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  letter-spacing: -0.01em;
 }
 .mod-hero-desc {
   font-size: 18px;
@@ -221,8 +222,10 @@
 }
 .mod-how-title {
   font-family: var(--font-serif);
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .mod-how-steps {
   display: flex;
@@ -306,9 +309,11 @@
 }
 .mod-bottom-title {
   font-family: var(--font-serif);
-  font-size: 40px;
+  font-size: 48px;
   font-weight: 700;
+  line-height: 1.3;
   margin-bottom: 32px;
+  letter-spacing: -0.01em;
 }
 .mod-btn-white {
   background-color: #ffffff;

@@ -1,9 +1,28 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import PublicNavbar from '../components/PublicNavbar';
+import { LeadModal } from '../components/LeadModal';
 import './LandingPage.css';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalUseCase, setModalUseCase] = useState('General Inquiry');
+  const [modalMode, setModalMode] = useState('sales');
+
+  React.useEffect(() => {
+    if (location.hash === '#products') {
+      const el = document.getElementById('products');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location]);
+
+  const openModal = (mode = 'sales', useCase = 'General Inquiry') => {
+    setModalMode(mode);
+    setModalUseCase(useCase);
+    setIsModalOpen(true);
+  };
 
   const apps = [
     {
@@ -58,38 +77,23 @@ const LandingPage = () => {
   return (
     <div className="zoho-lp-root">
       
-      {/* ── NAVBAR ── */}
-      <nav className="zoho-nav">
-        <div className="zoho-nav-inner">
-          <div className="zoho-logo-area">
-            <div className="zoho-logo-box"></div>
-            <span className="zoho-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          
-          <div className="zoho-nav-right">
-            <a href="#products" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); const el = document.getElementById('products'); if(el) el.scrollIntoView({behavior: 'smooth'}); }}>Products</a>
-            <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
-            <a href="/pricing" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>
-              Sign In
-            </button>
-            <button className="zoho-btn-primary" onClick={() => navigate('/workspace-login')}>
-              Access Workspace
-            </button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavbar />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase={modalUseCase}
+        mode={modalMode}
+      />
 
       {/* ── HERO ── */}
       <section className="zoho-hero">
         <div className="zoho-hero-inner">
           
           <div className="zoho-hero-content">
-            <div className="hero-badge">
-              <span className="hero-badge-dot"></span>
-              Trusted by enterprise leaders
-            </div>
+            
+
+            
             <h1 className="zoho-hero-title">
               The operating system for <span className="text-brand-red">business intelligence.</span>
             </h1>
@@ -100,7 +104,7 @@ const LandingPage = () => {
               <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/workspace-login')}>
                 Get Started
               </button>
-              <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => navigate('/workspace-login')}>
+              <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => openModal('demo')}>
                 Request a Demo
               </button>
             </div>
@@ -255,7 +259,7 @@ const LandingPage = () => {
           <p className="bottom-cta-desc">Set up your workspace in under 10 minutes. No credit card required for the first 30 days.</p>
           <div className="bottom-cta-actions">
             <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
-            <button className="cta-btn-ghost" onClick={() => navigate('/workspace-login')}>Talk to Enterprise Sales</button>
+            <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Enterprise Sales</button>
           </div>
         </div>
       </section>

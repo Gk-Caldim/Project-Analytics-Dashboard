@@ -167,10 +167,11 @@
 .zoho-hero-title {
   font-family: var(--font-serif);
   font-weight: 700;
-  font-size: 56px;
-  line-height: 1.1;
+  font-size: 64px;
+  line-height: 1.25;
   color: var(--navy);
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  letter-spacing: -0.02em;
 }
 
 .text-brand-red {
@@ -533,7 +534,9 @@
   font-family: var(--font-serif);
   font-size: 40px;
   font-weight: 700;
+  line-height: 1.4;
   margin-bottom: 64px;
+  letter-spacing: -0.01em;
 }
 
 .stats-grid {
@@ -577,10 +580,12 @@
 
 .bottom-cta-title {
   font-family: var(--font-serif);
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 20px;
+  line-height: 1.35;
+  margin-bottom: 24px;
+  letter-spacing: -0.01em;
 }
 
 .bottom-cta-desc {

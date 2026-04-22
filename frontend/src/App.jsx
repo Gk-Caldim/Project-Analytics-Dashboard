@@ -33,6 +33,7 @@ import GovernancePage from './pages/modules/GovernancePage';
 import EnterprisePage from './pages/EnterprisePage';
 import CustomersPage from './pages/CustomersPage';
 import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
 import WorkspaceLogin from './pages/WorkspaceLogin';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 
@@ -210,6 +211,7 @@ function App() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/enterprise" element={<EnterprisePage />} />
             <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
 
             <Route path="/" element={<LandingPage />} />
             <Route path="*" element={<LandingPage />} />

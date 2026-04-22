@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Building2, Landmark, Factory, Truck, Layers, Quote } from 'lucide-react';
+import PublicNavbar from '../components/PublicNavbar';
+import { LeadModal } from '../components/LeadModal';
 import './modules/ModulePages.css';
 
 const CustomersPage = () => {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalUseCase, setModalUseCase] = useState('General Inquiry');
+  const [modalMode, setModalMode] = useState('sales');
+
+  const openModal = (mode = 'sales', useCase = 'General Inquiry') => {
+    setModalMode(mode);
+    setModalUseCase(useCase);
+    setIsModalOpen(true);
+  };
 
   const caseStudies = [
     {
@@ -32,25 +43,17 @@ const CustomersPage = () => {
 
   return (
     <div className="module-page-root">
-      {/* ── NAVBAR ── */}
-      <nav className="mod-nav">
-        <div className="mod-nav-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-nav-right">
-             <a href="/#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/#products'); }}>Products</a>
-            <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
-          </div>
-        </div>
-      </nav>
+      
+      <PublicNavbar />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase={modalUseCase}
+      />
 
       {/* ── HERO ── */}
-      <section className="mod-hero" style={{paddingBottom: '40px'}}>
+      <section className="mod-hero" style={{paddingBottom: '40px', paddingTop: '120px' }}>
         <div className="mod-hero-inner">
           <div className="mod-hero-content">
             <div className="mod-breadcrumb"><span>Global</span> Reach</div>
@@ -134,9 +137,9 @@ const CustomersPage = () => {
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">
-        <div className="mod-bottom-inner">
+        <div className="mod-bottom-inner" style={{ padding: '80px 0' }}>
           <h2 className="mod-bottom-title">Join the enterprise elite.</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/workspace-login')}>Request a Case Study</button>
+          <button className="mod-btn-white" onClick={() => openModal('sales')}>Request a Case Study</button>
         </div>
       </section>
 
