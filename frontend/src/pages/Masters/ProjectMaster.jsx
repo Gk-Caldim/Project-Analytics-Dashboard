@@ -29,7 +29,7 @@ const ProjectMaster = () => {
     { id: 'status', label: 'Status', visible: true, sortable: true, type: 'select', required: true },
 
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
-    { id: 'employee_name', label: 'Employee Name', visible: false, sortable: true, type: 'employee_name', required: false },
+    { id: 'employee_name', label: 'Team Lead', visible: true, sortable: true, type: 'employee_name', required: false },
     { id: 'utilized_budget', label: 'Utilized Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'balance_budget', label: 'Balance Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'detailed_view', label: 'Detailed View', visible: true, sortable: false, type: 'detailed_view_button', required: false },
@@ -63,18 +63,9 @@ const ProjectMaster = () => {
   const [pageSize, setPageSize] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50, 100];
 
-  // Load columns from localStorage - Aggressive refresh with new key
-  const [columns, setColumns] = useState(() => {
-    const CURRENT_STORAGE_KEY = 'master_project_data_config_v5';
-    // Clean up all old project_columns_v* and master_project_data_config_v* keys
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('project_columns_v') || key.startsWith('master_project_data_config_v')) {
-        localStorage.removeItem(key);
-      }
-    });
-    const savedColumns = localStorage.getItem(CURRENT_STORAGE_KEY);
-    return savedColumns ? JSON.parse(savedColumns) : initialColumns;
-  });
+  // Columns state
+  const [columns, setColumns] = useState(initialColumns);
+  const [customColumns, setCustomColumns] = useState([]);
 
   const [editingColumn, setEditingColumn] = useState(null);
   const [tempColumnName, setTempColumnName] = useState('');
@@ -189,6 +180,7 @@ const ProjectMaster = () => {
     setLoading(true);
     setError(null);
     try {
+      await fetchColumns();
       await fetchProjects();
       await fetchEmployees();
     } catch (err) {
@@ -197,6 +189,27 @@ const ProjectMaster = () => {
       showNotification('Failed to load data', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchColumns = async () => {
+    try {
+      const res = await API.get('/projects/columns/all');
+      if (Array.isArray(res.data)) {
+        const formattedCustomCols = res.data.map(col => ({
+          id: col.column_name,
+          db_id: col.id, // Keep track of database ID for updates/deletes
+          label: col.column_label,
+          visible: true,
+          sortable: true,
+          type: col.data_type || 'text',
+          required: col.is_required
+        }));
+        setCustomColumns(formattedCustomCols);
+        setColumns([...initialColumns, ...formattedCustomCols]);
+      }
+    } catch (err) {
+      console.error("Error fetching columns", err);
     }
   };
 
@@ -228,7 +241,7 @@ const ProjectMaster = () => {
   };
 
   const { user: currentUser } = useSelector(state => state.auth);
-  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager';
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager' || currentUser?.role === 'Finance' || currentUser?.role === 'Head';
 
   const canAddProject = isAdmin || currentUser?.permissions?.includes('Project Master:ADD');
   const canEditProject = isAdmin || currentUser?.permissions?.includes('Project Master:EDIT');
@@ -258,10 +271,6 @@ const ProjectMaster = () => {
     showNotification('Data refreshed successfully');
   };
 
-  // Save columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('master_project_data_config_v4', JSON.stringify(columns));
-  }, [columns]);
 
   // Checkbox Functions
   const toggleSelectAll = () => {
@@ -359,14 +368,32 @@ const ProjectMaster = () => {
     setTempColumnName(currentLabel);
   };
 
-  const saveEditColumn = (columnId) => {
+  const saveEditColumn = async (columnId) => {
     if (tempColumnName.trim()) {
-      setColumns(columns.map(col =>
-        col.id === columnId ? { ...col, label: tempColumnName } : col
-      ));
-      setEditingColumn(null);
-      setTempColumnName('');
-      showNotification('Column updated successfully');
+      const col = columns.find(c => c.id === columnId);
+      if (!col.db_id) {
+        // This is a fixed column, we only update it locally if needed
+        setColumns(columns.map(c =>
+          c.id === columnId ? { ...c, label: tempColumnName } : c
+        ));
+        setEditingColumn(null);
+        setTempColumnName('');
+        showNotification('Column updated locally');
+        return;
+      }
+
+      try {
+        await API.put(`/projects/columns/${col.db_id}`, {
+          column_label: tempColumnName
+        });
+        await fetchColumns();
+        setEditingColumn(null);
+        setTempColumnName('');
+        showNotification('Column updated successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error updating column', 'error');
+      }
     }
   };
 
@@ -398,14 +425,26 @@ const ProjectMaster = () => {
     });
   };
 
-  const confirmDeleteColumn = () => {
+  const confirmDeleteColumn = async () => {
     if (!showDeleteColumnPrompt) return;
 
     const columnId = showDeleteColumnPrompt.id;
-    setColumns(columns.filter(col => col.id !== columnId));
-    setShowDeleteColumnPrompt(null);
-    setShowColumnModal(false);
-    showNotification('Column deleted successfully');
+    const col = columns.find(c => c.id === columnId);
+
+    if (col && col.db_id) {
+      try {
+        await API.delete(`/projects/columns/${col.db_id}`);
+        await fetchColumns();
+        setShowDeleteColumnPrompt(null);
+        setShowColumnModal(false);
+        showNotification('Column deleted successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error deleting column', 'error');
+      }
+    } else {
+      setShowDeleteColumnPrompt(null);
+    }
   };
 
   // Sorting
@@ -696,7 +735,7 @@ const ProjectMaster = () => {
     });
   };
 
-  const confirmAddColumn = () => {
+  const confirmAddColumn = async () => {
     if (newColumnName.trim()) {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
@@ -705,20 +744,23 @@ const ProjectMaster = () => {
         return;
       }
 
-      const newColumn = {
-        id: newColumnId,
-        label: newColumnName,
-        visible: true,
-        sortable: true,
-        type: 'text',
-        required: false
-      };
+      try {
+        await API.post('/projects/columns/create', {
+          column_name: newColumnId,
+          column_label: newColumnName,
+          data_type: 'text',
+          is_required: false
+        });
 
-      setColumns([...columns, newColumn]);
-      setNewColumnName('');
-      setShowColumnAddPrompt({ show: false, columnName: '' });
-      setShowColumnModal(false);
-      showNotification('Column added successfully');
+        await fetchColumns();
+        setNewColumnName('');
+        setShowColumnAddPrompt({ show: false, columnName: '' });
+        setShowColumnModal(false);
+        showNotification('Column added successfully');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error adding column', 'error');
+      }
     }
   };
 
@@ -1928,6 +1970,23 @@ const ProjectMaster = () => {
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
                   </div>
+                  {/* Team Lead (Primary Employee Assignment) */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead / Assigned To</label>
+                    <SearchableDropdown
+                      options={employeeList.map(emp => ({
+                        value: emp.employee_id,
+                        label: `${emp.name} (${emp.employee_id})`,
+                        name: emp.name
+                      }))}
+                      value={newProject.employee_id || ''}
+                      onChange={(val, option) => {
+                        handleNewProjectChange('employee_id', val);
+                        handleNewProjectChange('employee_name', option ? option.name : '');
+                      }}
+                      placeholder="Select Employee..."
+                    />
+                  </div>
                   {/* Department */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
@@ -2087,6 +2146,23 @@ const ProjectMaster = () => {
                       <option value="">Select Project Manager</option>
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
+                  </div>
+                  {/* Team Lead (Primary Employee Assignment) */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead / Assigned To</label>
+                    <SearchableDropdown
+                      options={employeeList.map(emp => ({
+                        value: emp.employee_id,
+                        label: `${emp.name} (${emp.employee_id})`,
+                        name: emp.name
+                      }))}
+                      value={editForm.employee_id || ''}
+                      onChange={(val, option) => {
+                        handleEditFormChange('employee_id', val);
+                        handleEditFormChange('employee_name', option ? option.name : '');
+                      }}
+                      placeholder="Select Employee..."
+                    />
                   </div>
                   {/* Department */}
                   <div>

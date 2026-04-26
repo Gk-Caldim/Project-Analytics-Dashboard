@@ -12,13 +12,14 @@ from app.models.application_access import ApplicationAccess
 
 def get_employees(db: Session, skip: int = 0, limit: int = 1000) -> List[Employee]:
     """Get all employees with their assigned project names"""
+    # Join both EmployeeProjectMap and direct Project link
     results = (
         db.query(
             Employee,
             func.string_agg(Project.name, ', ').label('project_names')
         )
         .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, EmployeeProjectMap.project_id == Project.project_id)
+        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id))
         .group_by(Employee.id)
         .offset(skip)
         .limit(limit)
@@ -40,7 +41,7 @@ def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
             func.string_agg(Project.name, ', ').label('project_names')
         )
         .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, EmployeeProjectMap.project_id == Project.project_id)
+        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id))
         .filter(Employee.id == employee_id)
         .group_by(Employee.id)
         .first()
