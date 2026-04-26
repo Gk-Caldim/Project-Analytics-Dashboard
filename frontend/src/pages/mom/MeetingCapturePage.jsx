@@ -471,7 +471,7 @@ const MeetingCapturePage = () => {
     if (!meetingId || meetingId === 'unscheduled') return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host.includes('localhost') ? 'localhost:8001' : window.location.host;
+    const host = window.location.host.includes('localhost') ? 'localhost:8000' : window.location.host;
     const wsUrl = `${protocol}//${host}/api/ws/capture/${meetingId}/${currentUser.name}-${Date.now()}`;
     
     const socket = new WebSocket(wsUrl);

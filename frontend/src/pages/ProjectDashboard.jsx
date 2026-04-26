@@ -418,25 +418,6 @@ const ProjectTitleDashboard = () => {
     return '⚪';
   }, [dashboardData]);
 
-  useEffect(() => {
-    import('../api/dashboard').then(({ getDashboard }) => {
-      // Check if the selected menu item is a module link
-      // Format: module-{project_id}-{module_name}
-      if (selectedFileId && selectedFileId.startsWith('module-')) {
-        const parts = selectedFileId.split('-');
-        // For module links module-1-Build : parts[0] is 'module', parts[1] is id, parts.slice(2) is module name
-        const projectId = parts[1];
-        const moduleName = parts.slice(2).join('-');
-
-        getDashboard(projectId, moduleName)
-          .then(res => setDashboardData(res))
-          .catch(console.error);
-      } else {
-        // Fallback: load project 1 generally
-        getDashboard(1).then(res => setDashboardData(res)).catch(console.error);
-      }
-    });
-  }, [selectedFileId]);
 
   const parseNum = (val) => {
     if (val === null || val === undefined || val === '') return 0;
@@ -470,13 +451,21 @@ const ProjectTitleDashboard = () => {
                 status: 'In Progress', // Default status
                 submodules: [],
                 active: false,
-                dashboardConfig: struct.dashboard_config || null
+                dashboardConfig: struct.dashboard_config || null,
+                budget: struct.budget || 0,
+                utilized_budget: struct.utilized_budget || 0,
+                balance_budget: struct.balance_budget || 0,
+                project_manager: struct.project_manager || null
               });
             }
 
             const existingProject = uniqueProjectsMap.get(capitalizedName);
             existingProject.dbProjectId = struct.project_id;
             existingProject.dashboardConfig = struct.dashboard_config || existingProject.dashboardConfig;
+            existingProject.budget = struct.budget || existingProject.budget || 0;
+            existingProject.utilized_budget = struct.utilized_budget || existingProject.utilized_budget || 0;
+            existingProject.balance_budget = struct.balance_budget || existingProject.balance_budget || 0;
+            existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
 
             const moduleMap = new Map();
             
@@ -631,7 +620,10 @@ const ProjectTitleDashboard = () => {
         const parts = String(idToResolve).split('-');
         resolvedProjectId = parts[1];
         resolvedModule = parts.slice(2).join('-') || null;
-      } else if (projectId) {
+      } else if (activeProject?.dbProjectId) {
+        resolvedProjectId = activeProject.dbProjectId;
+        resolvedModule = null;
+      } else if (projectId && !isNaN(parseInt(projectId))) {
         resolvedProjectId = projectId;
         resolvedModule = null;
       } else {
@@ -793,7 +785,6 @@ const ProjectTitleDashboard = () => {
   // Critical issues data
   const [criticalIssues, setCriticalIssues] = useState([]);
 
-  // Summary data
   const [summaryData, setSummaryData] = useState({
     budgetApproved: 0,
     budgetUtilized: 0,
@@ -808,6 +799,22 @@ const ProjectTitleDashboard = () => {
     qualityOpen: '0',
     qualityCritical: '0'
   });
+
+  // Sync summaryData with activeProject when it changes
+  useEffect(() => {
+    if (activeProject) {
+      setSummaryData(prev => ({
+        ...prev,
+        budgetApproved: activeProject.budget || 0,
+        budgetUtilized: activeProject.utilized_budget || 0,
+        budgetBalance: activeProject.balance_budget || 0,
+        // Calculate outlook if possible, otherwise keep prev or 0
+        budgetOutlook: activeProject.budget > 0 
+          ? Math.round((activeProject.utilized_budget / activeProject.budget) * 100) 
+          : '0'
+      }));
+    }
+  }, [activeProject]);
 
   const allMetricCharts = useMemo(() => {
     if (!activeProject || !visibleSections) return [];
@@ -3676,7 +3683,14 @@ const ProjectTitleDashboard = () => {
               {selectedSubmodule ? (
                 <span>{getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)}</span>
               ) : activeProject ? (
-                <span>{activeProject.name} Dashboard</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span>{activeProject.name} Dashboard</span>
+                  {activeProject.project_manager && (
+                    <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', marginTop: '2px' }}>
+                      PM: {activeProject.project_manager}
+                    </span>
+                  )}
+                </div>
               ) : null}
             </div>
 

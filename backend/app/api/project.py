@@ -404,6 +404,10 @@ def get_project_structure(
         "project_id":   project_id,
         "project_name": project.name,
         "dashboard_config": project.dashboard_config,
+        "budget": project.budget,
+        "utilized_budget": project.utilized_budget,
+        "balance_budget": project.balance_budget,
+        "project_manager": project.project_manager,
         "modules":      flat_modules,   # ← flat list — sidebar uses this
         "uploads":      uploads_out,
     }
@@ -492,6 +496,10 @@ def get_all_project_structures(
             "project_id":   p.id,
             "project_name": p.name,
             "dashboard_config": p.dashboard_config,
+            "budget": p.budget,
+            "utilized_budget": p.utilized_budget,
+            "balance_budget": p.balance_budget,
+            "project_manager": p.project_manager,
             "modules":      flat_mods,      # ← flat deduplicated module list
             "uploads":      uploads_out,
         })

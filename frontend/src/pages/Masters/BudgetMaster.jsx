@@ -103,6 +103,7 @@ const BudgetMaster = () => {
   const [submittingRevision, setSubmittingRevision] = useState(false);
   const [waitingDate,        setWaitingDate]        = useState('');
   const [showWaitingModal,   setShowWaitingModal]   = useState(null);
+  const [showSaveDropdown,   setShowSaveDropdown]   = useState(false);
 
   const user     = useSelector(state => state.auth.user);
   const userRole = user?.role || 'Employee';
@@ -122,11 +123,7 @@ const BudgetMaster = () => {
       const proj = projects.find(p => p.name === selectedProject);
       if (proj) {
         setOverallBudget(proj.budget || 0);
-        const managerNames = (proj.manager || []).map(m => {
-          const emp = employees.find(e => String(e.employee_id) === String(m.employeeId || m.employee_id));
-          return emp ? emp.name : null;
-        }).filter(Boolean).join(', ');
-        setManagerName(managerNames || 'No Manager Assigned');
+        setManagerName(proj.project_manager || 'No Manager Assigned');
       }
     } else {
       setManagerName('');
@@ -335,7 +332,7 @@ const BudgetMaster = () => {
   };
 
   // ─── Save to DB ──────────────────────────────────────────────────────────────
-  const handleSave = async () => {
+  const handleSave = async (syncToProject = false) => {
     if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
     setSaving(true);
     try {
@@ -350,11 +347,12 @@ const BudgetMaster = () => {
       fd.append('overall_budget', parseFloat(overallBudget) || 0);
       fd.append('uploaded_by',    user?.name || 'Admin');
       fd.append('budget_data',    JSON.stringify(dataToSave));
+      fd.append('sync_to_project', syncToProject);
       if (uploadedFile) fd.append('file', uploadedFile);
       await API.post(`/budget/${encodeURIComponent(selectedProject)}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      showNotification('Budget saved to database');
+      showNotification(syncToProject ? 'Budget saved and synced to Project Master' : 'Budget saved to database');
       if (editingRowId) { setEditingRowId(null); setEditingData({}); }
     } catch (err) {
       showNotification('Save failed — ' + (err.response?.data?.detail || err.message), 'error');
@@ -704,11 +702,47 @@ const BudgetMaster = () => {
                 <span className="hidden sm:inline">Add Item</span>
               </button>
 
-              <button onClick={handleSave} disabled={saving || !selectedProject}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50">
-                {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                <span>{saving ? 'Saving...' : 'Sync Master'}</span>
-              </button>
+              <div className="relative">
+                <div className="flex items-stretch h-[38px]">
+                  <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold bg-blue-600 text-white rounded-l-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 border-r border-blue-500/30">
+                    {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    <span>{saving ? 'Saving...' : 'Save'}</span>
+                  </button>
+                  <button onClick={() => setShowSaveDropdown(!showSaveDropdown)} disabled={saving || !selectedProject}
+                    className="px-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center">
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showSaveDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {showSaveDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
+                    <div className="absolute top-full left-0 mt-1.5 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
+                        <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600">
+                          <Save className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold">Save Budget</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Save changes to budget master</p>
+                        </div>
+                      </button>
+                      <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
+                        className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                        <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600">
+                          <RefreshCw className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white">Save & Sync to Project Master</p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">Updates project's budget summary</p>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
               <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
 

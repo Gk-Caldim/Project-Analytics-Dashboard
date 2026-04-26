@@ -93,7 +93,7 @@ function App() {
       }
 
       try {
-        const wsUrl = `ws://127.0.0.1:8001/ws/test/dashboard_${Date.now()}`;
+        const wsUrl = `ws://localhost:8000/ws/test/dashboard_${Date.now()}`;
         console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);

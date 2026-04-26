@@ -212,6 +212,7 @@ async def save_budget_summary(
     uploaded_by: Optional[str] = Form(None),
     department: Optional[str] = Form(None),
     budget_data: str = Form("[]"),
+    sync_to_project: bool = Form(False),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -262,6 +263,30 @@ async def save_budget_summary(
         db.add(budget)
         db.commit()
         db.refresh(budget)
+
+    # Sync to Project Master if requested
+    if sync_to_project:
+        from app.models.project import Project
+        
+        # Calculate totals from parsed_budget_data
+        total_utilized = 0.0
+        total_balance = 0.0
+        
+        for row in parsed_budget_data:
+            # Match keys from BudgetMaster.jsx initialColumns labels
+            total_utilized += float(row.get('Total utilization') or 0)
+            total_balance += float(row.get('Balance') or 0)
+
+        proj = db.query(Project).filter(Project.name == project_name).first()
+        if proj:
+            # Sync as requested: overall_budget -> budget, total_utilized -> utilized_budget, total_balance -> balance_budget
+            proj.budget = overall_budget
+            proj.utilized_budget = total_utilized
+            proj.balance_budget = total_balance
+            db.commit()
+            logger.info(f"[budget] Synced budget to Project Master for '{project_name}': Budget={overall_budget}, Utilized={total_utilized}, Balance={total_balance}")
+        else:
+            logger.warning(f"[budget] Could not find project '{project_name}' in Project Master to sync budget.")
 
     logger.info(f"[budget] Saved budget for '{project_name}' — rows: {len(parsed_budget_data)}, budget: {overall_budget}")
     return budget
