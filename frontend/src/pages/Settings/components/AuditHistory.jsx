@@ -32,11 +32,11 @@ const AuditHistory = () => {
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const matchesSearch = 
-        log.activity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.performed_by?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.category?.toLowerCase().includes(searchTerm.toLowerCase());
+        log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.module?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesFilter = activeFilter === 'ALL' || log.category === activeFilter;
+      const matchesFilter = activeFilter === 'ALL' || log.module === activeFilter;
       
       return matchesSearch && matchesFilter;
     });
@@ -50,6 +50,7 @@ const AuditHistory = () => {
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
   const getActionColor = (action) => {
+    if (!action) return 'text-gray-500 bg-gray-50 border-gray-100';
     const act = action.toLowerCase();
     if (act.includes('created') || act.includes('added')) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
     if (act.includes('deleted') || act.includes('removed')) return 'text-red-600 bg-red-50 border-red-100';
@@ -140,22 +141,22 @@ const AuditHistory = () => {
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#000000] font-bold text-[10px]">
-                        {log.performed_by?.charAt(0).toUpperCase()}
+                        {log.user_name?.charAt(0).toUpperCase() || '?'}
                       </div>
-                      <p className="text-xs font-bold text-gray-600 uppercase tracking-tight">{log.performed_by}</p>
+                      <p className="text-xs font-bold text-gray-600 uppercase tracking-tight">{log.user_name || 'System'}</p>
                     </div>
                   </td>
                   <td className="px-8 py-5">
-                    <span className={`px-3 py-1 text-[9px] font-bold tracking-widest uppercase border ${getActionColor(log.activity || '')}`}>
-                      {log.activity}
+                    <span className={`px-3 py-1 text-[9px] font-bold tracking-widest uppercase border ${getActionColor(log.action || '')}`}>
+                      {log.action}
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{log.category}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{log.module}</p>
                   </td>
                   <td className="px-8 py-5 text-right">
                     <code className="text-[10px] bg-gray-50 px-2 py-1 border border-gray-100 text-gray-400 font-mono font-bold">
-                      {log.object_id?.substring(0, 8) || 'N/A'}
+                      {log.entity_id?.substring(0, 8) || 'N/A'}
                     </code>
                   </td>
                 </tr>

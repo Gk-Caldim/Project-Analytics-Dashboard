@@ -1441,7 +1441,7 @@ const Dashboard = () => {
             {activeView === 'agent' ? (
               <AgentView />
             ) : (
-              <div className="h-full overflow-auto">
+              <div className="h-full overflow-y-auto overflow-x-hidden">
                 <Outlet />
               </div>
             )}
