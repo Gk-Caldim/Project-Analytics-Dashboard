@@ -45,89 +45,24 @@ const VPProjectDashboard = ({
   return (
     <div className="vppd-root">
 
-      {/* ── 1. HEADER ── */}
+
+      {/* ── 1. HEADER (REMOVED AS DUPLICATED) ── */}
+      {/*
       <div className="vppd-header">
-        <div className="vppd-header-left">
-          <div className="vppd-project-title">
-            {activeProject?.name || 'Loading Project...'}
-            <span className={`vppd-badge ${dashboardData?.project_health === 'Red' ? 'red' : dashboardData?.project_health === 'Yellow' ? 'yellow' : 'green'}`}>
-              {dashboardData?.project_health || 'Unknown'} Health
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', color: '#64748b' }}>Project ID: {activeProject?.code || activeProject?.dbProjectId}</div>
-        </div>
-
-        <div className="vppd-header-right">
-          <button className="vppd-btn vppd-btn-secondary" onClick={onConfigure}>
-            <Settings size={14} /> Configure
-          </button>
-          <button className="vppd-btn vppd-btn-primary" onClick={onSendMail}>
-            <Mail size={14} /> Send Mail
-          </button>
-        </div>
+        ...
       </div>
+      */}
 
-      {/* ── 3. KPI SUMMARY BAR ── */}
+      {/* ── 3. KPI SUMMARY BAR (REMOVED) ── */}
+      {/*
       <div className="vppd-kpi-bar">
-        {/* Total Milestones */}
-        <div className="vppd-kpi-metric">
-          <div className="vppd-metric-indicator" style={{ backgroundColor: '#e0f2fe' }}>
-            <span style={{ fontSize: '18px' }}>📊</span>
-          </div>
-          <div className="vppd-metric-content">
-            <span className="vppd-metric-label">Total Milestones</span>
-            <span className="vppd-metric-value">{totalMilestones}</span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="vppd-kpi-divider" />
-
-        {/* Completed */}
-        <div className="vppd-kpi-metric">
-          <div className="vppd-metric-indicator" style={{ backgroundColor: '#dcfce7' }}>
-            <span style={{ fontSize: '18px' }}>✅</span>
-          </div>
-          <div className="vppd-metric-content">
-            <span className="vppd-metric-label">Completed</span>
-            <span className="vppd-metric-value">
-              {completed}
-              <span className="vppd-metric-sub">({completedPct}%)</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="vppd-kpi-divider" />
-
-        {/* Delayed - Red Highlight */}
-        <div className="vppd-kpi-metric">
-          <div className="vppd-metric-indicator" style={{ backgroundColor: '#fee2e2' }}>
-            <span style={{ fontSize: '18px' }}>⚠️</span>
-          </div>
-          <div className="vppd-metric-content">
-            <span className="vppd-metric-label">Delayed</span>
-            <span className="vppd-metric-value vppd-metric-value-red">{delayed}</span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="vppd-kpi-divider" />
-
-        {/* Pending - Yellow Highlight */}
-        <div className="vppd-kpi-metric">
-          <div className="vppd-metric-indicator" style={{ backgroundColor: '#fef9c3' }}>
-            <span style={{ fontSize: '18px' }}>⏳</span>
-          </div>
-          <div className="vppd-metric-content">
-            <span className="vppd-metric-label">Pending</span>
-            <span className="vppd-metric-value vppd-metric-value-yellow">{pending}</span>
-          </div>
-        </div>
+        ...
       </div>
+      */}
 
       <div className="vppd-main-grid">
-        {/* ── TOP RISKS PANEL ── */}
+        {/* ── TOP RISKS PANEL (COMMENTED FOR FUTURE) ── */}
+        {/*
         <div className="vppd-section">
           <div className="vppd-section-header">
             <AlertTriangle size={18} color="#ef4444" />
@@ -141,15 +76,16 @@ const VPProjectDashboard = ({
             )}
           </div>
         </div>
+        */}
 
-        {/* ── CRITICAL ISSUES ── */}
+        {/* ── CRITICAL ISSUES (COMMENTED FOR FUTURE) ── */}
+        {/*
         <div className="vppd-section">
           <div className="vppd-section-header">
             <AlertTriangle size={18} color="#ef4444" />
             Top Critical Issues
           </div>
           <div style={{ marginLeft: '-15px', marginRight: '-15px' }}>
-            {/* We rely on the existing widget, modifying its internal CSS isn't needed if it looks okay, but we render it natively */}
             {activeProject?.dbProjectId ? (
               <CriticalIssuesWidget projectId={activeProject.dbProjectId} />
             ) : (
@@ -157,6 +93,7 @@ const VPProjectDashboard = ({
             )}
           </div>
         </div>
+        */}
 
         {/* ── METRICS SUMMARY (Option 1) ── */}
         {metricsContent && (

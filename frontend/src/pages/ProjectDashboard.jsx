@@ -2688,28 +2688,56 @@ const ProjectTitleDashboard = () => {
         }
       },
       toolbox: {
-        show: true,
+        show: isMaximized,
         right: '2%',
         top: '2%',
         feature: {
-          magicType: { show: true, type: ['line', 'bar', 'stack'], title: { line: 'Line', bar: 'Bar', stack: 'Stack' } },
           dataView: {
             show: true,
-            readOnly: false,
-            title: 'Data',
+            readOnly: true,
+            title: 'Data View',
             lang: ['Data View', 'Close', 'Refresh'],
             backgroundColor: '#fff',
             textareaColor: '#fff',
             textareaBorderColor: '#e2e8f0',
             textColor: '#1e3a5f',
             buttonColor: '#1e3a5f',
-            buttonTextColor: '#fff'
+            buttonTextColor: '#fff',
+            optionToContent: function (opt) {
+              const series = opt.series;
+              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;">
+                <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
+                <thead>
+                  <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+                    <th style="padding:10px;color:#1e3a5f;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
+                    <th style="padding:10px;color:#1e3a5f;font-weight:800;">Value</th>
+                  </tr>
+                </thead>
+                <tbody>`;
+              
+              if (series[0].data) {
+                series[0].data.forEach((item, idx) => {
+                  const name = opt.xAxis[0].data ? opt.xAxis[0].data[idx] : idx;
+                  const val = typeof item === 'object' ? item.value : item;
+                  table += `<tr style="border-bottom:1px solid #f1f5f9;">
+                    <td style="padding:8px 10px;color:#64748b;">${name}</td>
+                    <td style="padding:8px 10px;color:#1e3a5f;font-weight:700;">${val}</td>
+                  </tr>`;
+                });
+              }
+              table += '</tbody></table></div>';
+              return table;
+            }
           },
-          restore: { show: true, title: 'Reset' },
-          saveAsImage: { show: true, title: 'Export', pixelRatio: 2 }
+          saveAsImage: { 
+            show: true, 
+            title: 'Download', 
+            pixelRatio: 3,
+            iconStyle: { borderColor: '#1e3a5f' }
+          }
         },
         iconStyle: { borderColor: '#94a3b8' },
-        emphasis: { iconStyle: { borderColor: '#3b82f6' } }
+        emphasis: { iconStyle: { borderColor: '#1e3a5f' } }
       },
       dataZoom: xLabels.length > 10 ? [
         { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
@@ -3133,7 +3161,8 @@ const ProjectTitleDashboard = () => {
           cursor: 'pointer',
           fontWeight: 'bold',
           outline: 'none',
-          maxWidth: '85px'
+          maxWidth: '85px',
+          fontFamily: 'Inter, sans-serif'
         }}
       >
         <option value="bar">Bar</option>
@@ -3142,26 +3171,6 @@ const ProjectTitleDashboard = () => {
         <option value="area">Area</option>
         <option value="histogram">Hist</option>
       </select>
-
-      <button
-        onClick={() => handleDownloadChart(chartId)}
-        title="Download"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '24px',
-          height: '24px',
-          borderRadius: '4px',
-          border: '1px solid #cbd5e1',
-          backgroundColor: '#f8fafc',
-          color: '#1e3a5f',
-          cursor: 'pointer',
-          padding: 0
-        }}
-      >
-        <Download size={12} />
-      </button>
 
       <button
         onClick={() => toggleAxisSelector(chartId)}
@@ -3178,11 +3187,14 @@ const ProjectTitleDashboard = () => {
           color: showAxisSelector === chartId ? 'white' : '#1e3a5f',
           cursor: 'pointer',
           fontSize: '10px',
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          fontFamily: 'Inter, sans-serif'
         }}
       >
         Axes
       </button>
+
+
 
       <button
         onClick={() => handleMaximize(chartId)}
@@ -3342,75 +3354,132 @@ const ProjectTitleDashboard = () => {
       }}>
         <div style={{
           backgroundColor: 'white',
-          borderRadius: '16px',
-          width: '95%',
-          maxWidth: '1200px',
-          maxHeight: '90vh',
+          borderRadius: '4px',
+          width: '98%',
+          maxWidth: '1400px',
+          maxHeight: '95vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          overflow: 'hidden'
+          boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2)',
+          overflow: 'hidden',
+          fontFamily: 'Inter, sans-serif'
         }}>
           <div style={{
-            backgroundColor: '#1e3a5f',
-            color: 'white',
-            padding: '20px 25px',
-            fontSize: '18px',
-            fontWeight: 'bold',
+            backgroundColor: '#f8fafc',
+            color: '#1e3a5f',
+            padding: '16px 24px',
+            fontSize: '16px',
+            fontWeight: '900',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid #2c4c7c'
+            borderBottom: '2px solid #e2e8f0',
+            textTransform: 'uppercase',
+            letterSpacing: '0.02em'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ backgroundColor: '#3b82f6', width: '4px', height: '24px', borderRadius: '2px' }} />
-              <span>{humanizeLabel(phaseLabel)} - Analysis</span>
+              <div style={{ backgroundColor: '#1e3a5f', width: '3px', height: '20px' }} />
+              <span>{humanizeLabel(phaseLabel)} Analysis</span>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <button
+                onClick={() => toggleAxisSelector(maximizedChart)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: showAxisSelector === maximizedChart ? '#1e3a5f' : 'white',
+                  color: showAxisSelector === maximizedChart ? 'white' : '#1e3a5f',
+                  cursor: 'pointer',
+                  fontWeight: '800',
+                  transition: 'none'
+                }}
+              >
+                AXES CONFIG
+              </button>
+
               <select
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
                 onChange={(e) => handleChartTypeChange(maximizedChart, e.target.value)}
                 style={{
-                  padding: '8px 15px',
-                  fontSize: '14px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(255,255,255,0.4)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: 'white',
+                  color: '#1e3a5f',
                   cursor: 'pointer',
-                  fontWeight: 'bold',
-                  outline: 'none'
+                  fontWeight: '800',
+                  outline: 'none',
+                  minWidth: '130px'
                 }}
               >
-                <option value="bar" style={{ color: '#1e3a5f' }}>Bar</option>
-                <option value="line" style={{ color: '#1e3a5f' }}>Line</option>
-                <option value="pie" style={{ color: '#1e3a5f' }}>Pie</option>
-                <option value="area" style={{ color: '#1e3a5f' }}>Area</option>
-                <option value="histogram" style={{ color: '#1e3a5f' }}>Histogram</option>
-                <option value="bar-horizontal" style={{ color: '#1e3a5f' }}>Horizontal Bar</option>
-                <option value="bar-rotated" style={{ color: '#1e3a5f' }}>Rotated Bar</option>
-                <option value="timeline" style={{ color: '#1e3a5f' }}>Timeline</option>
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+                <option value="pie">Pie Chart</option>
+                <option value="area">Area Chart</option>
+                <option value="histogram">Histogram</option>
+                <option value="bar-horizontal">Horizontal Bar</option>
+                <option value="bar-rotated">Rotated Bar</option>
+                <option value="timeline">Timeline</option>
               </select>
+
+              <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0', margin: '0 4px' }} />
+
               <button
                 onClick={handleCloseMaximize}
                 style={{
                   padding: '8px 20px',
-                  fontSize: '14px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  backgroundColor: '#ef4444',
-                  color: 'white',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #1e3a5f',
+                  backgroundColor: 'white',
+                  color: '#1e3a5f',
                   cursor: 'pointer',
-                  fontWeight: 'bolder',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  fontWeight: '900',
+                  letterSpacing: '0.05em'
                 }}
               >
-                Close
+                CLOSE
               </button>
             </div>
           </div>
           <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: '#f8fafc' }}>
-            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+            {/* Stats Overview Bar */}
+            {(() => {
+              const tid = getTrackerForPhase(maximizedChart)?.trackerId;
+              const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
+              const config = axisConfigs[activeProject.id]?.[maximizedChart];
+              const xAxis = config?.xAxis;
+              const yAxis = config?.yAxis;
+              
+              if (rows.length === 0) return null;
+              
+              const uniqueX = xAxis ? new Set(rows.map(r => r[xAxis]).filter(Boolean)).size : 0;
+              const numericY = yAxis ? rows.map(r => parseFloat(String(r[yAxis]).replace(/[^0-9.]/g, ''))).filter(v => !isNaN(v)) : [];
+              const totalY = numericY.reduce((a, b) => a + b, 0);
+              const avgY = numericY.length > 0 ? (totalY / numericY.length).toFixed(1) : 0;
+              const maxY = numericY.length > 0 ? Math.max(...numericY) : 0;
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>
+                  {[
+                    { label: 'Total Records', value: rows.length, color: '#1e3a5f' },
+                    { label: `Unique ${xAxis || 'X-Axis'}`, value: uniqueX, color: '#1e3a5f' },
+                    { label: `Average ${yAxis || 'Y-Axis'}`, value: avgY, color: '#1e3a5f' },
+                    { label: `Maximum ${yAxis || 'Y-Axis'}`, value: maxY, color: '#1e3a5f' }
+                  ].map((stat, i) => (
+                    <div key={i} style={{ backgroundColor: 'white', padding: '16px 20px', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${stat.color}` }}>
+                      <div style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</div>
+                      <div style={{ fontSize: '20px', fontWeight: '900', color: '#1e3a5f' }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
               <div style={{ height: '550px' }}>
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
@@ -3897,6 +3966,8 @@ const ProjectTitleDashboard = () => {
                     </div>
                   )}
 
+                  {/* Resource Summary (Commented) */}
+                  {/*
                   {visibleSections.resource && (
                     <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -3923,7 +3994,10 @@ const ProjectTitleDashboard = () => {
                       </div>
                     </div>
                   )}
+                  */}
 
+                  {/* Quality Summary (Commented) */}
+                  {/*
                   {visibleSections.quality && (
                     <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -3950,6 +4024,7 @@ const ProjectTitleDashboard = () => {
                       </div>
                     </div>
                   )}
+                  */}
                 </div>
               </div>
             </div>
