@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import TopRisksPanel from '../components/issues/TopRisksPanel';
 import API from '../utils/api';
@@ -9,7 +9,8 @@ const VPProjectDashboard = ({
   activeProject,
   dashboardData,
   onConfigure,
-  onSendMail
+  onSendMail,
+  metricsContent
 }) => {
   const [recentMeetings, setRecentMeetings] = useState([]);
 
@@ -156,6 +157,19 @@ const VPProjectDashboard = ({
             )}
           </div>
         </div>
+
+        {/* ── METRICS SUMMARY (Option 1) ── */}
+        {metricsContent && (
+          <div className="vppd-section full">
+            <div className="vppd-section-header">
+              <TrendingUp size={18} color="#3b82f6" />
+              Project Metrics Summary
+            </div>
+            <div style={{ marginLeft: '-10px', marginRight: '-10px' }}>
+              {metricsContent}
+            </div>
+          </div>
+        )}
 
         {/* ── 4. RECENT MEETINGS ── */}
         <div className="vppd-section">

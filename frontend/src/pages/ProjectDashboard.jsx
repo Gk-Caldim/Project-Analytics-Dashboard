@@ -250,6 +250,8 @@ const ProjectTitleDashboard = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
+  const [metricsPage, setMetricsPage] = useState(1);
+  const chartsPerPage = 9;
 
   // New customization states
   const [searchQuery, setSearchQuery] = useState('');
@@ -476,6 +478,17 @@ const ProjectTitleDashboard = () => {
             existingProject.dbProjectId = struct.project_id;
             existingProject.dashboardConfig = struct.dashboard_config || existingProject.dashboardConfig;
 
+            const moduleMap = new Map();
+            
+            // Build a map of module_name -> upload_id from uploads
+            (struct.uploads || []).forEach(upload => {
+              (upload.modules || []).forEach(mod => {
+                if (mod.module_name && !moduleMap.has(mod.module_name)) {
+                  moduleMap.set(mod.module_name, upload.upload_id);
+                }
+              });
+            });
+
             // PREFERRED: use flat top-level modules[] (deduplicated by server)
             const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
             const moduleSet = new Set(existingProject.submodules.map(s => s.name));
@@ -487,6 +500,7 @@ const ProjectTitleDashboard = () => {
                   moduleSet.add(modName);
                   existingProject.submodules.push({
                     id: `module-${struct.project_id}-${modName}`,
+                    trackerId: moduleMap.get(modName), // Get trackerId from map
                     dbProjectId: struct.project_id,
                     name: modName,
                     displayName: modName,
@@ -759,11 +773,7 @@ const ProjectTitleDashboard = () => {
   }, []);
 
   // Available columns for X and Y axis (dummy data)
-  const availableColumns = [
-    'Category', 'Value', 'Week', 'Progress', 'Component', 'Percentage',
-    'Month', 'Performance', 'Test Case', 'Pass Rate', 'Metric', 'Score',
-    'Region', 'Sales', 'Product', 'Revenue', 'Department', 'Count'
-  ];
+  const availableColumns = [];
 
   // --- EDITABLE DASHBOARD DATA ---
 
@@ -798,6 +808,40 @@ const ProjectTitleDashboard = () => {
     qualityOpen: '0',
     qualityCritical: '0'
   });
+
+  const allMetricCharts = useMemo(() => {
+    if (!activeProject || !visibleSections) return [];
+
+    const defaultCharts = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues']
+      .filter(id => visibleSections[id] && availablePhases[id])
+      .map(id => ({
+        id,
+        title: humanizeLabel(id),
+        trackerId: getTrackerForPhase(id)?.trackerId,
+        type: chartTypes[activeProject.id]?.[id] || 'bar',
+        isDefault: true
+      }));
+
+    const dynamicCharts = (activeProject?.submodules || [])
+      .filter(sub => {
+        const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+        const isDefaultTracker = defaultIds.some(id => getTrackerForPhase(id)?.id === sub.id);
+        return !isDefaultTracker && visibleSections[sub.id];
+      })
+      .map(sub => ({
+        id: sub.id,
+        title: sub.displayName || sub.name,
+        trackerId: sub.trackerId,
+        type: chartTypes[activeProject.id]?.[sub.id] || 'bar',
+        isDefault: false
+      }));
+
+    return [...defaultCharts, ...dynamicCharts];
+  }, [activeProject, visibleSections, availablePhases, chartTypes]);
+
+  useEffect(() => {
+    setMetricsPage(1);
+  }, [activeProject?.id]);
 
   // Budget Table Data (Array of Arrays to support Handsontable Excel-like editing natively)
   const [budgetTableData, setBudgetTableData] = useState([
@@ -2460,7 +2504,7 @@ const ProjectTitleDashboard = () => {
   const renderChart = (chartId, chartType, isMaximized = false, trackerId = null) => {
     if (!activeProject) return null;
 
-    const size = isMaximized ? { width: '100%', height: '400px' } : { width: '100%', height: '320px' };
+    const size = isMaximized ? { width: '100%', height: '400px' } : { width: '100%', height: '100%' };
 
     // Get the configured axes for this chart
     let axisConfig = axisConfigs[activeProject.id]?.[chartId] || { xAxis: '', yAxis: '' };
@@ -2473,24 +2517,52 @@ const ProjectTitleDashboard = () => {
       chartData = submoduleData[effectiveTrackerId].rows;
     }
 
+    // Auto-detect axes if not configured
+    if ((!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) && chartData.length > 0) {
+      const keys = Object.keys(chartData[0]).filter(k => k !== '__row_index__' && k !== 'id');
+      
+      // Try to find a date column for X axis
+      let xCol = keys.find(k => isDateColumn(chartData, k)) || keys[0];
+      
+      // Try to find a numeric column for Y axis (excluding the X column)
+      let yCol = keys.find(k => k !== xCol && chartData.some(row => !isNaN(parseFloat(row[k])))) || (keys[1] === xCol ? keys[2] : keys[1]);
+
+      if (xCol && yCol) {
+        axisConfig = {
+          xAxis: xCol,
+          yAxis: yCol
+        };
+        
+        // If both are dates, try to infer relationship
+        if (isDateColumn(chartData, xCol) && isDateColumn(chartData, yCol)) {
+          const derived = inferDateRelationship(xCol, yCol);
+          if (derived) {
+            axisConfig.derivedConfig = derived;
+          }
+        }
+      }
+    }
+
     // Check if attributes are configured
     if (!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) {
       return (
         <div style={{
-          ...size,
+          height: '100%',
+          width: '100%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f9fafb',
-          border: '1px dashed #d1d5db',
-          borderRadius: '8px',
-          color: '#6b7280'
+          backgroundColor: '#f8fafc',
+          border: '1px dashed #cbd5e1',
+          borderRadius: '12px',
+          color: '#64748b',
+          padding: '20px'
         }}>
-          <Settings className="h-10 w-10 mb-3 opacity-30" />
-          <p style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e3a5f' }}>Configure Attributes</p>
-          <p style={{ fontSize: '13px', marginTop: '6px', textAlign: 'center', padding: '0 20px' }}>
-            Please select the X and Y axes in the settings to visualize this chart.
+          <Settings className="h-8 w-8 mb-3 opacity-20" />
+          <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e3a5f' }}>Attributes Required</p>
+          <p style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center', color: '#64748b' }}>
+            Select X and Y axes in the settings to visualize this data.
           </p>
         </div>
       );
@@ -2500,16 +2572,17 @@ const ProjectTitleDashboard = () => {
     if (chartData.length === 0) {
       return (
         <div style={{
-          ...size,
+          height: '100%',
+          width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          color: '#6b7280'
+          backgroundColor: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: '12px',
+          color: '#64748b'
         }}>
-          <p style={{ fontSize: '14px', fontWeight: '500' }}>No data available for this phase</p>
+          <p style={{ fontSize: '12px', fontWeight: '600' }}>No data found in database</p>
         </div>
       );
     }
@@ -2798,44 +2871,25 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'outside',
-                alignTo: 'edge',
-                margin: 10,
-                backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                padding: [4, 8],
-                borderRadius: 4,
-                shadowColor: 'rgba(0, 0, 0, 0.05)',
-                shadowBlur: 10,
                 formatter: (p) => `{name|${formatXAxisValue(p.name)}}\n{value|${p.value}} {percent|(${p.percent}%)}`,
+                minMargin: 5,
+                edgeDistance: 10,
+                lineHeight: 15,
                 rich: {
-                  name: { fontSize: 10, fontWeight: '700', color: '#1e3a5f', padding: [0, 0, 4, 0] },
-                  value: { fontSize: 10, fontWeight: '800', color: '#3b82f6' },
-                  percent: { fontSize: 10, color: '#64748b' }
+                  name: { fontSize: 9, fontWeight: '700', color: '#1e3a5f', padding: [0, 0, 2, 0] },
+                  value: { fontSize: 9, fontWeight: '800', color: '#3b82f6' },
+                  percent: { fontSize: 9, color: '#64748b' }
                 }
               },
               labelLine: {
                 show: true,
-                length: 15,
-                length2: 25,
+                length: 10,
+                length2: 15,
                 smooth: true,
-                lineStyle: { width: 1.5, color: '#cbd5e1' }
+                lineStyle: { width: 1, color: '#cbd5e1' }
               },
-              labelLayout: function (params) {
-                const instance = typeof chartRefs !== 'undefined' && chartRefs.current && chartRefs.current[chartId] ? chartRefs.current[chartId].getEchartsInstance() : null;
-                const liveWidth = instance ? instance.getWidth() : (isMaximized ? 800 : 450);
-
-                const isLeft = params.labelRect.x < (liveWidth / 2);
-                const points = params.labelLinePoints;
-                if (!points) return;
-
-                // Calculate default target X based on 'edge' alignment constraint
-                let targetX = isLeft ? params.labelRect.x : params.labelRect.x + params.labelRect.width;
-
-                // Update the end point
-                points[2][0] = targetX;
-
-                return {
-                  labelLinePoints: points
-                };
+              labelLayout: {
+                hideOverlap: true
               },
               minAngle: 5,
               emphasis: {
@@ -3065,92 +3119,90 @@ const ProjectTitleDashboard = () => {
 
   // Chart options render function
   const renderChartOptions = (chartId, currentType) => (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative', flexWrap: 'wrap', justifyContent: 'flex-end', zIndex: 10 }}>
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', position: 'relative', justifyContent: 'flex-end', zIndex: 10 }}>
       <select
         value={currentType}
         onChange={(e) => handleChartTypeChange(chartId, e.target.value)}
         style={{
-          padding: '4px 8px',
-          fontSize: '11px',
-          borderRadius: '6px',
+          padding: '2px 6px',
+          fontSize: '10px',
+          borderRadius: '4px',
           border: '1px solid #cbd5e1',
           backgroundColor: '#f8fafc',
           color: '#1e3a5f',
           cursor: 'pointer',
           fontWeight: 'bold',
           outline: 'none',
-          minWidth: '100px'
+          maxWidth: '85px'
         }}
       >
-        <option value="bar">Bar Chart</option>
-        <option value="line">Line Chart</option>
-        <option value="pie">Pie Chart</option>
-        <option value="area">Area Chart</option>
-        <option value="histogram">Histogram</option>
-        <option value="bar-horizontal">Horizontal Bar</option>
-        <option value="bar-rotated">Rotated Bar</option>
-        <option value="timeline">Timeline</option>
+        <option value="bar">Bar</option>
+        <option value="line">Line</option>
+        <option value="pie">Pie</option>
+        <option value="area">Area</option>
+        <option value="histogram">Hist</option>
       </select>
 
       <button
         onClick={() => handleDownloadChart(chartId)}
-        title="Download Chart"
+        title="Download"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '28px',
-          height: '28px',
-          borderRadius: '6px',
+          width: '24px',
+          height: '24px',
+          borderRadius: '4px',
           border: '1px solid #cbd5e1',
           backgroundColor: '#f8fafc',
           color: '#1e3a5f',
           cursor: 'pointer',
-          transition: 'all 0.2s',
           padding: 0
         }}
       >
-        <Download size={14} />
+        <Download size={12} />
       </button>
 
       <button
         onClick={() => toggleAxisSelector(chartId)}
-        title="Configure Axes"
+        title="Axes"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px 8px',
-          height: '28px',
-          borderRadius: '6px',
+          padding: '2px 6px',
+          height: '24px',
+          borderRadius: '4px',
           border: '1px solid #cbd5e1',
           backgroundColor: showAxisSelector === chartId ? '#1e3a5f' : '#f8fafc',
           color: showAxisSelector === chartId ? 'white' : '#1e3a5f',
           cursor: 'pointer',
-          transition: 'all 0.2s'
+          fontSize: '10px',
+          fontWeight: 'bold'
         }}
       >
-        <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Axes</span>
+        Axes
       </button>
 
       <button
         onClick={() => handleMaximize(chartId)}
-        title="Maximize Chart"
+        title="Analyze"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px 8px',
-          height: '28px',
-          borderRadius: '6px',
+          padding: '2px 6px',
+          height: '24px',
+          borderRadius: '4px',
           border: '1px solid #cbd5e1',
-          backgroundColor: '#f8fafc',
-          color: '#1e3a5f',
+          backgroundColor: '#1e3a5f',
+          color: 'white',
           cursor: 'pointer',
-          transition: 'all 0.2s'
+          fontSize: '10px',
+          fontWeight: 'bold'
         }}
       >
-        <span style={{ fontSize: '11px', fontWeight: 'bold' }}>Analyze</span>
+        Analyze
       </button>
 
       {showAxisSelector === chartId && (
@@ -3167,6 +3219,93 @@ const ProjectTitleDashboard = () => {
       )}
     </div>
   );
+
+    const renderMetricsSummary = () => {
+      if (allMetricCharts.length === 0) return null;
+  
+      const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
+      const startIndex = (metricsPage - 1) * chartsPerPage;
+      const currentCharts = allMetricCharts.slice(startIndex, startIndex + chartsPerPage);
+  
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '24px' 
+          }}>
+            {currentCharts.map(chart => (
+              <div key={chart.id} style={{ 
+                backgroundColor: 'white', 
+                borderRadius: '12px', 
+                padding: '20px', 
+                border: '1px solid #e2e8f0', 
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
+                height: '380px', // Stable fixed height
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '4px', height: '16px', backgroundColor: chart.isDefault ? '#3b82f6' : '#10b981', borderRadius: '2px' }}></div>
+                    <h3 style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }}>{chart.title}</h3>
+                  </div>
+                  {renderChartOptions(chart.id, chart.type)}
+                </div>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  {renderChart(chart.id, chart.type, false, chart.trackerId)}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <button 
+                onClick={() => setMetricsPage(p => Math.max(1, p - 1))}
+                disabled={metricsPage === 1}
+                style={{ 
+                  padding: '8px 20px', 
+                  border: '1px solid #cbd5e1', 
+                  background: 'white', 
+                  borderRadius: '8px', 
+                  cursor: metricsPage === 1 ? 'not-allowed' : 'pointer', 
+                  fontSize: '13px', 
+                  fontWeight: '700',
+                  color: metricsPage === 1 ? '#94a3b8' : '#1e3a5f',
+                  boxShadow: metricsPage === 1 ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ← Previous
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e3a5f' }}>Page {metricsPage}</span>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>of {totalPages}</span>
+              </div>
+              <button 
+                onClick={() => setMetricsPage(p => Math.min(totalPages, p + 1))}
+                disabled={metricsPage === totalPages}
+                style={{ 
+                  padding: '8px 20px', 
+                  border: '1px solid #cbd5e1', 
+                  background: 'white', 
+                  borderRadius: '8px', 
+                  cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer', 
+                  fontSize: '13px', 
+                  fontWeight: '700',
+                  color: metricsPage === totalPages ? '#94a3b8' : '#1e3a5f',
+                  boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
 
   // Maximized Chart Modal Component
   const renderMaximizedChartModal = () => {
@@ -3431,12 +3570,12 @@ const ProjectTitleDashboard = () => {
         {/* Header with navigation */}
         {(activeProject || selectedSubmodule) && (
           <div style={{
-            backgroundColor: '#1e3a5f',
-            color: 'white',
-            padding: '15px 20px',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            borderBottom: '3px solid #0f2b40',
+            backgroundColor: 'white',
+            color: 'var(--text-primary)',
+            padding: '10px 24px',
+            fontSize: '16px',
+            fontWeight: '600',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
@@ -3447,11 +3586,11 @@ const ProjectTitleDashboard = () => {
                   onClick={selectedSubmodule ? handleBackToProjectDashboard : handleBackToProjects}
                   style={{
                     padding: '6px 12px',
-                    fontSize: '14px',
-                    borderRadius: '4px',
-                    border: '1px solid white',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
+                    fontSize: '13px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-strong)',
+                    backgroundColor: 'white',
+                    color: 'var(--text-primary)',
                     cursor: 'pointer',
                     fontWeight: 'bold',
                     display: 'flex',
@@ -3481,12 +3620,12 @@ const ProjectTitleDashboard = () => {
                       setShowSimulateModal(true);
                     }}
                     style={{
-                      padding: '8px 16px',
-                      fontSize: '14px',
-                      borderRadius: '4px',
-                      border: '1px solid white',
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
+                      padding: '7px 14px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-strong)',
+                      backgroundColor: 'white',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       fontWeight: 'bold',
                       display: 'flex',
@@ -3520,12 +3659,12 @@ const ProjectTitleDashboard = () => {
                       setShowEmailModal(true);
                     }}
                     style={{
-                      padding: '8px 16px',
-                      fontSize: '14px',
-                      borderRadius: '4px',
-                      border: '1px solid white',
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
+                      padding: '7px 14px',
+                      fontSize: '13px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-strong)',
+                      backgroundColor: 'white',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       fontWeight: 'bold',
                       display: 'flex',
@@ -3720,11 +3859,16 @@ const ProjectTitleDashboard = () => {
           /* Active Project Dashboard */
           <>
             <div id="project-dashboard-main-content">
-              <VPProjectDashboard activeProject={activeProject} dashboardData={dashboardData} onConfigure={() => setShowSimulateModal(true)} onSendMail={() => setShowEmailModal(true)} />
+              <VPProjectDashboard 
+                activeProject={activeProject} 
+                dashboardData={dashboardData} 
+                onConfigure={() => setShowSimulateModal(true)} 
+                onSendMail={() => setShowEmailModal(true)} 
+                metricsContent={renderMetricsSummary()}
+              />
               
-              {/* Restored Dynamic Metrics Sections */}
+              {/* Summary Cards Row (Optional - keeping them outside VP Dashboard for now as per Option 1 focus on metrics) */}
               <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Summary Cards Row */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                   {visibleSections.budget && (
                     <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -3806,45 +3950,6 @@ const ProjectTitleDashboard = () => {
                       </div>
                     </div>
                   )}
-                </div>
-
-                {/* Metrics Charts Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(600px, 1fr))', gap: '24px' }}>
-                  {/* Default Metric Sections */}
-                  {['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues']
-                    .filter(id => visibleSections[id] && availablePhases[id])
-                    .map(id => (
-                      <div key={id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '4px', height: '18px', backgroundColor: '#3b82f6', borderRadius: '2px' }}></div>
-                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#1e3a5f' }}>{humanizeLabel(id)}</h3>
-                          </div>
-                          {renderChartOptions(id, chartTypes[activeProject.id]?.[id] || 'bar')}
-                        </div>
-                        {renderChart(id, chartTypes[activeProject.id]?.[id] || 'bar', false, getTrackerForPhase(id)?.trackerId)}
-                      </div>
-                    ))}
-
-                  {/* Dynamic Tracker Sections */}
-                  {(activeProject?.submodules || [])
-                    .filter(sub => {
-                      const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-                      const isDefaultTracker = defaultIds.some(id => getTrackerForPhase(id)?.id === sub.id);
-                      return !isDefaultTracker && visibleSections[sub.id];
-                    })
-                    .map(sub => (
-                      <div key={sub.id} style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <div style={{ width: '4px', height: '18px', backgroundColor: '#10b981', borderRadius: '2px' }}></div>
-                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#1e3a5f' }}>{sub.displayName || sub.name}</h3>
-                          </div>
-                          {renderChartOptions(sub.id, chartTypes[activeProject.id]?.[sub.id] || 'bar')}
-                        </div>
-                        {renderChart(sub.id, chartTypes[activeProject.id]?.[sub.id] || 'bar', false, sub.trackerId)}
-                      </div>
-                    ))}
                 </div>
               </div>
             </div>
@@ -4505,8 +4610,8 @@ const AxisSelectorModal = ({
         return data.headers;
       }
     }
-    return availableColumns; // Fallback to dummy data
-  }, [tracker, submoduleData, availableColumns]);
+    return []; // No data available
+  }, [tracker, submoduleData]);
 
   // Set defaults if localConfig is empty but columns are available
   useEffect(() => {
@@ -4593,22 +4698,27 @@ const AxisSelectorModal = ({
             <select
               value={localConfig.xAxis}
               onChange={(e) => setLocalConfig(prev => ({ ...prev, xAxis: e.target.value }))}
+              disabled={dynamicAvailableColumns.length === 0}
               style={{
                 width: '100%',
                 padding: '8px 12px',
                 fontSize: '13px',
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0',
-                backgroundColor: 'white',
-                cursor: 'pointer',
+                backgroundColor: dynamicAvailableColumns.length === 0 ? '#f8fafc' : 'white',
+                cursor: dynamicAvailableColumns.length === 0 ? 'not-allowed' : 'pointer',
                 outline: 'none',
                 color: '#1e3a5f',
                 fontWeight: '500'
               }}
             >
-              {dynamicAvailableColumns.map(col => (
-                <option key={col} value={col}>{col}</option>
-              ))}
+              {dynamicAvailableColumns.length === 0 ? (
+                <option>Loading attributes...</option>
+              ) : (
+                dynamicAvailableColumns.map(col => (
+                  <option key={col} value={col}>{col}</option>
+                ))
+              )}
             </select>
           </div>
 
