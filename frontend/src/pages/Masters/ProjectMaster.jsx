@@ -30,6 +30,7 @@ const ProjectMaster = () => {
 
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
     { id: 'employee_name', label: 'Team Lead', visible: true, sortable: true, type: 'employee_name', required: false },
+    { id: 'assigned_to_name', label: 'Assigned Employee', visible: true, sortable: true, type: 'text', required: false },
     { id: 'utilized_budget', label: 'Utilized Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'balance_budget', label: 'Balance Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'detailed_view', label: 'Detailed View', visible: true, sortable: false, type: 'detailed_view_button', required: false },
@@ -120,7 +121,7 @@ const ProjectMaster = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
   const API_URL = `${API_BASE_URL}/projects`;
 
-  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
+  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', 'employee_id', 'employee_name', 'assigned_to_id', 'assigned_to_name', 'detailed_view', 'created_at', 'updated_at'];
 
   const defaultPermissions = {
     view: true,
@@ -151,6 +152,8 @@ const ProjectMaster = () => {
       timeline_months: projectData.timeline_months ? parseInt(projectData.timeline_months) : null,
       employee_id: projectData.employee_id || null,
       employee_name: projectData.employee_name || null,
+      assigned_to_id: projectData.assigned_to_id || null,
+      assigned_to_name: projectData.assigned_to_name || null,
       custom_fields: {}
     };
 
@@ -218,6 +221,7 @@ const ProjectMaster = () => {
       .then(res => {
         const employees = res.data || [];
         setEmployeeList(employees);
+        
         const pmNames = employees.filter(e => e.role === 'Project Manager').map(e => e.name);
         setColumns(prev => prev.map(col => {
           if (col.id === 'project_manager') {
@@ -1060,7 +1064,8 @@ const ProjectMaster = () => {
       .filter(e => e.role === 'Project Manager')
       .map(e => ({
         value: String(e.employee_id || e.id),
-        label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`,
+        label: e.name,
+        name: e.name
       }));
   }, [employeeList]);
 
@@ -1069,7 +1074,18 @@ const ProjectMaster = () => {
       .filter(e => e.role === 'Team Lead')
       .map(e => ({
         value: String(e.employee_id || e.id),
-        label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`,
+        label: e.name,
+        name: e.name
+      }));
+  }, [employeeList]);
+
+  const employeeOptions = useMemo(() => {
+    return employeeList
+      .filter(e => e.role === 'Employee')
+      .map(e => ({
+        value: String(e.employee_id || e.id),
+        label: e.name,
+        name: e.name
       }));
   }, [employeeList]);
 
@@ -1970,19 +1986,28 @@ const ProjectMaster = () => {
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
                   </div>
-                  {/* Team Lead (Primary Employee Assignment) */}
+                  {/* Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead / Assigned To</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
                     <SearchableDropdown
-                      options={employeeList.map(emp => ({
-                        value: emp.employee_id,
-                        label: `${emp.name} (${emp.employee_id})`,
-                        name: emp.name
-                      }))}
+                      options={teamLeadOptions}
                       value={newProject.employee_id || ''}
                       onChange={(val, option) => {
                         handleNewProjectChange('employee_id', val);
                         handleNewProjectChange('employee_name', option ? option.name : '');
+                      }}
+                      placeholder="Select Team Lead..."
+                    />
+                  </div>
+                  {/* Assigned To */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Assigned To</label>
+                    <SearchableDropdown
+                      options={employeeOptions}
+                      value={newProject.assigned_to_id || ''}
+                      onChange={(val, option) => {
+                        handleNewProjectChange('assigned_to_id', val);
+                        handleNewProjectChange('assigned_to_name', option ? option.name : '');
                       }}
                       placeholder="Select Employee..."
                     />
@@ -2147,19 +2172,28 @@ const ProjectMaster = () => {
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
                   </div>
-                  {/* Team Lead (Primary Employee Assignment) */}
+                  {/* Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead / Assigned To</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
                     <SearchableDropdown
-                      options={employeeList.map(emp => ({
-                        value: emp.employee_id,
-                        label: `${emp.name} (${emp.employee_id})`,
-                        name: emp.name
-                      }))}
+                      options={teamLeadOptions}
                       value={editForm.employee_id || ''}
                       onChange={(val, option) => {
                         handleEditFormChange('employee_id', val);
                         handleEditFormChange('employee_name', option ? option.name : '');
+                      }}
+                      placeholder="Select Team Lead..."
+                    />
+                  </div>
+                  {/* Assigned To */}
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Assigned To</label>
+                    <SearchableDropdown
+                      options={employeeOptions}
+                      value={editForm.assigned_to_id || ''}
+                      onChange={(val, option) => {
+                        handleEditFormChange('assigned_to_id', val);
+                        handleEditFormChange('assigned_to_name', option ? option.name : '');
                       }}
                       placeholder="Select Employee..."
                     />

@@ -15,6 +15,8 @@ class ProjectBase(BaseModel):
     department: Optional[str] = None
     employee_id: Optional[str] = None
     employee_name: Optional[str] = None
+    assigned_to_id: Optional[str] = None
+    assigned_to_name: Optional[str] = None
     custom_fields: Dict[str, Any] = {}
     dashboard_config: Dict[str, Any] = {}
 

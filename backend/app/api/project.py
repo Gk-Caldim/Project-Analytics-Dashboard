@@ -32,7 +32,11 @@ def check_project_permission(db_project, current_user, permission_type: str):
     if not employee_id:
         return False
         
-    # 2. Check EmployeeProjectMap
+    # 2. Check Direct Assignment (Team Lead or Assigned Employee)
+    if str(db_project.employee_id) == str(employee_id) or str(db_project.assigned_to_id) == str(employee_id):
+        return True
+
+    # 3. Check EmployeeProjectMap (Allocations)
     if hasattr(db_project, "allocations") and db_project.allocations:
         for alloc in db_project.allocations:
             if str(alloc.employee_id) == str(employee_id):
