@@ -37,7 +37,7 @@ const SystemSettings = () => {
         group: 'SECURE CONTROLS',
         items: [
           { id: 'Access Control', label: 'Role Management' },
-          { id: 'Application Access', label: 'Account Directory' },
+          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory' }] : []),
         ]
     },
     {

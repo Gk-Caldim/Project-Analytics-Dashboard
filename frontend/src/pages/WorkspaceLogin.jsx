@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
@@ -14,6 +14,21 @@ const WorkspaceLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [reqFormData, setReqFormData] = useState({
+    name: '', email: '', role: '', password: '', confirm_password: ''
+  });
+  const [reqError, setReqError] = useState('');
+  const [reqSuccess, setReqSuccess] = useState('');
+  const [reqLoading, setReqLoading] = useState(false);
+  const [showReqPassword, setShowReqPassword] = useState(false);
+  const [showReqConfirmPassword, setShowReqConfirmPassword] = useState(false);
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    API.get('/roles/').then(res => setRoles(res.data)).catch(err => console.error(err));
+  }, []);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
@@ -32,6 +47,27 @@ const WorkspaceLogin = () => {
       const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
       dispatch(loginFailure(errorMessage));
       setError(errorMessage);
+    }
+  };
+
+  const handleRequestAccess = async (e) => {
+    e.preventDefault();
+    setReqError('');
+    setReqSuccess('');
+    if (reqFormData.password !== reqFormData.confirm_password) {
+      setReqError('Passwords do not match');
+      return;
+    }
+    setReqLoading(true);
+    try {
+      await API.post('/auth/request-access', reqFormData);
+      setReqSuccess('Request submitted successfully. Pending admin approval.');
+      setReqFormData({ name: '', email: '', role: '', password: '', confirm_password: '' });
+      setTimeout(() => setShowRequestForm(false), 3000);
+    } catch (err) {
+      setReqError(err.response?.data?.detail || 'Failed to submit request');
+    } finally {
+      setReqLoading(false);
     }
   };
 
@@ -125,58 +161,161 @@ const WorkspaceLogin = () => {
       {/* ── RIGHT PANEL ── */}
       <div className="ws-login-right">
         <div className="ws-login-form-container">
-          <h1 className="ws-form-title">Sign In</h1>
-          <p className="ws-form-subtext">Enter your details below to continue.</p>
-          
-          <form className="ws-login-form" onSubmit={handleSignIn}>
-            <div className="ws-input-group">
-              <label>Email</label>
-              <input 
-                type="email" 
-                placeholder="name@company.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required 
-              />
-            </div>
+          {!showRequestForm ? (
+            <>
+              <h1 className="ws-form-title">Sign In</h1>
+              <p className="ws-form-subtext">Enter your details below to continue.</p>
+              
+              <form className="ws-login-form" onSubmit={handleSignIn}>
+                <div className="ws-input-group">
+                  <label>Email</label>
+                  <input 
+                    type="email" 
+                    placeholder="name@company.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required 
+                  />
+                </div>
 
-            <div className="ws-input-group">
-              <div className="ws-label-row">
-                <label>Password</label>
-                <a href="#" className="ws-forgot-link">Forgot password?</a>
-              </div>
-              <div className="ws-password-wrapper">
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="••••••••" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required 
-                />
-                <button 
-                  type="button" 
-                  className="ws-password-toggle"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                <div className="ws-input-group">
+                  <div className="ws-label-row">
+                    <label>Password</label>
+                    <a href="#" className="ws-forgot-link">Forgot password?</a>
+                  </div>
+                  <div className="ws-password-wrapper">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required 
+                    />
+                    <button 
+                      type="button" 
+                      className="ws-password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                {error && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{error}</p>
+                  </div>
+                )}
+
+                <button type="submit" className="ws-signin-btn" disabled={loading}>
+                  {loading ? 'Signing in...' : 'Sign In'}
                 </button>
-              </div>
-            </div>
+              </form>
 
-            {error && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{error}</p>
-              </div>
-            )}
+              <p className="ws-access-footer">
+                New here? <button onClick={() => setShowRequestForm(true)} className="ws-request-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>Request access →</button>
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="ws-form-title">Request Access</h1>
+              <p className="ws-form-subtext">Submit your details to request an account.</p>
+              
+              <form className="ws-login-form" onSubmit={handleRequestAccess}>
+                <div className="ws-input-group">
+                  <label>Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="Full Name" 
+                    value={reqFormData.name}
+                    onChange={(e) => setReqFormData({...reqFormData, name: e.target.value})}
+                    required 
+                  />
+                </div>
+                <div className="ws-input-group" style={{ marginTop: '12px' }}>
+                  <label>Email</label>
+                  <input 
+                    type="email" 
+                    placeholder="name@company.com" 
+                    value={reqFormData.email}
+                    onChange={(e) => setReqFormData({...reqFormData, email: e.target.value})}
+                    required 
+                  />
+                </div>
+                <div className="ws-input-group" style={{ marginTop: '12px' }}>
+                  <label>Requested Role</label>
+                  <input 
+                    list="roles-list"
+                    value={reqFormData.role}
+                    onChange={(e) => setReqFormData({...reqFormData, role: e.target.value})}
+                    placeholder="Select or type a role"
+                    required
+                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', fontSize: '14px', outline: 'none' }}
+                  />
+                  <datalist id="roles-list">
+                    {roles.map(r => <option key={r.id} value={r.name} />)}
+                  </datalist>
+                </div>
+                <div className="ws-input-group" style={{ marginTop: '12px' }}>
+                  <label>Password</label>
+                  <div className="ws-password-wrapper">
+                    <input 
+                      type={showReqPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={reqFormData.password}
+                      onChange={(e) => setReqFormData({...reqFormData, password: e.target.value})}
+                      required 
+                    />
+                    <button 
+                      type="button" 
+                      className="ws-password-toggle"
+                      onClick={() => setShowReqPassword(!showReqPassword)}
+                    >
+                      {showReqPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="ws-input-group" style={{ marginTop: '12px', marginBottom: '16px' }}>
+                  <label>Confirm Password</label>
+                  <div className="ws-password-wrapper">
+                    <input 
+                      type={showReqConfirmPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={reqFormData.confirm_password}
+                      onChange={(e) => setReqFormData({...reqFormData, confirm_password: e.target.value})}
+                      required 
+                    />
+                    <button 
+                      type="button" 
+                      className="ws-password-toggle"
+                      onClick={() => setShowReqConfirmPassword(!showReqConfirmPassword)}
+                    >
+                      {showReqConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
 
-            <button type="submit" className="ws-signin-btn" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+                {reqError && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
+                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{reqError}</p>
+                  </div>
+                )}
+                {reqSuccess && (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
+                    <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{reqSuccess}</p>
+                  </div>
+                )}
 
-          <p className="ws-access-footer">
-            New here? <a href="#" className="ws-request-link">Request access →</a>
-          </p>
+                <button type="submit" className="ws-signin-btn" disabled={reqLoading}>
+                  {reqLoading ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </form>
+
+              <p className="ws-access-footer">
+                Already have an account? <button onClick={() => setShowRequestForm(false)} className="ws-request-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>Sign in →</button>
+              </p>
+            </>
+          )}
 
           <div className="ws-security-footer">
             <Shield size={11} className="ws-shield-icon" />
