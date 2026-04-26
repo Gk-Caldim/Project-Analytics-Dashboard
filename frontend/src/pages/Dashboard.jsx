@@ -129,7 +129,7 @@ const Dashboard = () => {
   ], []);
 
   const mastersModules = useMemo(() => [
-    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <Database className="h-5 w-5" /> },
+    { id: 'masters-main', name: 'Master', path: 'masters/employees', icon: <Database className="h-5 w-5" /> },
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
@@ -561,7 +561,7 @@ const Dashboard = () => {
 
   const getActiveModuleName = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
-    if (activeModule === 'masters-main') return 'Masters';
+    if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
@@ -633,7 +633,9 @@ const Dashboard = () => {
         dispatch(setExpandedModules({ 'project-dashboard': true }));
       }
     } else if (moduleId === 'masters-main') {
-      dispatch(toggleExpansion('masters'));
+      if (!expandedModules['masters']) {
+        dispatch(setExpandedModules({ 'masters': true }));
+      }
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
     } else if (moduleId === 'mom-module') {
@@ -1005,7 +1007,7 @@ const Dashboard = () => {
           <div className="flex items-center">
             {isSidebarExpanded && (
               <span className="text-body-sm font-medium tracking-tight">
-                Masters
+                Master
               </span>
             )}
           </div>

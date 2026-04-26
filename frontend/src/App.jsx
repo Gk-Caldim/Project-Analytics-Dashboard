@@ -11,7 +11,6 @@ import UploadTrackers from './pages/Trackers/UploadTrackers';
 import EmployeeMaster from './pages/Masters/EmployeeMaster';
 import ProjectMaster from './pages/Masters/ProjectMaster';
 
-import Masters from './pages/Masters/Masters';
 import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
@@ -185,7 +184,7 @@ function App() {
             <Route path="budget-upload" element={<BudgetUpload />} />
             <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
             
-            <Route path="masters" element={<Masters />} />
+            <Route path="masters" element={<Navigate to="employees" replace />} />
             <Route path="masters/employees" element={<EmployeeMaster />} />
             <Route path="masters/project-master" element={<ProjectMaster />} />
             <Route path="masters/budget-master" element={<BudgetMaster />} />
