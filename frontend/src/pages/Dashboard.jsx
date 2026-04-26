@@ -442,7 +442,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/workspace-login', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   // Open master submodule

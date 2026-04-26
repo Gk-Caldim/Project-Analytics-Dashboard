@@ -91,8 +91,8 @@ const PricingPage = () => {
             <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
             <a href="/pricing" className="zoho-nav-link active" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
             <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="zoho-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
+            <button className="zoho-nav-login" onClick={() => navigate('/login')}>Sign In</button>
+            <button className="zoho-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
           </div>
         </div>
       </nav>
@@ -150,7 +150,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> 5GB data storage</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Standard integrations</div>
               </div>
-              <button className="card-btn ghost" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
+              <button className="card-btn ghost" onClick={() => navigate('/login')}>Start Free Trial</button>
             </div>
 
             {/* CARD 2 — BUSINESS */}
@@ -180,7 +180,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Advanced integrations + API</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> Role-based access control</div>
               </div>
-              <button className="card-btn primary" onClick={() => navigate('/workspace-login')}>Get Started</button>
+              <button className="card-btn primary" onClick={() => navigate('/login')}>Get Started</button>
             </div>
 
             {/* CARD 3 — ENTERPRISE */}
@@ -202,7 +202,7 @@ const PricingPage = () => {
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> 99.9% uptime guarantee</div>
                 <div className="feat-item"><Check size={16} className="text-brand-red" /> On-premise deployment</div>
               </div>
-              <button className="card-btn ghost" onClick={() => navigate('/workspace-login')}>Talk to Enterprise Sales</button>
+              <button className="card-btn ghost" onClick={() => navigate('/login')}>Talk to Enterprise Sales</button>
               <p className="onboarding-text">Typical onboarding in under 2 weeks</p>
             </div>
 
@@ -277,8 +277,8 @@ const PricingPage = () => {
           <h2 className="bottom-cta-title">Not sure which plan fits? Let's figure it out together.</h2>
           <p className="bottom-cta-desc">Our enterprise team has helped 200+ companies choose the right tier.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
-            <button className="cta-btn-ghost" onClick={() => navigate('/workspace-login')}>Talk to Sales</button>
+            <button className="cta-btn-white" onClick={() => navigate('/login')}>Start Free Trial</button>
+            <button className="cta-btn-ghost" onClick={() => navigate('/login')}>Talk to Sales</button>
           </div>
         </div>
       </section>

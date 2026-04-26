@@ -19,8 +19,8 @@ const EnterprisePage = () => {
             <a href="/#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/#products'); }}>Products</a>
             <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
             <a href="/enterprise" className="mod-nav-link active" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
+            <button className="mod-nav-login" onClick={() => navigate('/login')}>Sign In</button>
+            <button className="mod-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
           </div>
         </div>
       </nav>
@@ -36,8 +36,8 @@ const EnterprisePage = () => {
               Deploy across thousands of units with millisecond precision.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Contact Sales</button>
-              <button className="mod-btn-ghost" onClick={() => navigate('/workspace-login')}>Request Demo</button>
+              <button className="mod-btn-primary" onClick={() => navigate('/login')}>Contact Sales</button>
+              <button className="mod-btn-ghost" onClick={() => navigate('/login')}>Request Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -144,7 +144,7 @@ const EnterprisePage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner">
           <h2 className="mod-bottom-title">Consolidate your operations today.</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/workspace-login')}>Request Enterprise Pilot</button>
+          <button className="mod-btn-white" onClick={() => navigate('/login')}>Request Enterprise Pilot</button>
         </div>
       </section>
 

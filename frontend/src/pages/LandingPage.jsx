@@ -71,10 +71,10 @@ const LandingPage = () => {
             <a href="/customers" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/customers'); }}>Customers</a>
             <a href="/pricing" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
             <a href="/enterprise" className="zoho-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="zoho-nav-login" onClick={() => navigate('/workspace-login')}>
+            <button className="zoho-nav-login" onClick={() => navigate('/login')}>
               Sign In
             </button>
-            <button className="zoho-btn-primary" onClick={() => navigate('/workspace-login')}>
+            <button className="zoho-btn-primary" onClick={() => navigate('/login')}>
               Access Workspace
             </button>
           </div>
@@ -97,10 +97,10 @@ const LandingPage = () => {
               Manage your corporate portfolio, track meeting workflows, and monitor budgets through a single unified suite. Designed for absolute operational control.
             </p>
             <div className="zoho-hero-actions">
-              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/workspace-login')}>
+              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/login')}>
                 Get Started
               </button>
-              <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => navigate('/workspace-login')}>
+              <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => navigate('/login')}>
                 Request a Demo
               </button>
             </div>
@@ -254,8 +254,8 @@ const LandingPage = () => {
           <h2 className="bottom-cta-title">Ready to give your leadership team a single source of truth?</h2>
           <p className="bottom-cta-desc">Set up your workspace in under 10 minutes. No credit card required for the first 30 days.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
-            <button className="cta-btn-ghost" onClick={() => navigate('/workspace-login')}>Talk to Enterprise Sales</button>
+            <button className="cta-btn-white" onClick={() => navigate('/login')}>Access Workspace</button>
+            <button className="cta-btn-ghost" onClick={() => navigate('/login')}>Talk to Enterprise Sales</button>
           </div>
         </div>
       </section>

@@ -43,8 +43,8 @@ const CustomersPage = () => {
              <a href="/#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/#products'); }}>Products</a>
             <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
             <a href="/enterprise" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}>Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
+            <button className="mod-nav-login" onClick={() => navigate('/login')}>Sign In</button>
+            <button className="mod-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
           </div>
         </div>
       </nav>
@@ -136,7 +136,7 @@ const CustomersPage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner">
           <h2 className="mod-bottom-title">Join the enterprise elite.</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/workspace-login')}>Request a Case Study</button>
+          <button className="mod-btn-white" onClick={() => navigate('/login')}>Request a Case Study</button>
         </div>
       </section>
 
