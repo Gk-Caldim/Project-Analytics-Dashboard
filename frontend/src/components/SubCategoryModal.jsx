@@ -1,8 +1,8 @@
 import React from 'react';
 import { X, Settings } from 'lucide-react';
-import ProjectSubCategoryMaster from './project/ProjectSubCategoryMaster';
+import ProjectTrackerManagement from './project/ProjectTrackerManagement';
 
-const SubCategoryModal = ({ isOpen, onClose, project, showNotification, onRefresh }) => {
+const SubCategoryModal = ({ isOpen, onClose, project, showNotification }) => {
   if (!isOpen) return null;
 
   return (
@@ -16,7 +16,7 @@ const SubCategoryModal = ({ isOpen, onClose, project, showNotification, onRefres
                 <Settings className="h-6 w-6" />
             </div>
             <div>
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">Sub Category Master</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white leading-tight">Trackers management</h2>
                 <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">{project?.project_id}</span>
                     <span className="text-slate-300 dark:text-slate-700">•</span>
@@ -29,11 +29,12 @@ const SubCategoryModal = ({ isOpen, onClose, project, showNotification, onRefres
           </button>
         </div>
 
-        <ProjectSubCategoryMaster 
-            project={project}
-            showNotification={showNotification}
-            onRefresh={onRefresh}
-        />
+        <div className="flex-1 overflow-hidden p-6 bg-slate-50/50 dark:bg-slate-900/50">
+            <ProjectTrackerManagement 
+                project={project}
+                showNotification={showNotification}
+            />
+        </div>
       </div>
     </div>
   );

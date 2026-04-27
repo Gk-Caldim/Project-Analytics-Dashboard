@@ -19,7 +19,6 @@ import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
 import SystemSettings from './pages/Settings/SystemSettings';
-import BudgetUpload from './pages/Budget/BudgetUpload';
 import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
 import LandingPage from './pages/LandingPage';
@@ -181,7 +180,6 @@ function App() {
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectDashboard />} />
             <Route path="trackers" element={<UploadTrackers />} />
-            <Route path="budget-upload" element={<BudgetUpload />} />
             <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
             
             <Route path="masters" element={<Navigate to="employees" replace />} />

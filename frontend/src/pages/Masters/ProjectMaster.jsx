@@ -20,7 +20,7 @@ const ProjectMaster = () => {
   const initialColumns = [
     { id: 'project_id', label: 'Project ID', visible: true, sortable: true, type: 'text', required: true },
     { id: 'name', label: 'Project Name', visible: true, sortable: true, type: 'text', required: true },
-    { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: true },
+    { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: false },
     { id: 'department', label: 'Department', visible: true, sortable: true, type: 'text', required: false },
     { id: 'project_manager', label: 'Project Manager', visible: true, sortable: true, type: 'select', required: false },
     { id: 'start_date', label: 'Start Date', visible: true, sortable: true, type: 'date', required: false },
@@ -468,7 +468,7 @@ const ProjectMaster = () => {
   const validateProjectForm = (project) => {
     const errors = {};
     // Only validate the fields shown in the form modal
-    const formFieldIds = ['project_id', 'name', 'budget', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months'];
+    const formFieldIds = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months'];
     for (const col of columns) {
       if (!formFieldIds.includes(col.id) || !col.required) continue;
       if (!project[col.id]?.toString().trim()) {
@@ -558,7 +558,7 @@ const ProjectMaster = () => {
   };
 
   // Handle Add Project button click
-  const handleAddProjectClick = () => {
+  const handleAddProjectClick = async () => {
     setShowAddProjectModal(true);
     setValidationErrors({});
     const initialProject = {};
@@ -571,6 +571,17 @@ const ProjectMaster = () => {
         initialProject[col.id] = '';
       }
     });
+
+    // Suggest next project ID
+    try {
+      const res = await API.get('/projects/next-id');
+      if (res.data && res.data.next_id) {
+        initialProject.project_id = res.data.next_id;
+      }
+    } catch (err) {
+      console.error("Error fetching next project ID:", err);
+    }
+
     setNewProject(initialProject);
   };
 
@@ -600,17 +611,47 @@ const ProjectMaster = () => {
       };
       const payload = transformProjectForSave(convertedForm);
       await API.post('/projects', payload);
+
+      // If a budget file was attached, sync it to Budget Master
+      if (newProject._budgetFile) {
+        try {
+          const fd = new FormData();
+          fd.append('project_name', newProject.name);
+          fd.append('overall_budget', convertedForm.budget || 0);
+          fd.append('uploaded_by', 'System');
+          fd.append('budget_data', JSON.stringify([]));
+          fd.append('sync_to_project', false);
+          fd.append('file', newProject._budgetFile);
+          await API.post(`/budget/${encodeURIComponent(newProject.name)}`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (budgetErr) {
+          console.warn('Budget file upload failed:', budgetErr);
+        }
+      }
+
       await fetchProjects();
       setShowAddProjectModal(false);
       setValidationErrors({});
       setCurrentPage(1);
-      showNotification('Project added successfully');
+      showNotification(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
     } catch (err) {
       console.error(err);
-      const msg = err.response?.data?.detail || err.message;
+      let msg = err.response?.data?.detail || err.message;
+      
+      // Specifically handle unique constraint violation for project_id
+      if (msg && typeof msg === 'string' && msg.toLowerCase().includes('duplicate key value violates unique constraint')) {
+        setValidationErrors(prev => ({ ...prev, project_id: 'This Project ID already exists. Please use a unique ID.' }));
+        msg = 'Project ID already exists. Please use a unique ID.';
+      } else if (err.response?.status === 500 && (msg === "Internal Server Error" || !msg)) {
+        // Check if the error might be a duplicate key from DB
+        msg = 'A project with this ID might already exist. Please try a different ID.';
+      }
+      
       showNotification('Error saving project: ' + msg, 'error');
     }
   };
+
 
   // Cancel adding new project
   const cancelNewProject = () => {
@@ -1089,7 +1130,7 @@ const ProjectMaster = () => {
       }));
   }, [employeeList]);
 
-  // Convert stored array of structured objects → react-select option objects
+  // Convert stored array of structured objects Ã¢â€ â€™ react-select option objects
   const idsToSelectValues = (users) => {
     if (!Array.isArray(users)) return [];
     return users
@@ -1393,7 +1434,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'manager_multiselect' || col.type === 'team_lead_multiselect') {
       const users = Array.isArray(value) ? value : [];
-      if (users.length === 0) return <span className="text-sm text-slate-400">—</span>;
+      if (users.length === 0) return <span className="text-sm text-slate-400">Ã¢â‚¬â€</span>;
       return (
         <div className="flex flex-wrap gap-1">
           {users.map((user, i) => {
@@ -1911,20 +1952,13 @@ const ProjectMaster = () => {
         {/* Add Project Modal */}
         {showAddProjectModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800 rounded-none shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
               {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
-                    <Briefcase className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add New Project</h3>
-                  </div>
-                </div>
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800 flex-shrink-0">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add New Project</h3>
                 <button
                   onClick={cancelNewProject}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1935,60 +1969,43 @@ const ProjectMaster = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Project ID */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Project ID <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={newProject.project_id || ''}
                       onChange={e => handleNewProjectChange('project_id', e.target.value)}
                       placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.project_id}</p>}
+                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.project_id}</p>}
                   </div>
                   {/* Project Name */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Project name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={newProject.name || ''}
                       onChange={e => handleNewProjectChange('name', e.target.value)}
                       placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.name}</p>}
-                  </div>
-                  {/* Budget */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Budget <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{symbol}</span>
-                      <input
-                        type="number"
-                        value={newProject.budget || ''}
-                        onChange={e => handleNewProjectChange('budget', e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        step="1000"
-                        className={`w-full pl-7 pr-3 py-2.5 text-sm border ${validationErrors.budget ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                      />
-                    </div>
-                    {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
+                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
                   </div>
                   {/* Project Manager */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Project manager</label>
                     <select
                       value={newProject.project_manager || ''}
                       onChange={e => handleNewProjectChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
                     >
-                      <option value="">Select Project Manager</option>
+                      <option value="">Select project manager</option>
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
                   </div>
-                  {/* Team Lead */}
+                  {/* Assign Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Assign team lead</label>
                     <SearchableDropdown
                       options={teamLeadOptions}
                       value={newProject.employee_id || ''}
@@ -1996,12 +2013,12 @@ const ProjectMaster = () => {
                         handleNewProjectChange('employee_id', val);
                         handleNewProjectChange('employee_name', option ? option.name : '');
                       }}
-                      placeholder="Select Team Lead..."
+                      placeholder="Select team lead..."
                     />
                   </div>
-                  {/* Assigned To */}
+                  {/* Assign Employee */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Assigned To</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Assign employee</label>
                     <SearchableDropdown
                       options={employeeOptions}
                       value={newProject.assigned_to_id || ''}
@@ -2009,63 +2026,84 @@ const ProjectMaster = () => {
                         handleNewProjectChange('assigned_to_id', val);
                         handleNewProjectChange('assigned_to_name', option ? option.name : '');
                       }}
-                      placeholder="Select Employee..."
+                      placeholder="Select employee..."
                     />
                   </div>
                   {/* Department */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Department</label>
                     <input
                       type="text"
                       value={newProject.department || ''}
                       onChange={e => handleNewProjectChange('department', e.target.value)}
                       placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Start Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Start Date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Start date</label>
                     <input
                       type="date"
                       value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
                       onChange={e => handleNewProjectChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* End Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">End Date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">End date</label>
                     <input
                       type="date"
                       value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
                       onChange={e => handleNewProjectChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Timeline (Months) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Timeline (months)</label>
                     <input
                       type="number"
                       value={newProject.timeline_months || ''}
                       onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
                       placeholder="e.g. 6"
                       min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Status */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Status <span className="text-red-500">*</span></label>
                     <select
                       value={newProject.status || 'Planning'}
                       onChange={e => handleNewProjectChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
                     >
                       {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                     {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
+                  </div>
+
+                  {/* Budget Upload (Excel) */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                      Budget file (Excel) <span className="text-slate-400 font-normal">- auto-syncs to Budget Master</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={e => handleNewProjectChange('_budgetFile', e.target.files[0] || null)}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className="w-full px-3 py-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-sm flex items-center gap-2 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/40 hover:border-blue-400 transition-colors">
+                        <FileText className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate text-xs">
+                          {newProject._budgetFile ? newProject._budgetFile.name : 'Click to upload budget Excel file (optional)...'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                 </div>
@@ -2077,13 +2115,13 @@ const ProjectMaster = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={cancelNewProject}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300"
+                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveNewProject}
-                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Project
@@ -2129,7 +2167,7 @@ const ProjectMaster = () => {
                       placeholder="e.g. PRJ001"
                       className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.project_id}</p>}
+                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.project_id}</p>}
                   </div>
                   {/* Project Name */}
                   <div>
@@ -2141,24 +2179,7 @@ const ProjectMaster = () => {
                       placeholder="Enter project name"
                       className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.name}</p>}
-                  </div>
-                  {/* Budget */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Budget <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{symbol}</span>
-                      <input
-                        type="number"
-                        value={editForm.budget || ''}
-                        onChange={e => handleEditFormChange('budget', e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        step="1000"
-                        className={`w-full pl-7 pr-3 py-2.5 text-sm border ${validationErrors.budget ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                      />
-                    </div>
-                    {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
+                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
                   </div>
                   {/* Project Manager */}
                   <div>
@@ -2172,9 +2193,9 @@ const ProjectMaster = () => {
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
                     </select>
                   </div>
-                  {/* Team Lead */}
+                  {/* Assign Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Team Lead</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Assign Team Lead</label>
                     <SearchableDropdown
                       options={teamLeadOptions}
                       value={editForm.employee_id || ''}
@@ -2270,8 +2291,8 @@ const ProjectMaster = () => {
                       }}
                       className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto"
                     >
-                      <FolderTree className="h-4 w-4" />
-                      Sub Categories
+                      <FileText className="h-4 w-4" />
+                      Trackers management
                     </button>
                   )}
                   <button
@@ -2340,8 +2361,8 @@ const ProjectMaster = () => {
                     }}
                     className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
                   >
-                    <FolderTree className="h-4 w-4" />
-                    Manage Sub Categories
+                    <FileText className="h-4 w-4" />
+                    Trackers management
                   </button>
                 )}
                 <button
@@ -2458,9 +2479,8 @@ const ProjectMaster = () => {
                     {canAddProject && (
                       <button
                         onClick={handleAddProjectClick}
-                        className="flex items-center gap-1.5 h-10 px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+                        className="flex items-center h-10 px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
                       >
-                        <Plus className="h-4 w-4" />
                         <span className="font-medium">Add Project</span>
                       </button>
                     )}

@@ -20,6 +20,7 @@ from fastapi import Query
 import json
 from collections import OrderedDict
 import threading
+import os
 
 # 🔹 SIMPLE LRU CACHE FOR DASHBOARD DATA
 class DatasetCache:
@@ -98,8 +99,51 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
         return cached_data
 
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    
+    # ── FALLBACK FOR LEGACY TRACKERS ──────────────────────────────────────
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        from app.models.upload import Upload
+        upload = db.query(Upload).filter(Upload.id == dataset_id).first()
+        if not upload:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Dataset reference {dataset_id} not found in database. This might be a stale reference from a different environment."
+            )
+        
+        file_path = os.path.join("static", "uploads", "trackers", upload.file_name)
+        if not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Physical file '{upload.file_name}' not found on server for record {dataset_id}."
+            )
+        
+        try:
+            try:
+                df = pd.read_excel(file_path, engine='openpyxl')
+            except Exception as e_excel:
+                print(f"Failed to read as Excel: {e_excel}. Trying CSV...")
+                df = pd.read_csv(file_path)
+                
+            df = df.fillna("")
+            headers = df.columns.tolist()
+            data = df.values.tolist()
+            
+            result = {
+                "headers": headers,
+                "data": data,
+                "fileData": {
+                    "fileName": upload.file_name,
+                    "headers": headers,
+                    "data": data,
+                    "sheets": [{"name": "Sheet1", "headers": headers, "data": data}]
+                }
+            }
+            return result
+        except Exception as e:
+            print(f"Error reading legacy file {file_path}: {e}")
+        
+        raise HTTPException(status_code=404, detail="Dataset not found and legacy file missing")
+    # ──────────────────────────────────────────────────────────────────────
 
     columns = (
         db.query(DatasetColumn)

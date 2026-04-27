@@ -24,10 +24,17 @@ import shutil
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+import re
+import datetime
+import pandas as pd
+from app.core.database import engine
 from app.models.import_error import ImportError as ImportErrorModel
 from app.models.tracker import TrackerData
 from app.models.upload import Upload
+from app.models.dataset import Dataset
+from app.models.dataset_column import DatasetColumn
 from app.utils.excel_parser import parse_tracker_excel
+from app.utils.type_inference import infer_column_type
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +89,22 @@ def process_tracker_upload(
 
     # ------------------------------------------------------------------
     # 2. Parse Excel structurally first
-    #    If required columns are missing, this raises ValueError before
-    #    any DB record is created.
+    #    If required columns are missing, we don't fail immediately,
+    #    we just treat it as a generic dataset (0 tracker records).
     # ------------------------------------------------------------------
-    result = parse_tracker_excel(file_path)
-    records = result["records"]
-    errors = result["errors"]
-    total = len(records) + len(errors)
+    try:
+        result = parse_tracker_excel(file_path)
+        records = result["records"]
+        errors = result["errors"]
+        total = len(records) + len(errors)
+    except ValueError as e:
+        if "Cannot open Excel file" in str(e):
+            raise e
+        logger.warning("[tracker_service] Not a valid tracker schema, treating as generic dataset: %s", e)
+        records = []
+        errors = []
+        df_temp = pd.read_excel(file_path)
+        total = len(df_temp)
 
     # ------------------------------------------------------------------
     # 3. Create Upload record (status=Processing)
@@ -105,6 +121,93 @@ def process_tracker_upload(
     db.refresh(new_upload)
     upload_id = new_upload.id
     logger.info("[tracker_service] Upload record created  id=%s", upload_id)
+
+    # ------------------------------------------------------------------
+    # 3.5 Create corresponding Dataset record (System B) for viewing
+    # ------------------------------------------------------------------
+    try:
+        # Load full Excel content into DataFrame for System B
+        file.file.seek(0)
+        df = pd.read_excel(file_path)
+        df = df.fillna("")
+
+        # Create Dataset metadata
+        # Get project name for metadata
+        from app.models.project import Project
+        project_obj = db.query(Project).filter(Project.id == project_id).first()
+        project_name = project_obj.name if project_obj else "Unknown"
+
+        # Check for existing dataset with same name, department, and project for overwrite
+        existing_ds = db.query(Dataset).filter(
+            Dataset.name == file.filename,
+            Dataset.department == department,
+            Dataset.project == project_name
+        ).first()
+
+        if existing_ds:
+            logger.info("[tracker_service] Overwriting existing dataset id=%s", existing_ds.id)
+            # 1. Drop dynamic table
+            if existing_ds.table_name:
+                from sqlalchemy import text
+                try:
+                    db.execute(text(f'DROP TABLE IF EXISTS "{existing_ds.table_name}"'))
+                except Exception as e:
+                    logger.error(f"Error dropping table {existing_ds.table_name}: {e}")
+            
+            # 2. Cleanup associated TrackerData and ImportErrors linked to the OLD upload
+            # We find the old upload record that pointed to this dataset
+            old_upload = db.query(Upload).filter(Upload.dataset_id == existing_ds.id).first()
+            if old_upload:
+                db.query(TrackerData).filter(TrackerData.upload_id == old_upload.id).delete()
+                db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == old_upload.id).delete()
+                db.delete(old_upload)
+            
+            # 3. Delete Dataset columns and Dataset record itself
+            db.query(DatasetColumn).filter(DatasetColumn.dataset_id == existing_ds.id).delete()
+            db.delete(existing_ds)
+            db.commit() # Commit deletion before creating new one to avoid unique constraint issues
+
+        dataset = Dataset(
+            name=file.filename,
+            project=project_name,
+            department=department,
+            uploaded_by=uploaded_by,
+            file_type=file.filename.split(".")[-1].upper() if "." in file.filename else "XLSX",
+            row_count=len(df)
+        )
+        db.add(dataset)
+        db.commit()
+        db.refresh(dataset)
+
+        # Generate and create dynamic table
+        sanitized_project = re.sub(r'[^a-zA-Z0-9_]', '_', project_name).lower()
+        sanitized_file = re.sub(r'[^a-zA-Z0-9_]', '_', file.filename.rsplit('.', 1)[0]).lower()
+        table_name = f"{sanitized_project}_{sanitized_file}_{dataset.id}"[:63]
+
+        df.to_sql(table_name, engine, if_exists='replace', index=False)
+        
+        dataset.table_name = table_name
+        
+        # Link Dataset back to Upload
+        new_upload.dataset_id = dataset.id
+        db.commit()
+
+        # Store column metadata
+        for col in df.columns:
+            db.add(DatasetColumn(
+                dataset_id=dataset.id,
+                column_name=str(col),
+                data_type=infer_column_type(df[col])
+            ))
+        db.commit()
+        logger.info("[tracker_service] Unified Dataset created id=%s table=%s", dataset.id, table_name)
+        
+    except Exception as e:
+        db.rollback() # CRITICAL: Reset session after failure
+        logger.error("[tracker_service] Failed to create unified Dataset: %s", e)
+        # We don't fail the whole upload if System B fails, but we log it.
+        # But since we rolled back, the new_upload record might need to be re-added or handled.
+        # Actually, new_upload was already committed at line 120, so it's safe in DB.
 
     try:
         logger.info(
@@ -201,7 +304,7 @@ def process_tracker_upload(
 
         return {
             "total_rows":    total,
-            "valid_rows":    len(result["records"]),     # originally parsed valid rows
+            "valid_rows":    inserted_count,     # originally parsed valid rows
             "invalid_rows":  invalid_count,
             "inserted_rows": inserted_count,
         }, new_upload

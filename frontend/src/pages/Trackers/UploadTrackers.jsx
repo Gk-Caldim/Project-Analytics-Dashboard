@@ -243,12 +243,6 @@ const UploadTrackers = () => {
   // Filter state
   const [departmentFilter, setDepartmentFilter] = useState('');
 
-  // Store uploaded file data
-  const [uploadedFilesData, setUploadedFilesData] = useState(() => {
-    const savedData = localStorage.getItem('uploaded_files_data');
-    return savedData ? JSON.parse(savedData) : {};
-  });
-
   // Selected file content state
   const [selectedFileContent, setSelectedFileContent] = useState(null);
   const [selectedFileTrackerInfo, setSelectedFileTrackerInfo] = useState(null);
@@ -294,11 +288,10 @@ const UploadTrackers = () => {
     return () => clearTimeout(timer);
   }, [trackers, selectedFileId, initialFileLoaded]);
 
-  // Save trackers and file data to localStorage
+  // Save trackers to localStorage (metadata only)
   useEffect(() => {
     localStorage.setItem('upload_trackers', JSON.stringify(trackers));
-    localStorage.setItem('uploaded_files_data', JSON.stringify(uploadedFilesData));
-  }, [trackers, uploadedFilesData]);
+  }, [trackers]);
 
   // Scroll position restoration
   useEffect(() => {
@@ -339,22 +332,13 @@ const UploadTrackers = () => {
     } else {
       setSelectedFileContent(null);
       setSelectedFileTrackerInfo(null);
-      setInitialFileLoaded(false); // ← ADDED - Reset when no file is selected
+      setInitialFileLoaded(false);
     }
-  }, [selectedFileId, trackers, uploadedFilesData]);
+  }, [selectedFileId, trackers]);
 
-  // Handle saving edited file data
+  // Handle saving edited file data (Disabled - now server-side only)
   const handleSaveFileData = (trackerId, updatedFileData) => {
-    setUploadedFilesData(prev => ({
-      ...prev,
-      [trackerId]: updatedFileData
-    }));
-
-    const allFilesData = JSON.parse(localStorage.getItem('uploaded_files_data') || '{}');
-    allFilesData[trackerId] = updatedFileData;
-    localStorage.setItem('uploaded_files_data', JSON.stringify(allFilesData));
-
-    showNotification('File changes saved successfully!');
+    showNotification('Editing is currently disabled for verified trackers.', 'info');
   };
 
   // Get current date functions
@@ -463,7 +447,7 @@ const UploadTrackers = () => {
       // Process deletions in parallel
       await Promise.all(selectedTrackers.map(async (id) => {
         try {
-          await API.delete(`/datasets/${id}`);
+          await API.delete(`/uploads/${id}`);
           deletedCount++;
         } catch (err) {
           console.error(`Error deleting tracker ${id}:`, err);
@@ -479,13 +463,9 @@ const UploadTrackers = () => {
 
       setTrackers(prev => prev.filter(tracker => !successfulIds.includes(tracker.id)));
 
-      // Remove from uploaded files data and sidebar contexts
-      const newFileData = { ...uploadedFilesData };
       successfulIds.forEach(id => {
-        delete newFileData[id];
         sidebarManager.deleteFileFromAllContexts(id);
       });
-      setUploadedFilesData(newFileData);
 
       // Clear selection for the ones we tried to delete
       setSelectedTrackers(errors);
@@ -531,17 +511,10 @@ const UploadTrackers = () => {
       const { id } = showDeletePrompt;
 
       try {
-        await API.delete(`/datasets/${id}`);
+        await API.delete(`/uploads/${id}`);
 
         // Remove from trackers
         setTrackers(trackers.filter(tracker => tracker.id !== id));
-
-        // Remove from uploaded files data if exists locally
-        const newFileData = { ...uploadedFilesData };
-        if (newFileData[id]) {
-          delete newFileData[id];
-          setUploadedFilesData(newFileData);
-        }
 
         // Remove from BOTH sidebar contexts
         sidebarManager.deleteFileFromAllContexts(id);
@@ -692,10 +665,10 @@ const UploadTrackers = () => {
     const file = e.target.files[0];
     if (file) {
       const fileType = file.name.split('.').pop().toUpperCase();
-      const allowedTypes = ['CSV', 'XLSX', 'XLS', 'JSON', 'TXT'];
+      const allowedTypes = ['XLSX', 'XLS'];
 
       if (!allowedTypes.includes(fileType)) {
-        setUploadFormErrors({ ...uploadFormErrors, file: 'Please upload CSV, Excel, or JSON files only' });
+        setUploadFormErrors({ ...uploadFormErrors, file: 'Please upload Excel (.xlsx, .xls) files only' });
         return;
       }
 
@@ -725,6 +698,17 @@ const UploadTrackers = () => {
     await handleFileUpload(uploadForm.file);
   };
 
+  const handleDownloadTemplate = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Module', 'Milestone', 'Planned Date', 'Actual Date'],
+      ['Frontend', 'Design UI', '2024-01-01', ''],
+      ['Backend', 'Setup API', '2024-01-15', '']
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'Tracker_Template.xlsx');
+  };
+
   const handleFileUpload = async (file) => {
     if (!file) return;
 
@@ -740,7 +724,9 @@ const UploadTrackers = () => {
       if (uploadForm.employeeName) formData.append('employeeName', uploadForm.employeeName);
 
       const response = await API.post('/upload-tracker', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
           setProgress(percentCompleted);
@@ -818,7 +804,19 @@ const UploadTrackers = () => {
       console.error('Error uploading file:', error);
       setUploading(false);
       setProgress(0);
-      showNotification(`Error uploading file: ${error.response?.data?.detail || error.message}. Please try again.`, 'error');
+      
+      let errorMessage = error.message;
+      if (error.response?.data?.detail) {
+        if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        } else if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(e => e.msg).join(', ');
+        } else {
+          errorMessage = JSON.stringify(error.response.data.detail);
+        }
+      }
+      
+      showNotification(`Error uploading file: ${errorMessage}`, 'error');
     }
   };
 
@@ -1037,46 +1035,23 @@ const UploadTrackers = () => {
       return;
     }
 
-    // Try to get from local state first
-    let fileData = uploadedFilesData[trackerId];
-
-    // If not in local state, try localStorage
-    if (!fileData) {
-      const allFilesData = JSON.parse(localStorage.getItem('uploaded_files_data') || '{}');
-      fileData = allFilesData[trackerId];
-    }
-
-    // If still not found, fetch from API
-    if (!fileData) {
-      setFetchingData(true);
-      try {
-        console.log('File data not found locally, fetching from API...');
-        const response = await API.get(`/datasets/${trackerId}/excel-view`);
-        if (response.data && response.data.fileData) {
-          fileData = response.data.fileData;
-          // Cache it locally
-          setUploadedFilesData(prev => ({ ...prev, [trackerId]: fileData }));
-
-          // Also persist to localStorage for better experience next time
-          const allStoredData = JSON.parse(localStorage.getItem('uploaded_files_data') || '{}');
-          allStoredData[trackerId] = fileData;
-          localStorage.setItem('uploaded_files_data', JSON.stringify(allStoredData));
-        }
-      } catch (error) {
-        console.error('Error fetching file data from API:', error);
-        showNotification('Error loading file data from server', 'error');
-      } finally {
-        setFetchingData(false);
+    setFetchingData(true);
+    try {
+      console.log('Fetching file data from API...');
+      const response = await API.get(`/datasets/${trackerId}/excel-view`);
+      if (response.data && response.data.fileData) {
+        setSelectedFileContent(response.data.fileData);
+        setSelectedFileTrackerInfo(tracker);
+        setInitialFileLoaded(true);
+        showNotification(`Opened file: ${getDisplayFileName(tracker.fileName, tracker.project)}`);
+      } else {
+        showNotification('File data not found on server.', 'error');
       }
-    }
-
-    if (fileData) {
-      setSelectedFileContent(fileData);
-      setSelectedFileTrackerInfo(tracker);
-      setInitialFileLoaded(true);
-      showNotification(`Opened file: ${getDisplayFileName(tracker.fileName, tracker.project)}`);
-    } else {
-      showNotification('File data not found. Please re-upload the file.', 'error');
+    } catch (error) {
+      console.error('Error fetching file data from API:', error);
+      showNotification('Error loading file data from server', 'error');
+    } finally {
+      setFetchingData(false);
     }
   };
 
@@ -1260,14 +1235,14 @@ const UploadTrackers = () => {
                       type="file"
                       className="hidden"
                       onChange={handleModalFileSelect}
-                      accept=".csv,.xlsx,.xls,.json,.txt"
+                      accept=".xlsx,.xls"
                     />
                     <div className="text-center">
                       <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                       <p className="text-xs sm:text-sm text-gray-600 mb-1">
                         {uploadForm.file ? getDisplayFileName(uploadForm.file.name) : 'Click to select file'}
                       </p>
-                      <p className="text-xs text-gray-500">Supports: CSV, Excel, JSON, TXT (Max 50MB)</p>
+                      <p className="text-xs text-gray-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
                       <p className="text-xs font-semibold text-blue-600 mt-2 italic">Please ensure Department name and file name are exact</p>
                     </div>
                   </label>
@@ -1277,6 +1252,9 @@ const UploadTrackers = () => {
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
+              <button onClick={handleDownloadTemplate} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1">
+                <Download className="h-4 w-4" /> Template
+              </button>
               <button onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
               <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded hover:bg-gray-800">Upload File</button>
             </div>
@@ -1369,7 +1347,7 @@ const UploadTrackers = () => {
                     <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto" />
                     <div>
                       <p className="font-medium text-sm sm:text-base">Drag & drop files or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports: CSV, Excel, JSON, TXT (Max 50MB)</p>
+                      <p className="text-xs text-gray-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
                     </div>
                   </div>
                 </div>

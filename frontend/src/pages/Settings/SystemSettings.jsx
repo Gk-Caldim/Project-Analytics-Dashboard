@@ -11,6 +11,7 @@ import AuditHistory from './components/AuditHistory';
 import ApplicationAccess from './components/ApplicationAccess';
 import Connections from './components/Connections';
 import BrandingTheme from './components/BrandingTheme';
+import Maintenance from './components/Maintenance';
 
 const SystemSettings = () => {
   const dispatch = useDispatch();
@@ -45,6 +46,7 @@ const SystemSettings = () => {
       items: [
         { id: 'Connections', label: 'External Bridges' },
         ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger' }] : []),
+        { id: 'Maintenance', label: 'System Health' },
       ]
     }
   ];
@@ -141,6 +143,7 @@ const SystemSettings = () => {
       case 'Application Access': return <ApplicationAccess />;
       case 'Connections': return <Connections settings={settings} onUpdate={handleUpdate} />;
       case 'Audit Logs': return <AuditHistory />;
+      case 'Maintenance': return <Maintenance />;
       default: return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
     }
   };

@@ -4,7 +4,7 @@ import {
   Upload, Save, RefreshCw, Plus, Trash2, Edit, X, Check,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Wallet, History, Clock, FileUp, Download, Search, Eye, EyeOff,
-  AlertCircle, ArrowUp, ArrowDown
+  AlertCircle, ArrowUp, ArrowDown, FileText, CheckCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import API from '../../utils/api';
@@ -92,6 +92,7 @@ const BudgetMaster = () => {
   const [uploadedFile,    setUploadedFile]    = useState(null);
   const [attachmentName,  setAttachmentName]  = useState(null);
   const [notification,    setNotification]    = useState({ show: false, message: '', type: '' });
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const [activeTab,       setActiveTab]       = useState('Table');
 
@@ -329,6 +330,45 @@ const BudgetMaster = () => {
       }, 300);
     };
     reader.readAsBinaryString(file);
+  };
+
+  // ─── Budget Template ────────────────────────────────────────────────────────
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      [
+        "Category",
+        "Item Name",
+        "Unit Type",
+        "Unit count",
+        "Per unit cost",
+        "Utilized",
+        "Commitment",
+        "Status",
+        "Comments"
+      ],
+      ["CAPEX", "Sample Item 1", "Nos", 10, 500, 200, 100, "In Progress", "Initial estimate"],
+      ["Revenue", "Sample Item 2", "LS", 1, 1000, 0, 0, "In Progress", ""],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    const colWidths = [
+      { wch: 15 }, // Category
+      { wch: 25 }, // Item Name
+      { wch: 12 }, // Unit Type
+      { wch: 12 }, // Unit count
+      { wch: 15 }, // Per unit cost
+      { wch: 12 }, // Utilized
+      { wch: 12 }, // Commitment
+      { wch: 15 }, // Status
+      { wch: 30 }, // Comments
+    ];
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Budget Template");
+    XLSX.writeFile(wb, "Budget_Template.xlsx");
+
+    showNotification('Template downloaded successfully');
   };
 
   // ─── Save to DB ──────────────────────────────────────────────────────────────
@@ -756,6 +796,16 @@ const BudgetMaster = () => {
                 </button>
               </div>
 
+              <div className="relative">
+                <button 
+                  onClick={() => setShowTemplateModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>Template</span>
+                </button>
+              </div>
+
               {attachmentName && (
                 <button onClick={() => handleDownloadBudgetFile(selectedProject, attachmentName)}
                   className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300">
@@ -1092,6 +1142,88 @@ const BudgetMaster = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Budget Template Modal ────────────────────────────────────────────── */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Budget Upload Template</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Preview the required format for Excel uploads</p>
+              </div>
+              <button onClick={() => setShowTemplateModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-8">
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-6 border border-slate-200 dark:border-slate-700 mb-6">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  Standard Headers
+                </h4>
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                  {[
+                    "Category", "Item Name", "Unit Type", "Unit count", 
+                    "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
+                  ].map(header => (
+                    <div key={header} className="px-3 py-2 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {header}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold border-b border-slate-200 dark:border-slate-700">
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Item Name</th>
+                      <th className="px-4 py-3">Unit Type</th>
+                      <th className="px-4 py-3">Unit count</th>
+                      <th className="px-4 py-3">Per unit cost</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-600 dark:text-slate-400">
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="px-4 py-3">CAPEX</td>
+                      <td className="px-4 py-3">Laptop Dell XPS</td>
+                      <td className="px-4 py-3">Nos</td>
+                      <td className="px-4 py-3">5</td>
+                      <td className="px-4 py-3">1,20,000</td>
+                      <td className="px-4 py-3">In Progress</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3">Revenue</td>
+                      <td className="px-4 py-3">Software License</td>
+                      <td className="px-4 py-3">Nos</td>
+                      <td className="px-4 py-3">1</td>
+                      <td className="px-4 py-3">50,000</td>
+                      <td className="px-4 py-3">Completed</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <button onClick={() => setShowTemplateModal(false)}
+                className="px-6 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 transition-colors">
+                Close
+              </button>
+              <button onClick={handleDownloadTemplate}
+                className="px-8 py-2.5 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Download Template (.xlsx)
+              </button>
+            </div>
           </div>
         </div>
       )}

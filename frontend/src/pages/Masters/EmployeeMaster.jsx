@@ -152,6 +152,8 @@ const EmployeeMaster = () => {
     setLoading(true);
     setError(null);
     try {
+      // Silently migrate any legacy 'User' roles → 'Employee' before loading
+      await API.post('/employees/migrate-user-role').catch(() => {});
       await fetchColumns();
       await fetchEmployees();
       await fetchDynamicRoles();

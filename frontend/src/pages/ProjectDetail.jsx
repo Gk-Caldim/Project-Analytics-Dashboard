@@ -4,6 +4,7 @@ import { ArrowLeft, Users, FolderTree, Activity, DollarSign, Calendar, Clock, Ed
 import API from '../utils/api';
 import ManageTeamModal from '../components/project/ManageTeamModal';
 import ProjectSubCategoryMaster from '../components/project/ProjectSubCategoryMaster';
+import ProjectTrackerManagement from '../components/project/ProjectTrackerManagement';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
 import useCurrency from '../hooks/useCurrency';
@@ -113,7 +114,7 @@ const ProjectDetail = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'team', label: 'Team Members', icon: Users },
-    { id: 'subcategories', label: 'Sub Categories', icon: FolderTree },
+    { id: 'trackers', label: 'Trackers management', icon: FolderTree },
     { id: 'budget', label: 'Budget Analysis', icon: DollarSign },
     { id: 'history', label: 'Activity Logs', icon: Clock }
   ];
@@ -339,14 +340,12 @@ const ProjectDetail = () => {
         )}
 
         
-        {/* SUB CATEGORY TAB */}
-        {activeTab === 'subcategories' && (
+        {/* TRACKERS MANAGEMENT TAB */}
+        {activeTab === 'trackers' && (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                <ProjectSubCategoryMaster 
+                <ProjectTrackerManagement 
                     project={project} 
                     showNotification={showNotif}
-                    onRefresh={fetchProjectData}
-                    inline={true}
                 />
             </div>
         )}

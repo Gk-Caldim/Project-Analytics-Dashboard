@@ -172,6 +172,7 @@ const ProjectTitleDashboard = () => {
 
   const [dashboardData, setDashboardData] = useState(null);
   const [submoduleData, setSubmoduleData] = useState({});
+  const [submoduleLoading, setSubmoduleLoading] = useState({});
   const [chartTypes, setChartTypes] = useState({});
   const [axisConfigs, setAxisConfigs] = useState({});
   const [maximizedChart, setMaximizedChart] = useState(null);
@@ -936,7 +937,13 @@ const ProjectTitleDashboard = () => {
 
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
+    if (!trackerId) return;
+    
+    // Prevent multiple concurrent loads for the same trackerId
+    if (submoduleLoading[trackerId]) return;
+
     try {
+      setSubmoduleLoading(prev => ({ ...prev, [trackerId]: true }));
       const { default: API } = await import('../utils/api');
       const response = await API.get(`/datasets/${trackerId}/excel-view`);
 
@@ -948,17 +955,30 @@ const ProjectTitleDashboard = () => {
         ...prev,
         [trackerId]: {
           headers: headers,
-          rows: data.map(rowArray => {
+          rows: Array.isArray(headers) ? data.map(rowArray => {
             const rowObj = {};
             headers.forEach((h, i) => {
-              rowObj[h] = rowArray[i];
+              if (h) rowObj[h] = rowArray[i];
             });
             return rowObj;
-          })
+          }) : [],
+          error: null,
+          failed: false
         }
       }));
     } catch (error) {
-      console.error('Error loading submodule data:', error);
+      console.error(`[ProjectDashboard] Failed to load submodule ${trackerId}:`, error);
+      setSubmoduleData(prev => ({
+        ...prev,
+        [trackerId]: { 
+          rows: [], 
+          columns: [], 
+          error: error.response?.data?.detail || error.message,
+          failed: true 
+        }
+      }));
+    } finally {
+      setSubmoduleLoading(prev => ({ ...prev, [trackerId]: false }));
     }
   };
 
@@ -1016,9 +1036,23 @@ const ProjectTitleDashboard = () => {
   // Handle submodule data loading from URL
   useEffect(() => {
     if (submoduleId && activeProject) {
-      const sub = activeProject.submodules?.find(s => s.id === submoduleId || s.trackerId === submoduleId || `project-file-${s.trackerId}` === submoduleId);
-      if (sub && !submoduleData[sub.trackerId]) {
-        loadSubmoduleData(sub.trackerId);
+      const idToResolve = submoduleId;
+      if (idToResolve) {
+        const found = activeProject.submodules?.some(s => 
+          String(s.id) === String(idToResolve) || 
+          String(s.trackerId) === String(idToResolve) || 
+          `project-file-${s.trackerId}` === String(idToResolve)
+        );
+
+        if (found) {
+          loadSubmoduleData(idToResolve);
+        } else {
+          console.warn(`[ProjectDashboard] Submodule ${idToResolve} not found in project ${activeProject.name}. Clearing URL.`);
+          setSearchParams(params => {
+            params.delete('submoduleId');
+            return params;
+          });
+        }
       }
     }
   }, [submoduleId, activeProject, submoduleData]);
@@ -1084,7 +1118,13 @@ const ProjectTitleDashboard = () => {
   useEffect(() => {
     if (activeProject?.submodules) {
       activeProject.submodules.forEach(sub => {
-        if (!submoduleData[sub.trackerId] || submoduleData[sub.trackerId].rows.length === 0) {
+        const data = submoduleData[sub.trackerId];
+        const isLoading = submoduleLoading[sub.trackerId];
+        
+        // Only load if we don't have data, it's not already loading, and it hasn't failed previously
+        if (!data && !isLoading) {
+          loadSubmoduleData(sub.trackerId);
+        } else if (data && data.rows.length === 0 && !data.failed && !isLoading) {
           loadSubmoduleData(sub.trackerId);
         }
       });
