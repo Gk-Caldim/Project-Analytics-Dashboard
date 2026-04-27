@@ -408,7 +408,7 @@ const ProjectMaster = () => {
 
   const handleDeleteColumn = (columnId) => {
     const column = columns.find(col => col.id === columnId);
-    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(columnId);
+    const isFixedColumn = fixedColumnIds.includes(columnId);
 
     if (isFixedColumn) {
       setShowDeleteColumnPrompt({
@@ -438,7 +438,12 @@ const ProjectMaster = () => {
     if (col && col.db_id) {
       try {
         await API.delete(`/projects/columns/${col.db_id}`);
-        await fetchColumns();
+        
+        // Update local state immediately for better UX
+        setCustomColumns(prev => prev.filter(c => c.db_id !== col.db_id));
+        setColumns(prev => prev.filter(c => c.id !== columnId));
+        
+        await fetchColumns(); // Re-sync with server
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
         showNotification('Column deleted successfully');
@@ -448,6 +453,9 @@ const ProjectMaster = () => {
       }
     } else {
       setShowDeleteColumnPrompt(null);
+      if (col && !col.db_id) {
+        showNotification('Cannot delete fixed column', 'warning');
+      }
     }
   };
 
@@ -468,7 +476,9 @@ const ProjectMaster = () => {
   const validateProjectForm = (project) => {
     const errors = {};
     // Only validate the fields shown in the form modal
-    const formFieldIds = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months'];
+    // Get all custom column IDs that are also in the form
+    const customColIds = customColumns.map(c => c.id);
+    const formFieldIds = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', ...customColIds];
     for (const col of columns) {
       if (!formFieldIds.includes(col.id) || !col.required) continue;
       if (!project[col.id]?.toString().trim()) {
@@ -2085,6 +2095,34 @@ const ProjectMaster = () => {
                     {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
                   </div>
 
+                  {/* Dynamic Custom Columns */}
+                  {customColumns.map(col => (
+                    <div key={col.id}>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                        {col.label} {col.required && <span className="text-red-500">*</span>}
+                      </label>
+                      {col.type === 'select' ? (
+                        <select
+                          value={newProject[col.id] || ''}
+                          onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                        >
+                          <option value="">Select {col.label}</option>
+                          {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type={col.type === 'number' ? 'number' : (col.type === 'date' ? 'date' : 'text')}
+                          value={newProject[col.id] || ''}
+                          onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                          placeholder={`Enter ${col.label.toLowerCase()}`}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                        />
+                      )}
+                      {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
+                    </div>
+                  ))}
+
                   {/* Budget Upload (Excel) */}
                   <div className="sm:col-span-2">
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
@@ -2274,6 +2312,34 @@ const ProjectMaster = () => {
                     </select>
                     {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
                   </div>
+
+                  {/* Dynamic Custom Columns */}
+                  {customColumns.map(col => (
+                    <div key={col.id}>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">
+                        {col.label} {col.required && <span className="text-red-500">*</span>}
+                      </label>
+                      {col.type === 'select' ? (
+                        <select
+                          value={editForm[col.id] || ''}
+                          onChange={e => handleEditFormChange(col.id, e.target.value)}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                        >
+                          <option value="">Select {col.label}</option>
+                          {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type={col.type === 'number' ? 'number' : (col.type === 'date' ? 'date' : 'text')}
+                          value={editForm[col.id] || ''}
+                          onChange={e => handleEditFormChange(col.id, e.target.value)}
+                          placeholder={`Enter ${col.label.toLowerCase()}`}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                        />
+                      )}
+                      {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
+                    </div>
+                  ))}
 
                 </div>
               </div>
