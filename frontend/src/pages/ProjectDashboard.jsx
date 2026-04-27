@@ -939,8 +939,9 @@ const ProjectTitleDashboard = () => {
   const loadSubmoduleData = async (trackerId) => {
     if (!trackerId) return;
     
-    // Prevent multiple concurrent loads for the same trackerId
+    // Prevent multiple concurrent loads for the same trackerId or re-loading if failed
     if (submoduleLoading[trackerId]) return;
+    if (submoduleData[trackerId]?.failed) return; // Don't auto-retry if failed
 
     try {
       setSubmoduleLoading(prev => ({ ...prev, [trackerId]: true }));
@@ -1038,14 +1039,19 @@ const ProjectTitleDashboard = () => {
     if (submoduleId && activeProject) {
       const idToResolve = submoduleId;
       if (idToResolve) {
-        const found = activeProject.submodules?.some(s => 
+        // Find the submodule object
+        const sub = activeProject.submodules?.find(s => 
           String(s.id) === String(idToResolve) || 
           String(s.trackerId) === String(idToResolve) || 
           `project-file-${s.trackerId}` === String(idToResolve)
         );
 
-        if (found) {
-          loadSubmoduleData(idToResolve);
+        if (sub) {
+          // Use the real numeric trackerId for the API call
+          const realTrackerId = sub.trackerId || sub.id;
+          // If it's still a string starting with 'module-', we might need to parse it 
+          // or handle it differently, but usually sub.trackerId is the numeric ID.
+          loadSubmoduleData(realTrackerId);
         } else {
           console.warn(`[ProjectDashboard] Submodule ${idToResolve} not found in project ${activeProject.name}. Clearing URL.`);
           setSearchParams(params => {
@@ -1055,7 +1061,7 @@ const ProjectTitleDashboard = () => {
         }
       }
     }
-  }, [submoduleId, activeProject, submoduleData]);
+  }, [submoduleId, activeProject]); // Removed submoduleData to stop infinite loop
 
   // Handle selected file ID prop from Dashboard (Sidebar)
   useEffect(() => {

@@ -30,3 +30,19 @@ class Project(Base):
 
     # Relationship to Employee model
     employee = relationship("Employee", foreign_keys=[employee_id], primaryjoin="Project.employee_id == Employee.employee_id")
+
+    # Cascade relationships
+    sub_categories = relationship(
+        "ProjectSubCategory",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == ProjectSubCategory.project_id",
+        foreign_keys="[ProjectSubCategory.project_id]"
+    )
+    allocations = relationship(
+        "EmployeeProjectMap",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == EmployeeProjectMap.project_id",
+        foreign_keys="[EmployeeProjectMap.project_id]"
+    )
