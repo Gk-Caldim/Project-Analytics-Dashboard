@@ -35,6 +35,7 @@ from app.models.dataset import Dataset
 from app.models.dataset_column import DatasetColumn
 from app.utils.excel_parser import parse_tracker_excel
 from app.utils.type_inference import infer_column_type
+from app.utils.ingestion import IngestionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -126,10 +127,18 @@ def process_tracker_upload(
     # 3.5 Create corresponding Dataset record (System B) for viewing
     # ------------------------------------------------------------------
     try:
-        # Load full Excel content into DataFrame for System B
-        file.file.seek(0)
-        df = pd.read_excel(file_path)
-        df = df.fillna("")
+        # Load full Excel content using IngestionEngine for System B
+        with open(file_path, "rb") as f:
+            contents = f.read()
+        
+        engine_inst = IngestionEngine()
+        processed_data = engine_inst.ingest(contents, file.filename)
+        
+        if not processed_data:
+            # Fallback to simple read if ingestion engine returns nothing
+            df = pd.read_excel(file_path).fillna("")
+        else:
+            df = pd.DataFrame(processed_data).fillna("")
 
         # Create Dataset metadata
         # Get project name for metadata

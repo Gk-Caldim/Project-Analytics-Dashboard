@@ -295,10 +295,21 @@ const Dashboard = () => {
     loadDynamicModules();
   }, []);
 
-  // Storage listeners
+  // Storage listeners with simple debounce
+  const loadDynamicModulesRef = useRef(null);
+  
   useEffect(() => {
-    const handleUploadTrackerUpdate = () => loadDynamicModules();
-    const handleProjectDashboardUpdate = () => loadDynamicModules();
+    const debouncedLoad = () => {
+      if (loadDynamicModulesRef.current) {
+        clearTimeout(loadDynamicModulesRef.current);
+      }
+      loadDynamicModulesRef.current = setTimeout(() => {
+        loadDynamicModules();
+      }, 100);
+    };
+
+    const handleUploadTrackerUpdate = () => debouncedLoad();
+    const handleProjectDashboardUpdate = () => debouncedLoad();
     const handleStorageChange = (e) => {
       if (e.key === 'upload_tracker_modules' || e.key === 'project_dashboard_modules') {
         loadDynamicModules();

@@ -469,6 +469,20 @@ const UploadTrackers = () => {
 
       // Clear selection for the ones we tried to delete
       setSelectedTrackers(errors);
+      
+      // Dispatch events to refresh sidebar once for the whole batch
+      if (successfulIds.length > 0) {
+        window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
+        window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
+      }
+
+      // Reset selected file if it was deleted
+      if (successfulIds.includes(selectedFileId)) {
+        setSelectedFileId(null);
+        setSelectedFileContent(null);
+        setSelectedFileTrackerInfo(null);
+      }
+
       if (errors.length === 0) {
         setSelectAll(false);
         showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
@@ -516,11 +530,22 @@ const UploadTrackers = () => {
         // Remove from trackers
         setTrackers(trackers.filter(tracker => tracker.id !== id));
 
-        // Remove from BOTH sidebar contexts
+        // Remove from BOTH sidebar contexts (this also dispatches the events)
         sidebarManager.deleteFileFromAllContexts(id);
 
+        // Explicitly dispatch events to ensure Dashboard sidebar reloads
+        window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { detail: { type: 'delete', id } }));
+        window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { detail: { type: 'delete', id } }));
+
+        // Clear selection if this was the selected file
+        if (selectedFileId === id) {
+          setSelectedFileId(null);
+          setSelectedFileContent(null);
+          setSelectedFileTrackerInfo(null);
+        }
+
         setShowDeletePrompt(null);
-        showNotification('Upload record deleted successfully');
+        showNotification('Upload record and associated modules deleted successfully');
       } catch (error) {
         console.error('Error deleting record:', error);
         showNotification('Failed to delete record', 'error');
@@ -991,7 +1016,7 @@ const UploadTrackers = () => {
           className="flex items-center cursor-pointer group/file"
           onClick={(e) => {
             e.stopPropagation();
-            openFileDirectly(tracker.id);
+            openFileDirectly(tracker.upload_id);
           }}
         >
           <File className="h-4 w-4 text-gray-400 mr-2 group-hover/file:text-blue-500 transition-colors" />
@@ -1029,7 +1054,7 @@ const UploadTrackers = () => {
   const openFileDirectly = async (trackerId) => {
     console.log('Opening file directly:', trackerId);
 
-    const tracker = trackers.find(t => t.id === trackerId);
+    const tracker = trackers.find(t => t.upload_id === trackerId);
     if (!tracker) {
       showNotification('File not found', 'error');
       return;
@@ -1517,8 +1542,8 @@ const UploadTrackers = () => {
                   <tbody className="divide-y divide-gray-100">
                     {sortedTrackers.map((tracker) => (
                       <tr
-                        key={tracker.id}
-                        className={`hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${selectedTrackers.includes(tracker.id) ? 'bg-blue-50' : 'even:bg-gray-50/30'
+                        key={tracker.upload_id}
+                        className={`hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50' : 'even:bg-gray-50/30'
                           }`}
                       >
                         {/* Checkbox cell */}
@@ -1526,8 +1551,8 @@ const UploadTrackers = () => {
                           <div className="flex items-center justify-center">
                             <input
                               type="checkbox"
-                              checked={selectedTrackers.includes(tracker.id)}
-                              onChange={() => toggleTrackerSelection(tracker.id)}
+                              checked={selectedTrackers.includes(tracker.upload_id)}
+                              onChange={() => toggleTrackerSelection(tracker.upload_id)}
                               className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
                           </div>
@@ -1540,7 +1565,7 @@ const UploadTrackers = () => {
                         <td className="py-3 px-4 whitespace-nowrap text-left">
                           <div className="flex items-center space-x-2">
                             <button
-                              onClick={() => openFileDirectly(tracker.id)}
+                              onClick={() => openFileDirectly(tracker.upload_id)}
                               className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-colors"
                               title="View File"
                             >
@@ -1548,7 +1573,7 @@ const UploadTrackers = () => {
                             </button>
                             <PermissionGuard permission="delete_tracker">
                               <button
-                                onClick={() => showDeleteConfirmation(tracker.id, getDisplayFileName(tracker.fileName, tracker.project))}
+                                onClick={() => showDeleteConfirmation(tracker.upload_id, getDisplayFileName(tracker.fileName, tracker.project))}
                                 className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
                                 title="Delete"
                               >

@@ -295,8 +295,12 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
         
     if not upload:
         # If still not found, check if it's just a standalone Dataset
+        from app.models.dataset_column import DatasetColumn
         dataset = db.query(Dataset).filter(Dataset.id == id).first()
         if dataset:
+            # First cleanup associated column definitions
+            db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
+            
             # Re-use datasets.py logic or just do it here
             if dataset.table_name:
                 db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
@@ -307,8 +311,12 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
 
     # 2. Cleanup Dataset system if linked
     if upload.dataset_id:
+        from app.models.dataset_column import DatasetColumn
         dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
         if dataset:
+            # First cleanup associated column definitions
+            db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
+            
             if dataset.table_name:
                 try:
                     db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
@@ -317,11 +325,15 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
             db.delete(dataset)
 
     # 3. Cleanup TrackerData system
+    tracker_count = db.query(TrackerData).filter(TrackerData.upload_id == upload.id).count()
     db.query(TrackerData).filter(TrackerData.upload_id == upload.id).delete()
     db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == upload.id).delete()
+    
+    print(f"[TrackerAPI] Deleted {tracker_count} TrackerData rows for upload {upload.id}")
 
     # 4. Cleanup Upload record
     db.delete(upload)
     db.commit()
-
-    return {"message": "Unified upload record and dataset deleted successfully"}
+    
+    print(f"[TrackerAPI] Successfully deleted upload {id}")
+    return {"message": "Upload and associated data deleted successfully", "deleted_rows": tracker_count}
