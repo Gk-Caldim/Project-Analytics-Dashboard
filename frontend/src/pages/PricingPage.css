@@ -33,13 +33,14 @@
 
 .pricing-h1 {
   font-family: var(--font-serif);
-  font-size: 56px;
-  line-height: 1.1;
+  font-size: 64px;
+  line-height: 1.3;
   font-weight: 700;
-  margin-bottom: 20px;
-  max-width: 800px;
+  margin-bottom: 24px;
+  max-width: 900px;
   margin-left: auto;
   margin-right: auto;
+  letter-spacing: -0.01em;
 }
 
 .pricing-subtext {
@@ -284,8 +285,10 @@
 
 .comparison-title {
   font-family: var(--font-serif);
-  font-size: 32px;
+  font-size: 36px;
+  line-height: 1.4;
   margin-bottom: 60px;
+  letter-spacing: -0.01em;
 }
 
 .table-wrapper {

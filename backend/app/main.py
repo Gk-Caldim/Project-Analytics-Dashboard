@@ -86,6 +86,21 @@ async def startup_event():
     finally:
         db.close()
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.error(f"Validation error: {exc.errors()}")
+    logger.error(f"Request body: {exc.body}")
+    
+    response = JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
+    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     error_msg = f"Unhandled Exception: {str(exc)}\n{traceback.format_exc()}"
@@ -144,6 +159,10 @@ app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["
 from app.api.mom import router as mom_router
 app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
 
+from app.api.transcribe import router as transcribe_router
+app.include_router(transcribe_router, prefix=f"{API_PREFIX}/transcribe", tags=["Transcribe"])
+
+
 from app.api.tracker_api import router as tracker_router
 app.include_router(tracker_router, prefix=API_PREFIX, tags=["Tracker"])
 
@@ -153,6 +172,9 @@ app.include_router(dashboard_router, prefix=API_PREFIX)
 from app.api.issues import router as issues_router, mom_router
 app.include_router(issues_router, prefix=API_PREFIX, tags=["Issues"])
 app.include_router(mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
+
+from app.api.websockets import router as websockets_router
+app.include_router(websockets_router, prefix=API_PREFIX)
 
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"

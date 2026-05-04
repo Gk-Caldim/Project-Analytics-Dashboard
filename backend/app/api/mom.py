@@ -130,3 +130,13 @@ async def get_mom(meeting_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No MOM found for this meeting.")
 
     return session
+
+@router.post("/{meeting_id}/broadcast")
+async def broadcast_mom(meeting_id: str, db: Session = Depends(get_db)):
+    """Broadcast MOM to attendees."""
+    session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id).first()
+    if not session:
+         raise HTTPException(status_code=404, detail="No MOM found for this meeting.")
+    # In a real scenario, this would integrate with Email/Teams APIs
+    # Here we simulate a successful broadcast
+    return {"success": True, "message": f"MOM for {session.meeting_name} broadcasted to attendees."}

@@ -34,6 +34,7 @@ import GovernancePage from './pages/modules/GovernancePage';
 import EnterprisePage from './pages/EnterprisePage';
 import CustomersPage from './pages/CustomersPage';
 import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
 import WorkspaceLogin from './pages/WorkspaceLogin';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 
@@ -93,7 +94,7 @@ function App() {
       }
 
       try {
-        const wsUrl = `ws://127.0.0.1:8001/ws/test/dashboard_${Date.now()}`;
+        const wsUrl = `ws://127.0.0.1:8001/api/ws/status/dashboard_${Date.now()}`;
         console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
