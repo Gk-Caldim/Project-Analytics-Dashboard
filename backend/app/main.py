@@ -40,7 +40,9 @@ from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
 from app.models.transcript import Transcript  # noqa: F401
 from app.models.mom import MOMSession  # noqa: F401
-from app.models.chat_history import ChatHistory # noqa: F401
+from app.models.chat_history import ChatHistory
+from app.models.tracker_ingestion import TrackerIngestion
+ # noqa: F401
 
 # Import routers
 from app.api.auth import router as auth_router

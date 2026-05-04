@@ -3,13 +3,14 @@ Dashboard Intelligence Service
 Transforms raw trackers_data records into structured analytics for a given project.
 """
 from sqlalchemy.orm import Session
-from app.models.tracker import TrackerData
+from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project import Project
 from app.services.issue_service import compute_analytics
+from app.utils.analytics_utils import standardize_records
 
 
 # ---------------------------------------------------------------------------
-# Status constants (must match what excel_parser.py writes into the DB)
+# Status constants
 # ---------------------------------------------------------------------------
 STATUS_ON_TRACK = "On Track"
 STATUS_DELAYED  = "Delayed"
@@ -49,30 +50,37 @@ def _format_date(dt) -> str | None:
 
 def get_dashboard_data(db: Session, project_id: int, module_filter: str | None = None) -> dict:
     """
-    Main entry point.
-
-    Args:
-        db            – SQLAlchemy session
-        project_id    – integer FK that matches trackers_data.project_id
-        module_filter – optional module name to filter insights
-
-    Returns a fully structured dashboard dict ready for the API layer.
+    Main entry point for analytics.
+    Sources data from TrackerIngestion table (JSONB).
     """
-    # -----------------------------------------------------------------------
-    # 1. Fetch project meta (optional – we still work without it)
-    # -----------------------------------------------------------------------
+    # 1. Fetch project meta
     project = db.query(Project).filter(Project.id == project_id).first()
     project_name = project.name if project else f"Project {project_id}"
 
-    # -----------------------------------------------------------------------
-    # 2. Fetch tracker records
-    # -----------------------------------------------------------------------
-    query = db.query(TrackerData).filter(TrackerData.project_id == project_id)
+    # 2. Fetch latest tracker ingestions for the project
+    # Strategy: Group by file_name and take the latest created_at for each.
+    subq = db.query(
+        TrackerIngestion.file_name,
+        db.func.max(TrackerIngestion.created_at).label('max_created')
+    ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
 
+    ingestions = db.query(TrackerIngestion).join(
+        subq, 
+        (TrackerIngestion.file_name == subq.c.file_name) & 
+        (TrackerIngestion.created_at == subq.c.max_created)
+    ).filter(TrackerIngestion.project_id == project_id).all()
+
+    # 3. Combine and standardize records
+    all_raw_records = []
+    for ing in ingestions:
+        if isinstance(ing.data, list):
+            all_raw_records.extend(ing.data)
+    
+    records = standardize_records(all_raw_records)
+
+    # 4. Filter by module if requested
     if module_filter:
-        query = query.filter(TrackerData.module == module_filter)
-
-    records = query.order_by(TrackerData.planned_date.asc().nullslast()).all()
+        records = [r for r in records if r["module"] == module_filter]
 
     # Edge case: no data at all
     if not records:
@@ -95,33 +103,22 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
             },
         }
 
-    # -----------------------------------------------------------------------
-    # 3. Compute counts
-    # -----------------------------------------------------------------------
-    total     = len(records)
-    submodules = len({r.module for r in records if r.module})
-    completed = sum(1 for r in records if r.status == STATUS_ON_TRACK)
-    delayed   = sum(1 for r in records if r.status == STATUS_DELAYED)
-    pending   = sum(1 for r in records if r.status == STATUS_PENDING)
+    # 5. Compute counts
+    total      = len(records)
+    submodules = len({r["module"] for r in records if r["module"]})
+    completed  = sum(1 for r in records if r["status"] == STATUS_ON_TRACK)
+    delayed    = sum(1 for r in records if r["status"] == STATUS_DELAYED)
+    pending    = sum(1 for r in records if r["status"] == STATUS_PENDING)
 
-    # Guard: anything that is neither On Track / Delayed → treat as Pending
-    unclassified = total - completed - delayed - pending
-    pending += unclassified
-
-    # -----------------------------------------------------------------------
-    # 4. Delay statistics
-    # -----------------------------------------------------------------------
+    # 6. Delay statistics
     delay_days_list = [
-        r.delay_days for r in records
-        if r.delay_days is not None and r.delay_days > 0
+        r["delay_days"] for r in records
+        if r["delay_days"] is not None and r["delay_days"] > 0
     ]
     avg_delay = round(sum(delay_days_list) / len(delay_days_list)) if delay_days_list else 0
     max_delay = max(delay_days_list, default=0)
 
-    # -----------------------------------------------------------------------
-    # 5. Health + percentages
-    # -----------------------------------------------------------------------
-    # Fetch issue analytics for project health
+    # 7. Health + percentages
     issue_metrics = compute_analytics(db, project_id)
     overdue_issues_count = issue_metrics.get("total_overdue", 0)
 
@@ -130,48 +127,42 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     delay_pct          = _safe_pct(delayed,   total)
     pending_pct        = _safe_pct(pending,   total)
 
-    # -----------------------------------------------------------------------
-    # 6. Per-milestone list (most informative first: Delayed → Pending → OnTrack)
-    # -----------------------------------------------------------------------
+    # 8. Per-milestone list
     status_order = {STATUS_DELAYED: 0, STATUS_PENDING: 1, STATUS_ON_TRACK: 2}
 
     milestones = sorted(
         [
             {
-                "id":           r.id,
-                "module":       r.module or "",
-                "milestone":    r.milestone_name or "",
-                "planned_date": _format_date(r.planned_date),
-                "actual_date":  _format_date(r.actual_date),
-                "delay_days":   r.delay_days or 0,
-                "status":       r.status or STATUS_PENDING,
+                "id":           idx, # Dummy ID for frontend
+                "module":       r["module"] or "",
+                "milestone":    r["milestone_name"] or "",
+                "planned_date": _format_date(r["planned_date"]),
+                "actual_date":  _format_date(r["actual_date"]),
+                "delay_days":   r["delay_days"] or 0,
+                "status":       r["status"] or STATUS_PENDING,
             }
-            for r in records
+            for idx, r in enumerate(records)
         ],
         key=lambda m: (status_order.get(m["status"], 99), -(m["delay_days"] or 0)),
     )
 
-    # -----------------------------------------------------------------------
-    # 7. Module-level breakdown (useful for grouped charts)
-    # -----------------------------------------------------------------------
+    # 9. Module-level breakdown
     module_map: dict[str, dict] = {}
     for r in records:
-        mod = r.module or "Unknown"
+        mod = r["module"] or "Unknown"
         if mod not in module_map:
             module_map[mod] = {"module": mod, "total": 0, "completed": 0, "delayed": 0, "pending": 0}
         module_map[mod]["total"] += 1
-        if r.status == STATUS_ON_TRACK:
+        if r["status"] == STATUS_ON_TRACK:
             module_map[mod]["completed"] += 1
-        elif r.status == STATUS_DELAYED:
+        elif r["status"] == STATUS_DELAYED:
             module_map[mod]["delayed"] += 1
         else:
             module_map[mod]["pending"] += 1
 
     modules = list(module_map.values())
 
-    # -----------------------------------------------------------------------
-    # 8. Final response
-    # -----------------------------------------------------------------------
+    # 10. Final response
     return {
         "project_id":     project_id,
         "project_name":   project_name,
@@ -196,10 +187,9 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
 def get_all_projects_summary(db: Session) -> list[dict]:
     """
     Returns a lightweight health card for EVERY project that has tracker data.
-    Useful for a top-level overview dashboard.
     """
-    # Distinct project_ids that have tracker rows
-    rows = db.query(TrackerData.project_id).distinct().all()
+    # Distinct project_ids that have ingestions
+    rows = db.query(TrackerIngestion.project_id).distinct().all()
     project_ids = [r[0] for r in rows]
 
     summary = []
@@ -218,3 +208,4 @@ def get_all_projects_summary(db: Session) -> list[dict]:
         })
 
     return summary
+
