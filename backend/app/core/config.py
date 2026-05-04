@@ -24,7 +24,7 @@ REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", 7))
 DB_TYPE = os.getenv("DB_TYPE", "cloud").lower()
 
 # Cloud Database URL (Supabase)
-CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL")
+CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL") or os.getenv("DATABASE_URL")
 
 # Local Database Settings (PostgreSQL)
 LOCAL_DB_HOST = os.getenv("LOCAL_DB_HOST", "localhost")
