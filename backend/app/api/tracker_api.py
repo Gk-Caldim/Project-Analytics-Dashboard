@@ -115,7 +115,9 @@ async def upload_tracker(
 
     return {
         "upload_id":     new_upload.id,
-        "id":            new_upload.id,
+        "id":            new_upload.dataset_id or new_upload.id, # Prefer dataset_id for frontend viewing
+        "dataset_id":    new_upload.dataset_id,
+        "project":       project,
         "project_id":    new_upload.project_id,
         "department":    new_upload.department,
         "fileName":      new_upload.file_name,
@@ -172,7 +174,9 @@ async def get_uploads(db: Session = Depends(get_db)):
 
         return [
             {
-                "id":               u.id,
+                "upload_id":        u.id,
+                "id":               u.dataset_id or u.id, # Use dataset_id for frontend viewing
+                "dataset_id":       u.dataset_id,
                 "project":          proj_map.get(u.project_id, "-"),
                 "project_id":       u.project_id,
                 "employeeName":     u.uploaded_by or "-",
@@ -265,3 +269,71 @@ async def get_project_modules(project_id: int, db: Session = Depends(get_db)):
         "modules":      modules,
         "module_count": len(modules),
     }
+
+
+# ---------------------------------------------------------------------------
+# DELETE /uploads/{id}
+# Unified cleanup for both Tracker and Dataset systems
+# ---------------------------------------------------------------------------
+
+@router.delete("/uploads/{id}")
+async def delete_upload(id: int, db: Session = Depends(get_db)):
+    """
+    Deletes an upload and its associated dataset and dynamic tables.
+    The 'id' can be either the Upload ID or Dataset ID (it will try to resolve).
+    """
+    from app.models.dataset import Dataset
+    from app.models.tracker import TrackerData
+    from sqlalchemy import text
+
+    # 1. Find the Upload record
+    upload = db.query(Upload).filter(Upload.id == id).first()
+    
+    # If not found by Upload ID, try by Dataset ID
+    if not upload:
+        upload = db.query(Upload).filter(Upload.dataset_id == id).first()
+        
+    if not upload:
+        # If still not found, check if it's just a standalone Dataset
+        from app.models.dataset_column import DatasetColumn
+        dataset = db.query(Dataset).filter(Dataset.id == id).first()
+        if dataset:
+            # First cleanup associated column definitions
+            db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
+            
+            # Re-use datasets.py logic or just do it here
+            if dataset.table_name:
+                db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
+            db.delete(dataset)
+            db.commit()
+            return {"message": "Standalone dataset deleted"}
+        raise HTTPException(status_code=404, detail="Upload or Dataset not found")
+
+    # 2. Cleanup Dataset system if linked
+    if upload.dataset_id:
+        from app.models.dataset_column import DatasetColumn
+        dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
+        if dataset:
+            # First cleanup associated column definitions
+            db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
+            
+            if dataset.table_name:
+                try:
+                    db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
+                except Exception as e:
+                    logger.error(f"Error dropping table {dataset.table_name}: {e}")
+            db.delete(dataset)
+
+    # 3. Cleanup TrackerData system
+    tracker_count = db.query(TrackerData).filter(TrackerData.upload_id == upload.id).count()
+    db.query(TrackerData).filter(TrackerData.upload_id == upload.id).delete()
+    db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == upload.id).delete()
+    
+    print(f"[TrackerAPI] Deleted {tracker_count} TrackerData rows for upload {upload.id}")
+
+    # 4. Cleanup Upload record
+    db.delete(upload)
+    db.commit()
+    
+    print(f"[TrackerAPI] Successfully deleted upload {id}")
+    return {"message": "Upload and associated data deleted successfully", "deleted_rows": tracker_count}

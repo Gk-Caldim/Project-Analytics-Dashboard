@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+
 import Dashboard from './pages/Dashboard';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,7 +11,6 @@ import UploadTrackers from './pages/Trackers/UploadTrackers';
 import EmployeeMaster from './pages/Masters/EmployeeMaster';
 import ProjectMaster from './pages/Masters/ProjectMaster';
 
-import Masters from './pages/Masters/Masters';
 import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
@@ -20,7 +19,6 @@ import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
 import SystemSettings from './pages/Settings/SystemSettings';
-import BudgetUpload from './pages/Budget/BudgetUpload';
 import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
 import LandingPage from './pages/LandingPage';
@@ -94,7 +92,7 @@ function App() {
       }
 
       try {
-        const wsUrl = `ws://127.0.0.1:8001/api/ws/status/dashboard_${Date.now()}`;
+        const wsUrl = `ws://localhost:8000/ws/test/dashboard_${Date.now()}`;
         console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
@@ -170,7 +168,7 @@ function App() {
       <ErrorBoundary>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<WorkspaceLogin />} />
           
           <Route
             path="/dashboard"
@@ -183,10 +181,9 @@ function App() {
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectDashboard />} />
             <Route path="trackers" element={<UploadTrackers />} />
-            <Route path="budget-upload" element={<BudgetUpload />} />
             <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
             
-            <Route path="masters" element={<Masters />} />
+            <Route path="masters" element={<Navigate to="employees" replace />} />
             <Route path="masters/employees" element={<EmployeeMaster />} />
             <Route path="masters/project-master" element={<ProjectMaster />} />
             <Route path="masters/budget-master" element={<BudgetMaster />} />
@@ -202,7 +199,7 @@ function App() {
             <Route path="settings" element={<SystemSettings />} />
           </Route>
 
-          <Route path="/workspace-login" element={<WorkspaceLogin />} />
+
           <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/pricing" element={<PricingPage />} />

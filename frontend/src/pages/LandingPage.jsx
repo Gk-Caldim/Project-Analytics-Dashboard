@@ -101,7 +101,7 @@ const LandingPage = () => {
               Manage your corporate portfolio, track meeting workflows, and monitor budgets through a single unified suite. Designed for absolute operational control.
             </p>
             <div className="zoho-hero-actions">
-              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/workspace-login')}>
+              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/login')}>
                 Get Started
               </button>
               <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => openModal('demo')}>

@@ -210,6 +210,22 @@ def delete_employee(
                 detail=f"Error deleting employee: {error_msg}"
             )
 
+@router.post("/migrate-user-role")
+def migrate_user_to_employee_role(
+    db: Session = Depends(get_db)
+):
+    """One-shot migration: rename all employees with role='User' to role='Employee'"""
+    updated = (
+        db.query(Employee)
+        .filter(Employee.role == "User")
+        .all()
+    )
+    count = len(updated)
+    for emp in updated:
+        emp.role = "Employee"
+    db.commit()
+    return {"migrated": count, "message": f"Updated {count} employee(s) from 'User' to 'Employee'"}
+
 @router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_delete_employees(
     employee_ids: List[int], 

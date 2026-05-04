@@ -8,6 +8,7 @@ class ApplicationAccessBase(BaseModel):
 
 class ApplicationAccessCreate(ApplicationAccessBase):
     password: str
+    confirm_password: Optional[str] = None
 
 class ApplicationAccessUpdate(BaseModel):
     email: Optional[EmailStr] = None
@@ -19,6 +20,29 @@ class ApplicationAccessOut(ApplicationAccessBase):
     created_at: datetime
     updated_at: datetime
     employee_name: Optional[str] = None
+    role: Optional[str] = None
+    username: Optional[str] = None
+    is_active: bool = True
+    date_joined: datetime = None
+
+    class Config:
+        from_attributes = True
+
+class AccessRequestCreate(BaseModel):
+    name: str
+    email: EmailStr
+    role: str
+    password: str
+    confirm_password: str
+
+class AccessRequestOut(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    role: str
+    status: str
+    created_at: datetime
+    is_employee_match: bool = False
 
     class Config:
         from_attributes = True

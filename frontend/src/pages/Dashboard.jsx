@@ -129,12 +129,11 @@ const Dashboard = () => {
   ], []);
 
   const mastersModules = useMemo(() => [
-    { id: 'masters-main', name: 'Masters', path: 'masters', icon: <Database className="h-5 w-5" /> },
+    { id: 'masters-main', name: 'Master', path: 'masters/employees', icon: <Database className="h-5 w-5" /> },
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
     { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
-    { id: 'budget-upload', name: 'Budget Upload', path: 'budget-upload', icon: <FileUp className="h-5 w-5" /> }
   ], []);
   const uploadsModules = useMemo(() => [
     { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <FileUp className="h-5 w-5" /> }
@@ -208,6 +207,8 @@ const Dashboard = () => {
       // FALLBACK: iterate upload.modules for compatibility with older API responses
       structures.forEach(struct => {
         const projectName = capitalizeFirstLetter(struct.project_name);
+        if (!projectName) return;
+
         const projectIdStr = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
         if (!dashProjectsMap.has(projectName)) {
@@ -219,20 +220,26 @@ const Dashboard = () => {
             dbProjectId: struct.project_id,
             type: 'project',
             context: 'project-dashboard',
-            isExpanded: false,
+            isExpanded: true, // Default to expanded
             submodules: []
           });
         }
 
         const dashProject = dashProjectsMap.get(projectName);
-        dashProject.dbProjectId = struct.project_id;
+        if (dashProject) {
+          dashProject.dbProjectId = struct.project_id;
 
-        // Use flat top-level modules (deduplicated by server) when available
-        const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
-        const moduleSet = new Set(dashProject.submodules.map(s => s.name));
+          // Use flat top-level modules (deduplicated by server) when available
+          const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
+          
+          // Correctly initialize moduleSet from existing submodules to prevent duplicates
+          const moduleSet = new Set(dashProject.submodules.map(s => s.name));
 
-        if (flatModules.length > 0) {
-          // Preferred: use the server-deduplicated flat list
+          console.log(`[Dashboard] Processing struct for project: ${projectName}`, {
+            flatModulesCount: flatModules.length,
+            existingSubmodules: dashProject.submodules.length
+          });
+
           flatModules.forEach(mod => {
             const modName = mod.module_name;
             if (modName && !moduleSet.has(modName)) {
@@ -241,6 +248,7 @@ const Dashboard = () => {
                 id: `module-${struct.project_id}-${modName}`,
                 moduleId: `module-${struct.project_id}-${modName}`,
                 dbProjectId: struct.project_id,
+                trackerId: mod.trackerId || struct.project_id, // trackerId now provided by API
                 name: modName,
                 displayName: modName,
                 milestones_count: mod.milestones_count,
@@ -249,26 +257,6 @@ const Dashboard = () => {
                 context: 'project-dashboard'
               });
             }
-          });
-        } else {
-          // Fallback: iterate uploads to collect modules (older API)
-          (struct.uploads || []).forEach(upload => {
-            (upload.modules || []).forEach(mod => {
-              const modName = mod.module_name;
-              if (modName && !moduleSet.has(modName)) {
-                moduleSet.add(modName);
-                dashProject.submodules.push({
-                  id: `module-${struct.project_id}-${modName}`,
-                  moduleId: `module-${struct.project_id}-${modName}`,
-                  dbProjectId: struct.project_id,
-                  name: modName,
-                  displayName: modName,
-                  type: 'module',
-                  projectName: projectName,
-                  context: 'project-dashboard'
-                });
-              }
-            });
           });
         }
       });
@@ -290,6 +278,7 @@ const Dashboard = () => {
       }
 
       const finalList = Array.from(dashProjectsMap.values());
+      console.log('[Dashboard] Final projectDashboardModules:', finalList);
 
       // Project Dashboard sidebar — shows projects with their modules from DB
       setProjectDashboardModules(finalList);
@@ -306,10 +295,21 @@ const Dashboard = () => {
     loadDynamicModules();
   }, []);
 
-  // Storage listeners
+  // Storage listeners with simple debounce
+  const loadDynamicModulesRef = useRef(null);
+  
   useEffect(() => {
-    const handleUploadTrackerUpdate = () => loadDynamicModules();
-    const handleProjectDashboardUpdate = () => loadDynamicModules();
+    const debouncedLoad = () => {
+      if (loadDynamicModulesRef.current) {
+        clearTimeout(loadDynamicModulesRef.current);
+      }
+      loadDynamicModulesRef.current = setTimeout(() => {
+        loadDynamicModules();
+      }, 100);
+    };
+
+    const handleUploadTrackerUpdate = () => debouncedLoad();
+    const handleProjectDashboardUpdate = () => debouncedLoad();
     const handleStorageChange = (e) => {
       if (e.key === 'upload_tracker_modules' || e.key === 'project_dashboard_modules') {
         loadDynamicModules();
@@ -442,7 +442,7 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/workspace-login', { replace: true });
+    navigate('/login', { replace: true });
   };
 
   // Open master submodule
@@ -561,7 +561,7 @@ const Dashboard = () => {
 
   const getActiveModuleName = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
-    if (activeModule === 'masters-main') return 'Masters';
+    if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
@@ -633,7 +633,9 @@ const Dashboard = () => {
         dispatch(setExpandedModules({ 'project-dashboard': true }));
       }
     } else if (moduleId === 'masters-main') {
-      dispatch(toggleExpansion('masters'));
+      if (!expandedModules['masters']) {
+        dispatch(setExpandedModules({ 'masters': true }));
+      }
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
     } else if (moduleId === 'mom-module') {
@@ -884,22 +886,6 @@ const Dashboard = () => {
         {isSidebarExpanded && isExpanded && (
           <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
             {renderUploadTrackersModule()}
-            {hasPermission('Budget Upload') && (
-              <button
-                key="budget-upload"
-                onMouseEnter={() => setHoveredModule('budget-upload')}
-                onMouseLeave={() => setHoveredModule(null)}
-                onClick={() => handleModuleClick('budget-upload')}
-                className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'budget-upload'
-                  ? 'bg-brand-primary/10 text-white font-semibold'
-                  : 'hover:bg-white/5 text-white/70 hover:text-white'
-                  }`}
-              >
-                <span className="text-body-sm font-medium tracking-tight">
-                  Budget Upload
-                </span>
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -1005,7 +991,7 @@ const Dashboard = () => {
           <div className="flex items-center">
             {isSidebarExpanded && (
               <span className="text-body-sm font-medium tracking-tight">
-                Masters
+                Master
               </span>
             )}
           </div>
@@ -1439,7 +1425,7 @@ const Dashboard = () => {
             {activeView === 'agent' ? (
               <AgentView />
             ) : (
-              <div className="h-full overflow-auto">
+              <div className="h-full overflow-y-auto overflow-x-hidden">
                 <Outlet />
               </div>
             )}

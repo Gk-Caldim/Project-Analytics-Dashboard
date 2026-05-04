@@ -12,6 +12,9 @@ from app.models.employee import Employee
 from app.models.user import User
 from app.models.role import Role # Import Role model
 from app.models.application_access import ApplicationAccess
+from app.models.access_request import AccessRequest
+from app.schemas.application_access import AccessRequestCreate, AccessRequestOut
+from typing import List
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 def get_user_login_response(db: Session, employee: Employee = None, access: ApplicationAccess = None, user_obj: User = None):
@@ -226,3 +229,110 @@ def me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
         "role": employee.role or "User",
         "permissions": permissions
     }
+
+# ---------- ACCESS REQUESTS ----------
+def check_admin_access(current_user: dict, db: Session):
+    role_name = current_user.get("role")
+    if role_name not in ["Admin", "Super Admin"]:
+         raise HTTPException(status_code=403, detail="Only Admins and Super Admins can access this section")
+
+@router.post("/request-access")
+def create_access_request(data: AccessRequestCreate, db: Session = Depends(get_db)):
+    if data.password != data.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    # Check pending requests
+    existing_request = db.query(AccessRequest).filter(
+        AccessRequest.email == data.email,
+        AccessRequest.status == "Pending"
+    ).first()
+    if existing_request:
+        raise HTTPException(status_code=400, detail="A pending request already exists for this email")
+        
+    from app.core.security import hash_password
+    new_req = AccessRequest(
+        name=data.name,
+        email=data.email,
+        role=data.role,
+        hashed_password=hash_password(data.password)
+    )
+    db.add(new_req)
+    db.commit()
+    return {"message": "Access request submitted successfully"}
+
+@router.get("/access-requests", response_model=List[AccessRequestOut])
+def get_access_requests(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    check_admin_access(current_user, db)
+    requests = db.query(AccessRequest).filter(AccessRequest.status == "Pending").all()
+    
+    out = []
+    for req in requests:
+        emp = db.query(Employee).filter(
+            Employee.email == req.email
+        ).first()
+        
+        req_out = AccessRequestOut.model_validate(req)
+        req_out.is_employee_match = bool(emp)
+        out.append(req_out)
+    return out
+
+@router.post("/access-requests/{req_id}/approve")
+def approve_request(req_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    import logging
+    log = logging.getLogger("auth.approve")
+
+    check_admin_access(current_user, db)
+
+    req = db.query(AccessRequest).filter(AccessRequest.id == req_id).first()
+    if not req or req.status != "Pending":
+        raise HTTPException(status_code=404, detail="Pending request not found")
+
+    log.warning(f"[APPROVE] req_id={req_id} email={req.email} name={req.name} role={req.role}")
+
+    # Try to link to an employee record — but don't hard-block if missing
+    emp = db.query(Employee).filter(Employee.email == req.email).first()
+    log.warning(f"[APPROVE] employee found: {emp is not None} (id={emp.id if emp else None})")
+
+    # Check for existing access by email OR employee_id
+    existing = db.query(ApplicationAccess).filter(
+        ApplicationAccess.email == req.email
+    ).first()
+    if not existing and emp:
+        existing = db.query(ApplicationAccess).filter(
+            ApplicationAccess.employee_id == emp.id
+        ).first()
+
+    log.warning(f"[APPROVE] existing access: {existing is not None} (id={existing.id if existing else None})")
+
+    if existing:
+        # Update existing record with latest hashed password and link employee
+        existing.hashed_password = req.hashed_password
+        if emp and not existing.employee_id:
+            existing.employee_id = emp.id
+        req.status = "Approved"
+        db.commit()
+        log.warning(f"[APPROVE] Updated existing access record id={existing.id}")
+        return {"message": "Request approved (existing access updated)"}
+
+    # Create new access record
+    new_access = ApplicationAccess(
+        employee_id=emp.id if emp else None,
+        email=req.email,
+        hashed_password=req.hashed_password,
+    )
+    db.add(new_access)
+    req.status = "Approved"
+    db.commit()
+    log.warning(f"[APPROVE] Created new access record for {req.email}")
+    return {"message": "Request approved"}
+
+@router.post("/access-requests/{req_id}/reject")
+def reject_request(req_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    check_admin_access(current_user, db)
+    req = db.query(AccessRequest).filter(AccessRequest.id == req_id).first()
+    if not req or req.status != "Pending":
+        raise HTTPException(status_code=404, detail="Pending request not found")
+        
+    req.status = "Rejected"
+    db.commit()
+    return {"message": "Request rejected"}

@@ -53,10 +53,15 @@
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply antialiased;
     font-family: var(--font-primary);
     min-height: 100vh;
+    overflow-x: hidden;
     background-color: var(--bg);
     color: var(--text-primary);
     letter-spacing: -0.011em; /* Inter refinement */

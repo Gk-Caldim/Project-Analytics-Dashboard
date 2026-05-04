@@ -20,5 +20,5 @@ class Dataset(Base):
     table_name = Column(String, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint('department', 'name', name='uq_department_filename'),
+        UniqueConstraint('project', 'department', 'name', name='uq_project_dept_filename'),
     )

@@ -3,7 +3,7 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   activeModule: sessionStorage.getItem('active_module') || 'project-dashboard',
   expandedModules: JSON.parse(sessionStorage.getItem('expanded_modules')) || {
-    'project-dashboard': false,
+    'project-dashboard': true,
     'masters': false,
     'upload-trackers': false
   },

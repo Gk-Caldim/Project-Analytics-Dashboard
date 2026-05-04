@@ -91,6 +91,28 @@ def seed_default_roles(db: Session):
             ]
         },
         {
+            "name": "Finance", 
+            "description": "Financial oversight and budget management.", 
+            "is_default": 1,
+            "permissions": [
+                "Dashboard", "MOM", "Employee Master", "Project Master", "Department Master", 
+                "Upload Trackers", "Budget Upload", "Settings",
+                "upload_tracker", "view_tracker", "delete_tracker",
+                "upload_budget", "view_budget", "delete_budget"
+            ]
+        },
+        {
+            "name": "Head", 
+            "description": "Strategic oversight and department-wide reporting.", 
+            "is_default": 1,
+            "permissions": [
+                "Dashboard", "MOM", "Employee Master", "Project Master", "Department Master", 
+                "Upload Trackers", "Budget Upload", "Settings",
+                "upload_tracker", "view_tracker", "delete_tracker",
+                "upload_budget", "view_budget", "delete_budget"
+            ]
+        },
+        {
             "name": "Employee", 
             "description": "Standard user access.", 
             "is_default": 1,

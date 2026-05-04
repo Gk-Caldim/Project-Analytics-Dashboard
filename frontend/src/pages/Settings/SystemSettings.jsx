@@ -11,6 +11,7 @@ import AuditHistory from './components/AuditHistory';
 import ApplicationAccess from './components/ApplicationAccess';
 import Connections from './components/Connections';
 import BrandingTheme from './components/BrandingTheme';
+import Maintenance from './components/Maintenance';
 
 const SystemSettings = () => {
   const dispatch = useDispatch();
@@ -37,14 +38,15 @@ const SystemSettings = () => {
         group: 'SECURE CONTROLS',
         items: [
           { id: 'Access Control', label: 'Role Management' },
-          { id: 'Application Access', label: 'Account Directory' },
+          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory' }] : []),
         ]
     },
     {
       group: 'INFRASTRUCTURE',
       items: [
         { id: 'Connections', label: 'External Bridges' },
-        { id: 'Audit Logs', label: 'System Ledger' },
+        ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger' }] : []),
+        { id: 'Maintenance', label: 'System Health' },
       ]
     }
   ];
@@ -141,46 +143,116 @@ const SystemSettings = () => {
       case 'Application Access': return <ApplicationAccess />;
       case 'Connections': return <Connections settings={settings} onUpdate={handleUpdate} />;
       case 'Audit Logs': return <AuditHistory />;
+      case 'Maintenance': return <Maintenance />;
       default: return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
     }
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
-      <aside className="w-[280px] bg-[#F4F6F9] border-r border-gray-200 flex flex-col z-20">
-        <div className="p-8 pt-12">
-          <h1 className="text-2xl font-bold text-[#000000] tracking-tight uppercase">Settings</h1>
-          <div className="h-0.5 w-6 bg-[#0004ab]/20 mt-4" />
+      {/* ── Settings Sidebar — mirrors main Sidebar style, light palette ── */}
+      <aside style={{
+        width: '220px',
+        flexShrink: 0,
+        backgroundColor: '#ffffff',
+        borderRight: '1px solid rgba(0,0,0,0.07)',
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 20,
+      }}>
+        {/* Logo / Title block */}
+        <div style={{
+          height: '56px',
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          paddingLeft: '16px',
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', color: '#0F172A', textTransform: 'uppercase' }}>
+            Settings
+          </span>
         </div>
 
-        <nav className="flex-1 px-6 mt-8 space-y-10 overflow-y-auto custom-scrollbar">
+        {/* Scrollable nav */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '12px 0',
+        }} className="scrollbar-hide">
           {sidebarCategories.map((group) => (
-            <div key={group.group} className="space-y-4">
-              <h3 className="text-[10px] font-bold text-[#000000]/40 uppercase tracking-[0.3em] px-2">{group.group}</h3>
-              <div className="space-y-1">
-                {group.items.map((item) => (
+            <div key={group.group} style={{ marginBottom: '20px' }}>
+              {/* Section label */}
+              <div style={{
+                fontSize: '9px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'rgba(0,0,0,0.28)',
+                padding: '12px 16px 6px',
+                fontWeight: 500,
+              }}>
+                {group.group}
+              </div>
+
+              {/* Nav items */}
+              {group.items.map((item) => {
+                const isActive = activeCategory === item.id;
+                return (
                   <button
                     key={item.id}
                     onClick={() => setActiveCategory(item.id)}
-                    className={`w-full flex items-center px-4 py-3 rounded-none transition-all group ${activeCategory === item.id
-                      ? 'text-[#000000] bg-gray-50/50'
-                      : 'text-[#000000]/30 hover:bg-gray-50 hover:text-[#000000]'
-                      }`}
+                    style={{
+                      width: 'calc(100% - 16px)',
+                      margin: '0 8px 4px 8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      border: 'none',
+                      textAlign: 'left',
+                      transition: 'background 0.15s, color 0.15s',
+                      fontSize: '13px',
+                      fontWeight: isActive ? 500 : 400,
+                      backgroundColor: isActive ? 'rgba(0, 4, 171, 0.08)' : 'transparent',
+                      color: isActive ? '#0004ab' : 'rgba(0,0,0,0.52)',
+                    }}
+                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = 'rgba(0,0,0,0.8)'; } }}
+                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(0,0,0,0.52)'; } }}
                   >
-                    <span className={`text-[11px] font-bold uppercase tracking-widest ${activeCategory === item.id ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>{item.label}</span>
-                    {activeCategory === item.id && <div className="ml-auto w-1 h-4 bg-[#0004ab]" />}
+                    <span>{item.label}</span>
+                    {isActive && (
+                      <div style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: '#0004ab', flexShrink: 0 }} />
+                    )}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           ))}
-        </nav>
+        </div>
 
-        <div className="p-8 border-t border-gray-200 mt-auto">
+        {/* Footer — commit button */}
+        <div style={{ padding: '16px', borderTop: '1px solid rgba(0,0,0,0.06)', marginTop: 'auto' }}>
           <button
             onClick={syncUpdates}
             disabled={!Object.keys(modifiedSettings).length || isSaving}
-            className="w-full h-12 bg-[#0004ab] text-white rounded-full font-bold text-[10px] tracking-[0.2em] outline-none hover:opacity-90 disabled:opacity-20 transition-all uppercase"
+            style={{
+              width: '100%',
+              height: '40px',
+              backgroundColor: '#0004ab',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontWeight: 700,
+              fontSize: '10px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              cursor: Object.keys(modifiedSettings).length && !isSaving ? 'pointer' : 'not-allowed',
+              opacity: Object.keys(modifiedSettings).length && !isSaving ? 1 : 0.25,
+              transition: 'opacity 0.2s',
+            }}
           >
             {isSaving ? '...' : 'Commit Changes'}
           </button>

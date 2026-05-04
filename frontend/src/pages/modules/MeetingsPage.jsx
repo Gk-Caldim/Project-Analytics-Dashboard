@@ -20,8 +20,8 @@ const MeetingsPage = () => {
             <a href="#customers" className="mod-nav-link">Customers</a>
             <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
             <a href="/enterprise_v1.html" className="mod-nav-link">Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/workspace-login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
+            <button className="mod-nav-login" onClick={() => navigate('/login')}>Sign In</button>
+            <button className="mod-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
           </div>
         </div>
       </nav>
@@ -36,8 +36,8 @@ const MeetingsPage = () => {
               Auto-transcription, smart action item extraction, and follow-up tracking so nothing falls through.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
-              <button className="mod-btn-ghost" onClick={() => navigate('/workspace-login')}>Watch Demo</button>
+              <button className="mod-btn-primary" onClick={() => navigate('/login')}>Start Free Trial</button>
+              <button className="mod-btn-ghost" onClick={() => navigate('/login')}>Watch Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -151,7 +151,7 @@ const MeetingsPage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner">
           <h2 className="mod-bottom-title">Ready to activate Minutes & Meetings?</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/workspace-login')}>Get Started</button>
+          <button className="mod-btn-white" onClick={() => navigate('/login')}>Get Started</button>
         </div>
       </section>
 

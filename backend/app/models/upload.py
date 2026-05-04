@@ -15,4 +15,5 @@ class Upload(Base):
     invalid_row_count = Column(Integer, nullable=True)  # rows that failed / were skipped
     status = Column(String, default="Processing")       # Processing | Completed | Failed
     uploaded_by = Column(String, nullable=True)
+    dataset_id = Column(Integer, ForeignKey("datasets.id", ondelete="SET NULL"), nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())

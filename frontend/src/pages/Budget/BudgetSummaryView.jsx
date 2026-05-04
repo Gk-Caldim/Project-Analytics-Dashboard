@@ -41,20 +41,39 @@ const BudgetSummaryView = () => {
   };
 
   const { columns, rows } = useMemo(() => {
-    if (!budget || !budget.budget_data || budget.budget_data.length === 0) {
+    if (!budget || !budget.budget_data || !Array.isArray(budget.budget_data) || budget.budget_data.length === 0) {
       return { columns: [], rows: [] };
     }
 
-    const headers = budget.budget_data[0];
-    const dataRows = budget.budget_data.slice(1).map(row => {
-      const obj = {};
-      headers.forEach((h, i) => {
-        obj[h] = row[i];
-      });
-      return obj;
-    });
+    const rawData = budget.budget_data;
+    const firstItem = rawData[0];
 
-    return { columns: headers, rows: dataRows };
+    // Case 1: Array of arrays (2D array) - This is the standard format from Excel uploads
+    if (Array.isArray(firstItem)) {
+      const headers = firstItem;
+      const dataRows = rawData.slice(1).map(row => {
+        const obj = {};
+        if (Array.isArray(row)) {
+          headers.forEach((h, i) => {
+            if (h !== undefined && h !== null) {
+              obj[h] = row[i];
+            }
+          });
+        }
+        return obj;
+      });
+      return { columns: headers, rows: dataRows };
+    } 
+    
+    // Case 2: Array of objects - Fallback if data was saved as JSON objects
+    if (typeof firstItem === 'object' && firstItem !== null) {
+      const headers = Object.keys(firstItem);
+      return { columns: headers, rows: rawData };
+    }
+
+    // Case 3: Fallback for unexpected formats
+    console.warn('Budget data in unexpected format:', rawData);
+    return { columns: [], rows: [] };
   }, [budget]);
 
   const handleDataUpdate = (updatedRows, updatedHeaders) => {

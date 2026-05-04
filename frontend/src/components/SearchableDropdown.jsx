@@ -24,21 +24,40 @@ const SearchableDropdown = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getLabel = (option) => {
+    if (typeof option === 'object' && option !== null) {
+      return option.label || option.name || option.value || '';
+    }
+    return option?.toString() || '';
+  };
+
+  const getValue = (option) => {
+    if (typeof option === 'object' && option !== null) {
+      return option.value !== undefined ? option.value : (option.id !== undefined ? option.id : option);
+    }
+    return option;
+  };
+
   const filteredOptions = options.filter(option =>
-    option?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    getLabel(option).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelect = (option) => {
-    onChange(option);
+    // Pass both the primitive value and the full option object for flexibility
+    onChange(getValue(option), option);
     setIsOpen(false);
     setSearchTerm('');
   };
 
   const handleClear = (e) => {
     e.stopPropagation();
-    onChange('');
+    onChange('', null);
     setSearchTerm('');
   };
+
+  // Find the label for the current value
+  const selectedOption = options.find(opt => getValue(opt) === value);
+  const displayLabel = selectedOption ? getLabel(selectedOption) : (value || placeholder);
 
   return (
     <div className={`relative w-full ${className}`} ref={dropdownRef}>
@@ -51,11 +70,9 @@ const SearchableDropdown = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="flex-1 truncate">
-          {value ? (
-            <span className="text-gray-900">{value}</span>
-          ) : (
-            <span className="text-gray-400">{placeholder}</span>
-          )}
+          <span className={value ? "text-gray-900" : "text-gray-400"}>
+            {displayLabel}
+          </span>
         </div>
         <div className="flex items-center space-x-1 ml-2">
           {value && !disabled && (
@@ -88,19 +105,23 @@ const SearchableDropdown = ({
           </div>
           <div className="max-h-60 overflow-y-auto py-1">
             {filteredOptions.length > 0 ? (
-              filteredOptions.map((option, index) => (
-                <div
-                  key={index}
-                  className={`
-                    flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors
-                    ${value === option ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}
-                  `}
-                  onClick={() => handleSelect(option)}
-                >
-                  <span className="truncate">{option}</span>
-                  {value === option && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
-                </div>
-              ))
+              filteredOptions.map((option, index) => {
+                const optValue = getValue(option);
+                const isSelected = optValue === value;
+                return (
+                  <div
+                    key={index}
+                    className={`
+                      flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors
+                      ${isSelected ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}
+                    `}
+                    onClick={() => handleSelect(option)}
+                  >
+                    <span className="truncate">{getLabel(option)}</span>
+                    {isSelected && <Check className="h-4 w-4 text-blue-600 flex-shrink-0 ml-2" />}
+                  </div>
+                );
+              })
             ) : (
               <div className="px-3 py-6 text-center">
                 <p className="text-sm text-gray-400">No results found</p>

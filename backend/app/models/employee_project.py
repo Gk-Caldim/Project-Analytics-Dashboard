@@ -18,4 +18,9 @@ class EmployeeProjectMap(Base):
 
     # Relationships
     employee = relationship("Employee", foreign_keys=[employee_id], primaryjoin="EmployeeProjectMap.employee_id == Employee.employee_id")
-    project = relationship("Project", backref="allocations", foreign_keys=[project_id], primaryjoin="EmployeeProjectMap.project_id == Project.project_id")
+    project = relationship(
+        "Project", 
+        back_populates="allocations", 
+        foreign_keys=[project_id], 
+        primaryjoin="EmployeeProjectMap.project_id == Project.project_id"
+    )

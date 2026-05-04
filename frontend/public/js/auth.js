@@ -3,7 +3,7 @@
  * Manages user sessions via FastAPI Backend and localStorage.
  */
 const Auth = {
-    BASE_URL: 'http://localhost:8001', // Updated to match user's terminal port
+    BASE_URL: 'http://localhost:8000', // Updated to match user's terminal port
     SESSION_KEY: 'iaw_user_session',
     TOKEN_KEY: 'iaw_access_token',
     

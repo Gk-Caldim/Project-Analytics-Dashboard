@@ -22,8 +22,27 @@ class Project(Base):
     department = Column(String, nullable=True)
     employee_id = Column(String, ForeignKey("employees.employee_id", ondelete="SET NULL"), nullable=True)
     employee_name = Column(String, nullable=True)
+    assigned_to_id = Column(String, ForeignKey("employees.employee_id", ondelete="SET NULL"), nullable=True)
+    assigned_to_name = Column(String, nullable=True)
+    custom_fields = Column(JSONB, default={})
     dashboard_config = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship to Employee model
     employee = relationship("Employee", foreign_keys=[employee_id], primaryjoin="Project.employee_id == Employee.employee_id")
+
+    # Cascade relationships
+    sub_categories = relationship(
+        "ProjectSubCategory",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == ProjectSubCategory.project_id",
+        foreign_keys="[ProjectSubCategory.project_id]"
+    )
+    allocations = relationship(
+        "EmployeeProjectMap",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == EmployeeProjectMap.project_id",
+        foreign_keys="[EmployeeProjectMap.project_id]"
+    )
