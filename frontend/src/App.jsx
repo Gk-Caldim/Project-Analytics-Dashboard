@@ -12,6 +12,7 @@ import EmployeeMaster from './pages/Masters/EmployeeMaster';
 import ProjectMaster from './pages/Masters/ProjectMaster';
 
 import Masters from './pages/Masters/Masters';
+import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
@@ -167,59 +168,58 @@ function App() {
       />
 
       <ErrorBoundary>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Navigate to="/workspace-login" replace />} />
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="projects" replace />} />
+            <Route path="projects" element={<ProjectDashboard />} />
+            <Route path="trackers" element={<UploadTrackers />} />
+            <Route path="budget-upload" element={<BudgetUpload />} />
+            <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
+            
+            <Route path="masters" element={<Masters />} />
+            <Route path="masters/employees" element={<EmployeeMaster />} />
+            <Route path="masters/project-master" element={<ProjectMaster />} />
+            <Route path="masters/budget-master" element={<BudgetMaster />} />
 
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            >
-              <Route index element={<Navigate to="projects" replace />} />
-              <Route path="projects" element={<ProjectDashboard />} />
-              <Route path="trackers" element={<UploadTrackers />} />
-              <Route path="budget-upload" element={<BudgetUpload />} />
-              <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
+            <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
+            
+            <Route path="mom" element={<MeetingCapturePage />} />
+            <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/legacy" element={<MOMModule />} />
+            <Route path="meetings" element={<MeetingsDashboardPage />} />
+            <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
+            <Route path="meeting/:id" element={<MeetingDetailsPage />} />
+            <Route path="settings" element={<SystemSettings />} />
+          </Route>
 
-              <Route path="masters" element={<Masters />} />
-              <Route path="masters/employees" element={<EmployeeMaster />} />
-              <Route path="masters/project-master" element={<ProjectMaster />} />
+          <Route path="/workspace-login" element={<WorkspaceLogin />} />
+          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/enterprise" element={<EnterprisePage />} />
+          
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
 
-              <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
-
-              <Route path="mom" element={<MeetingCapturePage />} />
-              <Route path="mom/view" element={<MOMViewPage />} />
-              <Route path="mom/legacy" element={<MOMModule />} />
-              <Route path="meetings" element={<MeetingsDashboardPage />} />
-              <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
-              <Route path="meeting/:id" element={<MeetingDetailsPage />} />
-              <Route path="settings" element={<SystemSettings />} />
-            </Route>
-
-            {/* Module Inner Pages */}
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/meetings" element={<MeetingsPage />} />
-            <Route path="/budget" element={<BudgetPage />} />
-            <Route path="/governance" element={<GovernancePage />} />
-
-            <Route path="/workspace-login" element={<WorkspaceLogin />} />
-            <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
-            <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/enterprise" element={<EnterprisePage />} />
-            <Route path="/customers" element={<CustomersPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-
-            <Route path="/" element={<LandingPage />} />
-            <Route path="*" element={<LandingPage />} />
-          </Routes>
-        </Router>
-      </ErrorBoundary>
-    </ThemeProvider>
-  );
+          <Route path="/" element={<LandingPage />} />
+          <Route path="*" element={<LandingPage />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
+  </ThemeProvider>
+);
 }
 
 export default App;

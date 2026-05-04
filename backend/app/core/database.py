@@ -2,10 +2,23 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 # Use QueuePool for connection pooling to speed up queries
 from sqlalchemy.pool import QueuePool
-from app.core.config import DATABASE_URL
+from app.core.config import DATABASE_URL, IS_CLOUD_DB
 
 # Create engine with connection pooling
 # For Supabase / PgBouncer, we use a small pool size and pool_pre_ping to ensure connection health.
+connect_args = {}
+if IS_CLOUD_DB:
+    connect_args = {
+        "sslmode": "require",
+        "options": "-c statement_cache_size=0 -c statement_timeout=15000",  # DISABLE prepared statements & add 15s timeout
+        "connect_timeout": 10,  # 10 second timeout for establishing the connection
+    }
+else:
+    # Local PostgreSQL typically doesn't need SSL or special statement cache settings
+    connect_args = {
+        "connect_timeout": 10
+    }
+
 engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
@@ -14,11 +27,7 @@ engine = create_engine(
     pool_timeout=30,      # Wait up to 30s for a connection from the pool
     pool_recycle=1800,    # Recycle connections after 30 minutes
     pool_pre_ping=True,   # Check connection health before using it
-    connect_args={
-        "sslmode": "require",
-        "options": "-c statement_cache_size=0 -c statement_timeout=15000",  # DISABLE prepared statements & add 15s timeout
-        "connect_timeout": 10,  # 10 second timeout for establishing the connection
-    },
+    connect_args=connect_args,
 )
 
 SessionLocal = sessionmaker(

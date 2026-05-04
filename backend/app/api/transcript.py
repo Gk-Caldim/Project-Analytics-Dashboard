@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.transcript import Transcript
+from app.models.meeting import Meeting
 from app.schemas.transcript import TranscriptSave, TranscriptOut
 
 logger = logging.getLogger(__name__)
@@ -347,3 +348,42 @@ async def get_transcript(
     if not db_transcript:
         raise HTTPException(status_code=404, detail="Transcript not found for this meeting.")
     return db_transcript
+
+
+@router.get("/global/search")
+async def search_transcripts(
+    query: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Search across all meeting transcripts for a keyword.
+    Returns: [{meeting_id, meeting_title, speaker, timestamp, text, result_type='discussion'}, ...]
+    """
+    if not query or len(query) < 2:
+        return []
+
+    # Join with meetings to get titles
+    results = db.query(Transcript, Meeting).join(Meeting, Transcript.meeting_id == Meeting.id).all()
+    
+    matches = []
+    query_lower = query.lower()
+    
+    for transcript, meeting in results:
+        turns = transcript.transcript_data # it's a list from JSON column
+        if not isinstance(turns, list):
+            continue
+            
+        for turn in turns:
+            text = turn.get("text", "")
+            if query_lower in text.lower():
+                matches.append({
+                    "meeting_id": meeting.id,
+                    "meeting_title": meeting.title,
+                    "speaker": turn.get("speaker", "Unknown"),
+                    "timestamp": turn.get("timestamp", turn.get("time", "00:00:00")),
+                    "text": text,
+                    "result_type": "discussion"
+                })
+                
+    # Sort by meeting date if available (but meeting model has 'date' string)
+    return matches[:50] # Limit results

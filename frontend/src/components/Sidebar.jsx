@@ -59,14 +59,8 @@ const IconChevron = ({ expanded }) => (
 );
 
 const LogoBlock = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '24px 16px 16px' }}>
-        <div style={{ width: '32px', height: '32px', background: '#2E7CF6', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        </div>
-        <div>
-            <div style={{ color: '#fff', fontSize: '15px', fontWeight: '600', letterSpacing: '-0.02em', lineHeight: '1.2' }}>Caldim</div>
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', letterSpacing: '0.02em', lineHeight: '1' }}>Industrial MOM</div>
-        </div>
+    <div style={{ display: 'flex', alignItems: 'center', height: '56px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingLeft: '16px' }}>
+        <div style={{ color: '#fff', fontSize: '18px', fontWeight: '700', letterSpacing: '0.1em' }}>CALDIM</div>
     </div>
 );
 
@@ -299,7 +293,7 @@ const Sidebar = ({
         >
             <LogoBlock />
 
-            <div className="sidebar-scroll">
+            <div className="sidebar-scroll scrollbar-hide">
                 {!sidebarCollapsed && <div className="sidebar-section-label">WORKSPACE</div>}
                 {(!hasAccess || hasAccess('Dashboard')) && renderProjectDashboardModule()}
                 {(!hasAccess || hasAccess('MOM')) && renderMOMModule()}
@@ -309,23 +303,7 @@ const Sidebar = ({
                 {(!hasAccess || hasAccess('Upload Trackers')) && renderUploadTrackersModule()}
                 {renderOtherModules()}
             </div>
-
-            <div className="sidebar-footer">
-                <div style={{ 
-                    width: '30px', height: '30px', borderRadius: '50%', 
-                    background: 'rgba(255,255,255,0.1)', display: 'flex', 
-                    alignItems: 'center', justifyContent: 'center',
-                    fontSize: '11px', color: '#fff', fontWeight: 'bold'
-                }}>
-                    PR
-                </div>
-                {!sidebarCollapsed && (
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                        <div style={{ color: '#fff', fontSize: '12px', fontWeight: '500', truncate: 'true' }}>Pradeep R.</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>Administrator</div>
-                    </div>
-                )}
-            </div>
+            {/* sidebar-footer removed as per request */}
         </motion.div>
     );
 };

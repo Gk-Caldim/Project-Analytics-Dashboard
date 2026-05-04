@@ -14,7 +14,12 @@ const initialState = {
   companyLogo: sessionStorage.getItem('company_logo') || null,
   companyName: sessionStorage.getItem('company_name') || 'Industrial Analytics Platform',
   baseCurrency: sessionStorage.getItem('base_currency') || 'USD ($)',
-  exchangeRates: JSON.parse(sessionStorage.getItem('exchange_rates')) || { 'USD': 1, 'INR': 83.2, 'EUR': 0.92 }
+  exchangeRates: JSON.parse(sessionStorage.getItem('exchange_rates')) || { 'USD': 1, 'INR': 83.2, 'EUR': 0.92 },
+  activeView: sessionStorage.getItem('active_view') || 'dashboard',
+  navigationHistory: JSON.parse(sessionStorage.getItem('navigation_history')) || [],
+  chatHistory: JSON.parse(sessionStorage.getItem('chat_history')) || [],
+  currentChatId: null,
+  unreadNotifications: 2
 };
 
 const navSlice = createSlice({
@@ -81,6 +86,103 @@ const navSlice = createSlice({
       state.exchangeRates = action.payload;
       sessionStorage.setItem('exchange_rates', JSON.stringify(action.payload));
     },
+    setActiveView: (state, action) => {
+      state.activeView = action.payload;
+      sessionStorage.setItem('active_view', action.payload);
+    },
+    addToNavigationHistory: (state, action) => {
+      const module = action.payload;
+      // Remove if already exists to move to top
+      const filtered = state.navigationHistory.filter(h => h.id !== module.id);
+      // Keep only last 15 items
+      state.navigationHistory = [module, ...filtered].slice(0, 15);
+      sessionStorage.setItem('navigation_history', JSON.stringify(state.navigationHistory));
+    },
+    clearNavigationHistory: (state) => {
+      state.navigationHistory = [];
+      sessionStorage.removeItem('navigation_history');
+    },
+    togglePinHistoryItem: (state, action) => {
+      const itemId = action.payload;
+      const item = state.navigationHistory.find(h => h.id === itemId);
+      if (item) {
+        item.pinned = !item.pinned;
+        // Sort: pinned first, then by timestamp
+        state.navigationHistory.sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+        sessionStorage.setItem('navigation_history', JSON.stringify(state.navigationHistory));
+      }
+    },
+    renameHistoryItem: (state, action) => {
+      const { id, newName } = action.payload;
+      const item = state.navigationHistory.find(h => h.id === id);
+      if (item) {
+        item.name = newName;
+        sessionStorage.setItem('navigation_history', JSON.stringify(state.navigationHistory));
+      }
+    },
+    deleteHistoryItem: (state, action) => {
+      const itemId = action.payload;
+      state.navigationHistory = state.navigationHistory.filter(h => h.id !== itemId);
+      sessionStorage.setItem('navigation_history', JSON.stringify(state.navigationHistory));
+    },
+    saveChatToHistory: (state, action) => {
+      const { id, title, messages, userEmail } = action.payload;
+      const existingIdx = state.chatHistory.findIndex(c => c.id === id);
+      if (existingIdx !== -1) {
+        state.chatHistory[existingIdx] = { ...state.chatHistory[existingIdx], messages, title };
+      } else {
+        state.chatHistory.unshift({ 
+          id, 
+          title, 
+          messages, 
+          userEmail, // Link chat to specific user
+          pinned: false, 
+          timestamp: new Date().toISOString() 
+        });
+      }
+      sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+    },
+    setCurrentChatId: (state, action) => {
+      state.currentChatId = action.payload;
+    },
+    togglePinChat: (state, action) => {
+      const chatId = action.payload;
+      const chat = state.chatHistory.find(c => c.id === chatId);
+      if (chat) {
+        chat.pinned = !chat.pinned;
+        state.chatHistory.sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+        sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+      }
+    },
+    renameChat: (state, action) => {
+      const { id, newTitle } = action.payload;
+      const chat = state.chatHistory.find(c => c.id === id);
+      if (chat) {
+        chat.title = newTitle;
+        sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+      }
+    },
+    deleteChat: (state, action) => {
+      const chatId = action.payload;
+      state.chatHistory = state.chatHistory.filter(c => c.id !== chatId);
+      if (state.currentChatId === chatId) state.currentChatId = null;
+      sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+    },
+    setChatHistory: (state, action) => {
+      state.chatHistory = action.payload;
+      sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
+    },
+    markNotificationsRead: (state) => {
+      state.unreadNotifications = 0;
+    },
   },
 });
 
@@ -93,7 +195,20 @@ export const {
   setActiveProjectName,
   setSidebarCollapsed,
   setBranding,
-  setExchangeRates
+  setExchangeRates,
+  setActiveView,
+  addToNavigationHistory,
+  clearNavigationHistory,
+  togglePinHistoryItem,
+  renameHistoryItem,
+  deleteHistoryItem,
+  saveChatToHistory,
+  setCurrentChatId,
+  togglePinChat,
+  renameChat,
+  deleteChat,
+  setChatHistory,
+  markNotificationsRead
 } = navSlice.actions;
 
 export default navSlice.reducer;

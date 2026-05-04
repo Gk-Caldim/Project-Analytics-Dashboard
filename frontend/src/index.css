@@ -11,33 +11,34 @@
 
 
 :root {
-  /* Industrial Analytics Brand Colors */
-  --brand-red: #C8341A;
-  --brand-navy: #0D1B2A;
-  --brand-surface: #F7F6F3;
-  --brand-border: rgba(13, 27, 42, 0.12);
-  --brand-muted: #6B7280;
+  /* Industrial Analytics Brand Colors - Redesign 2026 */
+  --brand-navy: #0004ab;
+  --brand-primary-bg: #F4F6F9;
+  
+  /* Redesign Specs */
+  --secondary: #000000; /* Brand black for text (headers/body) */
+  --sidebar-bg: #1a1a1a; /* Medium dark black for sidebar */
+  --primary: #F4F6F9;   /* Light Gray for surfaces and background */
 
   /* Typography */
-  --font-serif: 'Playfair Display', serif;
-  --font-sans: 'DM Sans', -apple-system, sans-serif;
-
-  /* Branding Variables */
-  --navy: #0E1B2E;
-  --accent: #2E7CF6;
-  --green: #12B76A;
-  --amber: #F79009;
-  --red: #F04438;
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --text-tertiary: #94A3B8;
-  --border: rgba(0, 0, 0, 0.07);
-  --surface: #FFFFFF;
-  --bg: #F1F5F9;
-
-  /* Typography */
-  --font-primary: 'DM Sans', -apple-system, sans-serif;
+  --font-inter: 'Inter', -apple-system, sans-serif;
+  --font-primary: var(--font-inter);
   --font-mono: 'DM Mono', monospace;
+
+  /* Spacing System (8px based) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+
+  /* Layout Variables */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border-subtle: rgba(14, 27, 46, 0.08);
+  --border-strong: rgba(14, 27, 46, 0.15);
+  --surface: #FFFFFF;
+  --bg: var(--primary);
 }
 
 /* Utils */
@@ -58,6 +59,7 @@
     min-height: 100vh;
     background-color: var(--bg);
     color: var(--text-primary);
+    letter-spacing: -0.011em; /* Inter refinement */
   }
 
   h1,
@@ -67,16 +69,9 @@
   h5,
   h6 {
     font-family: var(--font-primary);
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-primary);
-    letter-spacing: -0.025em;
+    font-weight: 600;
+    color: var(--secondary);
+    letter-spacing: -0.02em;
   }
 
   .font-mono {
@@ -237,7 +232,7 @@
   /* ========================================================================== */
   .app-sidebar {
     @apply z-30 flex flex-col transition-all duration-300 ease-in-out;
-    background-color: var(--navy);
+    background-color: var(--sidebar-bg);
     width: 220px;
     flex-shrink: 0;
   }
