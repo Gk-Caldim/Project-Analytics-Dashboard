@@ -155,6 +155,9 @@ const capitalizeFirstLetter = (str) => {
 const UploadTrackers = () => {
   const dispatch = useDispatch();
   const selectedFileId = useSelector(state => state.nav.selectedUploadFileId);
+  const authUser = useSelector(state => state.auth?.user);
+  const isAdmin = authUser?.role === 'Admin' || authUser?.role === 'Super Admin' || authUser?.role === 'Project Manager';
+  
   const onClearSelection = () => dispatch(setSelectedUploadFileId(null));
   // Initial columns configuration
   const initialColumns = [
@@ -558,10 +561,26 @@ const UploadTrackers = () => {
   // Upload functions
   const openUploadModal = () => {
     setShowUploadModal(true);
+    
+    const currentUserName = getCurrentUser();
+    const currentUserProfile = employeeList.find(e => e.name === currentUserName);
+    const userDept = currentUserProfile?.department || 'Design Release';
+    
+    // Filter projects based on assignment for non-admins
+    const userProjects = isAdmin 
+      ? projectList 
+      : projectList.filter(p => 
+          p.project_manager === currentUserName || 
+          p.employee_name === currentUserName || 
+          p.assigned_to_name === currentUserName
+        );
+    
+    const defaultProject = userProjects.length === 1 ? userProjects[0].name : '';
+
     setUploadForm({
-      project: '',
-      department: 'Design Release',
-      employeeName: '',
+      project: defaultProject,
+      department: userDept,
+      employeeName: currentUserName,
       file: null
     });
     setUploadFormErrors({});
@@ -1209,45 +1228,72 @@ const UploadTrackers = () => {
               {/* Project */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Project *</label>
-                <SearchableDropdown
-                  options={projectList.map(p => p.name)}
-                  value={uploadForm.project}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, project: val });
-                    if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
-                  }}
-                  placeholder="Select project"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={projectList.map(p => p.name)}
+                    value={uploadForm.project}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, project: val });
+                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                    }}
+                    placeholder="Select project"
+                  />
+                ) : (
+                  <SearchableDropdown
+                    options={projectList
+                      .filter(p => p.project_manager === getCurrentUser() || p.employee_name === getCurrentUser() || p.assigned_to_name === getCurrentUser())
+                      .map(p => p.name)
+                    }
+                    value={uploadForm.project}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, project: val });
+                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                    }}
+                    placeholder={uploadForm.project ? uploadForm.project : "Select assigned project"}
+                  />
+                )}
                 {uploadFormErrors.project && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.project}</p>}
               </div>
 
               {/* Department */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Department *</label>
-                <SearchableDropdown
-                  options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
-                  value={uploadForm.department}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, department: val });
-                    if (uploadFormErrors.department) setUploadFormErrors({ ...uploadFormErrors, department: '' });
-                  }}
-                  placeholder="Select department"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
+                    value={uploadForm.department}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, department: val });
+                      if (uploadFormErrors.department) setUploadFormErrors({ ...uploadFormErrors, department: '' });
+                    }}
+                    placeholder="Select department"
+                  />
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                    {uploadForm.department || 'No Department'}
+                  </div>
+                )}
                 {uploadFormErrors.department && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.department}</p>}
               </div>
 
               {/* Employee Name */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Employee Name *</label>
-                <SearchableDropdown
-                  options={employeeList.map(e => e.name)}
-                  value={uploadForm.employeeName}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, employeeName: val });
-                    if (uploadFormErrors.employeeName) setUploadFormErrors({ ...uploadFormErrors, employeeName: '' });
-                  }}
-                  placeholder="Select employee name"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={employeeList.map(e => e.name)}
+                    value={uploadForm.employeeName}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, employeeName: val });
+                      if (uploadFormErrors.employeeName) setUploadFormErrors({ ...uploadFormErrors, employeeName: '' });
+                    }}
+                    placeholder="Select employee name"
+                  />
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                    {uploadForm.employeeName || 'Unknown User'}
+                  </div>
+                )}
                 {uploadFormErrors.employeeName && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.employeeName}</p>}
               </div>
 

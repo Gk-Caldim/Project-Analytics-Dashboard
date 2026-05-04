@@ -27,11 +27,11 @@ DB_TYPE = os.getenv("DB_TYPE", "cloud").lower()
 CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL") or os.getenv("DATABASE_URL")
 
 # Local Database Settings (PostgreSQL)
-LOCAL_DB_HOST = os.getenv("LOCAL_DB_HOST", "localhost")
-LOCAL_DB_PORT = os.getenv("LOCAL_DB_PORT", "5432")
-LOCAL_DB_NAME = os.getenv("LOCAL_DB_NAME", "postgres")
-LOCAL_DB_USER = os.getenv("LOCAL_DB_USER", "postgres")
-LOCAL_DB_PASSWORD = os.getenv("LOCAL_DB_PASSWORD", "password")
+LOCAL_DB_HOST = os.getenv("LOCAL_DB_HOST") or os.getenv("DB_HOST", "localhost")
+LOCAL_DB_PORT = os.getenv("LOCAL_DB_PORT") or os.getenv("DB_PORT", "5432")
+LOCAL_DB_NAME = os.getenv("LOCAL_DB_NAME") or os.getenv("DB_NAME", "postgres")
+LOCAL_DB_USER = os.getenv("LOCAL_DB_USER") or os.getenv("DB_USER", "postgres")
+LOCAL_DB_PASSWORD = os.getenv("LOCAL_DB_PASSWORD") or os.getenv("DB_PASSWORD", "password")
 
 LOCAL_DATABASE_URL = (
     f"postgresql://{LOCAL_DB_USER}:{LOCAL_DB_PASSWORD}"
