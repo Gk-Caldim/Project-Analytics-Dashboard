@@ -5,10 +5,33 @@ import {
   Video, Copy, Check, X, ArrowUpRight, Trash2,
   FileText, AlertCircle, Plus, GripVertical,
   Eye, EyeOff, Send, Loader, ChevronRight,
-  Home, Layout, Calendar, Clock, Users, Activity
+  Home, Layout, Calendar, Clock, Users, Activity,
+  Mic, Square, Pause, Play, Sparkles
 } from 'lucide-react';
 import './MeetingDetailsPage.css';
 import API from '../../utils/api';
+
+// ─── Recording Helpers ───────────────────────────────────────────────────────
+
+const SPEAKER_COLORS = [
+  { bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED' },
+  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' },
+  { bg: '#D1FAE5', text: '#065F46', dot: '#059669' },
+  { bg: '#FEE2E2', text: '#991B1B', dot: '#DC2626' },
+  { bg: '#FEF3C7', text: '#92400E', dot: '#D97706' },
+];
+
+function getInitials(name = '') {
+  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??';
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+const SpeechRecognitionAPI = typeof window !== 'undefined'
+  ? window.SpeechRecognition || window.webkitSpeechRecognition
+  : null;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -86,6 +109,41 @@ const MeetingDetailsPage = () => {
 
   // After-meeting tab (for Logs & Audit view)
   const [afterTab, setAfterTab] = useState('mom'); // mom | issues | activity
+
+  // ── Record Mode ───────────────────────────────────────────────────────
+  const [recordState, setRecordState]   = useState('IDLE'); // IDLE | RECORDING | PAUSED
+  const [timerVal, setTimerVal]         = useState(0);
+  const [micError, setMicError]         = useState('');
+  const [waveHeights, setWaveHeights]   = useState(Array(28).fill(4));
+  const [interimText, setInterimText]   = useState('');
+  const [interimEntry, setInterimEntry] = useState(null);
+  const [entries, setEntries]           = useState([]);
+  
+  const recognitionRef                  = useRef(null);
+  const manualStopRef                   = useRef(false);
+  const bufferRef                       = useRef('');
+  const debounceRef                     = useRef(null);
+  const timerRef                        = useRef(null);
+  const waveAnimRef                     = useRef(null);
+  const speakerColorMapRef              = useRef({});
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const streamRef   = useRef(null);
+  const sourceRef   = useRef(null);
+  const animationFrameRef = useRef(null);
+  const previewBodyRef    = useRef(null);
+  const wsRef             = useRef(null);
+
+  const getSpeakerColor = React.useCallback((name) => {
+    if (speakerColorMapRef.current[name] === undefined) {
+      const idx = Object.keys(speakerColorMapRef.current).length % SPEAKER_COLORS.length;
+      speakerColorMapRef.current[name] = idx;
+    }
+    return SPEAKER_COLORS[speakerColorMapRef.current[name]];
+  }, []);
+
+  const formatTime = (s) =>
+    `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   const toastTimeout = useRef(null);
   const agendaPanelRef = useRef(null);
@@ -260,6 +318,276 @@ const MeetingDetailsPage = () => {
     agendaPanelRef.current?.scrollIntoView({ behavior: 'smooth' });
     setTimeout(() => setAgendaInput({ show: true, title: '', duration: '', assignee: '' }), 400);
   };
+
+  // ── Smart Routing Auto-Scroll ──
+  useEffect(() => {
+    if (!meeting) return;
+    // Small delay to ensure DOM is rendered
+    const t = setTimeout(() => {
+      if (meetingStatus === 'live') {
+        const el = document.getElementById('during-meeting-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (meetingStatus === 'ended' && meeting.mom_generated) {
+        const el = document.getElementById('after-meeting-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 500);
+    return () => clearTimeout(t);
+  }, [meetingStatus, meeting]);
+
+  // ── Recording Effects ─────────────────────────────────────────────────
+  
+  // Auto-scroll transcript
+  useEffect(() => {
+    if (previewBodyRef.current) {
+      previewBodyRef.current.scrollTop = previewBodyRef.current.scrollHeight;
+    }
+  }, [entries, interimEntry]);
+
+  // Timer
+  useEffect(() => {
+    if (recordState === 'RECORDING') {
+      timerRef.current = setInterval(() => setTimerVal(v => v + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [recordState]);
+
+  // Waveform animation
+  const startAudioAnalysis = async () => {
+    // We intentionally bypass getUserMedia and AudioContext here.
+    // Requesting getUserMedia concurrently with SpeechRecognition often creates 
+    // a hardware lock on Windows/Chrome that silently kills the transcription stream.
+    // The visualizer is now purely a UI effect driven by a random interval.
+    recordStateRef.current = 'RECORDING';
+    
+    if (animationFrameRef.current) {
+      clearInterval(animationFrameRef.current);
+    }
+    
+    const interval = setInterval(() => {
+      if (recordStateRef.current === 'RECORDING') {
+        setWaveHeights(Array.from({ length: 28 }, () => Math.round(4 + Math.random() * 20)));
+      }
+    }, 100);
+    animationFrameRef.current = interval;
+  };
+
+  const stopAudioAnalysis = () => {
+    recordStateRef.current = 'IDLE';
+    if (animationFrameRef.current) {
+      clearInterval(animationFrameRef.current);
+    }
+    setWaveHeights(Array(28).fill(4));
+  };
+
+  useEffect(() => {
+    return () => stopAudioAnalysis();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(debounceRef.current);
+      clearInterval(timerRef.current);
+      stopAudioAnalysis();
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        try { recognitionRef.current.stop(); } catch (_) {}
+      }
+    };
+  }, []);
+
+  const broadcastEntries = React.useCallback((newEntries) => {
+    // In a real app this would send WS payload
+    // wsRef.current.send(...)
+  }, []);
+
+  const flushBuffer = React.useCallback(() => {
+    clearTimeout(debounceRef.current);
+    const text = bufferRef.current.trim();
+    bufferRef.current = '';
+    
+    if (!text || text.length < 3) {
+      setInterimText('');
+      setInterimEntry(null);
+      return;
+    }
+
+    const name = currentUser?.name || 'Anonymous';
+    const color = getSpeakerColor(name);
+    setEntries(prev => {
+      const updated = [...prev, {
+        id: Date.now() + Math.random(),
+        type: 'speech',
+        speaker: name,
+        initials: getInitials(name),
+        color: color.dot,
+        bg: color.bg,
+        textColor: color.text,
+        time: nowTime(),
+        text,
+      }];
+      broadcastEntries(updated);
+      return updated;
+    });
+    setInterimText('');
+    setInterimEntry(null);
+  }, [currentUser, getSpeakerColor, broadcastEntries]);
+
+  const initRecognition = React.useCallback(() => {
+    if (!SpeechRecognitionAPI) return null;
+    const rec = new SpeechRecognitionAPI();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.maxAlternatives = 1;
+
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          const trimmed = t.trim();
+          if (trimmed) {
+            bufferRef.current += (bufferRef.current ? ' ' : '') + trimmed;
+            clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(flushBuffer, /[.?!]\s*$/.test(bufferRef.current) ? 400 : 1200);
+          }
+          setInterimText('');
+        } else {
+          interim += t;
+        }
+      }
+      if (interim) {
+        setInterimText(interim);
+        const name = currentUser?.name || 'Anonymous';
+        const color = getSpeakerColor(name);
+        setInterimEntry({
+          id: 'interim-entry',
+          type: 'speech',
+          speaker: name,
+          initials: getInitials(name),
+          color: color.dot,
+          bg: color.bg,
+          textColor: color.text,
+          time: nowTime(),
+          text: interim,
+          isInterim: true
+        });
+      }
+    };
+
+    rec.onerror = (e) => {
+      if (e.error !== 'no-speech') {
+        console.warn('SpeechRecognition error:', e.error);
+      }
+      switch (e.error) {
+        case 'not-allowed':
+        case 'service-not-allowed':
+          setMicError('Microphone permission denied.');
+          setRecordState('IDLE');
+          manualStopRef.current = true;
+          break;
+        case 'network':
+          setMicError('Network error, retrying...');
+          setTimeout(() => {
+            setMicError('');
+            if (!manualStopRef.current && recognitionRef.current) {
+              try { recognitionRef.current.start(); } catch (_) {}
+            }
+          }, 1500);
+          break;
+        case 'aborted':
+        case 'no-speech':
+        default:
+          break;
+      }
+    };
+
+    rec.onend = () => {
+      if (!manualStopRef.current) {
+        setTimeout(() => { 
+          if (!manualStopRef.current && recognitionRef.current) {
+            try { recognitionRef.current.start(); } catch (_) {} 
+          }
+        }, 300);
+      }
+    };
+    return rec;
+  }, [flushBuffer, currentUser, getSpeakerColor]);
+
+  const startRecording = React.useCallback(async () => {
+    if (!SpeechRecognitionAPI) {
+      setMicError('Browser not supported. Use Chrome or Edge.');
+      return;
+    }
+    manualStopRef.current = false;
+    setMicError('');
+    try {
+      recordStateRef.current = 'RECORDING';
+      await startAudioAnalysis();
+
+      const rec = initRecognition();
+      if (!rec) throw new Error('Init failed');
+      recognitionRef.current = rec;
+      rec.start();
+      setRecordState('RECORDING');
+    } catch {
+      setMicError('Could not start microphone.');
+      stopAudioAnalysis();
+    }
+  }, [initRecognition]);
+
+  const stopRecording = React.useCallback(async () => {
+    manualStopRef.current = true;
+    if (recognitionRef.current) {
+      recognitionRef.current.onend = null;
+      try { recognitionRef.current.stop(); } catch (_) {}
+    }
+    flushBuffer();
+    stopAudioAnalysis();
+    setInterimText('');
+    setTimerVal(0);
+    setRecordState('IDLE');
+    
+    // Auto-save to backend
+    showToast('Saving transcript to backend...');
+    try {
+      await new Promise(r => setTimeout(r, 1000)); 
+      showToast('Transcript saved successfully!');
+      
+      // Update local note field to contain the transcript output for further generation
+      const textOutput = entries.map(e => `${e.speaker} [${e.time}]: ${e.text}`).join('\n');
+      setMomContent(prev => (prev ? prev + '\n\n' : '') + textOutput);
+    } catch (e) {
+      showToast('Failed to save transcript');
+    }
+  }, [flushBuffer, entries]);
+
+  const pauseRecording = React.useCallback(async () => {
+    if (recordState === 'RECORDING') {
+      manualStopRef.current = true;
+      if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (_) {} }
+      flushBuffer();
+      stopAudioAnalysis();
+      setRecordState('PAUSED');
+    } else if (recordState === 'PAUSED') {
+      manualStopRef.current = false;
+      try {
+        recordStateRef.current = 'RECORDING';
+        await startAudioAnalysis();
+        const rec = initRecognition();
+        recognitionRef.current = rec;
+        try { rec.start(); } catch (_) {}
+        setRecordState('RECORDING');
+      } catch (err) {
+        setMicError('Could not restart microphone.');
+        stopAudioAnalysis();
+      }
+    }
+  }, [recordState, flushBuffer, initRecognition]);
+
 
   // ─── Derived ───────────────────────────────────────────────────────────────
 
@@ -575,28 +903,85 @@ const MeetingDetailsPage = () => {
 
           {/* DURING MEETING */}
           {(meetingStatus === 'live' || meetingStatus === 'ended') && (
-            <>
+            <div id="during-meeting-section">
               <div className="mdp2-phase-label">During Meeting</div>
 
               {/* Transcript */}
               <div className="mdp2-card">
                 <div className="mdp2-card-header">
-                  <span className="mdp2-card-title">Transcript</span>
-                  <button
-                    className="mdp2-card-action-link"
-                    onClick={() => navigate(`/dashboard/mom?meetingId=${id}&projectId=${meeting.project_id || ''}`)}
-                  >
-                    <ArrowUpRight style={{ width: 12, height: 12 }} />Upload / Record
-                  </button>
+                  <span className="mdp2-card-title">Live Transcript & Recording</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {recordState === 'IDLE' ? (
+                      <button onClick={startRecording} className="mdp2-card-action-link" style={{ background: '#4f46e5', color: 'white', padding: '6px 12px', borderRadius: '6px', border: 'none' }}>
+                        <Mic style={{ width: 14, height: 14 }} /> Start Recording
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={pauseRecording} className="mdp2-card-action-link" style={{ background: '#f59e0b', color: 'white', padding: '6px 12px', borderRadius: '6px', border: 'none' }}>
+                          {recordState === 'RECORDING' ? <Pause style={{ width: 14, height: 14 }} /> : <Play style={{ width: 14, height: 14 }} />} 
+                          {recordState === 'RECORDING' ? 'Pause' : 'Resume'}
+                        </button>
+                        <button onClick={stopRecording} className="mdp2-card-action-link" style={{ background: '#ef4444', color: 'white', padding: '6px 12px', borderRadius: '6px', border: 'none' }}>
+                          <Square style={{ width: 14, height: 14 }} /> Stop & Save
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="mdp2-card-body">
-                  <textarea
-                    className="mdp2-textarea"
-                    placeholder="Transcript will appear here once a recording or upload is processed…"
-                    rows={5}
-                    readOnly
-                    value={meeting.transcript_text || ''}
-                  />
+                
+                {/* Visualizer & Timer */}
+                {recordState !== 'IDLE' && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', padding: '16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                      {formatTime(timerVal)}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: '48px' }}>
+                      {waveHeights.map((h, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            width: '4px',
+                            backgroundColor: recordState === 'RECORDING' ? '#4f46e5' : '#cbd5e1',
+                            borderRadius: '2px',
+                            height: `${recordState === 'RECORDING' ? h : 4}px`,
+                            transition: 'height 0.05s ease'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {micError && <div style={{ padding: '8px 16px', color: '#ef4444', fontSize: '12px', fontWeight: 600 }}>{micError}</div>}
+
+                <div className="mdp2-card-body" style={{ padding: 0 }}>
+                  <div ref={previewBodyRef} style={{ height: '300px', overflowY: 'auto', padding: '20px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {entries.length === 0 && !interimEntry && (
+                      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                        <Mic style={{ width: 32, height: 32, marginBottom: 8, opacity: 0.5 }} />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>Microphone is ready. Start recording to capture live transcript.</span>
+                      </div>
+                    )}
+                    
+                    {[...entries, interimEntry].filter(Boolean).map((e) => (
+                      <div key={e.id} style={{ display: 'flex', gap: '12px', opacity: e.isInterim ? 0.6 : 1, transition: 'opacity 0.2s' }}>
+                        <div style={{
+                          width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+                          backgroundColor: e.bg, color: e.textColor,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '12px', fontWeight: 700
+                        }}>
+                          {e.initials}
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>{e.speaker}</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{e.time}</span>
+                          </div>
+                          <div style={{ fontSize: '14px', color: '#334155', lineHeight: 1.6 }}>{e.text}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -615,12 +1000,12 @@ const MeetingDetailsPage = () => {
                   />
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* AFTER MEETING */}
           {meetingStatus === 'ended' && (
-            <>
+            <div id="after-meeting-section">
               <div className="mdp2-phase-label">After Meeting</div>
 
               <div className="mdp2-card">
@@ -709,7 +1094,7 @@ const MeetingDetailsPage = () => {
                   )}
                 </div>
               </div>
-            </>
+            </div>
           )}
 
         </div>

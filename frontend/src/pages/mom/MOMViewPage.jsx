@@ -140,8 +140,17 @@ const MOMViewPage = () => {
   }, [dispatch]);
 
   const handleSyncIssues = useCallback(async () => {
-    if (!selProject) { toast.error('Select a project before syncing'); return; }
-    const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical' || (r.status === 'Pending') || (r.status === 'Blocked'));
+    let targetProjectId = Number(selProject);
+    if (isNaN(targetProjectId) && selProject) {
+      const matched = projects.find(p => (p.name || p.project_name)?.toLowerCase() === String(selProject).toLowerCase());
+      if (matched) targetProjectId = matched.id || matched.project_id;
+    }
+    if (!targetProjectId || isNaN(targetProjectId)) { 
+      toast.error('Invalid Project ID. Please link this meeting to a valid project.'); 
+      return; 
+    }
+
+    const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical');
     if (highRows.length === 0) { toast.error('No High/Critical rows to sync'); return; }
 
     const actions = highRows
@@ -153,7 +162,7 @@ const MOMViewPage = () => {
         department: r.function,
         priority: r.criticality === 'Critical' || r.criticality === 'High' ? 'High' : 'Medium',
         due_date: (() => { const d = Date.parse(r.target); return isNaN(d) ? null : new Date(d).toISOString().split('T')[0]; })(),
-        status: r.status === 'Done' || r.status === 'Closed' ? 'Closed' : 'Open',
+        status: 'Open',
       }));
 
     if (actions.length === 0) { toast.error('Rows missing Responsibility — fill Owner column first'); return; }
@@ -161,7 +170,7 @@ const MOMViewPage = () => {
     setSyncing(true);
     const t = toast.loading('Syncing to Issue Engine…');
     try {
-      const resp = await API.post('/mom/issues', { project_id: Number(selProject), actions });
+      const resp = await API.post('/mom/issues', { project_id: targetProjectId, actions });
       setSyncResult(resp.data);
       setShowSyncModal(true);
 
@@ -173,7 +182,11 @@ const MOMViewPage = () => {
         toast.error(`No issues created (${resp.data.issues_skipped} skipped)`, { id: t });
       }
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Sync failed', { id: t });
+      const rawDetail = err?.response?.data?.detail;
+      const detail = Array.isArray(rawDetail)
+        ? rawDetail.map(e => `${e.loc?.join('.')} — ${e.msg}`).join('; ')
+        : (rawDetail || err.message || 'Sync failed');
+      toast.error(detail, { id: t });
     } finally { setSyncing(false); }
   }, [selProject, rows]);
 
@@ -188,55 +201,33 @@ const MOMViewPage = () => {
   }, [rows]);
 
   const handleSave = useCallback(async () => {
-    const targetProject = selProject || projectId;
-    if (!targetProject) {
-      toast.error('Select a project before committing changes');
+    const rawTarget = selProject || projectId;
+    let targetProjectId = Number(rawTarget);
+    if (isNaN(targetProjectId) && rawTarget) {
+      const matched = projects.find(p => (p.name || p.project_name)?.toLowerCase() === String(rawTarget).toLowerCase());
+      if (matched) targetProjectId = matched.id || matched.project_id;
+    }
+
+    if (!targetProjectId || isNaN(targetProjectId)) {
+      toast.error('Invalid Project ID. Please select a valid project before saving.');
       return;
     }
 
-    const saveToast = toast.loading('Persisting MOM structure...');
     try {
-      // 1. Save MOM metadata
-      await dispatch(saveMOM({ 
-        meetingId, 
-        meetingName, 
-        projectId: Number(targetProject), 
-        projectName, 
-        momData: rows 
+      await dispatch(saveMOM({
+        meetingId,
+        meetingName,
+        projectId: targetProjectId,
+        projectName,
+        momData: rows
       })).unwrap();
-      
-      // 2. Intelligence Auto-Sync
-      toast.loading('Syncing to Intelligence Engine...', { id: saveToast });
-      
-      const actionableRows = rows.filter(r => r.responsibility?.trim() && r.discussion_point?.trim());
-      
-      if (actionableRows.length > 0) {
-        const actions = actionableRows.map(r => ({
-          title: (r.discussion_point || '').slice(0, 50),
-          description: r.discussion_point || '',
-          owner: r.responsibility || '',
-          department: r.function,
-          priority: (r.criticality === 'Critical' || r.criticality === 'High' || r.status === 'Blocked' || r.status === 'Delayed') ? 'High' : 'Medium',
-          due_date: (() => { 
-            const d = Date.parse(r.target); 
-            return isNaN(d) ? null : new Date(d).toISOString().split('T')[0]; 
-          })(),
-          status: 'Open',
-        }));
-
-        const syncResp = await API.post('/mom/issues', { 
-          project_id: Number(targetProject), 
-          meeting_id: meetingId,
-          actions 
-        });
-        
-        setSyncResult(syncResp.data);
-        toast.success(`Pipeline Secure: MOM saved & ${syncResp.data.issues_created} issues synced.`, { id: saveToast });
-      } else {
-        toast.success('MOM saved. No actionable items found for sync.', { id: saveToast });
-      }
+      // saveMOM dispatches show its own status — no extra toast needed
     } catch (err) {
-      toast.error(`Pipeline Error: ${err.message || 'Unknown failure'}`, { id: saveToast });
+      const rawDetail = err?.response?.data?.detail || err?.message;
+      const detail = Array.isArray(rawDetail)
+        ? rawDetail.map(e => `${e.loc?.join('.')} — ${e.msg}`).join('; ')
+        : (rawDetail || 'Save failed');
+      toast.error(`Save failed: ${detail}`);
     }
   }, [dispatch, meetingId, meetingName, selProject, projectId, projectName, rows]);
 

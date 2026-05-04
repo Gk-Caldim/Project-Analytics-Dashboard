@@ -32,6 +32,7 @@ import GovernancePage from './pages/modules/GovernancePage';
 import EnterprisePage from './pages/EnterprisePage';
 import CustomersPage from './pages/CustomersPage';
 import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
 import WorkspaceLogin from './pages/WorkspaceLogin';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 

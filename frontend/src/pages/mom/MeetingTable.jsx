@@ -58,10 +58,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const [syncResult, setSyncResult] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const handleSyncIssues = async () => {
+  const handleSyncIssues = async (silent = false) => {
     // ── Step 1: Validate project selection FIRST ───────────────────
     if (!selectedProjectId) {
-      toast.error('Please select a valid project before syncing.');
+      if (silent !== true) toast.error('Please select a valid project before syncing.');
       return;
     }
 
@@ -126,17 +126,17 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
     // ── Step 3: POST to backend ────────────────────────────────────
     setSyncing(true);
-    const syncToast = toast.loading('Syncing issues to engine...');
+    const syncToast = silent === true ? null : toast.loading('Syncing issues to engine...');
     try {
       const resp = await API.post('/mom/issues', {
         project_id: Number(selectedProjectId),
         actions,
       });
       const data = resp.data;
-      toast.success(`Successfully synced ${data.issues_created} issues!`, { id: syncToast });
+      if (silent !== true) toast.success(`Successfully synced ${data.issues_created} issues!`, { id: syncToast });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      toast.error(`Sync failed: ${detail}`, { id: syncToast });
+      if (silent !== true) toast.error(`Sync failed: ${detail}`, { id: syncToast });
     } finally {
       setSyncing(false);
     }
@@ -157,6 +157,68 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
   const handlePrint = () => window.print();
 
+  // ── Auto-Assign Logic ──
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const handleAutoAssign = () => {
+    setAutoAssigning(true);
+    let assignedCount = 0;
+    
+    meetings.forEach((m) => {
+      if (!m.responsibility || m.responsibility.trim() === '') {
+        const textToSearch = (m.discussion_point || '').toLowerCase();
+        const matchedEmp = employees.find(e => {
+          const empName = (e.name || e.full_name || '').toLowerCase();
+          const firstName = empName.split(' ')[0];
+          return empName.length > 2 && (textToSearch.includes(empName) || (firstName.length > 2 && textToSearch.includes(firstName)));
+        });
+
+        if (matchedEmp) {
+          onUpdateMeeting(m.id, { responsibility: matchedEmp.name || matchedEmp.full_name });
+          assignedCount++;
+        }
+      }
+    });
+
+    setTimeout(() => {
+      setAutoAssigning(false);
+      if (assignedCount > 0) {
+        toast.success(`Auto-assigned ${assignedCount} action item(s)!`);
+      } else {
+        toast('No unassigned items matched any employee names.', { icon: 'ℹ️' });
+      }
+    }, 600);
+  };
+
+  // ── Auto-Sync Toggle ──
+  const [autoSync, setAutoSync] = useState(false);
+
+  // Background Auto-Sync logic
+  useEffect(() => {
+    if (!autoSync || !selectedProjectId) return;
+    const interval = setInterval(() => {
+      // Pass silent = true
+      handleSyncIssues(true);
+    }, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, [autoSync, selectedProjectId, meetings]);
+  
+  // ── Broadcast Logic ──
+  const [broadcasting, setBroadcasting] = useState(false);
+  const handleBroadcast = async () => {
+    setBroadcasting(true);
+    const loadingToast = toast.loading('Broadcasting MOM to attendees...');
+    try {
+      // Use lockedProjectId or selectedProjectId to find the meetingId if not available
+      // The API endpoint takes meeting_id.
+      const mId = meetingId || lockedProjectId || 'unknown';
+      await API.post(`/mom/${mId}/broadcast`);
+      toast.success('MOM successfully broadcasted via Email & Teams!', { id: loadingToast });
+    } catch (err) {
+      toast.error('Failed to broadcast MOM', { id: loadingToast });
+    } finally {
+      setBroadcasting(false);
+    }
+  };
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
@@ -204,6 +266,16 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             )}
 
             <div className="flex gap-3 items-end pb-0.5">
+              <label className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider mr-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={autoSync} 
+                  onChange={(e) => setAutoSync(e.target.checked)} 
+                  className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" 
+                />
+                Auto-Sync High/Critical
+              </label>
+
               <button
                 onClick={handleSyncIssues}
                 disabled={syncing || !selectedProjectId}
@@ -211,6 +283,22 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               >
                 <Zap className="w-4 h-4" />
                 {syncing ? 'Syncing…' : 'Sync Issues'}
+              </button>
+              <button
+                onClick={handleAutoAssign}
+                disabled={autoAssigning || employees.length === 0}
+                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+              >
+                {autoAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <User className="w-4 h-4" />}
+                Auto-Assign
+              </button>
+              <button
+                onClick={handleBroadcast}
+                disabled={broadcasting}
+                className="flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm text-indigo-600 border-indigo-200"
+              >
+                {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                Broadcast
               </button>
               <button
                 onClick={handleCopy}
@@ -221,10 +309,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               </button>
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95"
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md active:scale-95 hidden sm:flex"
               >
                 <Download className="w-4 h-4" />
-                Download PDF / Print
+                Download PDF
               </button>
             </div>
           </div>
