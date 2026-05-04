@@ -469,3 +469,67 @@ async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depe
         logger.info(f"Triggering email notifications for meeting {meeting.id} cancellation")
         
     return {"success": True, "message": "Meeting successfully cancelled."}
+
+@router.post("/{meeting_id}/resend-invite")
+async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
+    """Resend a meeting invitation to a specific email."""
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+        
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    meeting_data = {
+        "title": meeting.title,
+        "date": meeting.date,
+        "time": meeting.time,
+        "duration_minutes": meeting.duration_minutes,
+        "platform": meeting.platform,
+        "description": meeting.description,
+        "agenda_text": meeting.agenda_text,
+        "attendees": [email]  # Target only this specific email
+    }
+    
+    try:
+        email_service.send_meeting_invite(meeting_data, meeting.join_url)
+    except Exception as e:
+        logger.error(f"Failed to resend invite: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send email")
+        
+    return {"success": True, "message": f"Invite resent to {email}"}
+
+@router.post("/{meeting_id}/generate-mom")
+async def generate_mom(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
+    """
+    Generate a basic heuristic Meeting of Minutes markdown summary.
+    (Can be upgraded to an LLM call later)
+    """
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    agenda = payload.get("agenda", [])
+    attendees = payload.get("attendees", [])
+    duration = payload.get("duration", 60)
+    
+    mom_text = f"### Meeting of Minutes\n\n**Date:** {meeting.date}\n**Duration:** {duration} mins\n**Attendees:** {', '.join(attendees) if attendees else 'None listed'}\n\n"
+    
+    mom_text += "#### Agenda Items Discussed\n"
+    if agenda:
+        for item in agenda:
+            title = item.get("title", "") if isinstance(item, dict) else str(item)
+            if title:
+                mom_text += f"- **{title}**: Discussed. Pending further review.\n"
+    else:
+        mom_text += "- General project updates and sync.\n"
+        
+    mom_text += "\n#### Default Action Items\n"
+    mom_text += "- [ ] Review meeting recording and transcript.\n"
+    mom_text += "- [ ] Schedule follow-up if necessary.\n"
+    
+    meeting.mom_generated = True
+    db.commit()
+    
+    return {"success": True, "mom": mom_text}
