@@ -1224,7 +1224,7 @@ const Dashboard = () => {
                 </button>
               )}
               <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
-                {activeView === 'agent' ? 'AI Agent' : getHeaderTitle()}
+                {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
               </h1>
             </div>
 
@@ -1251,7 +1251,7 @@ const Dashboard = () => {
                     : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                     }`}
                 >
-                  Agent
+                  KIA
                 </button>
               </div>
             </div>
