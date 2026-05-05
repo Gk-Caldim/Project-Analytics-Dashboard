@@ -18,7 +18,8 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.crud import project as crud_project
@@ -332,4 +333,74 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
     
     print(f"[TrackerAPI] Successfully deleted upload {id}")
     return {"message": "Upload and associated data deleted successfully"}
+
+
+# ---------------------------------------------------------------------------
+# POST /uploads/bulk-delete
+# Unified bulk cleanup for both Tracker and Dataset systems
+# ---------------------------------------------------------------------------
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[int]
+
+@router.post("/uploads/bulk-delete")
+async def bulk_delete_uploads(request: BulkDeleteRequest, db: Session = Depends(get_db)):
+    """
+    Deletes multiple uploads and their associated ingestion/dataset data.
+    """
+    from app.models.dataset import Dataset
+    from app.models.dataset_column import DatasetColumn
+    from sqlalchemy import text
+    
+    ids = request.ids
+    if not ids:
+        return {"message": "No IDs provided"}
+
+    # 1. Find all uploads that match these IDs (either upload.id or upload.dataset_id)
+    uploads = db.query(Upload).filter(
+        (Upload.id.in_(ids)) | (Upload.dataset_id.in_(ids))
+    ).all()
+    
+    upload_ids = [u.id for u in uploads]
+    dataset_ids = [u.dataset_id for u in uploads if u.dataset_id]
+    
+    # 2. Also look for standalone datasets that are in the ID list but not linked to these uploads
+    # This covers cases where a dataset exists but no upload record is linked
+    found_dataset_ids = set(dataset_ids)
+    standalone_dataset_ids = [id for id in ids if id not in upload_ids and id not in found_dataset_ids]
+    
+    all_datasets_to_delete = db.query(Dataset).filter(
+        (Dataset.id.in_(dataset_ids)) | (Dataset.id.in_(standalone_dataset_ids))
+    ).all()
+
+    # 3. Cleanup Datasets (Tables and Columns)
+    for ds in all_datasets_to_delete:
+        # Delete columns metadata
+        db.query(DatasetColumn).filter(DatasetColumn.dataset_id == ds.id).delete(synchronize_session=False)
+        
+        # Drop physical table if it exists
+        if ds.table_name:
+            try:
+                db.execute(text(f'DROP TABLE IF EXISTS "{ds.table_name}"'))
+            except Exception as e:
+                logger.error(f"Error dropping table {ds.table_name} during bulk delete: {e}")
+        
+        # Delete Dataset record
+        db.delete(ds)
+
+    # 4. Cleanup TrackerIngestion and ImportError for found uploads
+    if upload_ids:
+        db.query(TrackerIngestion).filter(TrackerIngestion.upload_id.in_(upload_ids)).delete(synchronize_session=False)
+        db.query(ImportErrorModel).filter(ImportErrorModel.upload_id.in_(upload_ids)).delete(synchronize_session=False)
+        
+        # Delete Upload records
+        db.query(Upload).filter(Upload.id.in_(upload_ids)).delete(synchronize_session=False)
+
+    db.commit()
+    
+    logger.info("[TrackerAPI] Bulk delete completed for %d items", len(ids))
+    return {
+        "message": f"Successfully deleted {len(upload_ids)} upload(s) and {len(all_datasets_to_delete)} dataset(s).",
+        "deleted_ids": ids
+    }
 

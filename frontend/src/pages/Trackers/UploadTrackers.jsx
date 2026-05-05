@@ -459,61 +459,44 @@ const UploadTrackers = () => {
     if (selectedTrackers.length === 0) return;
 
     const count = selectedTrackers.length;
-    let deletedCount = 0;
-    let errors = [];
-
+    
     // Show a temporary "Deleting..." notification if many files
     if (count > 2) {
       showNotification(`Deleting ${count} records...`, 'info');
     }
 
     try {
-      // Process deletions in parallel
-      await Promise.all(selectedTrackers.map(async (id) => {
-        try {
-          await API.delete(`/uploads/${id}`);
-          deletedCount++;
-        } catch (err) {
-          console.error(`Error deleting tracker ${id}:`, err);
-          errors.push(id);
-        }
-      }));
+      // Single bulk delete API call
+      await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
 
-      // Update local state even if some failed (the ones that succeeded should be removed)
-      // Filter out only the ones that were successfully deleted from the backend
-      // But for simplicity in UX, if most succeeded we refresh everything
+      // After successful deletion, update local state
+      setTrackers(prev => prev.filter(tracker => !selectedTrackers.includes(tracker.id)));
 
-      const successfulIds = selectedTrackers.filter(id => !errors.includes(id));
-
-      setTrackers(prev => prev.filter(tracker => !successfulIds.includes(tracker.id)));
-
-      successfulIds.forEach(id => {
+      // Remove from sidebar contexts
+      selectedTrackers.forEach(id => {
         sidebarManager.deleteFileFromAllContexts(id);
       });
 
-      // Clear selection for the ones we tried to delete
-      setSelectedTrackers(errors);
-      
-      // Dispatch events to refresh sidebar once for the whole batch
-      if (successfulIds.length > 0) {
-        window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
-        window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
-      }
+      // Dispatch events to refresh views
+      window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { 
+        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      }));
+      window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { 
+        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      }));
 
-      // Reset selected file if it was deleted
-      if (successfulIds.includes(selectedFileId)) {
-        setSelectedFileId(null);
+      // Reset selected file if it was among deleted ones
+      if (selectedTrackers.includes(selectedFileId)) {
+        dispatch(setSelectedUploadFileId(null));
         setSelectedFileContent(null);
         setSelectedFileTrackerInfo(null);
       }
 
-      if (errors.length === 0) {
-        setSelectAll(false);
-        showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
-      } else {
-        showNotification(`Deleted ${deletedCount} records. ${errors.length} failed.`, 'warning');
-      }
-
+      // Clear selection
+      setSelectedTrackers([]);
+      setSelectAll(false);
+      
+      showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
       setShowBulkDeletePrompt({ show: false, count: 0 });
     } catch (error) {
       console.error('Error in bulk delete process:', error);
