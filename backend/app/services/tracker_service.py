@@ -36,31 +36,71 @@ from app.utils.analytics_utils import standardize_records
 logger = logging.getLogger(__name__)
 
 
+def _clean_value(v):
+    """
+    Recursively convert a single value to a JSON-safe type.
+
+    Key cases that were previously broken:
+      - pandas NaT inside a nested dict → crashed json.dumps → entire dict became str()
+      - pandas NaN (float nan) inside a nested dict → same crash
+      - datetime.date / datetime.datetime objects → converted to ISO string
+    """
+    import math
+
+    if v is None:
+        return None
+
+    # pandas NaT — must check before isinstance(datetime) because NaT is a subclass
+    try:
+        import pandas as _pd
+        if _pd.isnull(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(v, dict):
+        return {str(k): _clean_value(val) for k, val in v.items()}
+
+    if isinstance(v, list):
+        return [_clean_value(item) for item in v]
+
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return v.strftime("%Y-%m-%d")
+
+    if hasattr(v, "isoformat"):        # pandas Timestamp, etc.
+        try:
+            return v.isoformat()
+        except Exception:
+            return str(v)
+
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            return None
+        return v
+
+    # Final safety-net: test JSON-serialisability
+    try:
+        json.dumps(v)
+        return v
+    except (TypeError, ValueError):
+        return str(v)
+
+
 def _serialize_for_json(records: list) -> list:
     """
     Walk the record list and convert any non-JSON-serialisable types
-    to plain strings / None so the data can be stored as JSONB.
+    (including values nested inside the 'raw' dict) to plain Python
+    scalars / None so the data can be stored as JSONB.
+
+    Previous bug: NaT / nan values inside the nested 'raw' dict caused
+    json.dumps(raw_dict) to raise TypeError, which the except clause
+    caught by calling str(raw_dict) — producing an unreadable Python
+    repr string like \"{'field': NaT, ...}\" stored verbatim in JSONB.
     """
-    cleaned = []
-    for row in records:
-        clean_row = {}
-        for k, v in row.items():
-            if v is None:
-                clean_row[k] = None
-            elif isinstance(v, (datetime.date, datetime.datetime)):
-                clean_row[k] = v.strftime("%Y-%m-%d")
-            elif hasattr(v, "isoformat"):          # pandas Timestamp etc.
-                clean_row[k] = v.isoformat()
-            elif isinstance(v, float) and (v != v):  # NaN check
-                clean_row[k] = None
-            else:
-                try:
-                    json.dumps(v)          # test serialisability
-                    clean_row[k] = v
-                except (TypeError, ValueError):
-                    clean_row[k] = str(v)
-        cleaned.append(clean_row)
-    return cleaned
+    return [
+        {k: _clean_value(v) for k, v in row.items()}
+        for row in records
+    ]
 
 
 def process_tracker_upload(
@@ -106,12 +146,12 @@ def process_tracker_upload(
     if not raw_ingested_records:
         raise ValueError("IngestionEngine returned no records. File might be empty or improperly formatted.")
 
-    # 4. Apply Standardization (Alias Mapping) - THIS IS THE ANALYTICS PREP
-    # This ensures the JSONB has 'module', 'milestone_name', 'planned_date', 'actual_date'
-    standardized_records = standardize_records(raw_ingested_records)
+    # 4. Bypass Standardization (Save directly as JSONB)
+    # The user requested to save the jsonb data in the database directly
+    # instead of mapping it to specific tracker columns.
     
     # Sanitise for JSON-serialisability
-    file_data_jsonb = _serialize_for_json(standardized_records)
+    file_data_jsonb = _serialize_for_json(raw_ingested_records)
     total_rows = len(file_data_jsonb)
 
     # 5. Save to Database (Atomic Transaction)

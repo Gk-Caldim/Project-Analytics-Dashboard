@@ -72,10 +72,10 @@ class IngestionEngine:
                     row_obj = {}
                     is_empty = True
                     for i, c in enumerate(range(1, max_c + 1)):
+                        val = cells_dict.get((r, c))
+                        if val is not None and str(val).strip() != "":
+                            is_empty = False
                         if i < len(headers):
-                            val = cells_dict.get((r, c))
-                            if val is not None and str(val).strip() != "":
-                                is_empty = False
                             row_obj[headers[i]] = val
                     if not is_empty:
                         records.append(row_obj)
@@ -99,48 +99,102 @@ class IngestionEngine:
         return df.to_dict(orient='records')
 
     def _ingest_excel(self, file_content: bytes) -> List[Dict[str, Any]]:
-        """Full 4-stage ingestion for Excel."""
         wb = load_workbook(filename=BytesIO(file_content), data_only=True)
-        sheet = wb.active # Using the active sheet as per datasets.py logic
+        sheet = wb.active
 
-        # Stage 1: Merged Cell Propagation
-        cells_dict, min_r, max_r, min_c, max_c = self._propagate_merged_cells(sheet)
-        if not cells_dict:
+        # ---------- 1. HANDLE MERGED CELLS ----------
+        merged_data = {}
+        for merged_range in sheet.merged_cells.ranges:
+            min_col, min_row, max_col, max_row = merged_range.bounds
+            value = sheet.cell(row=min_row, column=min_col).value
+
+            for r in range(min_row, max_row + 1):
+                for c in range(min_col, max_col + 1):
+                    merged_data[(r, c)] = value
+
+        # ---------- 2. EXTRACT ACTIVE DATA REGION ----------
+        cells = {}
+        min_r, max_r = float('inf'), -1
+        min_c, max_c = float('inf'), -1
+
+        for r in range(1, sheet.max_row + 1):
+            for c in range(1, sheet.max_column + 1):
+                val = merged_data.get((r, c), sheet.cell(row=r, column=c).value)
+
+                if val is not None and str(val).strip() != "":
+                    cells[(r, c)] = val
+                    min_r = min(min_r, r)
+                    max_r = max(max_r, r)
+                    min_c = min(min_c, c)
+                    max_c = max(max_c, c)
+
+        if not cells:
             return []
 
-        # Stage 2: Ratio-Based Header Detection
-        header_info = self._detect_header_row(cells_dict, min_r, max_r, min_c, max_c)
-        if not header_info:
-            # Fallback to first row if detection fails, or raise error?
-            # User protocol says "Identify", implying it's required.
-            raise ValueError(f"Could not identify a valid header row (min {self.min_header_cols} cols, >{self.text_ratio_threshold*100}% text).")
+        # ---------- 3. DETECT HEADER ROW ----------
+        header_row = None
 
-        start_row = header_info['start_row']
-        depth = header_info['depth']
-        
-        # Stage 3: Multi-Row Header Concatenation & Sanitization
-        headers = self._concatenate_headers(cells_dict, start_row, depth, min_c, max_c)
-        
-        # Extract Data
-        data_start_row = start_row + depth
-        records = []
-        for r in range(data_start_row, max_r + 1):
+        for r in range(min_r, min(min_r + 10, max_r + 1)):
+            row_vals = [cells.get((r, c)) for c in range(min_c, max_c + 1)]
+
+            text_count = sum(isinstance(v, str) for v in row_vals if v)
+            num_count = sum(isinstance(v, (int, float)) for v in row_vals if v)
+
+            if text_count > num_count:
+                header_row = r
+                break
+
+        if header_row is None:
+            raise ValueError("Header row not detected")
+
+        # ---------- 4. BUILD HEADERS (L1 + L2) ----------
+        headers = []
+        next_row = header_row + 1
+
+        for c in range(min_c, max_c + 1):
+            l1 = str(cells.get((header_row, c), "")).strip()
+            l2 = str(cells.get((next_row, c), "")).strip()
+
+            if l1 and l2:
+                name = f"{l1}_{l2}"
+            elif l2:
+                name = l2
+            else:
+                name = l1
+
+            # normalize column name
+            name = name.lower()
+            name = re.sub(r"[^\w\s]", "", name)
+            name = re.sub(r"\s+", "_", name).strip("_")
+
+            if not name:
+                name = f"column_{c}"
+
+            headers.append(name)
+
+        # ---------- 5. EXTRACT ROW DATA ----------
+        jsonb_data = []
+
+        for r in range(next_row + 1, max_r + 1):
             row_obj = {}
-            is_empty = True
-            for i, c in enumerate(range(min_c, max_c + 1)):
-                val = cells_dict.get((r, c))
-                if val is not None and str(val).strip() != "":
-                    is_empty = False
-                row_obj[headers[i]] = val
-            
-            if not is_empty:
-                records.append(row_obj)
+            empty = True
 
-        # Stage 4: Self-Healing Data Cleaning
-        df = pd.DataFrame(records)
-        df = self._clean_data(df)
-        
-        return df.to_dict(orient='records')
+            for idx, c in enumerate(range(min_c, max_c + 1)):
+                val = cells.get((r, c))
+
+                # normalize types
+                if isinstance(val, (datetime.date, datetime.datetime)):
+                    val = val.isoformat()
+
+                if val is not None:
+                    empty = False
+
+                row_obj[headers[idx]] = val
+
+            if not empty:
+                jsonb_data.append(row_obj)
+
+        return jsonb_data
 
     def _propagate_merged_cells(self, sheet):
         """Stage 1: Identify merged ranges and map values."""
@@ -223,37 +277,98 @@ class IngestionEngine:
             
         return None
 
+    @staticmethod
+    def _is_label_value(val) -> bool:
+        """
+        Returns True if 'val' looks like a column label (header-like text).
+        Returns False if it looks like data (number, date, datetime).
+
+        This is the key predicate for _determine_header_depth: we only extend
+        the header span while subsequent rows still look like label rows, not
+        data rows.  Critically, openpyxl returns Excel date cells as
+        datetime.datetime objects — these MUST be treated as data, not text.
+        """
+        if isinstance(val, bool):
+            return True          # TRUE/FALSE cells in headers are text-like
+        if isinstance(val, (int, float)):
+            return False         # plain numbers → data
+        if isinstance(val, (datetime.date, datetime.datetime)):
+            return False         # dates/datetimes from openpyxl → data
+        return True              # strings → label
+
     def _determine_header_depth(self, cells_dict, start_row, max_r, min_c, max_c):
-        """Determine if header spans multiple rows (up to 5)."""
-        best_depth = 1
-        max_score = -1
-        
-        # We test depths 1 to 5
-        for d in range(1, min(6, max_r - start_row + 2)):
-            headers_at_d = []
+        """
+        Determine if the header spans multiple rows (multi-row / sub-header scenario).
+
+        Primary gate — unique-value check:
+          If the detected header row already has ALL-UNIQUE non-empty values,
+          it is definitively a final, single-row header.  Return depth=1 immediately.
+          No need to inspect subsequent rows at all.
+
+          Real single-row headers always have unique column names.
+          The only situation where the header row contains REPEATED values is
+          when merged cells from a parent-header row have been propagated (Stage 1)
+          into adjacent columns — e.g.:
+
+            Row A (after propagation): "Scope" | "Scope" | "Dates" | "Dates"
+            Row B:                     "Name"  | "Type"  | "Start" | "End"
+
+          In that case unique_ratio < threshold, so we proceed to sub-row inspection.
+
+        Secondary gate — text-ratio + label-value check:
+          Used only when the primary gate allows extending (repeated header values).
+          Extend depth while the NEXT row is also all-text labels.
+          Stop the moment a row contains numbers, datetimes, or mixed data.
+
+        This two-gate design fixes two historical bugs:
+          Bug 1: scoring formula always preferred higher depth (unique strings grew).
+          Bug 2: datetime objects counted as 'text', so date-heavy data rows looked
+                 like header rows and depth kept growing.
+          Bug 3 (new): text-heavy data rows (names, status strings) also passed the
+                 text-ratio gate, absorbing data rows into the header for issues
+                 trackers and similar text-dominant sheets.
+        """
+        # --- Primary gate: check uniqueness of the header row itself ---
+        header_vals = []
+        for c in range(min_c, max_c + 1):
+            val = cells_dict.get((start_row, c))
+            if val is not None and str(val).strip() != "":
+                header_vals.append(str(val).strip())
+
+        if not header_vals:
+            return 1
+
+        unique_ratio = len(set(header_vals)) / len(header_vals)
+        # Threshold 0.85 allows 1 duplicate in ~7 columns without triggering
+        # (handles edge cases) but rejects clearly merged-cell parent rows.
+        if unique_ratio > 0.85:
+            # All unique labels → clean single-row header, no multi-row structure
+            return 1
+
+        # --- Secondary gate: merged-cell parent detected, check sub-rows ---
+        depth = 1
+        for extra in range(1, min(4, max_r - start_row + 1)):
+            next_row = start_row + extra
+            non_null = 0
+            text_cells = 0
+
             for c in range(min_c, max_c + 1):
-                parts = []
-                for hr in range(start_row, start_row + d):
-                    val = cells_dict.get((hr, c))
-                    if val is not None and str(val).strip() != "":
-                        parts.append(str(val).strip())
-                
-                # Check for uniqueness if we join them
-                combined = " ".join(parts)
-                headers_at_d.append(combined)
-            
-            # Score based on uniqueness and non-emptiness
-            unique_headers = len(set([h for h in headers_at_d if h]))
-            empty_headers = sum(1 for h in headers_at_d if not h)
-            
-            # Simple heuristic score: more unique is better, more empty is worse
-            score = unique_headers - (empty_headers * 0.5)
-            
-            if score > max_score:
-                max_score = score
-                best_depth = d
-                
-        return best_depth
+                val = cells_dict.get((next_row, c))
+                if val is not None and str(val).strip() != "":
+                    non_null += 1
+                    if self._is_label_value(val):
+                        text_cells += 1
+
+            if non_null == 0:
+                break   # empty row — stop
+
+            text_ratio = text_cells / non_null
+            if text_ratio >= self.text_ratio_threshold:
+                depth += 1   # next row also all-text labels → sub-header, extend
+            else:
+                break        # next row has numbers / dates → data, stop
+
+        return depth
 
     def _concatenate_headers(self, cells_dict, start_row, depth, min_c, max_c):
         """Stage 3: Concatenate and sanitize headers."""
@@ -328,19 +443,26 @@ class IngestionEngine:
                 s_str = str(s).strip()
                 return s_str != "" and s_str.replace('.','',1).replace('-','',1).isdigit()
 
-            # Avoid parsing small integers as dates (common in S.No columns)
+            # Avoid parsing small integers as dates (common in S.No / Quantity columns).
+            # Excel date serials start at ~25569 (Jan 1, 1970 in Excel is 25569).
+            # Any column whose max numeric value is below 25000 is definitively NOT a date.
             if pd.api.types.is_numeric_dtype(df[col]) or all(is_digit_string(x) for x in df[col][non_empty_mask]):
                 try:
                     temp_numeric = pd.to_numeric(df[col][non_empty_mask], errors='coerce')
-                    if not temp_numeric.dropna().empty and temp_numeric.dropna().max() < 1000: 
+                    if not temp_numeric.dropna().empty and temp_numeric.dropna().max() < 25000:
                         is_likely_numeric = True
                 except:
                     pass
             
             col_lower = str(col).lower()
-            is_date_col = any(k in col_lower for k in ['date', 'start', 'end', 'planned', 'actual', 'target', 'closure', 'completion'])
+            # is_date_col is purely informational now — used for the validity threshold below,
+            # NOT to override is_likely_numeric.  A column named 'planned_quantity' that
+            # contains integers like 10, 5, 15 must NOT be date-parsed just because its
+            # name contains 'planned'.
+            is_date_col = any(k in col_lower for k in ['date', 'start', 'end', 'plan_date',
+                              'actual_date', 'target_date', 'closure', 'completion_date'])
 
-            if not is_likely_numeric or is_date_col:
+            if not is_likely_numeric:
                 try:
                     # 1. Try parsing as Excel serial date if it's a number
                     def parse_excel_date(x):
