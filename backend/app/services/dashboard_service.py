@@ -2,6 +2,7 @@
 Dashboard Intelligence Service
 Transforms raw trackers_data records into structured analytics for a given project.
 """
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project import Project
@@ -61,7 +62,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     # Strategy: Group by file_name and take the latest created_at for each.
     subq = db.query(
         TrackerIngestion.file_name,
-        db.func.max(TrackerIngestion.created_at).label('max_created')
+        func.max(TrackerIngestion.created_at).label('max_created')
     ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
 
     ingestions = db.query(TrackerIngestion).join(

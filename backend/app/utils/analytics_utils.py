@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 # Standard Aliases (must match excel_parser.py for consistency)
 ALIASES = {
-    "module":       ["module", "function", "phase", "category", "dept", "department"],
-    "milestone":    ["milestone", "task", "activity", "deliverable", "description", "item"],
-    "planned_date": ["planned_date", "target_date", "plan_date", "baseline_date", "start_date", "scheduled_date"],
-    "actual_date":  ["actual_date", "closure_date", "close_date", "completion_date", "finish_date", "end_date"],
+    "module":       ["module", "function", "phase", "category", "dept", "department", "system", "commodity", "part_category"],
+    "milestone":    ["milestone", "task", "activity", "deliverable", "description", "item", "part_description", "part_number"],
+    "planned_date": ["planned_date", "target_date", "plan_date", "baseline_date", "start_date", "scheduled_date", "cae_analysis_plan", "l0_drawing_release_plan", "l1_drawing_release_plan", "l2_drawing_release_plan"],
+    "actual_date":  ["actual_date", "closure_date", "close_date", "completion_date", "finish_date", "end_date", "cae_analysis_actual", "l0_drawing_release_actual", "l1_drawing_release_actual", "l2_drawing_release_actual"],
 }
 
 def standardize_record(raw_record: Dict[str, Any]) -> Dict[str, Any]:

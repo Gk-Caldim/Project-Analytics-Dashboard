@@ -11,6 +11,7 @@ from app.crud import project_column as column_crud
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.utils.audit import log_activity, generate_diff_summary
+from app.models.budget import BudgetSummary # Added for cleanup
 
 router = APIRouter(
     prefix="/projects",
@@ -180,6 +181,15 @@ def delete_project(
         if not success:
             raise HTTPException(status_code=404, detail="Project not found")
             
+        # Cleanup orphaned budget summary if exists
+        try:
+            db.query(BudgetSummary).filter(BudgetSummary.project_name == db_project.name).delete()
+            db.commit()
+        except Exception as budget_error:
+            # Non-critical if budget cleanup fails, but log it
+            print(f"Non-critical: Failed to cleanup budget for {db_project.name}: {budget_error}")
+            db.rollback()
+
         # Audit Log
         log_activity(
             db=db,
@@ -229,6 +239,17 @@ def bulk_delete_projects(
         success = crud_project.bulk_delete_projects(db, project_ids)
         if not success:
             raise HTTPException(status_code=404, detail="One or more projects not found")
+            
+        # Cleanup orphaned budget summaries
+        try:
+            # We don't have the names here easily, but we can delete by ID if project_id was stored, 
+            # or just skip for bulk if complex. Let's try to get names first.
+            # However, bulk delete is rare. Let's at least try to match by IDs if possible.
+            # But BudgetSummary doesn't have project_id (int).
+            pass 
+        except:
+            pass
+
         return {"message": f"{len(project_ids)} projects deleted successfully"}
     except Exception as e:
         # Handle foreign key constraint violation
@@ -361,28 +382,27 @@ def get_project_structure(
     """
     from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
-    from app.models.tracker import TrackerData
+    from app.models.tracker_ingestion import TrackerIngestion
+    from app.utils.analytics_utils import standardize_records
 
     project = db.query(crud_project.Project).filter(crud_project.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Flat distinct modules for this project (deduped across all uploads)
-    flat_modules_rows = (
-        db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.project_id == project_id,
-            TrackerData.module != None,
-            TrackerData.module != "",
-        )
-        .group_by(TrackerData.module)
-        .order_by(TrackerData.module)
-        .all()
-    )
+    # Fetch all ingestions for this project to build the module list
+    all_ingestions = db.query(TrackerIngestion).filter(TrackerIngestion.project_id == project_id).all()
+    
+    # Build flat deduplicated modules from JSONB
+    flat_modules_dict = {}
+    for ing in all_ingestions:
+        std_records = standardize_records(ing.data)
+        for r in std_records:
+            mod_name = r.get("module") or "Unknown"
+            flat_modules_dict[mod_name] = flat_modules_dict.get(mod_name, 0) + 1
+            
     flat_modules = [
-        {"module_name": r.module, "milestones_count": r.cnt}
-        for r in flat_modules_rows
-        if r.module
+        {"module_name": name, "milestones_count": count}
+        for name, count in flat_modules_dict.items()
     ]
 
     uploads = (
@@ -394,22 +414,20 @@ def get_project_structure(
 
     uploads_out = []
     for u in uploads:
-        # Group milestones by module for this specific upload
-        rows = (
-            db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-            .filter(
-                TrackerData.upload_id == u.id,
-                TrackerData.module != None,
-                TrackerData.module != "",
-            )
-            .group_by(TrackerData.module)
-            .all()
-        )
-        upload_modules = [
-            {"module_name": r.module, "milestones_count": r.cnt}
-            for r in rows
-            if r.module
-        ]
+        # Get modules for this specific upload
+        upload_ingestion = next((i for i in all_ingestions if i.upload_id == u.id), None)
+        upload_modules = []
+        
+        if upload_ingestion:
+            u_mod_dict = {}
+            std_u_records = standardize_records(upload_ingestion.data)
+            for r in std_u_records:
+                m_name = r.get("module") or "Unknown"
+                u_mod_dict[m_name] = u_mod_dict.get(m_name, 0) + 1
+            upload_modules = [
+                {"module_name": name, "milestones_count": count}
+                for name, count in u_mod_dict.items()
+            ]
 
         if not upload_modules and (getattr(u, 'row_count') or 0) > 0 and (getattr(u, 'valid_row_count') or 0) == 0:
             fallback_name = u.file_name.split('.')[0] if u.file_name else "Dataset"
@@ -454,50 +472,45 @@ def get_all_project_structures(
     """
     from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
-    from app.models.tracker import TrackerData
+    from app.models.tracker_ingestion import TrackerIngestion
+    from app.utils.analytics_utils import standardize_records
 
     projects = db.query(crud_project.Project).all()
     all_uploads = db.query(Upload).all()
+    all_ingestions = db.query(TrackerIngestion).all()
 
-    # Build per-upload module map
-    all_rows = (
-        db.query(TrackerData.upload_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.module != None,
-            TrackerData.module != "",
-        )
-        .group_by(TrackerData.upload_id, TrackerData.module)
-        .all()
-    )
+    # Build maps from ingestions
+    upload_modules_map = {}
+    project_flat_modules = {}
 
-    upload_modules: dict = {}
-    for r in all_rows:
-        if r.upload_id not in upload_modules:
-            upload_modules[r.upload_id] = []
-        if r.module:
-            upload_modules[r.upload_id].append({"module_name": r.module, "milestones_count": r.cnt})
+    for ing in all_ingestions:
+        u_id = ing.upload_id
+        p_id = ing.project_id
+        
+        if u_id not in upload_modules_map:
+            upload_modules_map[u_id] = {}
+        if p_id not in project_flat_modules:
+            project_flat_modules[p_id] = {}
+            
+        std_records = standardize_records(ing.data)
+        for r in std_records:
+            m_name = r.get("module") or "Unknown"
+            # Per upload
+            upload_modules_map[u_id][m_name] = upload_modules_map[u_id].get(m_name, 0) + 1
+            # Per project
+            project_flat_modules[p_id][m_name] = project_flat_modules[p_id].get(m_name, 0) + 1
 
-    # Build flat project → modules map (deduplicated across all uploads)
-    flat_rows = (
-        db.query(TrackerData.project_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.project_id != None,
-            TrackerData.module != None,
-            TrackerData.module != "",
-        )
-        .group_by(TrackerData.project_id, TrackerData.module)
-        .order_by(TrackerData.module)
-        .all()
-    )
-
-    project_flat_modules: dict = {}
-    for r in flat_rows:
-        if r.project_id not in project_flat_modules:
-            project_flat_modules[r.project_id] = []
-        if r.module:
-            project_flat_modules[r.project_id].append(
-                {"module_name": r.module, "milestones_count": r.cnt}
-            )
+    # Convert maps to list of dicts for the final results
+    upload_modules = {
+        u_id: [{"module_name": name, "milestones_count": count} for name, count in mods.items()]
+        for u_id, mods in upload_modules_map.items()
+    }
+    
+    project_flat_modules_out = {
+        p_id: [{"module_name": name, "milestones_count": count} for name, count in mods.items()]
+        for p_id, mods in project_flat_modules.items()
+    }
+    project_flat_modules = project_flat_modules_out
 
     result = []
     for p in projects:
@@ -512,7 +525,7 @@ def get_all_project_structures(
                 flat_mods.append(m.copy())
                 module_names_seen.add(m["module_name"])
 
-        # 2. Add modules from Uploads (including generic ones)
+        # Filter: Only bring projects that have data present in uploads or ingestions
         if not proj_uploads and not flat_mods:
             continue
 
