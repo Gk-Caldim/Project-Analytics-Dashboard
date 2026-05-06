@@ -127,7 +127,7 @@
   }
 
   .master-table-container {
-    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-xl border border-slate-200/80;
+    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80;
   }
 
   .master-table-inner {
