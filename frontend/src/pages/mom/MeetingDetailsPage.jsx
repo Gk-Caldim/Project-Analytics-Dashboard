@@ -126,6 +126,7 @@ const MeetingDetailsPage = () => {
   const timerRef                        = useRef(null);
   const waveAnimRef                     = useRef(null);
   const speakerColorMapRef              = useRef({});
+  const recordStateRef                  = useRef('IDLE');
   const audioCtxRef = useRef(null);
   const analyserRef = useRef(null);
   const streamRef   = useRef(null);
