@@ -373,7 +373,12 @@ const ProjectTitleDashboard = () => {
 
   const activeProject = useMemo(() => {
     if (!projectId) return null;
-    return projects.find(p => String(p.id) === String(projectId) || p.name === projectId);
+    return projects.find(p =>
+      String(p.id) === String(projectId) ||
+      p.name === projectId ||
+      decodeURIComponent(String(projectId)) === p.name ||
+      String(p.dbProjectId) === String(projectId)
+    );
   }, [projectId, projects]);
 
   const selectedSubmodule = useMemo(() => {
@@ -937,7 +942,7 @@ const ProjectTitleDashboard = () => {
 
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
-    if (!trackerId) return;
+    if (!trackerId || trackerId === 'undefined' || trackerId === 'null') return;
     
     // Prevent multiple concurrent loads for the same trackerId or re-loading if failed
     if (submoduleLoading[trackerId]) return;
@@ -1090,11 +1095,14 @@ const ProjectTitleDashboard = () => {
 
   // Handle submodule click
   const handleSubmoduleClick = (submodule) => {
+    if (!submodule || (!submodule.id && !submodule.trackerId)) return;
     setSearchParams(prev => {
       prev.set('submoduleId', submodule.id || submodule.trackerId);
       return prev;
     });
-    loadSubmoduleData(submodule.trackerId);
+    if (submodule.trackerId) {
+      loadSubmoduleData(submodule.trackerId);
+    }
   };
 
   // Handle back to project dashboard

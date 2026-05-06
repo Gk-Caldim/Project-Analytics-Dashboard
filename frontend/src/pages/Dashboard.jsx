@@ -69,6 +69,10 @@ const Dashboard = () => {
     activeView
   } = useSelector(state => state.nav);
 
+  // MOM context for sidebar label
+  const momMeetingName = useSelector(state => state.mom?.meetingName);
+  const isOnMOMView = location.pathname.includes('/mom/view');
+
   // Fetch settings on mount
   useEffect(() => {
     const fetchCompanySettings = async () => {
@@ -365,6 +369,7 @@ const Dashboard = () => {
       }
     }
     else if (path.includes('/dashboard/masters')) dispatch(setActiveModule('masters-main'));
+    else if (path.includes('/dashboard/mom/view')) dispatch(setActiveModule('meetings'));
     else if (path.includes('/dashboard/mom')) dispatch(setActiveModule('mom-module'));
     else if (path.includes('/dashboard/meetings')) dispatch(setActiveModule('meetings'));
     else if (path.includes('/dashboard/schedule-meeting')) dispatch(setActiveModule('schedule-meeting'));
@@ -896,8 +901,8 @@ const Dashboard = () => {
     if (!hasPermission('MOM')) return null;
 
     const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings';
-    const isHovered = hoveredModule === 'mom-main';
+    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || isOnMOMView;
+    const isAllMeetingsActive = activeModule === 'meetings' || isOnMOMView;
 
     return (
       <div key="mom">
@@ -905,11 +910,13 @@ const Dashboard = () => {
           onMouseEnter={() => setHoveredModule('mom-main')}
           onMouseLeave={() => setHoveredModule(null)}
           onClick={() => handleModuleClick('meetings')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-            } ${isActive
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${
+            isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
+          } ${
+            isActive
               ? 'bg-brand-primary/10 text-white font-semibold'
               : 'hover:bg-white/5 text-white/60 hover:text-white'
-            }`}
+          }`}
         >
           <div className="flex items-center">
             {isSidebarExpanded && (
@@ -933,30 +940,44 @@ const Dashboard = () => {
 
         {isSidebarExpanded && isExpanded && (
           <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            <button
-              key="meetings"
-              onMouseEnter={() => setHoveredModule('meetings')}
-              onMouseLeave={() => setHoveredModule(null)}
-              onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'meetings'
-                ? 'bg-brand-primary/10 text-white font-semibold'
-                : 'hover:bg-white/5 text-white/70 hover:text-white'
+            {/* All Meetings — active when on meetings list OR MOM output page */}
+            <div>
+              <button
+                key="meetings"
+                onMouseEnter={() => setHoveredModule('meetings')}
+                onMouseLeave={() => setHoveredModule(null)}
+                onClick={() => handleModuleClick('meetings')}
+                className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-2 ${
+                  isAllMeetingsActive
+                    ? 'border-l-[#0D9488] bg-brand-primary/10 text-white font-semibold'
+                    : 'border-l-transparent hover:bg-white/5 text-white/70 hover:text-white'
                 }`}
-            >
-              <span className="text-body-sm font-medium tracking-tight">
-                All Meetings
-              </span>
-            </button>
+              >
+                <span className="text-body-sm font-medium tracking-tight">
+                  All Meetings
+                </span>
+              </button>
+              {/* Contextual label when viewing a specific MOM output */}
+              {isOnMOMView && momMeetingName && isSidebarExpanded && (
+                <div className="px-4 pb-1 -mt-0.5">
+                  <span className="text-[10px] italic text-white/35 leading-none block truncate">
+                    Viewing: {momMeetingName}
+                  </span>
+                </div>
+              )}
+            </div>
 
+            {/* Create MOM — only active when explicitly on the capture page */}
             <button
               key="mom-module"
               onMouseEnter={() => setHoveredModule('mom-module')}
               onMouseLeave={() => setHoveredModule(null)}
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${activeModule === 'mom-module'
-                ? 'bg-brand-primary/10 text-white font-semibold'
-                : 'hover:bg-white/5 text-white/70 hover:text-white'
-                }`}
+              className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-2 ${
+                activeModule === 'mom-module' && !isOnMOMView
+                  ? 'border-l-[#0D9488] bg-brand-primary/10 text-white font-semibold'
+                  : 'border-l-transparent hover:bg-white/5 text-white/70 hover:text-white'
+              }`}
             >
               <span className="text-body-sm font-medium tracking-tight">
                 Create MOM

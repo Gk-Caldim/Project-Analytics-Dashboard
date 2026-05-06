@@ -152,6 +152,8 @@ app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
 app.include_router(application_access_router, prefix=API_PREFIX)
 app.include_router(chat_router, prefix=API_PREFIX)
+from app.api.departments import router as departments_router
+app.include_router(departments_router, prefix=API_PREFIX)
 app.include_router(enterprise_router, prefix=API_PREFIX)
 
 from app.api.transcript import router as transcript_router

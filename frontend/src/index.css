@@ -14,11 +14,14 @@
   /* Industrial Analytics Brand Colors - Redesign 2026 */
   --brand-navy: #0004ab;
   --brand-primary-bg: #F4F6F9;
-  
+
   /* Redesign Specs */
-  --secondary: #000000; /* Brand black for text (headers/body) */
-  --sidebar-bg: #1a1a1a; /* Medium dark black for sidebar */
-  --primary: #F4F6F9;   /* Light Gray for surfaces and background */
+  --secondary: #000000;
+  /* Brand black for text (headers/body) */
+  --sidebar-bg: #1a1a1a;
+  /* Medium dark black for sidebar */
+  --primary: #F4F6F9;
+  /* Light Gray for surfaces and background */
 
   /* Typography */
   --font-inter: 'Inter', -apple-system, sans-serif;
@@ -46,9 +49,12 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 }
 
@@ -64,7 +70,8 @@
     overflow-x: hidden;
     background-color: var(--bg);
     color: var(--text-primary);
-    letter-spacing: -0.011em; /* Inter refinement */
+    letter-spacing: -0.011em;
+    /* Inter refinement */
   }
 
   h1,
