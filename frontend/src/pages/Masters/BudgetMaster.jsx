@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, Calculator } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download } from 'lucide-react';
 import useCurrency from '../../hooks/useCurrency';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
@@ -63,21 +65,46 @@ const RevisionBadge = ({ status }) => {
 };
 
 // ─── Summary Card (Static Aggregate View) ───────────────────────────────────
-const SummaryCard = ({ label, value, color, format, subLabel }) => {
+const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
-      <div className="flex flex-col mb-6">
-        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
-        <p className="text-[10px] font-bold text-slate-500 italic uppercase tracking-wider">{subLabel}</p>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
+      {/* Decorative vertical accent */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${
+        color === 'red' ? 'bg-red-500' :
+        color === 'blue' ? 'bg-blue-500' :
+        'bg-emerald-500'
+      } opacity-20`}></div>
+
+      <div className="flex-1">
+        <div className="flex flex-col mb-6">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+          <p className="text-[10px] font-bold text-slate-500 italic uppercase tracking-wider">{subLabel}</p>
+        </div>
+        <p className={`text-3xl font-black tracking-tighter ${
+          color === 'red' ? 'text-red-600' :
+          color === 'blue' ? 'text-blue-600' :
+          color === 'emerald' ? 'text-emerald-600' :
+          'text-slate-900 dark:text-white'
+        }`}>
+          {format(value, false)}
+        </p>
       </div>
-      <p className={`text-3xl font-black tracking-tighter ${
-        color === 'red' ? 'text-red-600' :
-        color === 'blue' ? 'text-blue-600' :
-        color === 'emerald' ? 'text-emerald-600' :
-        'text-slate-900 dark:text-white'
-      }`}>
-        {format(value, false)}
-      </p>
+
+      {/* Right Side Metadata - Clean & Functional Context */}
+      <div className="pl-10 ml-6 border-l border-slate-100 dark:border-slate-800/50 flex flex-col gap-5 text-right min-w-[140px]">
+        {extraStat && (
+          <div>
+            <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">{extraStat.label}</p>
+            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-400'}`}>
+              {extraStat.value}
+            </p>
+          </div>
+        )}
+        <div>
+          <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">Items Processed</p>
+          <p className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-tight">{count} Rows</p>
+        </div>
+      </div>
     </div>
   );
 };
@@ -109,8 +136,7 @@ const BudgetMaster = () => {
   const [attachmentName, setAttachmentName] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [calcSimAmount, setCalcSimAmount] = useState('');
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   const [historyData, setHistoryData] = useState([]);
   const [fetchingHistory, setFetchingHistory] = useState(false);
@@ -528,6 +554,109 @@ const BudgetMaster = () => {
     } catch { showNotification('Download failed', 'error'); }
   };
 
+  const handleExportExcel = () => {
+    if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+    const exportData = tableData.map(row => {
+      const filteredRow = {};
+      columns.forEach(col => {
+        if (col.visible) filteredRow[col.label] = row[col.label];
+      });
+      return filteredRow;
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Budget");
+    XLSX.writeFile(wb, `Budget_${selectedProject || 'Export'}.xlsx`);
+    showNotification('Exported as Excel');
+  };
+
+  const handleExportPDF = () => {
+    try {
+      if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+      
+      // Initialize landscape A4 document
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Header Section
+      doc.setFontSize(20);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.text("Project Budget Plan", 14, 20);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.text(`Project: ${selectedProject || 'Not Selected'}`, 14, 28);
+      doc.text(`Effective Date: ${budgetDate || new Date().toLocaleDateString()}`, 14, 33);
+      doc.text(`Exported On: ${new Date().toLocaleString()}`, 14, 38);
+
+      // Horizontal Divider
+      doc.setDrawColor(241, 245, 249);
+      doc.line(14, 42, 283, 42);
+
+      // Data Preparation
+      const visibleCols = columns.filter(c => c.visible);
+      const tableHeaders = [visibleCols.map(c => c.label)];
+      const tableRows = tableData.map(row => 
+        visibleCols.map(c => {
+          const val = row[c.label];
+          if (val === undefined || val === null) return '-';
+          if (MONETARY_COLS.includes(c.label)) {
+            try {
+              return format(val, false);
+            } catch {
+              return String(val);
+            }
+          }
+          return String(val);
+        })
+      );
+
+      // Render Table
+      autoTable(doc, {
+        head: tableHeaders,
+        body: tableRows,
+        startY: 45,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: 'bold',
+          halign: 'left'
+        },
+        bodyStyles: {
+          fontSize: 7,
+          textColor: [51, 65, 85], // slate-700
+          cellPadding: 3
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252] // slate-50
+        },
+        margin: { top: 45, right: 14, bottom: 20, left: 14 },
+        didDrawPage: (data) => {
+          // Footer
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}`,
+            data.settings.margin.left,
+            doc.internal.pageSize.height - 10
+          );
+        }
+      });
+
+      doc.save(`Budget_Report_${selectedProject || 'Export'}_${new Date().getTime()}.pdf`);
+      showNotification('PDF Exported Successfully');
+    } catch (err) {
+      console.error('PDF Export Error:', err);
+      showNotification('Failed to generate PDF. Please check table data.', 'error');
+    }
+  };
+
   const handleDownloadBudgetFile = async (projectName, fileName) => {
     try {
       const res = await API.get(`/budget/${encodeURIComponent(projectName)}/attachment`, { responseType: 'blob' });
@@ -762,6 +891,8 @@ const BudgetMaster = () => {
                     color="blue"
                     format={format}
                     subLabel="Summation of Estimated Values"
+                    count={tableData.length}
+                    extraStat={{ label: 'Project Lead', value: managerName || 'Unassigned' }}
                   />
                   <SummaryCard
                     label="Total Utilization"
@@ -769,6 +900,12 @@ const BudgetMaster = () => {
                     color={isOverBudget ? 'red' : 'emerald'}
                     format={format}
                     subLabel="Summation of (Utilized + Commitment)"
+                    count={tableData.length}
+                    extraStat={{ 
+                      label: 'Budget Limit', 
+                      value: format(parseFloat(overallBudget), false),
+                      color: isOverBudget ? 'text-red-500' : 'text-slate-500'
+                    }}
                   />
                   <SummaryCard
                     label="Total Balance"
@@ -776,6 +913,12 @@ const BudgetMaster = () => {
                     color={totalBalance < 0 ? 'red' : 'emerald'}
                     format={format}
                     subLabel="Summation of Balance Remaining"
+                    count={tableData.length}
+                    extraStat={{ 
+                      label: 'Approved Revisions', 
+                      value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
+                      color: 'text-slate-500 dark:text-slate-400'
+                    }}
                   />
                 </div>
               )}
@@ -840,128 +983,61 @@ const BudgetMaster = () => {
                       }}
                       className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
                     >
-                      {isParsing ? 'Parsing...' : 'Import Excel'}
+                      {isParsing ? 'Parsing...' : 'Upload Budget'}
                     </button>
                   </div>
-
-                  <div className="relative">
-                    <button onClick={handleDownloadTemplate}
-                      className="h-10 px-6 text-sm font-bold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300"
-                    >
-                      Template
-                    </button>
-                  </div>
-
-                  {attachmentName && (
-                    <button onClick={() => handleDownloadBudgetFile(selectedProject, attachmentName)}
-                      className="h-10 px-6 text-sm font-bold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300">
-                      Download
-                    </button>
-                  )}
 
                   <div className="relative">
                     <button
-                      onClick={() => setShowCalculator(!showCalculator)}
-                      className={`h-10 px-6 rounded-lg border transition-all flex items-center justify-center font-bold text-sm ${showCalculator
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200 dark:shadow-none'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
-                        }`}
-                      title="Budget Calculator"
+                      onClick={() => setShowExportDropdown(!showExportDropdown)}
+                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
                     >
-                      Calc
+                      <FileDown className="w-4 h-4" />
+                      Export / Download
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
                     </button>
 
                     <AnimatePresence>
-                      {showCalculator && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                          className="absolute right-0 top-full mt-3 w-80 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-none shadow-2xl border border-slate-200 dark:border-slate-700 p-8 overflow-hidden"
-                        >
-                          {/* Design Header */}
-                          <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-slate-900 dark:bg-slate-700 rounded-none">
-                                <Calculator className="w-4 h-4 text-white" />
-                              </div>
-                              <span className="text-sm font-bold text-slate-800 dark:text-white">Quick Calc</span>
+                      {showExportDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 10 }}
+                            className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 overflow-hidden"
+                          >
+                            <div className="px-4 py-2 mb-2 border-b border-slate-50 dark:border-slate-800">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Options</p>
                             </div>
-                            <button onClick={() => setShowCalculator(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase">
-                              Close
+                            
+                            <button onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              <Download className="w-4 h-4 text-blue-500" />
+                              Download Template
                             </button>
-                          </div>
 
-                          {/* Values Stack */}
-                          <div className="space-y-6">
-                            <div className="flex justify-between items-end">
-                              <div>
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">Overall</p>
-                                <p className="text-base font-bold text-slate-700 dark:text-slate-300">{format(overallBudget, false)}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-400 mb-1">Utilization</p>
-                                <p className="text-base font-bold text-slate-700 dark:text-slate-300">{format(totalUtilization, false)}</p>
-                              </div>
-                            </div>
+                            <button onClick={() => { handleExportExcel(); setShowExportDropdown(false); }}
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+                              Export as Excel
+                            </button>
 
-                            {/* Health Bar (Visual Gauge) */}
-                            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${Math.min(100, (totalUtilization / (parseFloat(overallBudget) || 1)) * 100)}%` }}
-                                className={`h-full ${isOverBudget ? 'bg-red-500' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`}
-                              />
-                              {calcSimAmount && (
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${Math.min(100 - (totalUtilization / (parseFloat(overallBudget) || 1)) * 100, (parseFloat(calcSimAmount) / (parseFloat(overallBudget) || 1)) * 100)}%` }}
-                                  className="h-full bg-indigo-400 opacity-60"
-                                />
-                              )}
-                            </div>
+                            <button onClick={() => { handleExportPDF(); setShowExportDropdown(false); }}
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              <FileText className="w-4 h-4 text-red-500" />
+                              Export as PDF
+                            </button>
 
-                            {/* Simulation Tool */}
-                            <div className="bg-slate-50/50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700/50">
-                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-3">Simulate expense/change</label>
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="number"
-                                  value={calcSimAmount}
-                                  onChange={(e) => setCalcSimAmount(e.target.value)}
-                                  placeholder="0.00"
-                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-base font-bold focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
-                                />
-                                <button onClick={() => setCalcSimAmount('')} className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">
-                                  Reset
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Final Results */}
-                            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-bold text-slate-500">Balance</span>
-                                <span className={`text-lg font-black ${(parseFloat(overallBudget) || 0) - totalUtilization < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                                  {format((parseFloat(overallBudget) || 0) - totalUtilization, false)}
-                                </span>
-                              </div>
-                              {calcSimAmount && (
-                                <motion.div
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  className="flex justify-between items-center mt-4 pt-4 border-t border-dashed border-slate-200 dark:border-slate-700"
-                                >
-                                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">Projected</span>
-                                  <span className={`text-lg font-black ${(parseFloat(overallBudget) || 0) - totalUtilization - (parseFloat(calcSimAmount) || 0) < 0 ? 'text-red-500' : 'text-indigo-600'}`}>
-                                    {format((parseFloat(overallBudget) || 0) - totalUtilization - (parseFloat(calcSimAmount) || 0), false)}
-                                  </span>
-                                </motion.div>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
+                            {attachmentName && (
+                              <button onClick={() => { handleDownloadBudgetFile(selectedProject, attachmentName); setShowExportDropdown(false); }}
+                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
+                                <Download className="w-4 h-4 text-slate-400" />
+                                Download Original
+                              </button>
+                            )}
+                          </motion.div>
+                        </>
                       )}
                     </AnimatePresence>
                   </div>
