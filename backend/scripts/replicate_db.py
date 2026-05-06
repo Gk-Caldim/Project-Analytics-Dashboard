@@ -16,15 +16,15 @@ def replicate():
         print("Error: .env file not found.")
         return
 
-    cloud_url = os.getenv("CLOUD_DATABASE_URL")
-    local_host = os.getenv("LOCAL_DB_HOST", "localhost")
-    local_port = os.getenv("LOCAL_DB_PORT", "5432")
-    local_name = os.getenv("LOCAL_DB_NAME", "postgres")
-    local_user = os.getenv("LOCAL_DB_USER", "postgres")
-    local_pass = os.getenv("LOCAL_DB_PASSWORD", "")
+    cloud_url = os.getenv("CLOUD_DATABASE_URL") or os.getenv("DATABASE_URL")
+    local_host = os.getenv("LOCAL_DB_HOST") or os.getenv("DB_HOST", "localhost")
+    local_port = os.getenv("LOCAL_DB_PORT") or os.getenv("DB_PORT", "5432")
+    local_name = os.getenv("LOCAL_DB_NAME") or os.getenv("DB_NAME", "postgres")
+    local_user = os.getenv("LOCAL_DB_USER") or os.getenv("DB_USER", "postgres")
+    local_pass = os.getenv("LOCAL_DB_PASSWORD") or os.getenv("DB_PASSWORD", "")
 
     if not cloud_url:
-        print("Error: CLOUD_DATABASE_URL not found in .env")
+        print("Error: CLOUD_DATABASE_URL or DATABASE_URL not found in .env")
         return
 
     local_url = f"postgresql://{local_user}:{local_pass}@{local_host}:{local_port}/{local_name}"

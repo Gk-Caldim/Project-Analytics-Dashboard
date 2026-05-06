@@ -34,6 +34,7 @@ from app.models.meeting import Meeting
 from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator
 from app.services.google_token_service import GoogleTokenService
 from app.services.email_service import email_service
+from app.services.llm_service import llm_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -503,33 +504,23 @@ async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(ge
 @router.post("/{meeting_id}/generate-mom")
 async def generate_mom(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
     """
-    Generate a basic heuristic Meeting of Minutes markdown summary.
-    (Can be upgraded to an LLM call later)
+    Generate a high-fidelity MOM using AI (OpenAI GPT-4o).
+    Falls back to heuristics if AI fails or key is missing.
     """
     meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
-    if not meeting:
-        raise HTTPException(status_code=404, detail="Meeting not found")
-
-    agenda = payload.get("agenda", [])
-    attendees = payload.get("attendees", [])
-    duration = payload.get("duration", 60)
     
-    mom_text = f"### Meeting of Minutes\n\n**Date:** {meeting.date}\n**Duration:** {duration} mins\n**Attendees:** {', '.join(attendees) if attendees else 'None listed'}\n\n"
+    transcript = payload.get("transcript", [])
+    title = meeting.title if meeting else payload.get("title", "Untitled Meeting")
     
-    mom_text += "#### Agenda Items Discussed\n"
-    if agenda:
-        for item in agenda:
-            title = item.get("title", "") if isinstance(item, dict) else str(item)
-            if title:
-                mom_text += f"- **{title}**: Discussed. Pending further review.\n"
-    else:
-        mom_text += "- General project updates and sync.\n"
-        
-    mom_text += "\n#### Default Action Items\n"
-    mom_text += "- [ ] Review meeting recording and transcript.\n"
-    mom_text += "- [ ] Schedule follow-up if necessary.\n"
+    # Call LLM Service
+    intelligence = llm_service.generate_mom_intelligence(transcript, title)
     
-    meeting.mom_generated = True
-    db.commit()
+    if meeting:
+        meeting.mom_generated = True
+        meeting.action_item_count = len(intelligence.get("action_items", []))
+        db.commit()
     
-    return {"success": True, "mom": mom_text}
+    return {
+        "success": True,
+        "intelligence": intelligence
+    }

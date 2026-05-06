@@ -155,13 +155,18 @@ const capitalizeFirstLetter = (str) => {
 const UploadTrackers = () => {
   const dispatch = useDispatch();
   const selectedFileId = useSelector(state => state.nav.selectedUploadFileId);
+  const authUser = useSelector(state => state.auth?.user);
+  const isAdmin = authUser?.role === 'Admin' || authUser?.role === 'Super Admin' || authUser?.role === 'Project Manager';
+  
   const onClearSelection = () => dispatch(setSelectedUploadFileId(null));
   // Initial columns configuration
   const initialColumns = [
     { id: 'project', label: 'Project Name', sortable: true, type: 'text', required: true, visible: true },
-
-    { id: 'employeeName', label: 'Employee Name', sortable: true, type: 'text', required: true, visible: true },
-    { id: 'fileName', label: 'Tracker Name', sortable: true, type: 'text', required: true, visible: true },
+    { id: 'department', label: 'Department', sortable: true, type: 'text', required: true, visible: true },
+    { id: 'fileName', label: 'Tracker File', sortable: true, type: 'text', required: true, visible: true },
+    { id: 'employeeName', label: 'Uploaded By', sortable: true, type: 'text', required: true, visible: true },
+    { id: 'uploadDate', label: 'Upload Date', sortable: true, type: 'text', required: true, visible: true },
+    { id: 'status', label: 'Status', sortable: true, type: 'text', required: true, visible: true },
   ];
 
 
@@ -242,6 +247,11 @@ const UploadTrackers = () => {
 
   // Filter state
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Selected file content state
   const [selectedFileContent, setSelectedFileContent] = useState(null);
@@ -366,8 +376,9 @@ const UploadTrackers = () => {
     );
 
     const matchesDept = !departmentFilter || tracker.department?.toLowerCase().includes(departmentFilter.toLowerCase());
+    const matchesDate = !dateFilter || tracker.uploadDate === dateFilter;
 
-    return matchesSearch && matchesDept;
+    return matchesSearch && matchesDept && matchesDate;
   });
 
   // Sort trackers
@@ -388,13 +399,26 @@ const UploadTrackers = () => {
     });
   }, [filteredTrackers, sortConfig]);
 
+  const totalItems = sortedTrackers.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+  const paginatedTrackers = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return sortedTrackers.slice(startIndex, startIndex + pageSize);
+  }, [sortedTrackers, currentPage, pageSize]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, departmentFilter, dateFilter]);
+
   // Checkbox Functions
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelectedTrackers([]);
       setSelectAll(false);
     } else {
-      const allVisibleIds = sortedTrackers.map(tracker => tracker.id);
+      const allVisibleIds = paginatedTrackers.map(tracker => tracker.id);
       setSelectedTrackers(allVisibleIds);
       setSelectAll(true);
     }
@@ -408,8 +432,8 @@ const UploadTrackers = () => {
         return newSelection;
       } else {
         const newSelection = [...prev, trackerId];
-        const allVisibleIds = sortedTrackers.map(tracker => tracker.id);
-        if (newSelection.length === allVisibleIds.length) {
+        const allVisibleIds = paginatedTrackers.map(tracker => tracker.id);
+        if (newSelection.length === allVisibleIds.length && allVisibleIds.length > 0) {
           setSelectAll(true);
         }
         return newSelection;
@@ -435,61 +459,44 @@ const UploadTrackers = () => {
     if (selectedTrackers.length === 0) return;
 
     const count = selectedTrackers.length;
-    let deletedCount = 0;
-    let errors = [];
-
+    
     // Show a temporary "Deleting..." notification if many files
     if (count > 2) {
       showNotification(`Deleting ${count} records...`, 'info');
     }
 
     try {
-      // Process deletions in parallel
-      await Promise.all(selectedTrackers.map(async (id) => {
-        try {
-          await API.delete(`/uploads/${id}`);
-          deletedCount++;
-        } catch (err) {
-          console.error(`Error deleting tracker ${id}:`, err);
-          errors.push(id);
-        }
-      }));
+      // Single bulk delete API call
+      await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
 
-      // Update local state even if some failed (the ones that succeeded should be removed)
-      // Filter out only the ones that were successfully deleted from the backend
-      // But for simplicity in UX, if most succeeded we refresh everything
+      // After successful deletion, update local state
+      setTrackers(prev => prev.filter(tracker => !selectedTrackers.includes(tracker.id)));
 
-      const successfulIds = selectedTrackers.filter(id => !errors.includes(id));
-
-      setTrackers(prev => prev.filter(tracker => !successfulIds.includes(tracker.id)));
-
-      successfulIds.forEach(id => {
+      // Remove from sidebar contexts
+      selectedTrackers.forEach(id => {
         sidebarManager.deleteFileFromAllContexts(id);
       });
 
-      // Clear selection for the ones we tried to delete
-      setSelectedTrackers(errors);
-      
-      // Dispatch events to refresh sidebar once for the whole batch
-      if (successfulIds.length > 0) {
-        window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
-        window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { detail: { type: 'bulk-delete', ids: successfulIds } }));
-      }
+      // Dispatch events to refresh views
+      window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { 
+        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      }));
+      window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { 
+        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      }));
 
-      // Reset selected file if it was deleted
-      if (successfulIds.includes(selectedFileId)) {
-        setSelectedFileId(null);
+      // Reset selected file if it was among deleted ones
+      if (selectedTrackers.includes(selectedFileId)) {
+        dispatch(setSelectedUploadFileId(null));
         setSelectedFileContent(null);
         setSelectedFileTrackerInfo(null);
       }
 
-      if (errors.length === 0) {
-        setSelectAll(false);
-        showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
-      } else {
-        showNotification(`Deleted ${deletedCount} records. ${errors.length} failed.`, 'warning');
-      }
-
+      // Clear selection
+      setSelectedTrackers([]);
+      setSelectAll(false);
+      
+      showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
       setShowBulkDeletePrompt({ show: false, count: 0 });
     } catch (error) {
       console.error('Error in bulk delete process:', error);
@@ -558,10 +565,26 @@ const UploadTrackers = () => {
   // Upload functions
   const openUploadModal = () => {
     setShowUploadModal(true);
+    
+    const currentUserName = getCurrentUser();
+    const currentUserProfile = employeeList.find(e => e.name === currentUserName);
+    const userDept = currentUserProfile?.department || '';
+    
+    // Filter projects based on assignment for non-admins
+    const userProjects = isAdmin 
+      ? projectList 
+      : projectList.filter(p => 
+          p.project_manager === currentUserName || 
+          p.employee_name === currentUserName || 
+          p.assigned_to_name === currentUserName
+        );
+    
+    const defaultProject = userProjects.length === 1 ? userProjects[0].name : '';
+
     setUploadForm({
-      project: '',
-      department: 'Design Release',
-      employeeName: '',
+      project: defaultProject,
+      department: userDept,
+      employeeName: currentUserName,
       file: null
     });
     setUploadFormErrors({});
@@ -723,16 +746,6 @@ const UploadTrackers = () => {
     await handleFileUpload(uploadForm.file);
   };
 
-  const handleDownloadTemplate = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ['Module', 'Milestone', 'Planned Date', 'Actual Date'],
-      ['Frontend', 'Design UI', '2024-01-01', ''],
-      ['Backend', 'Setup API', '2024-01-15', '']
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, 'Tracker_Template.xlsx');
-  };
 
   const handleFileUpload = async (file) => {
     if (!file) return;
@@ -1044,6 +1057,19 @@ const UploadTrackers = () => {
           <span className="font-medium">{value || '-'}</span>
         </div>
       );
+    } else if (col.id === 'uploadDate') {
+      return (
+        <div className="flex items-center text-gray-600 text-xs">
+          <Calendar className="h-3.5 w-3.5 mr-1.5" />
+          <span>{value || '-'}</span>
+        </div>
+      );
+    } else if (col.id === 'status') {
+      return (
+        <span className={`px-2 py-1 inline-flex text-[10px] leading-4 font-semibold rounded-full ${value === 'Completed' || value === 'Success' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+          {value || 'Completed'}
+        </span>
+      );
     }
     return value || '-';
   };
@@ -1209,45 +1235,72 @@ const UploadTrackers = () => {
               {/* Project */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Project *</label>
-                <SearchableDropdown
-                  options={projectList.map(p => p.name)}
-                  value={uploadForm.project}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, project: val });
-                    if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
-                  }}
-                  placeholder="Select project"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={projectList.map(p => p.name)}
+                    value={uploadForm.project}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, project: val });
+                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                    }}
+                    placeholder="Select project"
+                  />
+                ) : (
+                  <SearchableDropdown
+                    options={projectList
+                      .filter(p => p.project_manager === getCurrentUser() || p.employee_name === getCurrentUser() || p.assigned_to_name === getCurrentUser())
+                      .map(p => p.name)
+                    }
+                    value={uploadForm.project}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, project: val });
+                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                    }}
+                    placeholder={uploadForm.project ? uploadForm.project : "Select assigned project"}
+                  />
+                )}
                 {uploadFormErrors.project && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.project}</p>}
               </div>
 
               {/* Department */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Department *</label>
-                <SearchableDropdown
-                  options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
-                  value={uploadForm.department}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, department: val });
-                    if (uploadFormErrors.department) setUploadFormErrors({ ...uploadFormErrors, department: '' });
-                  }}
-                  placeholder="Select department"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
+                    value={uploadForm.department}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, department: val });
+                      if (uploadFormErrors.department) setUploadFormErrors({ ...uploadFormErrors, department: '' });
+                    }}
+                    placeholder="Select department"
+                  />
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                    {uploadForm.department || 'No Department'}
+                  </div>
+                )}
                 {uploadFormErrors.department && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.department}</p>}
               </div>
 
               {/* Employee Name */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Employee Name *</label>
-                <SearchableDropdown
-                  options={employeeList.map(e => e.name)}
-                  value={uploadForm.employeeName}
-                  onChange={(val) => {
-                    setUploadForm({ ...uploadForm, employeeName: val });
-                    if (uploadFormErrors.employeeName) setUploadFormErrors({ ...uploadFormErrors, employeeName: '' });
-                  }}
-                  placeholder="Select employee name"
-                />
+                {isAdmin ? (
+                  <SearchableDropdown
+                    options={employeeList.map(e => e.name)}
+                    value={uploadForm.employeeName}
+                    onChange={(val) => {
+                      setUploadForm({ ...uploadForm, employeeName: val });
+                      if (uploadFormErrors.employeeName) setUploadFormErrors({ ...uploadFormErrors, employeeName: '' });
+                    }}
+                    placeholder="Select employee name"
+                  />
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                    {uploadForm.employeeName || 'Unknown User'}
+                  </div>
+                )}
                 {uploadFormErrors.employeeName && <p className="mt-1 text-xs text-red-600">{uploadFormErrors.employeeName}</p>}
               </div>
 
@@ -1277,9 +1330,6 @@ const UploadTrackers = () => {
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
-              <button onClick={handleDownloadTemplate} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1">
-                <Download className="h-4 w-4" /> Template
-              </button>
               <button onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
               <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded hover:bg-gray-800">Upload File</button>
             </div>
@@ -1434,6 +1484,25 @@ const UploadTrackers = () => {
 
                   {/* RIGHT SIDE - Filter and Export */}
                   <div className="flex gap-2 mt-2 sm:mt-0">
+                    {/* Date Filter */}
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="date"
+                        value={dateFilter}
+                        onChange={(e) => setDateFilter(e.target.value)}
+                        className="h-10 pl-9 pr-3 text-xs sm:text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black w-full sm:w-40"
+                      />
+                      {dateFilter && (
+                        <button
+                          onClick={() => setDateFilter('')}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                        </button>
+                      )}
+                    </div>
+
                     {/* Department Filter */}
                     <div className="relative">
                       <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1540,7 +1609,7 @@ const UploadTrackers = () => {
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
-                    {sortedTrackers.map((tracker) => (
+                    {paginatedTrackers.map((tracker) => (
                       <tr
                         key={tracker.upload_id}
                         className={`hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50' : 'even:bg-gray-50/30'
@@ -1618,11 +1687,48 @@ const UploadTrackers = () => {
                   )}
                 </div>
 
-                {/* RIGHT SIDE - Info */}
+                {/* RIGHT SIDE - Pagination & Info */}
                 <div className="flex items-center gap-4">
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">Rows:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      {[5, 10, 25, 50, 100].map(size => (
+                        <option key={size} value={size}>{size}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
+                    >
+                      &lt;
+                    </button>
+                    <span className="text-gray-600 mx-2">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+
                   <span>
-                    Showing {sortedTrackers.length} of {trackers.length} uploads
-                    {departmentFilter && ` (Filtered by: ${departmentFilter})`}
+                    Showing {paginatedTrackers.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} uploads
                   </span>
                   {selectedTrackers.length > 0 && (
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">

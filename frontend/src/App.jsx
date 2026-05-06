@@ -14,6 +14,7 @@ import ProjectMaster from './pages/Masters/ProjectMaster';
 import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
+import TranscriptViewer from './pages/mom/TranscriptViewer';
 import MOMViewPage from './pages/mom/MOMViewPage';
 import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
@@ -92,7 +93,9 @@ function App() {
       }
 
       try {
-        const wsUrl = `ws://localhost:8000/ws/test/dashboard_${Date.now()}`;
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+        const wsBase = apiBase.replace(/^http/, 'ws');
+        const wsUrl = `${wsBase}/ws/status/dashboard_${Date.now()}`;
         console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
@@ -192,6 +195,7 @@ function App() {
             
             <Route path="mom" element={<MeetingCapturePage />} />
             <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
             <Route path="mom/legacy" element={<MOMModule />} />
             <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />

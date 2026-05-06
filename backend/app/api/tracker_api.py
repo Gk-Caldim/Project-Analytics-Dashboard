@@ -18,14 +18,18 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.crud import project as crud_project
 from app.models.import_error import ImportError as ImportErrorModel
 from app.models.project import Project
 from app.models.upload import Upload
+from app.models.tracker_ingestion import TrackerIngestion
+
 from app.services.tracker_service import process_tracker_upload
+from app.utils.analytics_utils import standardize_records
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -228,35 +232,37 @@ async def get_import_errors(upload_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # GET /trackers/{project_id}/modules
 # Returns distinct module names from DB for a given project
-# ONLY from DB — never hardcoded
 # ---------------------------------------------------------------------------
 
 @router.get("/trackers/{project_id}/modules")
 async def get_project_modules(project_id: int, db: Session = Depends(get_db)):
     """
-    Returns distinct module names for a project from trackers_data table.
+    Returns distinct module names for a project from TrackerIngestion table (JSONB).
     Used by sidebar and frontend to build dynamic module lists.
-    Only returns modules that have actual data — no hardcoded entries.
     """
-    from app.models.tracker import TrackerData as TrackerDataModel
-    from sqlalchemy import distinct
-
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
 
-    rows = (
-        db.query(distinct(TrackerDataModel.module))
-        .filter(
-            TrackerDataModel.project_id == project_id,
-            TrackerDataModel.module != None,
-            TrackerDataModel.module != "",
-        )
-        .order_by(TrackerDataModel.module)
-        .all()
-    )
+    # Fetch latest ingestions to get current modules
+    subq = db.query(
+        TrackerIngestion.file_name,
+        db.func.max(TrackerIngestion.created_at).label('max_created')
+    ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
 
-    modules = [r[0] for r in rows if r[0]]
+    ingestions = db.query(TrackerIngestion).join(
+        subq, 
+        (TrackerIngestion.file_name == subq.c.file_name) & 
+        (TrackerIngestion.created_at == subq.c.max_created)
+    ).filter(TrackerIngestion.project_id == project_id).all()
+
+    all_raw_records = []
+    for ing in ingestions:
+        if isinstance(ing.data, list):
+            all_raw_records.extend(ing.data)
+    
+    records = standardize_records(all_raw_records)
+    modules = sorted(list({r["module"] for r in records if r["module"]}))
 
     logger.info(
         "[tracker_api] project_id=%s modules=%s",
@@ -279,11 +285,9 @@ async def get_project_modules(project_id: int, db: Session = Depends(get_db)):
 @router.delete("/uploads/{id}")
 async def delete_upload(id: int, db: Session = Depends(get_db)):
     """
-    Deletes an upload and its associated dataset and dynamic tables.
-    The 'id' can be either the Upload ID or Dataset ID (it will try to resolve).
+    Deletes an upload and its associated ingestion/dataset data.
     """
     from app.models.dataset import Dataset
-    from app.models.tracker import TrackerData
     from sqlalchemy import text
 
     # 1. Find the Upload record
@@ -294,14 +298,11 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
         upload = db.query(Upload).filter(Upload.dataset_id == id).first()
         
     if not upload:
-        # If still not found, check if it's just a standalone Dataset
+        # Standalone dataset cleanup
         from app.models.dataset_column import DatasetColumn
         dataset = db.query(Dataset).filter(Dataset.id == id).first()
         if dataset:
-            # First cleanup associated column definitions
             db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
-            
-            # Re-use datasets.py logic or just do it here
             if dataset.table_name:
                 db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
             db.delete(dataset)
@@ -314,9 +315,7 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
         from app.models.dataset_column import DatasetColumn
         dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
         if dataset:
-            # First cleanup associated column definitions
             db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
-            
             if dataset.table_name:
                 try:
                     db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
@@ -324,16 +323,84 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
                     logger.error(f"Error dropping table {dataset.table_name}: {e}")
             db.delete(dataset)
 
-    # 3. Cleanup TrackerData system
-    tracker_count = db.query(TrackerData).filter(TrackerData.upload_id == upload.id).count()
-    db.query(TrackerData).filter(TrackerData.upload_id == upload.id).delete()
+    # 3. Cleanup TrackerIngestion system
+    db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).delete()
     db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == upload.id).delete()
-    
-    print(f"[TrackerAPI] Deleted {tracker_count} TrackerData rows for upload {upload.id}")
 
     # 4. Cleanup Upload record
     db.delete(upload)
     db.commit()
     
     print(f"[TrackerAPI] Successfully deleted upload {id}")
-    return {"message": "Upload and associated data deleted successfully", "deleted_rows": tracker_count}
+    return {"message": "Upload and associated data deleted successfully"}
+
+
+# ---------------------------------------------------------------------------
+# POST /uploads/bulk-delete
+# Unified bulk cleanup for both Tracker and Dataset systems
+# ---------------------------------------------------------------------------
+
+class BulkDeleteRequest(BaseModel):
+    ids: List[int]
+
+@router.post("/uploads/bulk-delete")
+async def bulk_delete_uploads(request: BulkDeleteRequest, db: Session = Depends(get_db)):
+    """
+    Deletes multiple uploads and their associated ingestion/dataset data.
+    """
+    from app.models.dataset import Dataset
+    from app.models.dataset_column import DatasetColumn
+    from sqlalchemy import text
+    
+    ids = request.ids
+    if not ids:
+        return {"message": "No IDs provided"}
+
+    # 1. Find all uploads that match these IDs (either upload.id or upload.dataset_id)
+    uploads = db.query(Upload).filter(
+        (Upload.id.in_(ids)) | (Upload.dataset_id.in_(ids))
+    ).all()
+    
+    upload_ids = [u.id for u in uploads]
+    dataset_ids = [u.dataset_id for u in uploads if u.dataset_id]
+    
+    # 2. Also look for standalone datasets that are in the ID list but not linked to these uploads
+    # This covers cases where a dataset exists but no upload record is linked
+    found_dataset_ids = set(dataset_ids)
+    standalone_dataset_ids = [id for id in ids if id not in upload_ids and id not in found_dataset_ids]
+    
+    all_datasets_to_delete = db.query(Dataset).filter(
+        (Dataset.id.in_(dataset_ids)) | (Dataset.id.in_(standalone_dataset_ids))
+    ).all()
+
+    # 3. Cleanup Datasets (Tables and Columns)
+    for ds in all_datasets_to_delete:
+        # Delete columns metadata
+        db.query(DatasetColumn).filter(DatasetColumn.dataset_id == ds.id).delete(synchronize_session=False)
+        
+        # Drop physical table if it exists
+        if ds.table_name:
+            try:
+                db.execute(text(f'DROP TABLE IF EXISTS "{ds.table_name}"'))
+            except Exception as e:
+                logger.error(f"Error dropping table {ds.table_name} during bulk delete: {e}")
+        
+        # Delete Dataset record
+        db.delete(ds)
+
+    # 4. Cleanup TrackerIngestion and ImportError for found uploads
+    if upload_ids:
+        db.query(TrackerIngestion).filter(TrackerIngestion.upload_id.in_(upload_ids)).delete(synchronize_session=False)
+        db.query(ImportErrorModel).filter(ImportErrorModel.upload_id.in_(upload_ids)).delete(synchronize_session=False)
+        
+        # Delete Upload records
+        db.query(Upload).filter(Upload.id.in_(upload_ids)).delete(synchronize_session=False)
+
+    db.commit()
+    
+    logger.info("[TrackerAPI] Bulk delete completed for %d items", len(ids))
+    return {
+        "message": f"Successfully deleted {len(upload_ids)} upload(s) and {len(all_datasets_to_delete)} dataset(s).",
+        "deleted_ids": ids
+    }
+

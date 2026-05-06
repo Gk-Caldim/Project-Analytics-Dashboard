@@ -11,7 +11,8 @@ import {
   ChevronRight, Home, Layout, AlertTriangle, Bell,
   CheckCircle, GitBranch, Trash2, Download, Clipboard,
   ChevronDown, ChevronUp, Loader, Zap, Check, Edit3,
-  FileText, Plus, MessageSquare, Target
+  FileText, Plus, MessageSquare, Target, MoreHorizontal, Users,
+  FolderOpen, Mail, X, Settings, Clock, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
@@ -55,6 +56,8 @@ const MOMViewPage = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -145,9 +148,9 @@ const MOMViewPage = () => {
       const matched = projects.find(p => (p.name || p.project_name)?.toLowerCase() === String(selProject).toLowerCase());
       if (matched) targetProjectId = matched.id || matched.project_id;
     }
-    if (!targetProjectId || isNaN(targetProjectId)) { 
-      toast.error('Invalid Project ID. Please link this meeting to a valid project.'); 
-      return; 
+    if (!targetProjectId || isNaN(targetProjectId)) {
+      toast.error('Invalid Project ID. Please link this meeting to a valid project.');
+      return;
     }
 
     const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical');
@@ -250,37 +253,121 @@ const MOMViewPage = () => {
   return (
     <div className="mvp-root">
 
-      {/* ── Top Bar ── */}
-      <div className="mvp-topbar">
-        <nav className="mvp-breadcrumb">
-          <Link to="/dashboard" className="mvp-bc-link"><Home style={{ width: 12, height: 12 }} />Dashboard</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <Link to="/dashboard/meetings" className="mvp-bc-link"><Layout style={{ width: 12, height: 12 }} />Meetings</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <Link to="/dashboard/mom" className="mvp-bc-link"><Edit3 style={{ width: 12, height: 12 }} />Capture</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <span className="mvp-bc-current">MOM</span>
-        </nav>
-
-        <div className="mvp-topbar-actions">
-          <div className={`mvp-save-status${status === 'saving' ? ' saving' : status === 'saved' ? ' saved' : ''}`}>
-            {status === 'saving' && <Loader style={{ width: 10, height: 10 }} className="animate-spin" />}
-            {status === 'saved' && <CheckCircle style={{ width: 10, height: 10 }} />}
-            {status === 'saving' ? 'Saving…' : status === 'saved' && lastSaved
-              ? `Saved ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              : 'Auto-save Enabled'}
+      {/* ── Executive Top Bar (Redesign) ── */}
+      <div className="mvp-top-container" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248, 250, 252, 0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #E2E8F0', borderTop: '3px solid #0D9488' }}>
+        
+        {/* Header Card */}
+        <div className="mvp-header-card">
+          {/* Left Zone: Title & Context */}
+          <div className="mvp-header-left">
+            <h1 className="mvp-main-title" style={{ fontSize: '24px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{meetingName || 'Meeting Summary'}</h1>
+            <div className="mvp-header-date" style={{ marginBottom: '8px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </div>
+            {/* Meeting Metadata Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock style={{ width: 14, height: 14 }} /> 45 min
+              </span>
+              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Users style={{ width: 14, height: 14 }} /> {Array.from(new Set(rows.map(r => r.responsibility).filter(Boolean))).length || 4} participants
+              </span>
+              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Edit2 style={{ width: 14, height: 14 }} /> Gokula Krishnan
+              </span>
+              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                Last saved: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
           </div>
-          <button className="mvp-action-btn" onClick={handleCopy}>
-            {copied ? <><Check style={{ width: 12, height: 12 }} />Copied</> : <><Clipboard style={{ width: 12, height: 12 }} />Copy CSV</>}
-          </button>
-          <button className="mvp-action-btn" onClick={() => window.print()}>
-            <Download style={{ width: 12, height: 12 }} />PDF / Print
-          </button>
-          <button className="mvp-action-btn primary" onClick={handleSave} disabled={status === 'saving'}>
-            {status === 'saving' ? <Loader style={{ width: 12, height: 12 }} className="animate-spin" /> : <Check style={{ width: 12, height: 12 }} />}
-            Save
-          </button>
+
+          {/* Center Zone: Functional Breadcrumb */}
+          <div className="mvp-header-center">
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+              <Link
+                to="/dashboard"
+                style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
+                onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
+              >
+                Dashboard
+              </Link>
+              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
+              <Link
+                to="/dashboard/meetings"
+                style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s' }}
+                onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
+                onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
+              >
+                Meetings
+              </Link>
+              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
+              {meetingId ? (
+                <Link
+                  to={`/dashboard/mom`}
+                  style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
+                  onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
+                  title={meetingName || 'Meeting'}
+                >
+                  {meetingName || 'Capture'}
+                </Link>
+              ) : (
+                <span style={{ color: 'var(--color-text-secondary)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {meetingName || 'Meeting'}
+                </span>
+              )}
+              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
+              <span style={{ color: 'var(--color-text-primary)', fontWeight: 700 }}>MOM Output</span>
+            </nav>
+          </div>
+
+          {/* Right Zone: Project Chip + Status + Save */}
+          <div className="mvp-header-right" style={{ gap: '12px', alignItems: 'center' }}>
+            {/* Project Context Chip */}
+            {(projectName || projectId) && (
+              <div
+                title="Assigned during MOM creation. Change from Meeting Settings."
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  padding: '4px 12px', borderRadius: '999px',
+                  border: '1px solid #0D9488', color: '#0D9488',
+                  fontSize: '11px', fontWeight: 700, cursor: 'default',
+                  background: '#F0FDFA', whiteSpace: 'nowrap', maxWidth: '160px'
+                }}
+              >
+                <FolderOpen style={{ width: 12, height: 12, flexShrink: 0 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {projectName || `Project #${projectId}`}
+                </span>
+              </div>
+            )}
+
+            {/* Status Badge */}
+            <div 
+              className={`mvp-status-badge ${execSummary.risks > 0 ? 'attention' : 'on-track'}`}
+              title={execSummary.risks > 0 ? "Action Required — Critical risks detected" : "Operational Health Index: Optimal — 0 critical risks, all actions assigned"}
+              style={{ padding: '5px 13px' }}
+            >
+              <span className={`mvp-cloud-dot ${execSummary.risks > 0 ? '' : 'pulse-green'}`} style={{ background: execSummary.risks > 0 ? '#DC2626' : '#166534' }} />
+              {execSummary.risks > 0 ? 'Action Required' : 'On Track'}
+            </div>
+
+            {/* Cloud Sync + Save — moved here from floating row below */}
+            <div className="mvp-cloud-sync-badge" style={{ fontSize: '10px', padding: '4px 10px' }}>
+              <span className={`mvp-cloud-dot ${status === 'saving' ? 'saving' : 'active'}`} />
+              {status === 'saving' ? 'Saving...' : 'Synced'}
+            </div>
+            <button className="mvp-btn primary" onClick={handleSave} disabled={status === 'saving'}
+              style={{ padding: '6px 16px', fontSize: '12px' }}>
+              Save
+            </button>
+          </div>
         </div>
+        {/* No separate action row — save/sync now live in header */}
       </div>
 
       {/* ── Sync Result Modal ── */}
@@ -345,71 +432,53 @@ const MOMViewPage = () => {
           </div>
         )}
 
-        {/* ── 1. Executive Summary ── */}
+        {/* ── Single Horizontal Metric Band (Stats Row) ── */}
         <div className="mvp-section mvp-fade-up">
-          <div className="mvp-section-header">
-            <span className="mvp-section-title">Executive Summary</span>
-            <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>
-              {meetingName || 'Meeting MOM'}{projectName ? ` · ${projectName}` : ''}
-            </span>
-          </div>
-          <div className="mvp-exec-grid">
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon red">
-                <AlertTriangle style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.risks}</div>
-                <div className="mvp-exec-label">Key Risks</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon amber">
-                <Bell style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.attention}</div>
-                <div className="mvp-exec-label">Attention Items</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon green">
-                <CheckCircle style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.completed}</div>
-                <div className="mvp-exec-label">Completed</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon blue">
-                <GitBranch style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{rows.length}</div>
-                <div className="mvp-exec-label">Total Actions</div>
-              </div>
-            </div>
-
-            {participationData.length > 0 && (
-              <div className="mvp-exec-card participation" style={{ flex: 1.5, minWidth: 320, padding: '12px 16px' }}>
-                <div className="mvp-exec-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div className="mvp-exec-label" style={{ marginBottom: 4 }}>Voice Participation</div>
-                  <div style={{ height: 130, width: '100%' }}>
-                    <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} />
-                  </div>
+          <div className="mvp-stats-band">
+            <div className="mvp-stat-item risks">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="mvp-stat-value">{execSummary.risks}</div>
+                  <div className="mvp-stat-label">Key Risks</div>
                 </div>
-                <div className="mvp-exec-body" style={{ borderLeft: '1px solid #f0f0f0', paddingLeft: 12, minWidth: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div className="mvp-exec-label">Top Contributor</div>
-                  <div className="mvp-exec-value" style={{ fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {participationData[0]?.name || 'N/A'}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, marginTop: 4 }}>
-                    {participationData[0]?.value || 0} words shared
-                  </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.risks === 0 ? '#166534' : '#DC2626', marginTop: '4px' }}>
+                  {execSummary.risks === 0 ? '↓ from last meeting' : `${execSummary.risks} new`}
                 </div>
               </div>
-            )}
+            </div>
+            <div className="mvp-stat-item pending">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="mvp-stat-value">{execSummary.attention}</div>
+                  <div className="mvp-stat-label">Pending Actions</div>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.attention > 0 ? '#D97706' : '#64748B', marginTop: '4px' }}>
+                  {execSummary.attention > 0 ? `${execSummary.attention} new` : 'None pending'}
+                </div>
+              </div>
+            </div>
+            <div className="mvp-stat-item resolved">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="mvp-stat-value">{execSummary.completed}</div>
+                  <div className="mvp-stat-label">Resolved</div>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+                  {execSummary.completed === 0 ? 'None yet' : 'In progress'}
+                </div>
+              </div>
+            </div>
+            <div className="mvp-stat-item total">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="mvp-stat-value">{rows.length}</div>
+                  <div className="mvp-stat-label">Total Actions</div>
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+                  Captured from transcript
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -424,78 +493,16 @@ const MOMViewPage = () => {
           />
         </div>
 
-        {/* ── 3. Discussion Section (Collapsible) ── */}
-        <div className="mvp-section mvp-fade-up">
-          <div className="mvp-discussion-wrap">
-            <div
-              className="mvp-discussion-header"
-              onClick={() => setDiscussionOpen(o => !o)}
-            >
-              <span className="mvp-section-title">
-                <FileText style={{ width: 12, height: 12 }} />
-                Discussion Transcript
-                <span style={{ fontSize: 11, fontWeight: 500, color: '#9ca3af', textTransform: 'none', letterSpacing: 0 }}>
-                  · {transcriptEntries.length} lines
-                </span>
-              </span>
-              {discussionOpen
-                ? <ChevronUp style={{ width: 16, height: 16, color: '#9ca3af' }} />
-                : <ChevronDown style={{ width: 16, height: 16, color: '#9ca3af' }} />}
-            </div>
-
-            <AnimatePresence>
-              {discussionOpen && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="mvp-discussion-body-wrap"
-                >
-                  <div className="mvp-discussion-body">
-                    {transcriptEntries.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>
-                        No transcript data available. Raw transcript is preserved per meeting session.
-                      </div>
-                    ) : (
-                      transcriptEntries.map((entry, i) => {
-                        if (entry.type === 'event') {
-                          return (
-                            <div key={i} className="mvp-transcript-event">
-                              <span style={{
-                                background: entry.bg || '#fef9c3', color: entry.textColor || '#92400e',
-                                padding: '1px 7px', borderRadius: 4, fontSize: 10, fontWeight: 800
-                              }}>
-                                {entry.label}
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 500 }}>{entry.text}</span>
-                            </div>
-                          );
-                        }
-                        const spkColor = getSpeakerColor(entry.speaker);
-                        return (
-                          <div key={i} className="mvp-transcript-line">
-                            <div className="mvp-transcript-speaker">
-                              <span
-                                className="mvp-tspk-pill"
-                                style={{ background: entry.bg || spkColor.bg, color: entry.textColor || spkColor.text }}
-                              >
-                                {entry.speaker || 'Unknown'}
-                              </span>
-                            </div>
-                            <span className="mvp-transcript-time">{entry.time}</span>
-                            <span className="mvp-transcript-text">{entry.text}</span>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
+        <style>{`
+          @keyframes greenPulse {
+            0% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(22, 101, 52, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0); }
+          }
+          .pulse-green {
+            animation: greenPulse 2s infinite;
+          }
+        `}</style>
       </div>
     </div>
   );

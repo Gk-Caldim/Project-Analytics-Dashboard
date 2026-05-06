@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-  Calendar, Clock, Plus, Search,
+  Calendar, Clock, Plus, Search, Mic,
   Play, RefreshCw, Users, ChevronRight,
   BarChart2, CheckCircle2, AlertCircle, Eye, FileText, ArrowRight, Trash2
 } from 'lucide-react';
@@ -176,6 +176,31 @@ const MeetingsDashboardPage = () => {
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
+          <button
+            id="mdp-capture-btn"
+            className="mdp-btn-capture"
+            onClick={() => navigate('/dashboard/mom')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: '700',
+              border: '1px solid #e2e8f0',
+              background: '#fff',
+              color: '#374151',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+          >
+            <Mic style={{ width: 14, height: 14, color: '#4f46e5' }} />
+            Capture MOM
+          </button>
           <button
             id="mdp-schedule-btn"
             className="mdp-btn-schedule"

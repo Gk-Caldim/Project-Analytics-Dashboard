@@ -1,0 +1,48 @@
+/* 
+  MOM Enterprise Module Design Tokens
+  Scope: .mom-theme
+*/
+
+.mom-theme {
+  /* ── Primary ── */
+  --mom-primary: #0D9488;
+  
+  /* ── Neutral Grays ── */
+  --mom-gray-50: #F8FAFC;
+  --mom-gray-100: #F1F5F9;
+  --mom-gray-200: #E2E8F0;
+  --mom-gray-400: #94A3B8;
+  --mom-gray-600: #475569;
+  --mom-gray-800: #1E293B;
+
+  /* ── Semantic ── */
+  --mom-risk: #EF4444;
+  --mom-pending: #F59E0B;
+  --mom-resolved: #10B981;
+  --mom-total: #3B82F6;
+
+  /* ── Typography (Inter) ── */
+  --mom-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --mom-font-heading: 24px;
+  --mom-font-subheading: 18px;
+  --mom-font-body: 14px;
+  --mom-font-caption: 12px;
+
+  /* ── Spacing ── */
+  --mom-space-base: 4px;
+  --mom-space-1: 4px;
+  --mom-space-2: 8px;
+  --mom-space-3: 12px;
+  --mom-space-4: 16px;
+  --mom-space-6: 24px;
+  --mom-space-8: 32px;
+  --mom-space-12: 48px;
+
+  /* ── Border Radius ── */
+  --mom-radius-card: 12px;
+  --mom-radius-badge: 6px;
+  --mom-radius-button: 8px;
+
+  /* ── Shadows ── */
+  --mom-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+}

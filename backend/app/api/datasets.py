@@ -128,13 +128,38 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
                 # If dataset record is missing but linked, fall back to file
                 pass
         
-        # If we still don't have a dataset object, read the physical file
+        # If we still don't have a dataset object, read from TrackerIngestion JSONB
         if not dataset:
+            from app.models.tracker_ingestion import TrackerIngestion
+            ingestion = db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).first()
+            if ingestion and ingestion.data:
+                json_data = ingestion.data
+                if len(json_data) > 0:
+                    headers = list(json_data[0].keys())
+                    rows = [[row.get(h, "") for h in headers] for row in json_data]
+                else:
+                    headers = []
+                    rows = []
+                
+                result = {
+                    "headers": headers,
+                    "data": rows,
+                    "fileData": {
+                        "fileName": upload.file_name,
+                        "headers": headers,
+                        "data": rows,
+                        "sheets": [{"name": "Sheet1", "headers": headers, "data": rows}]
+                    }
+                }
+                global_dataset_cache.set(cache_key, result)
+                return result
+
+            # Final fallback to physical file if no JSONB is found
             file_path = os.path.join("static", "uploads", "trackers", upload.file_name)
             if not os.path.exists(file_path):
                 raise HTTPException(
                     status_code=404, 
-                    detail=f"Physical file '{upload.file_name}' not found on server."
+                    detail=f"Physical file '{upload.file_name}' not found on server and no JSONB data available."
                 )
             
             try:
@@ -676,6 +701,11 @@ def get_schema(dataset_id: int, db: Session = Depends(get_db)):
 def get_data(dataset_id: int, db: Session = Depends(get_db)):
     dataset = resolve_dataset(dataset_id, db)
     if not dataset:
+        # Fallback to TrackerIngestion
+        from app.models.tracker_ingestion import TrackerIngestion
+        ingestion = db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == dataset_id).first()
+        if ingestion and ingestion.data:
+            return ingestion.data
         return []
     
     # For dynamic tables, query only the first 1000 rows from the database directly

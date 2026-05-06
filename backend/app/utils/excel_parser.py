@@ -25,6 +25,7 @@ Validation:
 
 import json
 import logging
+from io import BytesIO
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -48,12 +49,20 @@ def _resolve_column(df_columns: list[str], field: str) -> str | None:
     return None
 
 
-def parse_tracker_excel(file_path: str) -> dict:
+def parse_tracker_excel(source) -> dict:
+    """
+    Accept either:
+      - a file path (str) — legacy / backward compatible
+      - raw bytes       — for in-memory processing without disk writes
+    """
     # ------------------------------------------------------------------
     # 1. Load file
     # ------------------------------------------------------------------
     try:
-        df = pd.read_excel(file_path)
+        if isinstance(source, (bytes, bytearray)):
+            df = pd.read_excel(BytesIO(source))
+        else:
+            df = pd.read_excel(source)
     except Exception as e:
         raise ValueError(f"Cannot open Excel file: {e}")
 
