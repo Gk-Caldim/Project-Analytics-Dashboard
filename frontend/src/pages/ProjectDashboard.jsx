@@ -1007,7 +1007,7 @@ const ProjectTitleDashboard = () => {
       try {
         const { default: API } = await import('../utils/api');
         const response = await API.get(`/budget/${encodeURIComponent(targetProject)}`);
-        if (response.data && response.data.budget_data && response.data.budget_data.length > 0) {
+        if (response.data && Array.isArray(response.data.budget_data) && response.data.budget_data.length > 0 && Array.isArray(response.data.budget_data[0])) {
           setBudgetTableData(response.data.budget_data);
           setBudgetCurrency(response.data.currency || '$');
         } else {
@@ -1570,6 +1570,75 @@ const ProjectTitleDashboard = () => {
     setShowPdfPreview(true);
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setLoading(true);
+      const capturedImages = {};
+      Object.keys(chartRefs.current).forEach(id => {
+        const instance = chartRefs.current[id]?.getEchartsInstance();
+        if (instance) {
+          capturedImages[id] = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+        }
+      });
+      setPdfChartImages(capturedImages);
+      setIsCapturingPdf(true);
+
+      // Give React time to render the hidden PdfPreviewModal
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const pageContainers = document.querySelectorAll('.pdf-page-container');
+      if (pageContainers.length === 0) {
+        throw new Error("No PDF pages found for capture.");
+      }
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      for (let i = 0; i < pageContainers.length; i++) {
+        const printableArea = pageContainers[i].querySelector('.pdf-printable-area');
+        if (!printableArea) continue;
+
+        const canvas = await html2canvas(printableArea, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        });
+
+        const pxPerMm = canvas.width / pdfWidth;
+        const pageHeightPx = pdfHeight * pxPerMm;
+        const totalHeightPx = canvas.height;
+        let pageTop = 0;
+
+        while (pageTop < totalHeightPx) {
+          const pageCanvas = document.createElement('canvas');
+          const sliceHeight = Math.min(pageHeightPx, totalHeightPx - pageTop);
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = pageHeightPx;
+          const ctx = pageCanvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, pageTop, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+          const imgData = pageCanvas.toDataURL('image/png');
+          
+          if (i > 0 || pageTop > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pageTop += pageHeightPx;
+        }
+      }
+
+      pdf.save(`${activeProject?.name || 'Project'}_Dashboard_Report.pdf`);
+    } catch (error) {
+      console.error('PDF Export Failure:', error);
+      alert('Failed to export PDF. Technical logs available in console.');
+    } finally {
+      setLoading(false);
+      setIsCapturingPdf(false);
+    }
+  };
+
   // Helper function to add header and footer to PDF pages
   const addPdfHeaderFooter = (pdf, margin, pdfWidth, pdfHeight, pageNum) => {
     const totalPages = Math.ceil(pdf.internal.getNumberOfPages());
@@ -1656,23 +1725,29 @@ const ProjectTitleDashboard = () => {
           useCORS: true,
           logging: false,
           allowTaint: true,
-          backgroundColor: null
+          backgroundColor: '#ffffff'
         });
 
-        const imgData = canvas.toDataURL('image/png');
+        const pxPerMm = canvas.width / pdfWidth;
+        const pageHeightPx = pdfHeight * pxPerMm;
+        const totalHeightPx = canvas.height;
+        let pageTop = 0;
 
-        const finalPdfWidth = pdfWidth;
-        const finalPdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        if (i > 0) pdf.addPage();
-
-        // Smart vertical centering if content is shorter than A4
-        let yPos = 0;
-        if (finalPdfHeight < pdfHeight) {
-          yPos = (pdfHeight - finalPdfHeight) / 2;
+        while (pageTop < totalHeightPx) {
+          const pageCanvas = document.createElement('canvas');
+          const sliceHeight = Math.min(pageHeightPx, totalHeightPx - pageTop);
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = pageHeightPx;
+          const ctx = pageCanvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(canvas, 0, pageTop, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+          const imgData = pageCanvas.toDataURL('image/png');
+          
+          if (i > 0 || pageTop > 0) pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pageTop += pageHeightPx;
         }
-
-        pdf.addImage(imgData, 'PNG', 0, yPos, finalPdfWidth, finalPdfHeight);
       }
 
       const base64Pdf = pdf.output('datauristring');
@@ -3305,6 +3380,7 @@ const ProjectTitleDashboard = () => {
           <ReactECharts
             ref={(e) => {
               if (e) chartRefs.current[chartId] = e;
+              else delete chartRefs.current[chartId];
             }}
             theme="v5"
             option={{ ...option, animation: !isCapturingPdf }}
@@ -3799,6 +3875,7 @@ const ProjectTitleDashboard = () => {
         getTrackerForPhase={getTrackerForPhase}
         handleSendEmail={handleSendEmail}
         onPreviewPdf={handleOpenPdfPreview}
+        onExportPdf={handleExportPdf}
       />
 
       {/* Simulate Modal */}
@@ -4521,7 +4598,8 @@ const EmailModal = ({
   availablePhases,
   getTrackerForPhase,
   handleSendEmail,
-  onPreviewPdf
+  onPreviewPdf,
+  onExportPdf
 }) => {
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
@@ -4820,8 +4898,28 @@ const EmailModal = ({
                 gap: '8px'
               }}
             >
-              <Download className="h-4 w-4" />
+              <Maximize2 size={16} />
               Preview PDF
+            </button>
+
+            <button
+              onClick={onExportPdf}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                borderRadius: '4px',
+                border: '1px solid #1e3a5f',
+                backgroundColor: 'white',
+                color: '#1e3a5f',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Download size={16} />
+              Export PDF
             </button>
 
             <button

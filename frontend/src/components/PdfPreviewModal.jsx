@@ -497,7 +497,7 @@ const PdfPreviewModal = ({
                         <span>Budget Summary{selectedBudgetProject ? ` — ${selectedBudgetProject}` : ''}</span>
                         <span style={{ fontSize: '12px', fontWeight: 'normal', opacity: 0.85 }}>Status: {budgetStatus}</span>
                       </div>
-                      {budgetTableData && budgetTableData.length > 1 ? (
+                      {budgetTableData && budgetTableData.length > 1 && Array.isArray(budgetTableData[0]) ? (
                         <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0', fontSize: '12px' }}>
                           <thead>
                             <tr style={{ backgroundColor: '#f8fafc' }}>
@@ -514,7 +514,7 @@ const PdfPreviewModal = ({
                               const color = isTotal ? '#1e3a5f' : '#475569';
                               return (
                                 <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: isTotal ? '#f0f7ff' : 'white' }}>
-                                  {row.map((cell, colIdx) => (
+                                  {Array.isArray(row) && row.map((cell, colIdx) => (
                                     <td key={colIdx} style={{ padding: '10px 12px', border: '1px solid #e2e8f0', fontWeight: fw, color: color }}>
                                       {budgetCurrency && colIdx > 1 && cell !== '' && cell !== null && !isNaN(Number(cell)) ? `${budgetCurrency}${Number(cell).toLocaleString()}` : cell}
                                     </td>
