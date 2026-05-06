@@ -98,6 +98,12 @@ const BudgetMaster = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [calcSimAmount, setCalcSimAmount] = useState('');
 
+  const [historyData, setHistoryData] = useState([]);
+  const [fetchingHistory, setFetchingHistory] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saveType, setSaveType] = useState('save'); // 'save' or 'sync'
+
   const [activeTab,       setActiveTab]       = useState('Table');
 
   // Revision state
@@ -376,9 +382,16 @@ const BudgetMaster = () => {
   };
 
   // ─── Save to DB ──────────────────────────────────────────────────────────────
-  const handleSave = async (syncToProject = false) => {
+  // ─── Save to DB ──────────────────────────────────────────────────────────────
+  const handleSave = (syncToProject = false) => {
     if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    setSaveType(syncToProject ? 'sync' : 'save');
+    setShowDateModal(true);
+  };
+
+  const executeSave = async () => {
     setSaving(true);
+    setShowDateModal(false);
     try {
       const dataToSave = tableData.map(r => {
         const src = (editingRowId && r.id === editingRowId) ? editingData : r;
@@ -388,15 +401,18 @@ const BudgetMaster = () => {
       });
       const fd = new FormData();
       fd.append('project_name',   selectedProject);
+      fd.append('budget_date',    selectedHistoryDate);
       fd.append('overall_budget', parseFloat(overallBudget) || 0);
       fd.append('uploaded_by',    user?.name || 'Admin');
       fd.append('budget_data',    JSON.stringify(dataToSave));
-      fd.append('sync_to_project', syncToProject);
+      fd.append('sync_to_project', saveType === 'sync');
       if (uploadedFile) fd.append('file', uploadedFile);
+      
       await API.post(`/budget/${encodeURIComponent(selectedProject)}`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      showNotification(syncToProject ? 'Budget saved and synced to Project Master' : 'Budget saved to database');
+      
+      showNotification(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
       if (editingRowId) { setEditingRowId(null); setEditingData({}); }
     } catch (err) {
       showNotification('Save failed — ' + (err.response?.data?.detail || err.message), 'error');
@@ -452,6 +468,37 @@ const BudgetMaster = () => {
         if (selectedProject) fetchBudgetData(selectedProject); 
       }
     } catch { showNotification('Failed to update revision', 'error'); }
+  };
+
+  const fetchHistory = async () => {
+    if (!selectedProject) return;
+    setFetchingHistory(true);
+    try {
+      const res = await API.get(`/budget/history/${encodeURIComponent(selectedProject)}`);
+      setHistoryData(res.data);
+    } catch { showNotification('Failed to fetch budget history', 'error'); }
+    finally { setFetchingHistory(false); }
+  };
+
+  const loadVersion = async (id) => {
+    try {
+      const res = await API.get(`/budget/version/${id}`);
+      // Assuming budget_data is stored as objects matching our columns
+      setTableData(res.data.budget_data.map((r, i) => ({ ...r, id: r.id || `hist_${i}` })));
+      setOverallBudget(res.data.overall_budget || 0);
+      setAttachmentName(res.data.attachment_name);
+      setActiveTab('Table');
+      showNotification('Budget version loaded into table');
+    } catch { showNotification('Failed to load version', 'error'); }
+  };
+
+  const deleteVersion = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this budget version?')) return;
+    try {
+      await API.delete(`/budget/version/${id}`);
+      showNotification('Budget version deleted');
+      fetchHistory();
+    } catch { showNotification('Failed to delete version', 'error'); }
   };
 
   const handleDownloadAttachment = async (revId, fileName) => {
@@ -684,6 +731,12 @@ const BudgetMaster = () => {
               ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
             Budget Analytics
+          </button>
+          <button onClick={() => { setActiveTab('History'); fetchHistory(); }}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'History'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            Budget History
           </button>
         </div>
       </div>
@@ -1292,6 +1345,7 @@ const BudgetMaster = () => {
       )}
 
       {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
+      {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
       {activeTab === 'Analytics' && (
         <div className="space-y-6">
           {/* Stepper Card */}
@@ -1409,6 +1463,66 @@ const BudgetMaster = () => {
           </div>
         </div>
       )}
+
+      {/* ── BUDGET HISTORY TAB ───────────────────────────────────────────────── */}
+      {activeTab === 'History' && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+            <div className="flex items-center gap-2">
+              <RefreshCw className={`h-4 w-4 ${fetchingHistory ? 'animate-spin text-blue-500' : 'text-slate-400'}`} />
+              <h2 className="text-sm font-bold text-slate-800 dark:text-white">Budget History & Snapshots</h2>
+            </div>
+            <button onClick={fetchHistory} disabled={fetchingHistory}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                  <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Effective Date</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Budget</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded By</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
+                  <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {fetchingHistory ? (
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">Loading history...</td></tr>
+                ) : historyData.length === 0 ? (
+                  <tr><td colSpan={5} className="py-12 text-center text-slate-400">No budget history found for this project.</td></tr>
+                ) : historyData.map(item => (
+                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
+                    <td className="py-3 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      {item.budget_date || 'Initial Version'}
+                    </td>
+                    <td className="py-3 px-4 text-sm font-mono text-blue-600">{format(item.overall_budget, false)}</td>
+                    <td className="py-3 px-4 text-sm text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
+                    <td className="py-3 px-4 text-sm text-slate-500">
+                      {new Date(item.updated_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => loadVersion(item.id)} title="View/Edit"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors">
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => deleteVersion(item.id)} title="Delete"
+                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
         </div>
       </div>
 
@@ -1489,6 +1603,47 @@ const BudgetMaster = () => {
                 <Download className="h-4 w-4" />
                 Download Template (.xlsx)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Budget Date Modal ────────────────────────────────────────────────── */}
+      {showDateModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Select Budget Date</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Define the effective date for this budget version</p>
+              </div>
+              <button onClick={() => setShowDateModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-8">
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Budget Effective Date</label>
+                <input 
+                  type="date" 
+                  value={selectedHistoryDate}
+                  onChange={(e) => setSelectedHistoryDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+              
+              <div className="flex gap-3">
+                <button onClick={() => setShowDateModal(false)}
+                  className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={executeSave} disabled={saving}
+                  className="flex-1 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                  {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Confirm & Save
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -37,8 +37,30 @@ def run_migration():
             if not column_exists(conn, 'budget_summaries', 'attachment_data'):
                 conn.execute(text("ALTER TABLE budget_summaries ADD COLUMN attachment_data TEXT"))
                 print("ADDED: attachment_data to budget_summaries")
+            if not column_exists(conn, 'budget_summaries', 'budget_date'):
+                conn.execute(text("ALTER TABLE budget_summaries ADD COLUMN budget_date VARCHAR"))
+                print("ADDED: budget_date to budget_summaries")
             else:
-                print("OK: attachment_data already exists")
+                print("OK: budget_date already exists")
+
+            # 2. Handle Unique Constraint removal (to allow multiple versions per project)
+            # This is PostgreSQL specific. We try to drop the common constraint name.
+            try:
+                # First, find the constraint name
+                res = conn.execute(text("""
+                    SELECT conname 
+                    FROM pg_constraint 
+                    WHERE conrelid = 'budget_summaries'::regclass 
+                    AND contype = 'u';
+                """)).fetchone()
+                if res:
+                    con_name = res[0]
+                    conn.execute(text(f"ALTER TABLE budget_summaries DROP CONSTRAINT {con_name}"))
+                    print(f"DROPPED: Unique constraint {con_name} from budget_summaries")
+                else:
+                    print("OK: No unique constraint found on budget_summaries")
+            except Exception as e:
+                print(f"INFO: Could not drop unique constraint (might already be gone): {e}")
         else:
             print("NOTE: budget_summaries table does not exist yet -- will be created by FastAPI startup")
 
