@@ -623,7 +623,7 @@ const BudgetMaster = () => {
       )}
 
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-b border-slate-200 dark:border-slate-700 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-b border-slate-200 dark:border-slate-700 mb-6 px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-slate-900 dark:bg-slate-700 rounded-lg">
             <Wallet className="h-5 w-5 text-white" />
@@ -657,6 +657,10 @@ const BudgetMaster = () => {
           )}
         </div>
       </div>
+      
+      {/* ── Main Content Scroll Area ────────────────────────────────────────── */}
+      <div className="master-table-scroll">
+        <div className="master-table-scroll-inner p-4 sm:p-6 space-y-6">
 
       {/* ── BUDGET TABLE TAB ─────────────────────────────────────────────────── */}
       {activeTab === 'Table' && (
@@ -1145,6 +1149,8 @@ const BudgetMaster = () => {
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
