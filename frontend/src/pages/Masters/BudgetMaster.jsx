@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
-import { Send, Eye, CheckCircle2 } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, Calculator } from 'lucide-react';
 import useCurrency from '../../hooks/useCurrency';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
@@ -62,6 +62,26 @@ const RevisionBadge = ({ status }) => {
   );
 };
 
+// ─── Summary Card (Static Aggregate View) ───────────────────────────────────
+const SummaryCard = ({ label, value, color, format, subLabel }) => {
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700">
+      <div className="flex flex-col mb-6">
+        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+        <p className="text-[10px] font-bold text-slate-500 italic uppercase tracking-wider">{subLabel}</p>
+      </div>
+      <p className={`text-3xl font-black tracking-tighter ${
+        color === 'red' ? 'text-red-600' :
+        color === 'blue' ? 'text-blue-600' :
+        color === 'emerald' ? 'text-emerald-600' :
+        'text-slate-900 dark:text-white'
+      }`}>
+        {format(value, false)}
+      </p>
+    </div>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const BudgetMaster = () => {
   const [projects, setProjects] = useState([]);
@@ -97,7 +117,7 @@ const BudgetMaster = () => {
   const [showDateModal, setShowDateModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
-  const [selectedHistoryDate, setSelectedHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [budgetDate, setBudgetDate] = useState(new Date().toISOString().split('T')[0]);
   const [tempFile, setTempFile] = useState(null);
   const [saveType, setSaveType] = useState('save'); // 'save' or 'sync'
 
@@ -396,7 +416,7 @@ const BudgetMaster = () => {
       });
       const fd = new FormData();
       fd.append('project_name', selectedProject);
-      fd.append('budget_date', selectedHistoryDate);
+      fd.append('budget_date', budgetDate);
       fd.append('overall_budget', parseFloat(overallBudget) || 0);
       fd.append('uploaded_by', user?.name || 'Admin');
       fd.append('budget_data', JSON.stringify(dataToSave));
@@ -482,6 +502,7 @@ const BudgetMaster = () => {
       // Assuming budget_data is stored as objects matching our columns
       setTableData(res.data.budget_data.map((r, i) => ({ ...r, id: r.id || `hist_${i}` })));
       setOverallBudget(res.data.overall_budget || 0);
+      setBudgetDate(res.data.budget_date || new Date().toISOString().split('T')[0]);
       setAttachmentName(res.data.attachment_name);
       setActiveTab('Table');
       showNotification('Budget version loaded into table');
@@ -521,6 +542,19 @@ const BudgetMaster = () => {
   const totalUtilization = tableData.reduce((s, r) => s + (parseFloat(r['Total utilization']) || 0), 0);
   const totalEstimated = tableData.reduce((s, r) => s + (parseFloat(r['Estimated']) || 0), 0);
   const totalBalance = tableData.reduce((s, r) => s + (parseFloat(r['Balance']) || 0), 0);
+  const totalUtilized = tableData.reduce((s, r) => s + (parseFloat(r['Utilized']) || 0), 0);
+  const totalCommitment = tableData.reduce((s, r) => s + (parseFloat(r['Commitment']) || 0), 0);
+  
+  const estimatedBreakdown = Object.entries(
+    tableData.reduce((acc, r) => {
+      const cat = r.Category || 'Other';
+      acc[cat] = (acc[cat] || 0) + (parseFloat(r.Estimated) || 0);
+      return acc;
+    }, {})
+  ).map(([label, value]) => ({ label, value }))
+   .sort((a, b) => b.value - a.value)
+   .slice(0, 4); // Show top 4 categories
+
   const isOverBudget = totalUtilization > parseFloat(overallBudget);
   const visibleColumns = columns.filter(c => c.visible);
 
@@ -721,23 +755,28 @@ const BudgetMaster = () => {
 
               {/* Summary Cards */}
               {(selectedProject || tableData.length > 0) && (
-                <div className="grid grid-cols-3 gap-8">
-                  {[
-                    { label: 'Total Estimated', value: totalEstimated, color: 'slate' },
-                    { label: 'Total Utilization', value: totalUtilization, color: isOverBudget ? 'red' : 'blue' },
-                    { label: 'Total Balance', value: totalBalance, color: totalBalance < 0 ? 'red' : 'emerald' },
-                  ].map(card => (
-                    <div key={card.label} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-8 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">{card.label}</p>
-                      <p className={`text-2xl font-black ${card.color === 'red' ? 'text-red-600' :
-                        card.color === 'blue' ? 'text-blue-600' :
-                          card.color === 'emerald' ? 'text-emerald-600' :
-                            'text-slate-900 dark:text-white'
-                        }`}>
-                        {format(card.value, false)}
-                      </p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <SummaryCard
+                    label="Total Estimated"
+                    value={totalEstimated}
+                    color="blue"
+                    format={format}
+                    subLabel="Summation of Estimated Values"
+                  />
+                  <SummaryCard
+                    label="Total Utilization"
+                    value={totalUtilization}
+                    color={isOverBudget ? 'red' : 'emerald'}
+                    format={format}
+                    subLabel="Summation of (Utilized + Commitment)"
+                  />
+                  <SummaryCard
+                    label="Total Balance"
+                    value={totalBalance}
+                    color={totalBalance < 0 ? 'red' : 'emerald'}
+                    format={format}
+                    subLabel="Summation of Balance Remaining"
+                  />
                 </div>
               )}
 
@@ -768,7 +807,7 @@ const BudgetMaster = () => {
                           <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
                             className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors">
                             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 font-bold">
-                              S
+                              <Save className="w-4 h-4" />
                             </div>
                             <div>
                               <p className="font-bold text-slate-900 dark:text-white">Save Budget</p>
@@ -778,7 +817,7 @@ const BudgetMaster = () => {
                           <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
                             className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
                             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600 font-bold">
-                              R
+                              <RefreshCw className="w-4 h-4" />
                             </div>
                             <div>
                               <p className="font-bold text-slate-900 dark:text-white">Save & Sync to Project Master</p>
@@ -845,7 +884,7 @@ const BudgetMaster = () => {
                           <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-slate-900 dark:bg-slate-700 rounded-none">
-                                <span className="text-white text-[10px] font-black">QC</span>
+                                <Calculator className="w-4 h-4 text-white" />
                               </div>
                               <span className="text-sm font-bold text-slate-800 dark:text-white">Quick Calc</span>
                             </div>
@@ -1680,8 +1719,8 @@ const BudgetMaster = () => {
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Budget Effective Date</label>
                 <input
                   type="date"
-                  value={selectedHistoryDate}
-                  onChange={(e) => setSelectedHistoryDate(e.target.value)}
+                  value={budgetDate}
+                  onChange={(e) => setBudgetDate(e.target.value)}
                   className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-bold text-slate-900 dark:text-white"
                 />
               </div>
@@ -1711,7 +1750,7 @@ const BudgetMaster = () => {
                 <button
                   onClick={() => {
                     if (!tempFile) { showNotification('Please select a file', 'error'); return; }
-                    const targetDate = String(selectedHistoryDate || '').trim();
+                    const targetDate = String(budgetDate || '').trim();
                     const historyArray = Array.isArray(historyData) ? historyData : [];
                     const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
                     if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
@@ -1736,7 +1775,7 @@ const BudgetMaster = () => {
               </div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
               <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8 leading-relaxed uppercase tracking-widest">
-                A budget snapshot for <span className="text-slate-900 dark:text-white">{selectedProject}</span> on <span className="text-slate-900 dark:text-white">{selectedHistoryDate}</span> already exists.
+                A budget snapshot for <span className="text-slate-900 dark:text-white">{selectedProject}</span> on <span className="text-slate-900 dark:text-white">{budgetDate}</span> already exists.
                 Uploading again will <span className="text-red-600 underline">REPLACE</span> previous data.
               </p>
 
