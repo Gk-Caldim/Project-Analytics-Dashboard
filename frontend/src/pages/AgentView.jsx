@@ -18,8 +18,8 @@ import {
   setChatHistory
 } from '../store/slices/navSlice';
 import { 
-  Plus, Search, LayoutGrid, Code2, MoreHorizontal, 
-  MessageSquare, Mic, Volume2, User, Settings, RefreshCcw, 
+  Plus, Search, LayoutGrid, Code2, MoreHorizontal, MoreVertical, 
+  MessageSquare, Volume2, User, Settings, RefreshCcw, 
   ChevronLeft, PanelLeftClose, PanelLeft, FolderKanban, Users, 
   Database, FileUp, BarChart3, Calendar, Clock, ChevronDown,
   Pin, Trash2, Edit2, Check, X, Navigation, AlertCircle, Send,
@@ -28,6 +28,7 @@ import {
 import { trackerSidebarManager } from '../utils/trackerSidebarManager';
 import { getEmployees } from '../utils/employeeApi';
 import { getCurrentUser } from '../utils/userUtils';
+import useCurrency from '../hooks/useCurrency';
 
 const AgentView = () => {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ const AgentView = () => {
   const { navigationHistory, chatHistory, currentChatId, unreadNotifications } = useSelector(state => state.nav);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
+  const { symbol, format, code, convert } = useCurrency();
   const [message, setMessage] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -81,13 +83,11 @@ const AgentView = () => {
   // Filter chat history by current user email
   const userChatHistory = chatHistory.filter(c => c.userEmail === user?.email);
 
-  // Merge chat and navigation history into one list
-  const combinedHistory = [
-    ...userChatHistory.map(c => ({ ...c, type: 'chat', sortDate: c.timestamp })),
-    ...navigationHistory.map(n => ({ ...n, type: 'nav', title: n.name, sortDate: n.timestamp }))
-  ].filter(item => {
+  // Chat history list
+  const combinedHistory = userChatHistory.map(c => ({ ...c, type: 'chat', sortDate: c.timestamp }))
+  .filter(item => {
     if (!searchQuery) return true;
-    const title = (item.type === 'nav' ? item.name : item.title) || '';
+    const title = item.title || '';
     return title.toLowerCase().includes(searchQuery.toLowerCase());
   }).sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
@@ -235,10 +235,9 @@ const AgentView = () => {
       // Success notification in chat
       const successMsg = {
         id: Date.now(),
-        text: `Successfully uploaded **${newTracker.fileName}** for **${trackerForm.project}**. It's now visible in the trackers module and sidebar.`,
-        sender: 'assistant',
-        timestamp: new Date().toLocaleTimeString(),
-        type: 'upload-success'
+        content: `Successfully uploaded ${newTracker.fileName} for ${trackerForm.project}. It is now visible in the trackers module and sidebar.`,
+        role: 'assistant',
+        timestamp: new Date().toLocaleTimeString()
       };
       setChatMessages(prev => [...prev, successMsg]);
 
@@ -282,7 +281,7 @@ const AgentView = () => {
       const feedbackMsg = {
         id: Date.now(),
         role: 'assistant',
-        content: `💰 **Budget Uploaded Successfully!**\n\n**Project:** ${budgetForm.project}\n**Department:** ${budgetForm.department}\n**File:** ${budgetForm.file?.name}\n\nThe budget summary has been processed and saved.`,
+        content: `Budget Uploaded Successfully!\n\nProject: ${budgetForm.project}\nDepartment: ${budgetForm.department}\nFile: ${budgetForm.file?.name}\n\nThe budget summary has been processed and saved.`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setChatMessages(prev => [...prev, feedbackMsg]);
@@ -400,666 +399,199 @@ const AgentView = () => {
     setChatMessages(newMessages);
     setIsTyping(true);
 
-    // Create or update chat ID
     const chatId = currentChatId || `chat_${Date.now()}`;
     if (!currentChatId) dispatch(setCurrentChatId(chatId));
 
-    // Capture pending state
-    const activePendingAction = pendingAction;
+    // Fetch fresh data for context
+    let latestProjects = projectList;
+    let latestEmployees = employeeList;
+    try {
+      const [pResp, eResp] = await Promise.all([
+        API.get('/projects/'), 
+        API.get('/employees/')
+      ]);
+      latestProjects = pResp.data || [];
+      latestEmployees = eResp.data || [];
+    } catch (err) {
+      console.error("Fresh fetch failed:", err);
+    }
 
     setTimeout(async () => {
       let response = "";
       let navigationModule = null;
       let fetchedData = null;
       let dataType = null;
-      const lowerMsg = userMessage.toLowerCase();
+      const lowerMsg = userMessage.toLowerCase().trim();
 
-      // CRUD Extraction Helpers
-      const extractName = (msg) => {
-        const match = msg.match(/(?:name is|called|named|employee|project|is)\s+([a-zA-Z\s0-9]+?)(?:\s+with|$|\s+and|\s+is|\.)/i);
-        return match ? match[1].trim() : null;
-      };
-      const extractEmail = (msg) => {
-        const match = msg.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/i);
-        return match ? match[1].trim() : null;
-      };
-      const extractUpdateValue = (msg, field) => {
-        const aliases = {
-          email: ['email', 'mail', 'email address'],
-          name: ['name', 'full name', 'username'],
-          status: ['status', 'state', 'condition'],
-          role: ['role', 'permission', 'access level']
-        };
-        
-        const fieldTerms = aliases[field] || [field];
-        for (const term of fieldTerms) {
-          const regex = new RegExp(`(?:set|update|change|to)\\s+${term}\\s+(?:to|is)?\\s*([a-zA-Z0-9.@\\s_-]+?)(?:\s+and|$|\\.|from)`, 'i');
-          const match = msg.match(regex);
-          if (match) return match[1].trim();
-          
-          // Fallback for "change [field] to [value]"
-          const regex2 = new RegExp(`(?:change|update)\\s+(?:his|her|their|the)?\\s*${term}\\s+(?:to|is)?\\s*([a-zA-Z0-9.@\\s_-]+?)(?:\s+and|$|\\.|from)`, 'i');
-          const match2 = msg.match(regex2);
-          if (match2) return match2[1].trim();
-        }
-        return null;
-      };
+      // 1. IDENTITY & CAPABILITIES
+      const isAboutMe = /\b(who are you|your name|tell about you|what do you do|help|capabilities|who is kia)\b/i.test(lowerMsg);
+      if (isAboutMe) {
+          response = "I am KIA (Knowledge Intelligence Assistant), the specialized AI core for this Project Analytics Dashboard. I am designed to be your Master Intelligence controller for the entire system.\n\n" +
+                     "What I Can Do:\n" +
+                     "- Project Analytics: Get health reports, track milestones, and view critical issues for any project.\n" +
+                     "- Data Management: Search, add, update, or delete project and employee records across all masters.\n" +
+                     "- Meeting Intelligence: Search through your global meeting transcripts (MOMs) for specific discussions or decisions.\n" +
+                     "- Automation: Upload and process tracker or budget files directly to the system.\n" +
+                     "- Navigation: Instantly take you to any module (Dashboard, Masters, Settings, etc.) via voice or text.\n\n" +
+                     "Try Asking:\n" +
+                     "- 'Show me the health report for Car Manufacturing project' \n" +
+                     "- 'Who talked about budget in the last meeting?' \n" +
+                     "- 'Update role of John Doe to Admin' \n" +
+                     "- 'Take me to the Employee Master' \n\n" +
+                     "How can I assist you right now?";
+      }
 
-      const detectRole = (msg) => {
-        const roles = ['Admin', 'Super Admin', 'User', 'Project Manager', 'Team Lead'];
-        const lowerMsg = msg.toLowerCase();
-        for (const role of roles) {
-          if (lowerMsg.includes(role.toLowerCase())) return role;
-        }
-        // Handle shorthand
-        if (lowerMsg.includes('pm')) return 'Project Manager';
-        if (lowerMsg.includes('tl')) return 'Team Lead';
-        if (lowerMsg.includes('admin')) return 'Admin';
-        return null;
-      };
+      // 2. ANALYTICS & PROJECT MATCHING
+      if (!response) {
+        const isMilestoneRequest = lowerMsg.includes('milestone') || lowerMsg.includes('track');
+        const isIssueRequest = lowerMsg.includes('issue') || lowerMsg.includes('criticality') || lowerMsg.includes('critical');
+        const isHealthRequest = lowerMsg.includes('health') || lowerMsg.includes('check') || lowerMsg.includes('risk report') || lowerMsg.includes('how is') || lowerMsg.includes('status check') || lowerMsg.includes('tell me about') || lowerMsg.includes('info') || lowerMsg.includes('details') || lowerMsg.includes('about');
 
-      const detectStatus = (msg) => {
-        const statuses = ['Active', 'Completed', 'On Hold', 'Archived'];
-        for (const status of statuses) {
-          if (msg.toLowerCase().includes(status.toLowerCase())) return status;
-        }
-        return null;
-      };
-
-      // 1. SMART INTENTS: Analytics & Intelligence (High Priority)
-      const isMilestoneRequest = lowerMsg.includes('milestone') || lowerMsg.includes('track');
-      const isIssueRequest = lowerMsg.includes('issue') || lowerMsg.includes('criticality') || lowerMsg.includes('critical');
-      const isAuditRequest = lowerMsg.includes('audit') || lowerMsg.includes('activity') || lowerMsg.includes('recent changes') || lowerMsg.includes('changed');
-      const isHealthRequest = lowerMsg.includes('health') || lowerMsg.includes('check') || lowerMsg.includes('risk report') || lowerMsg.includes('how is') || lowerMsg.includes('status check');
-
-      if (!response && (isMilestoneRequest || isIssueRequest || isAuditRequest || isHealthRequest)) {
-        // Robust project identification: match by name or ID
-        const targetProject = projectList.find(p => {
+        const matchedProjects = latestProjects.filter(p => {
           const pNameLower = (p.name || '').toLowerCase();
           const pIdLower = (p.project_id || '').toLowerCase();
-          
-          // Case 1: Direct inclusion (Name or ID)
           if (lowerMsg.includes(pNameLower) || (pIdLower && lowerMsg.includes(pIdLower))) return true;
-          
-          // Case 2: Word intersection (handle "Car manufacturing project" matching "Car Manufacturing")
-          const pWords = pNameLower.split(/\s+/).filter(w => w.length > 2); // ignore small words like "of", "the"
-          const matchCount = pWords.filter(w => lowerMsg.includes(w)).length;
-          return matchCount >= Math.min(pWords.length, 2); // 2 words match or entire small name
+          const userWords = lowerMsg.split(/\s+/).filter(w => w.length >= 3 && !['about', 'tell', 'project', 'info', 'the', 'for', 'and'].includes(w));
+          return userWords.some(uw => pNameLower.includes(uw));
         });
-        
-        if (isHealthRequest && targetProject) {
-          // PROACTIVE HEALTH REPORT LOGIC
+
+        if (isHealthRequest && matchedProjects.length > 0) {
           try {
-            const [issueResp, dashResp] = await Promise.all([
-               API.get(`/issues/project/${targetProject.id}/critical`),
-               API.get(`/dashboard/${targetProject.id}`)
-            ]);
-            
-            const issues = issueResp.data || [];
-            const milestones = dashResp.data.milestones || [];
-            
-            const delayedMilestones = milestones.filter(m => m.status === 'Delayed');
-            const criticalIssues = issues.filter(iss => iss.priority === 'Critical' || iss.priority === 'High');
-            
-            let healthScore = 100;
-            healthScore -= (delayedMilestones.length * 15);
-            healthScore -= (criticalIssues.length * 20);
-            
-            let statusChar = "🟢 Healthy";
-            let color = "text-emerald-400";
-            if (healthScore < 50) { statusChar = "🔴 At Risk"; color = "text-red-400"; }
-            else if (healthScore < 85) { statusChar = "🟡 Warning"; color = "text-amber-400"; }
-            
-            response = `### Health Report for **${targetProject.name}**\n` + 
-                       `Status: **${statusChar}** (Score: ${Math.max(0, healthScore)}/100)\n\n` +
-                       `I've analyzed the current data and found **${delayedMilestones.length} delayed milestones** and **${criticalIssues.length} critical issues**. ` +
-                       (healthScore < 85 ? `Immediate attention is recommended to get the project back on track.` : `The project is performing well.`);
-            
-            fetchedData = [
-                ...criticalIssues.map(i => ({ name: i.title, type: 'Issue', status: i.priority, project_name: targetProject.name })),
-                ...delayedMilestones.map(m => ({ name: m.milestone, type: 'Milestone', status: 'Delayed', project_name: targetProject.name }))
-            ];
-            dataType = 'milestone'; // Reuse milestone/issue table layout
-          } catch (err) {
-            response = `I encountered an error trying to generate a health report for **${targetProject.name}**.`;
-          }
-        } else if (isAuditRequest) {
-          // AUDIT LOG TRACKING
-          try {
-            const auditResp = await API.get('/audit-logs', { 
-               params: { limit: 10, module: targetProject ? 'Project Master' : null } 
-            });
-            const logs = auditResp.data || [];
-            if (logs.length > 0) {
-              response = targetProject 
-                ? `Here are the latest activities for **${targetProject.name}**:`
-                : `I've fetched the most recent system-wide activities:`;
-              
-              fetchedData = logs.map(l => ({
-                action: l.action,
-                module: l.module,
-                user: l.user_name || 'System',
-                time: new Date(l.timestamp).toLocaleString(),
-                summary: l.details?.summary || l.action
-              }));
-              dataType = 'audit_log';
-            } else {
-              response = `No recent audit logs were found.`;
-            }
-          } catch (err) {
-            response = `⚠️ I couldn't access the system audit trails right now.`;
-          }
-        } else if (targetProject) {
-          try {
-            if (isMilestoneRequest) {
-              const dashResp = await API.get(`/dashboard/${targetProject.id}`);
-              const milestones = dashResp.data.milestones || [];
-              response = `Here are the milestones for **${targetProject.name}**.`;
-              fetchedData = milestones.map(m => ({
-                name: m.milestone,
-                module: m.module,
-                status: m.status,
-                project_name: targetProject.name
-              }));
-              dataType = 'milestone';
-            } else {
-              const issueResp = await API.get(`/issues/project/${targetProject.id}/critical`, { params: { limit: 100 } });
+            let combinedRes = "";
+            let combinedData = [];
+            for (const targetProject of matchedProjects) {
+              const [issueResp, dashResp] = await Promise.all([
+                 API.get(`/issues/project/${targetProject.id}/critical`),
+                 API.get(`/dashboard/${targetProject.id}`)
+              ]);
               const issues = issueResp.data || [];
-              if (issues.length > 0) {
-                response = `I've retrieved the critical issues for **${targetProject.name}**:`;
-                fetchedData = issues.map(iss => ({
-                  name: iss.title,
-                  priority: iss.priority,
-                  status: iss.status,
-                  project_name: targetProject.name
-                }));
-                dataType = 'issue';
-              } else {
-                response = `Sorry, I couldn't find any critical issues recorded for **${targetProject.name}** at this time.`;
-              }
+              const milestones = dashResp.data.milestones || [];
+              const delayedCount = milestones.filter(m => m.status === 'Delayed').length;
+              const criticalCount = issues.filter(iss => iss.priority === 'Critical' || iss.priority === 'High').length;
+              const healthScore = Math.max(0, 100 - (delayedCount * 15) - (criticalCount * 20));
+              const statusText = healthScore < 50 ? "At Risk" : (healthScore < 85 ? "Warning" : "Healthy");
+              
+              combinedRes += `PROJECT SUMMARY: ${targetProject.name.toUpperCase()}\n` +
+                         `------------------------------------------\n` +
+                         `Status: ${statusText} (Health Score: ${healthScore}/100)\n` +
+                         `Project ID: ${targetProject.project_id || 'N/A'}\n` +
+                         `Department: ${targetProject.department || 'General'}\n` +
+                         `Project Manager: ${targetProject.project_manager || 'N/A'}\n` +
+                         `Team Lead: ${targetProject.employee_name || 'N/A'}\n\n` +
+                         `BUDGET SUMMARY\n` +
+                         `- Total Budget: ${symbol}${parseFloat(targetProject.budget || 0).toLocaleString()}\n` +
+                         `- Utilized: ${symbol}${parseFloat(targetProject.utilized_budget || 0).toLocaleString()}\n` +
+                         `- Balance: ${symbol}${parseFloat(targetProject.balance_budget || 0).toLocaleString()}\n\n` +
+                         `DASHBOARD SECTIONS\n` +
+                         `- Milestones: ${milestones.length} (${delayedCount} delayed)\n` +
+                         `- Critical Issues: ${issues.length} (${criticalCount} high priority)\n\n` +
+                         `I have analyzed the data for ${targetProject.name}. The project is currently ${statusText.toLowerCase()}.\n\n`;
+              combinedData.push(...issues.map(i => ({ name: i.title, type: 'Issue', status: i.priority, project_name: targetProject.name })));
+              combinedData.push(...milestones.filter(m => m.status === 'Delayed').map(m => ({ name: m.milestone, type: 'Milestone', status: 'Delayed', project_name: targetProject.name })));
             }
-          } catch (apiErr) {
-            console.error("Analytics fetch failed:", apiErr);
-            response = `⚠️ I couldn't fetch the data for **${targetProject.name}**.`;
-          }
-        } else if (isIssueRequest) {
-          // Global Fallback for Issues (Dashboard view)
+            response = combinedRes.trim();
+            fetchedData = combinedData;
+            dataType = 'milestone'; 
+          } catch (err) { response = "I encountered an error while fetching project data."; }
+        } else if (matchedProjects.length > 0) {
           try {
-            const issueResp = await API.get('/issues', { params: { priority: 'High' } });
-            const allIssues = issueResp.data || [];
-            
-            if (allIssues.length > 0) {
-              response = `Since no specific project was named, I've listed the top critical issues from across your **entire dashboard**.`;
-              fetchedData = allIssues.map(iss => {
-                const proj = projectList.find(p => p.id === iss.project_id);
-                return {
-                  name: iss.title,
-                  priority: iss.priority,
-                  status: iss.status,
-                  project_name: proj ? proj.name : 'Global'
-                };
-              });
-              dataType = 'issue';
-            } else {
-              response = `I'd be happy to help with that! Which **project** are you interested in?`;
-              setPendingAction({ 
-                type: 'select_for_action', 
-                dataType: 'project', 
-                subType: 'issues' 
-              });
+            let combinedRes = "";
+            let combinedList = [];
+            for (const targetProject of matchedProjects) {
+              if (isMilestoneRequest) {
+                const dashResp = await API.get(`/dashboard/${targetProject.id}`);
+                const milestones = dashResp.data.milestones || [];
+                combinedRes += `Milestones for ${targetProject.name}.\n\n`;
+                combinedList.push(...milestones.map(m => ({ name: m.milestone, module: m.module, status: m.status, project_name: targetProject.name })));
+              } else if (isIssueRequest) {
+                const issueResp = await API.get(`/issues/project/${targetProject.id}/critical`);
+                const issues = issueResp.data || [];
+                combinedRes += `Critical issues for ${targetProject.name}:\n\n`;
+                combinedList.push(...issues.map(iss => ({ name: iss.title, priority: iss.priority, status: iss.status, project_name: targetProject.name })));
+              }
             }
-          } catch (err) {
-            response = `I couldn't identify the project. Which one are you interested in?`;
-            setPendingAction({ type: 'select_for_action', dataType: 'project', subType: 'issues' });
-          }
-        } else {
-           response = `I'd be happy to help with project milestones! Which **project** are you interested in?`;
-           setPendingAction({ type: 'select_for_action', dataType: 'project', subType: 'milestones' });
+            response = combinedRes.trim();
+            fetchedData = combinedList;
+            dataType = isMilestoneRequest ? 'milestone' : 'issue';
+          } catch (err) { response = "I could not fetch the full analytics data for those projects."; }
         }
       }
 
-      // 2. CRUD Operations Logic
-      try {
-        const isList = lowerMsg.includes('list') || lowerMsg.includes('show') || lowerMsg.includes('fetch') || lowerMsg.includes('display') || lowerMsg.includes('get');
-        const isAdd = lowerMsg.includes('add') || lowerMsg.includes('create') || lowerMsg.includes('new') || lowerMsg.includes('insert') || lowerMsg.includes('make');
-        const isEdit = lowerMsg.includes('edit') || lowerMsg.includes('update') || lowerMsg.includes('change') || lowerMsg.includes('modify') || lowerMsg.includes('set');
-        const isDelete = lowerMsg.includes('delete') || lowerMsg.includes('remove') || lowerMsg.includes('destroy');
-
-        const emailInMsg = extractEmail(userMessage);
-        let isEmployee = lowerMsg.includes('employee') || lowerMsg.includes('user') || lowerMsg.includes('staff') || lowerMsg.includes('person') || lowerMsg.includes('who is') || !!emailInMsg;
-        let isProject = lowerMsg.includes('project') || lowerMsg.includes('task') || lowerMsg.includes('work') || lowerMsg.includes('assignment');
-        const isSearch = lowerMsg.includes('search') || lowerMsg.includes('find') || lowerMsg.includes('who is') || lowerMsg.includes('show me');
-
-        // Context-aware type detection
-        if (activePendingAction) {
-          if (activePendingAction.type.includes('employee') || activePendingAction.dataType === 'employee') isEmployee = true;
-          if (activePendingAction.type.includes('project') || activePendingAction.dataType === 'project') isProject = true;
-        }
-
-        // --- Handle Multi-step Pending Actions ---
-        if (activePendingAction && !isList && !isAdd) {
-          if (activePendingAction.type === 'add_employee') {
-            const name = activePendingAction.data.name || (userMessage.length < 50 ? userMessage : null);
-            const email = activePendingAction.data.email || extractEmail(userMessage);
-            if (name && email) {
-              const res = await API.post('/employees', { name, email, employee_id: `EMP${Math.floor(Math.random()*10000)}`, role: 'User', status: 'Active' });
-              response = `✅ Successfully added employee: **${res.data.name}**. I've updated the table below.`;
-              const allEmps = await API.get('/employees');
-              fetchedData = allEmps.data;
-              dataType = 'employee';
-              setPendingAction(null);
-            } else if (name && !email) {
-              response = `Got it, the name is **${name}**. Now, what is the **email address** for this employee?`;
-              setPendingAction({ ...activePendingAction, data: { ...activePendingAction.data, name } });
-            }
-          } else if (activePendingAction.type === 'edit_employee') {
-            const { target } = activePendingAction.data;
-            const newRole = detectRole(userMessage);
-            const newName = extractUpdateValue(userMessage, 'name');
-            const newEmail = extractUpdateValue(userMessage, 'email');
-
-            if (newRole || newName || newEmail) {
-              const updateData = { ...target };
-              if (newRole) updateData.role = newRole;
-              if (newName) updateData.name = newName;
-              if (newEmail) updateData.email = newEmail;
-              await API.put(`/employees/${target.id}`, updateData);
-              response = `✅ Updated **${target.name}**. Table refreshed.`;
-              const refresh = await API.get('/employees');
-              fetchedData = refresh.data;
-              dataType = 'employee';
-              setPendingAction(null);
-            } else if (lowerMsg.includes('delete')) {
-              await API.delete(`/employees/${target.id}`);
-              response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
-              const refresh = await API.get('/employees');
-              fetchedData = refresh.data;
-              dataType = 'employee';
-              setPendingAction(null);
-            }
-          } else if (activePendingAction.type === 'add_project') {
-            const name = activePendingAction.data.name || (userMessage.length < 50 ? userMessage : null);
-            if (name) {
-              const res = await API.post('/projects', { 
-                name, 
-                project_id: `PRJ-${Math.floor(Math.random()*1000)}`, 
-                status: 'Active' 
-              });
-              response = `✅ Successfully created project: **${res.data.name}**. I've updated the list below.`;
-              const allProjects = await API.get('/projects');
-              fetchedData = allProjects.data;
-              dataType = 'project';
-              setPendingAction(null);
-            }
-          } else if (activePendingAction.type === 'edit_project') {
-            const { target } = activePendingAction.data;
-            const newStatus = detectStatus(userMessage);
-            const newName = extractUpdateValue(userMessage, 'name');
-            if (newStatus || newName) {
-              const updateData = { ...target };
-              if (newStatus) updateData.status = newStatus;
-              if (newName) updateData.name = newName;
-              await API.put(`/projects/${target.id}`, updateData);
-              response = `✅ Updated project **${target.name}**.`;
-              const refresh = await API.get('/projects');
-              fetchedData = refresh.data;
-              dataType = 'project';
-              setPendingAction(null);
-            } else if (lowerMsg.includes('delete')) {
-              await API.delete(`/projects/${target.id}`);
-              response = `🗑️ Deleted project **${target.name}**. Table refreshed.`;
-              const refresh = await API.get('/projects');
-              fetchedData = refresh.data;
-              dataType = 'project';
-              setPendingAction(null);
-            }
-          } else if (activePendingAction.type === 'select_for_action') {
-              // We were waiting for an email or project name
-              const res = await (activePendingAction.dataType === 'employee' ? API.get('/employees') : API.get('/projects'));
-              const email = extractEmail(userMessage);
-              const name = extractName(userMessage) || userMessage.trim();
-              
-              const target = activePendingAction.dataType === 'employee' 
-                ? res.data.find(e => e.email?.toLowerCase() === email?.toLowerCase())
-                : res.data.find(p => p.name?.toLowerCase().includes(name.toLowerCase()) || p.project_id?.toLowerCase() === name.toLowerCase());
-
-              if (target) {
-                // Check if an action was also provided in this message
-                const newRole = activePendingAction.dataType === 'employee' ? detectRole(userMessage) : null;
-                const newStatus = activePendingAction.dataType === 'project' ? detectStatus(userMessage) : null;
-                const isDeleteNow = lowerMsg.includes('delete') || lowerMsg.includes('remove');
-
-                if (isDeleteNow) {
-                    await API.delete(`/${activePendingAction.dataType}s/${target.id}`);
-                    response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
-                    const refresh = await API.get(`/${activePendingAction.dataType}s`);
-                    fetchedData = refresh.data;
-                    dataType = activePendingAction.dataType;
-                    setPendingAction(null);
-                } else if (newRole || newStatus) {
-                    const updateData = { ...target };
-                    if (newRole) updateData.role = newRole;
-                    if (newStatus) updateData.status = newStatus;
-                    await API.put(`/${activePendingAction.dataType}s/${target.id}`, updateData);
-                    response = `✅ Updated **${target.name}**.`;
-                    const refresh = await API.get(`/${activePendingAction.dataType}s`);
-                    fetchedData = refresh.data;
-                    dataType = activePendingAction.dataType;
-                    setPendingAction(null);
-                } else {
-                    response = `I found **${target.name}**. What would you like to do? (e.g., 'set role to Admin' or 'delete')`;
-                    setPendingAction({ type: `edit_${activePendingAction.dataType}`, data: { target } });
-                    fetchedData = res.data;
-                    dataType = activePendingAction.dataType;
-                }
-              }
-          } else if (activePendingAction.type === 'select_for_action' && (activePendingAction.subType === 'milestones' || activePendingAction.subType === 'issues')) {
-              // Handle Analytics Multi-turn Selection
-              const pName = userMessage.trim().toLowerCase();
-              const targetProject = projectList.find(p => 
-                p.name.toLowerCase().includes(pName) || p.project_id?.toLowerCase() === pName
-              );
-
-              if (targetProject) {
-                try {
-                  const isMilestone = activePendingAction.subType === 'milestones';
-                  if (isMilestone) {
-                    const dashResp = await API.get(`/dashboard/${targetProject.id}`);
-                    const milestones = dashResp.data.milestones || [];
-                    response = `Here are the milestones for **${targetProject.name}**.`;
-                    fetchedData = milestones.map(m => ({
-                      name: m.milestone,
-                      module: m.module,
-                      status: m.status
-                    }));
-                    dataType = 'milestone';
-                  } else {
-                    const issueResp = await API.get(`/issues/project/${targetProject.id}/critical`);
-                    const issues = issueResp.data || [];
-                    response = `I've retrieved the top critical issues for **${targetProject.name}**.`;
-                    fetchedData = issues.map(iss => ({
-                      name: iss.title,
-                      priority: iss.priority,
-                      status: iss.status
-                    }));
-                    dataType = 'issue';
-                  }
-                  setPendingAction(null);
-                } catch (apiErr) {
-                  console.error("Multi-turn analytics fetch failed:", apiErr);
-                  response = `⚠️ I couldn't fetch the data for **${targetProject.name}**.`;
-                  setPendingAction(null);
-                }
-              }
-          }
-        }
-
-        // 1.7. Meeting Transcript Search
-        const searchKeywords = ['discussed', 'said about', 'search meeting', 'find in meeting', 'mention'];
-        const isDiscussionSearch = searchKeywords.some(k => lowerMsg.includes(k));
-
-        if (!response && isDiscussionSearch) {
-          // Extract search query
-          let searchQuery = userMessage;
-          searchKeywords.forEach(k => {
-            if (lowerMsg.includes(k)) {
-              searchQuery = searchQuery.split(new RegExp(k, 'i'))[1] || searchQuery;
-            }
-          });
-          
-          searchQuery = searchQuery.replace(/[?.!]/g, '').trim();
-
-          if (searchQuery.length > 1) {
-            try {
-              const searchResp = await API.get('/transcript/global/search', { params: { query: searchQuery } });
-              const matches = searchResp.data || [];
-              
-              if (matches.length > 0) {
-                response = `I found **${matches.length}** mention(s) of "${searchQuery}" in your meeting transcripts.`;
-                fetchedData = matches.map(m => ({
-                  name: m.meeting_title,
-                  speaker: m.speaker,
-                  text: m.text,
-                  timestamp: m.timestamp
-                }));
-                dataType = 'transcript_result';
-              } else {
-                response = `I couldn't find any discussions about "${searchQuery}" in your saved meeting transcripts.`;
-              }
-            } catch (searchErr) {
-              console.error("Transcript search failed:", searchErr);
-              response = `⚠️ I encountered an error while searching your transcripts.`;
-            }
-          }
-        }
-
-        // --- NEW COMMANDS ---
-        if (!response) {
-            if (isSearch && !isAdd && !isEdit && !isDelete) {
-                // Handle Search Intent
-                const query = userMessage.replace(/(search for|find|who is|show me|look for)\s+/i, '').trim();
-                if (query) {
-                    const empRes = await API.get('/employees');
-                    const projRes = await API.get('/projects');
-                    
-                    const foundEmps = empRes.data.filter(e => 
-                        e.name?.toLowerCase().includes(query.toLowerCase()) || 
-                        e.email?.toLowerCase() === query.toLowerCase() ||
-                        e.employee_id?.toLowerCase() === query.toLowerCase()
-                    );
-                    
-                    const foundProjs = projRes.data.filter(p => 
-                        p.name?.toLowerCase().includes(query.toLowerCase()) || 
-                        p.project_id?.toLowerCase() === query.toLowerCase()
-                    );
-
-                    if (foundEmps.length > 0 && foundProjs.length === 0) {
-                        fetchedData = foundEmps;
-                        dataType = 'employee';
-                        if (foundEmps.length === 1) {
-                            response = `I found **${foundEmps[0].name}**. What would you like to do? (e.g., 'edit role' or 'delete')`;
-                            setPendingAction({ type: 'edit_employee', data: { target: foundEmps[0] } });
-                        } else {
-                            response = `I found ${foundEmps.length} employees matching "${query}".`;
-                        }
-                    } else if (foundProjs.length > 0 && foundEmps.length === 0) {
-                        fetchedData = foundProjs;
-                        dataType = 'project';
-                        if (foundProjs.length === 1) {
-                            response = `I found project **${foundProjs[0].name}**. What would you like to do? (e.g., 'change status' or 'delete')`;
-                            setPendingAction({ type: 'edit_project', data: { target: foundProjs[0] } });
-                        } else {
-                            response = `I found ${foundProjs.length} projects matching "${query}".`;
-                        }
-                    } else if (foundEmps.length > 0 || foundProjs.length > 0) {
-                        fetchedData = [...foundEmps, ...foundProjs];
-                        dataType = foundEmps.length > foundProjs.length ? 'employee' : 'project';
-                        response = `I found some matches for "${query}". Which one are you interested in?`;
-                    } else {
-                        response = `I couldn't find any employees or projects matching "${query}".`;
-                    }
-                }
-            }
-
-            if (!response && isEmployee) {
-                dataType = 'employee';
-                const res = await API.get('/employees');
-                fetchedData = res.data;
-                const email = emailInMsg;
-                // Enhanced name extraction for deletion
-                const nameFromMsg = userMessage.replace(/(delete|remove|edit|update|change|who is)\s+(employee|user|staff)?\s+/i, '').trim();
-                
-                const target = email 
-                    ? res.data.find(e => e.email?.toLowerCase() === email.toLowerCase()) 
-                    : res.data.find(e => e.name?.toLowerCase().includes(nameFromMsg.toLowerCase()));
-
-                if (target && !isList && !isAdd) {
-                    if (isDelete) {
-                        await API.delete(`/employees/${target.id}`);
-                        response = `🗑️ Deleted **${target.name}**. Table refreshed.`;
-                        const refresh = await API.get('/employees');
-                        fetchedData = refresh.data;
-                    } else {
-                        const newRole = detectRole(userMessage);
-                        const newName = extractUpdateValue(userMessage, 'name');
-                        const newEmail = extractUpdateValue(userMessage, 'email');
-                        
-                        if (newRole || newName || newEmail) {
-                            const updateData = { ...target };
-                            if (newRole) updateData.role = newRole;
-                            if (newName) updateData.name = newName;
-                            if (newEmail) updateData.email = newEmail;
-                            await API.put(`/employees/${target.id}`, updateData);
-                            response = `✅ Updated **${target.name}**.`;
-                            const refresh = await API.get('/employees');
-                            fetchedData = refresh.data;
-                        } else {
-                            response = `I found **${target.name}**. What would you like to do? (e.g., 'edit role to Admin' or 'delete')`;
-                            setPendingAction({ type: 'edit_employee', data: { target } });
-                        }
-                    }
-                } else if (isList) {
-                    response = `I've fetched the employee list. There are ${res.data.length} employees.`;
-                } else if (isAdd) {
-                    const name = extractName(userMessage);
-                    if (name && email) {
-                        const addRes = await API.post('/employees', { name, email, employee_id: `EMP${Math.floor(Math.random()*10000)}`, role: 'User', status: 'Active' });
-                        response = `✅ Added employee: **${addRes.data.name}**.`;
-                        const refresh = await API.get('/employees');
-                        fetchedData = refresh.data;
-                    } else {
-                        response = "Please provide the **name** and **email** for the new employee.";
-                        setPendingAction({ type: 'add_employee', data: { name, email } });
-                    }
-                } else if (isEdit || isDelete || email || (nameFromMsg && nameFromMsg.length > 2)) {
-                    if (email) response = `Couldn't find an employee with email **${email}**.`;
-                    else if (nameFromMsg) {
-                        response = `Which employee would you like to ${isDelete ? 'delete' : 'edit'}? Please provide their **email** or full name.`;
-                        setPendingAction({ type: 'select_for_action', subType: isDelete ? 'delete' : 'edit', dataType: 'employee', data: {} });
-                    }
-                }
-            } else if (!response && isProject) {
-                dataType = 'project';
-                const res = await API.get('/projects');
-                fetchedData = res.data;
-                const projectName = extractName(userMessage) || userMessage.trim();
-                const target = projectName ? res.data.find(p => p.name?.toLowerCase().includes(projectName.toLowerCase()) || p.project_id?.toLowerCase() === projectName.toLowerCase()) : null;
-
-                if (target && !isList && !isAdd) {
-                    if (isDelete) {
-                        await API.delete(`/projects/${target.id}`);
-                        response = `🗑️ Deleted project **${target.name}**.`;
-                        const refresh = await API.get('/projects');
-                        fetchedData = refresh.data;
-                    } else {
-                        const newStatus = detectStatus(userMessage);
-                        if (newStatus) {
-                            await API.put(`/projects/${target.id}`, { ...target, status: newStatus });
-                            response = `✅ Updated **${target.name}** to **${newStatus}**.`;
-                            const refresh = await API.get('/projects');
-                            fetchedData = refresh.data;
-                        } else {
-                            response = `Found project **${target.name}**. What would you like to do? (e.g., 'set status to Completed' or 'delete')`;
-                            setPendingAction({ type: 'edit_project', data: { target } });
-                        }
-                    }
-                } else if (isList) {
-                    response = `I've fetched all projects. We have ${res.data.length} active projects.`;
-                } else if (isAdd) {
-                    const name = extractName(userMessage);
-                    if (name) {
-                        const addRes = await API.post('/projects', { name, project_id: `PRJ-${Math.floor(Math.random()*1000)}`, status: 'Active' });
-                        response = `✅ Created project: **${addRes.data.name}**.`;
-                        const refresh = await API.get('/projects');
-                        fetchedData = refresh.data;
-                    } else {
-                        response = "What **name** should I give to the new project?";
-                        setPendingAction({ type: 'add_project', data: { name: null } });
-                    }
-                } else if (isEdit || isDelete) {
-                    response = `Which project would you like to ${isDelete ? 'delete' : 'edit'}? Please provide the **name**.`;
-                    setPendingAction({ type: 'select_for_action', subType: isDelete ? 'delete' : 'edit', dataType: 'project', data: {} });
-                }
-            }
-        }
-      } catch (err) {
-        console.error("Agent Action Error:", err);
-        const errorDetail = err.response?.data?.detail || err.message;
-        response = `⚠️ Action failed: ${errorDetail}`;
-        
-        // Clear pending action on error to allow the user to "continue" with a fresh start
-        setPendingAction(null);
-        
-        // Add helpful context if it's a known error type
-        if (errorDetail.toLowerCase().includes('foreign key') || errorDetail.toLowerCase().includes('referenced')) {
-          response += "\n\nThis usually happens because this record is linked to other data (like projects, tasks, or meetings). For safety, I can't delete it while those links exist.";
-        }
-      }
-
-      // 2. Navigation Command Detection (Fallback)
-      if (!response && (lowerMsg.includes('take me to') || lowerMsg.includes('navigate to') || lowerMsg.includes('go to') || lowerMsg.includes('open'))) {
-        navigationModule = modules.find(m => 
-          lowerMsg.includes(m.name.toLowerCase()) || 
-          (m.id === 'masters-main' && lowerMsg.includes('master')) ||
-          (m.id === 'project-dashboard' && lowerMsg.includes('dashboard'))
-        );
-
-        if (navigationModule) {
-          response = `Sure! I'm taking you to the ${navigationModule.name} page now.`;
-        }
-      }
-
-      // 3. General Fallbacks
+      // 3. MASTER DATA OPERATIONS
       if (!response) {
-        if (lowerMsg.includes('hai') || lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
-          response = "Hello! How can I assist you with your Project Analytics today?";
-        } else if (lowerMsg.includes('hwau') || lowerMsg.includes('how are you')) {
-          response = "I'm doing great, thank you for asking! Ready to help you manage your projects.";
-        } else if (lowerMsg.includes('greet') || lowerMsg.includes('good morning') || lowerMsg.includes('good afternoon')) {
-          response = "Greetings! I'm your AI assistant for this dashboard. What can I do for you?";
-        } else if (lowerMsg.includes('thanks') || lowerMsg.includes('thank you') || lowerMsg.includes('great') || lowerMsg.includes('awesome') || lowerMsg.includes('good job') || lowerMsg.includes('appreciate it')) {
-          response = "You're very welcome! Let me know if you need any further assistance.";
-        } else {
-          response = "I'm sorry, I am specifically designed to assist with Project Analytics, MOMs, and Dashboard management. I might not be able to help with that particular question.";
-        }
+        try {
+          const isList = lowerMsg.includes('list') || lowerMsg.includes('show') || lowerMsg.includes('fetch');
+          const isSearch = lowerMsg.includes('search') || lowerMsg.includes('find') || lowerMsg.includes('who is');
+          const emailInMsg = userMessage.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/i)?.[0];
+          const isEmployee = lowerMsg.includes('employee') || lowerMsg.includes('user') || !!emailInMsg;
+          const isProject = lowerMsg.includes('project');
 
-        // Add a reminder if there are unread notifications
-        if (unreadNotifications > 0 && !response.includes("I'm sorry")) {
-          response += `\n\nBy the way, you have ${unreadNotifications} unread notification${unreadNotifications > 1 ? 's' : ''}. Use the bell icon on the top right to view them!`;
+          if (isList) {
+            if (isEmployee) {
+              response = "I have retrieved the complete employee list.";
+              fetchedData = latestEmployees.map(e => ({ ...e, name: e.full_name || e.name }));
+              dataType = 'employee';
+            } else if (isProject) {
+              response = "I have fetched all active projects.";
+              fetchedData = latestProjects;
+              dataType = 'project';
+            }
+          } else if (isSearch && isEmployee) {
+            const target = latestEmployees.find(e => lowerMsg.includes(e.full_name?.toLowerCase()) || (emailInMsg && e.email?.toLowerCase() === emailInMsg.toLowerCase()));
+            if (target) {
+              response = `I found a match for ${target.full_name || target.name}. Here are the details:`;
+              fetchedData = [{ ...target, name: target.full_name || target.name }];
+              dataType = 'employee';
+            } else { response = "I could not find an employee matching that search."; }
+          }
+        } catch (err) { response = "I encountered an issue processing the master data request."; }
+      }
+
+      // 4. MEETING INTELLIGENCE (Transcript Search)
+      if (!response && (lowerMsg.includes('talked about') || lowerMsg.includes('discussed') || lowerMsg.includes('mention'))) {
+        try {
+          const query = lowerMsg.replace(/(talked about|discussed|mention|search for|find)\s+/i, '').trim();
+          const searchResp = await API.get('/transcript/global/search', { params: { query } });
+          const matches = searchResp.data || [];
+          if (matches.length > 0) {
+            response = `I found ${matches.length} mention(s) of "${query}" in the meeting transcripts.`;
+            fetchedData = matches.map(m => ({ name: m.meeting_title, speaker: m.speaker, text: m.text, timestamp: m.timestamp }));
+            dataType = 'transcript_result';
+          } else { response = `I couldn't find any discussions about "${query}" in the saved transcripts.`; }
+        } catch (err) { response = "I encountered an error while searching transcripts."; }
+      }
+
+      // 5. NAVIGATION & UTILS
+      if (!response && (lowerMsg.includes('navigate') || lowerMsg.includes('take me to') || lowerMsg.includes('go to'))) {
+        navigationModule = modules.find(m => lowerMsg.includes(m.name.toLowerCase()) || (m.id === 'masters-main' && lowerMsg.includes('master')));
+        if (navigationModule) response = `Certainly. I am navigating you to the ${navigationModule.name} page.`;
+      }
+
+      // 6. GENERAL FALLBACKS
+      if (!response) {
+        const isGreeting = /\b(hi|hello|hai|hey|greetings|greet|hlo|helo|hy)\b/i.test(lowerMsg);
+        if (isGreeting) {
+          response = "Hello. I am KIA, your Knowledge Intelligence Assistant. How may I assist you today?";
+        } else if (lowerMsg.includes('thanks') || lowerMsg.includes('thank you')) {
+          response = "You are welcome. I am here to help.";
+        } else {
+          response = "I apologize, but I am specifically designed to assist with Project Analytics, MOMs, and Dashboard management. Please ask about a project, employee, or meeting transcript.";
         }
       }
 
+      // 7. FINALIZE & SYNC
       const finalMessages = [...newMessages, { role: 'assistant', content: response, data: fetchedData, dataType }];
       setChatMessages(finalMessages);
       setIsTyping(false);
 
-      // Save to history
       const chatTitle = userMessage.substring(0, 30) + (userMessage.length > 30 ? "..." : "");
-      dispatch(saveChatToHistory({
-        id: chatId,
-        title: chatTitle,
-        messages: finalMessages,
-        userEmail: user?.email // Save with user identifier
-      }));
-
-      // Persistent backend save
+      dispatch(saveChatToHistory({ id: chatId, title: chatTitle, messages: finalMessages, userEmail: user?.email }));
       try {
-        await API.post('/chats/save', {
-          chat_id: chatId,
-          title: chatTitle,
-          messages: finalMessages,
-          user_email: user?.email,
-          pinned: false
-        });
-      } catch (err) {
-        console.error("Failed to sync chat to DB:", err);
-      }
+        await API.post('/chats/save', { chat_id: chatId, title: chatTitle, messages: finalMessages, user_email: user?.email, pinned: false });
+      } catch (err) { console.error("Database sync failed:", err); }
 
-      // Navigation execution
       if (navigationModule) {
-        setTimeout(() => {
-          handleModuleClick(navigationModule);
-        }, 1500);
+        setTimeout(() => handleModuleClick(navigationModule), 1500);
       }
     }, 800);
   };
@@ -1097,7 +629,21 @@ const AgentView = () => {
     setDeleteConfirmItem(null);
   };
 
-  const renderHistoryItem = (item, type, index) => (
+  const renderMessageContent = (content) => {
+    if (!content) return null;
+    const parts = content.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i} className="italic text-white/80">{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
+
+  const renderHistoryItem = (item, type, index, total = 0) => (
     <div key={item.id} className="relative group/item">
       {editingId === item.id ? (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 mx-1">
@@ -1128,20 +674,15 @@ const AgentView = () => {
               if (type === 'nav') handleModuleClick(item);
               else dispatch(setCurrentChatId(item.id));
             }}
-            className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm truncate flex items-center gap-3 group ${
+            className={`w-full text-left pl-3 pr-10 py-2 rounded-lg transition-colors text-sm truncate flex items-center gap-2 group ${
               currentChatId === item.id ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10'
             }`}
           >
-            <div className="relative flex-shrink-0">
-              {type === 'nav' ? <Navigation size={14} className="text-white/20" /> : <MessageSquare size={14} className="text-white/20" />}
-              {item.pinned && (
-                <Pin size={8} className="absolute -top-1 -right-1 text-emerald-400 fill-emerald-400" />
-              )}
-            </div>
+            {item.pinned && <Pin size={12} className="text-emerald-400 fill-emerald-400 shrink-0" />}
             <span className="truncate flex-1">{type === 'nav' ? item.name : item.title}</span>
           </button>
           
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 flex items-center">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -1152,11 +693,13 @@ const AgentView = () => {
               <MoreHorizontal size={14} />
             </button>
           </div>
-
+        
           {activeMenu === (type + index) && (
             <div 
               ref={menuRef}
-              className="absolute right-2 top-8 z-[100] w-36 bg-[#2f2f2f] border border-white/10 rounded-lg shadow-xl py-1"
+              className={`absolute right-2 z-[100] w-36 bg-[#2f2f2f] border border-white/10 rounded-lg shadow-xl py-1 ${
+                total > 5 && index > total - 4 ? 'bottom-8' : 'top-8'
+              }`}
             >
               <button 
                 onClick={async (e) => {
@@ -1287,7 +830,7 @@ const AgentView = () => {
                 </div>
                 <ChevronDown size={12} className={`transition-transform duration-200 ${recentsExpanded ? '' : '-rotate-90'}`} />
               </button>
-              {recentsExpanded && combinedHistory.map((item, i) => renderHistoryItem(item, item.type, i))}
+              {recentsExpanded && combinedHistory.map((item, i) => renderHistoryItem(item, item.type, i, combinedHistory.length))}
             </>
           )}
         </div>
@@ -1331,83 +874,141 @@ const AgentView = () => {
             <div className="w-full flex-1 overflow-y-auto mb-4 space-y-6 scrollbar-hide px-2">
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm ${
+                  <div className={`max-w-[85%] text-sm ${
                     msg.role === 'user' 
-                      ? 'bg-brand-primary text-white' 
-                      : 'bg-[#2f2f2f] text-white/90 border border-white/5 shadow-lg'
+                      ? 'bg-[#2f2f2f] text-white border border-white/10 rounded-2xl px-4 py-3 shadow-lg self-end' 
+                      : 'bg-transparent text-white/90 border-none shadow-none px-0 py-1'
                   }`}>
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                    <div className="whitespace-pre-wrap leading-relaxed">{renderMessageContent(msg.content)}</div>
                     
                     {msg.data && msg.data.length > 0 && (
-                      <div className="mt-4 overflow-x-auto border border-white/10 rounded-xl bg-black/20 scrollbar-hide">
+                      <div className="mt-4 overflow-x-auto border border-white/10 rounded-xl bg-black/20 custom-scrollbar">
                         <table className="w-full text-xs text-left">
                           <thead className="bg-white/5 text-white/40 uppercase tracking-wider">
                             <tr>
-                              <th className="px-3 py-2 font-medium">
-                                {msg.dataType === 'employee' ? 'Name' : 
-                                 msg.dataType === 'milestone' ? 'Milestone' :
-                                 msg.dataType === 'issue' ? 'Critical Issue' : 
-                                 msg.dataType === 'audit_log' ? 'Action' :
-                                 msg.dataType === 'transcript_result' ? 'Meeting' : 'Project Name'}
-                              </th>
-                              <th className="px-3 py-2 font-medium">
-                                {msg.dataType === 'employee' ? 'Email' : 
-                                 msg.dataType === 'milestone' ? 'Module' :
-                                 msg.dataType === 'issue' ? 'Priority' : 
-                                 msg.dataType === 'audit_log' ? 'User' :
-                                 msg.dataType === 'transcript_result' ? 'Speaker' : 'Code'}
-                              </th>
-                              <th className="px-3 py-2 font-medium text-right">
-                                {msg.dataType === 'transcript_result' ? 'Moment' : 
-                                 msg.dataType === 'audit_log' ? 'Timestamp' : 'Status'}
-                              </th>
+                              {msg.dataType === 'project' ? (
+                                <>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Project ID</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Project Name</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Budget</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Department</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Project Manager</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Status</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Utilized</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Balance</th>
+                                </>
+                              ) : msg.dataType === 'employee' ? (
+                                <>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Employee ID</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Name</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Email</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Department</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Status</th>
+                                </>
+                              ) : (
+                                <>
+                                  <th className="px-3 py-2 font-medium">
+                                    {msg.dataType === 'milestone' ? 'Item Name' :
+                                     msg.dataType === 'issue' ? 'Critical Issue' : 
+                                     msg.dataType === 'transcript_result' ? 'Meeting' : 'Name'}
+                                  </th>
+                                  <th className="px-3 py-2 font-medium">
+                                    {msg.dataType === 'milestone' ? 'Module' :
+                                     msg.dataType === 'issue' ? 'Priority' : 
+                                     msg.dataType === 'transcript_result' ? 'Speaker' : 'Details'}
+                                  </th>
+                                  <th className="px-3 py-2 font-medium text-right">
+                                    {msg.dataType === 'transcript_result' ? 'Moment' : 'Status'}
+                                  </th>
+                                </>
+                              )}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
                             {msg.data.map((item, i) => (
                               <tr key={i} className="hover:bg-white/5 transition-colors">
-                                <td className="px-3 py-2 text-white/80 font-medium">
-                                  {msg.dataType === 'audit_log' ? item.summary : item.name}
-                                  {(msg.dataType === 'issue' || msg.dataType === 'milestone') && item.project_name && (
-                                    <div className="text-[9px] text-white/30 mt-0.5 font-normal">
-                                      Project: {item.project_name}
-                                    </div>
-                                  )}
-                                  {msg.dataType === 'audit_log' && (
-                                    <div className="text-[9px] text-white/30 mt-0.5 font-normal">
-                                      Module: {item.module}
-                                    </div>
-                                  )}
-                                  {msg.dataType === 'transcript_result' && (
-                                    <div className="text-[10px] text-white/40 mt-1 font-normal line-clamp-2 italic">
-                                      "{item.text}"
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-white/40">
-                                  {msg.dataType === 'employee' ? item.email : 
-                                   msg.dataType === 'milestone' ? (item.module || item.type || '-') :
-                                   msg.dataType === 'issue' ? (item.priority || 'High') : 
-                                   msg.dataType === 'audit_log' ? item.user :
-                                   msg.dataType === 'transcript_result' ? item.speaker : item.project_code}
-                                </td>
-                                <td className="px-3 py-2 text-right">
-                                  {msg.dataType === 'transcript_result' ? (
-                                    <span className="text-[10px] text-white/40 font-mono">{item.timestamp}</span>
-                                  ) : msg.dataType === 'audit_log' ? (
-                                    <span className="text-[10px] text-white/40 font-mono">{item.time}</span>
-                                  ) : (
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                      (item.role === 'Admin' || item.status === 'Active' || item.status === 'Completed' || item.status === 'On Track' || item.status === 'CREATED' || item.status === 'Healthy') 
-                                        ? 'bg-emerald-500/10 text-emerald-400' 
-                                        : (item.status === 'Delayed' || item.priority === 'High' || item.priority === 'Critical' || item.status === 'At Risk')
-                                        ? 'bg-red-500/10 text-red-400'
-                                        : 'bg-white/10 text-white/40'
-                                    }`}>
-                                      {msg.dataType === 'employee' ? (item.role || 'User') : (item.status || item.priority || 'Active')}
-                                    </span>
-                                  )}
-                                </td>
+                                {msg.dataType === 'project' ? (
+                                  <>
+                                    <td className="px-3 py-2 text-white/40 font-mono text-[10px] whitespace-nowrap">{item.project_id || '-'}</td>
+                                    <td className="px-3 py-2 text-white/80 font-medium whitespace-nowrap">{item.name}</td>
+                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] text-right whitespace-nowrap">
+                                      {item.budget ? `${symbol}${parseFloat(item.budget).toLocaleString()}` : '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-white/40 text-[10px] whitespace-nowrap">{item.department || '-'}</td>
+                                    <td className="px-3 py-2 text-white/40 text-[10px] whitespace-nowrap">{item.project_manager || '-'}</td>
+                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        (item.status === 'Active' || item.status === 'Completed' || item.status === 'Healthy') 
+                                          ? 'bg-emerald-500/10 text-emerald-400' 
+                                          : (item.status === 'Delayed' || item.status === 'At Risk' || item.status === 'On Hold')
+                                          ? 'bg-red-500/10 text-red-400'
+                                          : 'bg-white/10 text-white/40'
+                                      }`}>
+                                        {item.status || 'Active'}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] text-right whitespace-nowrap">
+                                      {item.utilized_budget ? `${symbol}${parseFloat(item.utilized_budget).toLocaleString()}` : '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] text-right whitespace-nowrap">
+                                      {item.balance_budget ? `${symbol}${parseFloat(item.balance_budget).toLocaleString()}` : '-'}
+                                    </td>
+                                  </>
+                                ) : msg.dataType === 'employee' ? (
+                                  <>
+                                    <td className="px-3 py-2 text-white/40 font-mono text-[10px] whitespace-nowrap">{item.employee_id || '-'}</td>
+                                    <td className="px-3 py-2 text-white/80 font-medium whitespace-nowrap">{item.name}</td>
+                                    <td className="px-3 py-2 text-white/40 text-[10px] whitespace-nowrap">{item.email}</td>
+                                    <td className="px-3 py-2 text-white/40 text-[10px] whitespace-nowrap">{item.department || '-'}</td>
+                                    <td className="px-3 py-2 text-white/40 text-[10px] whitespace-nowrap">{item.role || 'User'}</td>
+                                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                        (item.status === 'Active' || item.role === 'Admin') 
+                                          ? 'bg-emerald-500/10 text-emerald-400' 
+                                          : 'bg-white/10 text-white/40'
+                                      }`}>
+                                        {item.status || 'Active'}
+                                      </span>
+                                    </td>
+                                  </>
+                                ) : (
+                                  <>
+                                    <td className="px-3 py-2 text-white/80 font-medium">
+                                      {item.name}
+                                      {(msg.dataType === 'issue' || msg.dataType === 'milestone') && item.project_name && (
+                                        <div className="text-[9px] text-white/30 mt-0.5 font-normal">
+                                          Project: {item.project_name}
+                                        </div>
+                                      )}
+                                      {msg.dataType === 'transcript_result' && (
+                                        <div className="text-[10px] text-white/40 mt-1 font-normal line-clamp-2 italic">
+                                          "{item.text}"
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-3 py-2 text-white/40">
+                                      {msg.dataType === 'milestone' ? (item.module || item.type || '-') :
+                                       msg.dataType === 'issue' ? (item.priority || 'High') : 
+                                       msg.dataType === 'transcript_result' ? item.speaker : '-'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                      {msg.dataType === 'transcript_result' ? (
+                                        <span className="text-[10px] text-white/40 font-mono">{item.timestamp}</span>
+                                      ) : (
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                          (item.status === 'Active' || item.status === 'Completed' || item.status === 'On Track' || item.status === 'Healthy') 
+                                            ? 'bg-emerald-500/10 text-emerald-400' 
+                                            : (item.status === 'Delayed' || item.priority === 'High' || item.priority === 'Critical' || item.status === 'At Risk')
+                                            ? 'bg-red-500/10 text-red-400'
+                                            : 'bg-white/10 text-white/40'
+                                        }`}>
+                                          {item.status || item.priority || 'Active'}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </>
+                                )}
                               </tr>
                             ))}
                           </tbody>
@@ -1419,8 +1020,8 @@ const AgentView = () => {
               ))}
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-[#2f2f2f] text-white/40 rounded-2xl px-4 py-3 text-sm border border-white/5 animate-pulse">
-                    Thinking...
+                  <div className="bg-transparent text-white/40 px-0 py-3 text-sm animate-pulse">
+                    KIA is thinking...
                   </div>
                 </div>
               )}
@@ -1429,9 +1030,8 @@ const AgentView = () => {
           )}
           
           {/* Chat Box */}
-          <form onSubmit={handleSendMessage} className="w-full relative group mb-8">
-            <div className="absolute inset-0 bg-white/5 rounded-2xl blur-xl group-focus-within:bg-white/10 transition-all"></div>
-            <div className="relative bg-[#2f2f2f] rounded-2xl border border-white/10 focus-within:border-white/20 transition-all p-2 flex items-end gap-2 shadow-2xl">
+          <form onSubmit={handleSendMessage} className="w-full relative mb-8">
+            <div className="relative bg-[#2f2f2f] rounded-2xl border border-white/10 p-1.5 flex items-end gap-2 shadow-2xl">
             <div className="relative flex items-end">
               <button 
                 type="button" 
@@ -1480,10 +1080,17 @@ const AgentView = () => {
               onChange={handleFileSelect}
               accept=".csv,.xlsx,.xls,.json,.txt"
             />
+            <input 
+              type="file"
+              ref={budgetFileInputRef}
+              className="hidden"
+              onChange={handleBudgetFileSelect}
+              accept=".csv,.xlsx,.xls"
+            />
               <textarea 
                 rows="1"
                 placeholder="Ask anything"
-                className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder-white/40 py-3 resize-none max-h-[200px]"
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none focus:outline-none caret-white text-white placeholder-white/40 py-2 resize-none max-h-[200px]"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -1498,9 +1105,6 @@ const AgentView = () => {
                 }}
               />
               <div className="flex items-center gap-1 mb-1 pr-1">
-                <button type="button" className="p-2 text-white/40 hover:text-white transition-colors">
-                  <Mic size={20} />
-                </button>
                 <button type="submit" className={`p-2 rounded-full transition-all ${message.trim() ? 'bg-white text-black' : 'bg-white/10 text-white/20'}`}>
                   <Send size={20} />
                 </button>
@@ -1522,17 +1126,17 @@ const AgentView = () => {
                 </button>
                 
                 {showModules && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full mt-6 animate-in fade-in slide-in-from-top-4 duration-300">
                     {modules.map((module) => (
                       <button
                         key={module.id}
                         onClick={() => handleModuleClick(module)}
-                        className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#2f2f2f] border border-white/5 hover:border-white/20 hover:bg-[#383838] transition-all group"
+                        className="flex items-center gap-3 p-3 rounded-xl bg-[#2f2f2f] border border-white/5 hover:border-white/20 hover:bg-[#383838] transition-all group w-full"
                       >
-                        <div className={`p-3 rounded-xl mb-3 transition-transform group-hover:scale-110 ${module.color}`}>
-                          {module.icon}
+                        <div className={`p-2 rounded-lg transition-transform group-hover:scale-110 shrink-0 ${module.color}`}>
+                          {React.cloneElement(module.icon, { size: 16 })}
                         </div>
-                        <span className="text-sm font-medium text-white/70 group-hover:text-white">
+                        <span className="text-xs font-medium text-white/70 group-hover:text-white truncate">
                           {module.name}
                         </span>
                       </button>
