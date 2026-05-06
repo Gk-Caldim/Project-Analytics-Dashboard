@@ -4,7 +4,8 @@ import {
   Upload, Save, RefreshCw, Plus, Trash2, Edit, X, Check,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Wallet, History, Clock, FileUp, Download, Search, Eye, EyeOff,
-  AlertCircle, ArrowUp, ArrowDown, FileText, CheckCircle, Calculator
+  AlertCircle, ArrowUp, ArrowDown, FileText, CheckCircle, Calculator,
+  User, ShieldCheck, Banknote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
@@ -663,14 +664,14 @@ const BudgetMaster = () => {
             className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'Table'
               ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-            Budget Table
+            Budget Master
           </button>
-          {(isHead || isFinance) && (
+          {(isHead || isFinance || isPM) && (
             <button onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
               className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'Revisions'
                 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
-              Revisions
+              Revision Budget
               {revisions.filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-blue-600 text-white rounded-full">
                   {revisions.filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length}
@@ -678,6 +679,12 @@ const BudgetMaster = () => {
               )}
             </button>
           )}
+          <button onClick={() => { setActiveTab('Analytics'); fetchRevisions(); }}
+            className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${activeTab === 'Analytics'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+            Budget Analytics
+          </button>
         </div>
       </div>
       
@@ -1172,6 +1179,7 @@ const BudgetMaster = () => {
       {/* ── REVISIONS TAB ────────────────────────────────────────────────────── */}
       {activeTab === 'Revisions' && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+          {/* ... (existing content) */}
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4 text-slate-400" />
@@ -1279,6 +1287,125 @@ const BudgetMaster = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
+      {activeTab === 'Analytics' && (
+        <div className="space-y-6">
+          {/* Stepper Card */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+            <div className="mb-8">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Budget Revision Lifecycle</h2>
+              <p className="text-sm text-slate-500">Track the approval stages for {selectedProject || 'the selected project'}</p>
+            </div>
+
+            {(() => {
+              const latestRev = revisions.find(r => r.project_name === selectedProject);
+              const status = latestRev?.status || 'None';
+              
+              const steps = [
+                { id: 'PM', label: 'Project Manager', sub: 'Request Submitted', icon: User, done: !!latestRev },
+                { id: 'Head', label: 'Department Head', sub: 'Head Review', icon: ShieldCheck, done: ['Pending Finance', 'Approved'].includes(status) },
+                { id: 'Finance', label: 'Finance Team', sub: 'Final Approval', icon: Banknote, done: status === 'Approved' }
+              ];
+
+              return (
+                <div className="relative flex items-center justify-between max-w-4xl mx-auto py-4">
+                  {/* Progress Line Background */}
+                  <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-100 dark:bg-slate-700 -translate-y-1/2" />
+                  
+                  {/* Animated Progress Line */}
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${steps.filter(s => s.done).length === 3 ? 100 : steps.filter(s => s.done).length === 2 ? 50 : steps.filter(s => s.done).length === 1 ? 0 : 0}%` }}
+                    className="absolute top-1/2 left-0 h-0.5 bg-blue-500 -translate-y-1/2 z-10 origin-left"
+                    transition={{ duration: 0.8, ease: "circOut" }}
+                  />
+
+                  {steps.map((step, idx) => {
+                    const Icon = step.icon;
+                    const isActive = (idx === 0 && !latestRev) || 
+                                     (idx === 1 && status === 'Pending Head') || 
+                                     (idx === 2 && status === 'Pending Finance');
+                    
+                    return (
+                      <div key={step.id} className="relative z-20 flex flex-col items-center">
+                        <motion.div 
+                          initial={false}
+                          animate={{ 
+                            scale: step.done ? 1.1 : 1,
+                            backgroundColor: step.done ? '#3b82f6' : isActive ? '#fff' : '#f8fafc',
+                            borderColor: step.done ? '#3b82f6' : isActive ? '#3b82f6' : '#e2e8f0'
+                          }}
+                          className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all shadow-sm ${
+                            isActive ? 'ring-4 ring-blue-500/10' : ''
+                          }`}
+                        >
+                          <Icon className={`h-5 w-5 ${step.done ? 'text-white' : isActive ? 'text-blue-500' : 'text-slate-400'}`} />
+                        </motion.div>
+                        <div className="absolute top-full mt-4 text-center whitespace-nowrap">
+                          <p className={`text-xs font-bold uppercase tracking-wider ${step.done || isActive ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>
+                            {step.label}
+                          </p>
+                          <p className={`text-[10px] font-medium mt-0.5 ${step.done ? 'text-blue-600' : 'text-slate-400'}`}>
+                            {step.done ? 'Completed' : isActive ? 'Processing...' : 'Pending'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <History className="h-4 w-4 text-blue-600" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revision Count</h3>
+              </div>
+              <p className="text-2xl font-mono font-bold text-slate-700 dark:text-slate-200">
+                {revisions.filter(r => r.project_name === selectedProject).length}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Total requests submitted</p>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Approval Rate</h3>
+              </div>
+              <p className="text-2xl font-mono font-bold text-slate-700 dark:text-slate-200">
+                {(() => {
+                  const projRevs = revisions.filter(r => r.project_name === selectedProject);
+                  if (projRevs.length === 0) return '0%';
+                  const approved = projRevs.filter(r => r.status === 'Approved').length;
+                  return `${Math.round((approved / projRevs.length) * 100)}%`;
+                })()}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Successful final approvals</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pending Review</h3>
+              </div>
+              <p className="text-2xl font-mono font-bold text-slate-700 dark:text-slate-200">
+                {revisions.filter(r => r.project_name === selectedProject && ['Pending Head', 'Pending Finance'].includes(r.status)).length}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Requests awaiting action</p>
+            </div>
           </div>
         </div>
       )}
