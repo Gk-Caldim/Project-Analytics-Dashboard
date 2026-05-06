@@ -466,11 +466,56 @@ const ProjectTitleDashboard = () => {
             }
 
             const existingProject = uniqueProjectsMap.get(capitalizedName);
-            existingProject.dbProjectId = struct.project_id;
+            
+            // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
+            if (struct.dashboard_config?.visibleSections) {
+              const sections = { ...struct.dashboard_config.visibleSections };
+              const uploads = struct.uploads || [];
+              const defaultPhases = [
+                { id: 'design', aliases: ['design'] },
+                { id: 'partDevelopment', aliases: ['part', 'development'] },
+                { id: 'build', aliases: ['build'] },
+                { id: 'gateway', aliases: ['gateway'] },
+                { id: 'validation', aliases: ['validation'] },
+                { id: 'qualityIssues', aliases: ['quality'] }
+              ];
+
+              uploads.forEach(u => {
+                const fname = (u.file_name || '').toLowerCase();
+                const uploadKey = `upload-${u.file_name}`;
+                if (sections[uploadKey]) {
+                  const matchedPhase = defaultPhases.find(p => p.aliases.some(a => fname.includes(a)));
+                  if (matchedPhase) {
+                    sections[matchedPhase.id] = true;
+                    delete sections[uploadKey];
+                  }
+                }
+              });
+              struct.dashboard_config.visibleSections = sections;
+            }
+
+            // MERGE logic instead of overwrite
+            if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
+               existingProject.dbProjectId = struct.project_id;
+            }
+            
+            // Collect all submodules and uploads from all structures matching this name
+            existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
+            existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
+            
+            // Deduplicate submodules by ID/Name
+            existingProject.submodules = existingProject.submodules.filter((v, i, a) => 
+              a.findIndex(t => (t.id === v.id)) === i
+            );
+            // Deduplicate uploads by upload_id
+            existingProject.uploads = existingProject.uploads.filter((v, i, a) => 
+              a.findIndex(t => (t.upload_id === v.upload_id)) === i
+            );
+
             existingProject.dashboardConfig = struct.dashboard_config || existingProject.dashboardConfig;
-            existingProject.budget = struct.budget || existingProject.budget || 0;
-            existingProject.utilized_budget = struct.utilized_budget || existingProject.utilized_budget || 0;
-            existingProject.balance_budget = struct.balance_budget || existingProject.balance_budget || 0;
+            existingProject.budget = Math.max(existingProject.budget || 0, struct.budget || 0);
+            existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
+            existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
             existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
 
             const moduleMap = new Map();
@@ -565,12 +610,22 @@ const ProjectTitleDashboard = () => {
             : { milestones: true, criticalIssues: true };
 
           setVisibleSections(sections);
+          if (sections.metricsSummary) {
+             // If we have metricsSummary enabled but NO specific upload toggles, enable all by default
+             const hasAnyUploadToggle = Object.keys(sections).some(k => k.startsWith('upload-'));
+             if (!hasAnyUploadToggle) {
+               (selectedProject.uploads || []).forEach(u => {
+                 sections[`upload-${u.file_name}`] = true;
+               });
+             }
+          }
           setShowSimulateModal(false);
         } else {
           // Fallback to defaults
-          setVisibleSections({
+          const defaultSections = {
             milestones: true,
             criticalIssues: true,
+            metricsSummary: true,
             budget: false,
             resource: false,
             quality: false,
@@ -581,7 +636,11 @@ const ProjectTitleDashboard = () => {
             validation: false,
             qualityIssues: false,
             sopTables: false
+          };
+          (selectedProject.uploads || []).forEach(u => {
+            defaultSections[`upload-${u.file_name}`] = true;
           });
+          setVisibleSections(defaultSections);
           setShowSimulateModal(true);
         }
       }
@@ -712,12 +771,18 @@ const ProjectTitleDashboard = () => {
 
     // Keep legacy aliases for backward compatibility if needed, 
     // but primarily we want to use submodule.id for dynamic trackers
-    const isAvailable = (deptName, aliases) => activeProject.submodules.some(sub => {
-      const name = (sub.displayName || sub.name || '').toLowerCase();
-      const dept = (sub.department || '').toLowerCase();
-      const targetDept = deptName.toLowerCase();
-      return dept === targetDept || aliases.some(alias => name.includes(alias.toLowerCase()));
-    });
+    const isAvailable = (deptName, aliases) => {
+      const inSubmodules = (activeProject.submodules || []).some(sub => {
+        const name = (sub.displayName || sub.name || '').toLowerCase();
+        const dept = (sub.department || '').toLowerCase();
+        return dept === deptName.toLowerCase() || aliases.some(alias => name.includes(alias.toLowerCase()));
+      });
+      const inUploads = (activeProject.uploads || []).some(u => {
+        const fname = (u.file_name || '').toLowerCase();
+        return aliases.some(alias => fname.includes(alias.toLowerCase()));
+      });
+      return inSubmodules || inUploads;
+    };
 
     phases.design = isAvailable('Design Release', ['design']);
     phases.partDevelopment = isAvailable('Part Development', ['part', 'development']);
@@ -749,11 +814,30 @@ const ProjectTitleDashboard = () => {
     const config = mapping[phaseOrId];
     if (!config) return null;
 
-    return activeProject.submodules.find(sub => {
+    const fromSubmodules = (activeProject.submodules || []).find(sub => {
       const name = (sub.displayName || sub.name || '').toLowerCase();
       const dept = (sub.department || '').toLowerCase();
       return dept === config.dept.toLowerCase() || config.aliases.some(alias => name.includes(alias.toLowerCase()));
     });
+
+    if (fromSubmodules) return fromSubmodules;
+
+    // Fallback to uploads
+    const fromUploads = (activeProject.uploads || []).find(u => {
+      const fname = (u.file_name || '').toLowerCase();
+      return config.aliases.some(alias => fname.includes(alias.toLowerCase()));
+    });
+
+    if (fromUploads) {
+      return {
+        id: `upload-${fromUploads.file_name}`,
+        trackerId: fromUploads.upload_id,
+        name: fromUploads.file_name,
+        displayName: fromUploads.file_name
+      };
+    }
+
+    return null;
   };
 
   // Load employees from API
@@ -835,17 +919,21 @@ const ProjectTitleDashboard = () => {
         isDefault: true
       }));
 
-    const dynamicCharts = (activeProject?.submodules || [])
-      .filter(sub => {
-        const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-        const isDefaultTracker = defaultIds.some(id => getTrackerForPhase(id)?.id === sub.id);
-        return !isDefaultTracker && visibleSections[sub.id];
-      })
-      .map(sub => ({
-        id: sub.id,
-        title: sub.displayName || sub.name,
-        trackerId: sub.trackerId,
-        type: chartTypes[activeProject.id]?.[sub.id] || 'bar',
+    // Get tracker IDs already covered by default charts to avoid duplicates
+    const coveredTrackerIds = new Set(defaultCharts.map(c => c.trackerId).filter(Boolean));
+
+    const dynamicCharts = (activeProject?.uploads || [])
+      // Deduplicate by filename (take latest upload)
+      .filter((u, index, self) => 
+        index === self.findIndex((t) => t.file_name === u.file_name) && 
+        visibleSections[`upload-${u.file_name}`] &&
+        !coveredTrackerIds.has(u.upload_id) // Deduplicate: Skip if already covered by a default phase
+      )
+      .map(u => ({
+        id: `upload-${u.file_name}`,
+        title: u.file_name,
+        trackerId: u.upload_id,
+        type: chartTypes[activeProject.id]?.[`upload-${u.file_name}`] || 'bar',
         isDefault: false
       }));
 
@@ -1130,16 +1218,22 @@ const ProjectTitleDashboard = () => {
 
   // Prefetch data for all submodules whenever activeProject changes
   useEffect(() => {
-    if (activeProject?.submodules) {
-      activeProject.submodules.forEach(sub => {
-        const data = submoduleData[sub.trackerId];
-        const isLoading = submoduleLoading[sub.trackerId];
+    if (activeProject) {
+      const allTrackers = [
+        ...(activeProject.submodules || []).map(s => s.trackerId),
+        ...(activeProject.uploads || []).map(u => u.upload_id)
+      ].filter(Boolean);
+      
+      const uniqueTrackerIds = [...new Set(allTrackers)];
+
+      uniqueTrackerIds.forEach(trackerId => {
+        const data = submoduleData[trackerId];
+        const isLoading = submoduleLoading[trackerId];
         
-        // Only load if we don't have data, it's not already loading, and it hasn't failed previously
         if (!data && !isLoading) {
-          loadSubmoduleData(sub.trackerId);
+          loadSubmoduleData(trackerId);
         } else if (data && data.rows.length === 0 && !data.failed && !isLoading) {
-          loadSubmoduleData(sub.trackerId);
+          loadSubmoduleData(trackerId);
         }
       });
     }
@@ -1313,28 +1407,32 @@ const ProjectTitleDashboard = () => {
 
   // Handle section visibility toggle - MODIFIED to use buffer
   const handleSectionVisibilityToggle = (section) => {
-    setTempVisibleSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
+    setTempVisibleSections(prev => {
+      const next = { ...prev, [section]: !prev[section] };
+      
+      // Auto-enable metricsSummary section if any chart is selected
+      const defaultPhases = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+      const isChart = defaultPhases.includes(section) || section.startsWith('upload-');
+      
+      if (isChart && next[section]) {
+        next.metricsSummary = true;
+      }
+      
+      return next;
+    });
   };
 
   // Handle select all sections for visibility
   const handleSelectAllVisibility = () => {
-    const dynamicTrackerKeys = (activeProject?.submodules || []).map(sub => sub.id);
+    const dynamicTrackerKeys = [
+      ...(activeProject?.submodules || []).map(sub => sub.id),
+      ...(activeProject?.uploads || []).map(u => `upload-${u.file_name}`)
+    ];
     const availableSectionKeys = [
-      'milestones', 'criticalIssues',
+      'milestones', 'criticalIssues', 'metricsSummary',
       'budget', 'resource', 'quality',
       ...['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'],
-      ...(activeProject?.submodules || [])
-        .filter(sub => {
-          const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-          return !defaultIds.some(id => {
-            const tracker = getTrackerForPhase(id);
-            return tracker && tracker.id === sub.id;
-          });
-        })
-        .map(sub => sub.id)
+      ...dynamicTrackerKeys
     ].filter(key => {
       if (['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(key)) {
         return availablePhases[key];
@@ -1787,7 +1885,6 @@ const ProjectTitleDashboard = () => {
                     />
                     Critical Issues
                   </label>
-
                 </div>
               </div>
 
@@ -1822,49 +1919,73 @@ const ProjectTitleDashboard = () => {
                 </div>
               </div>
 
-              {/* Project Metrics */}
               <div style={{ gridColumn: 'span 2' }}>
-                <h4 style={{ margin: '10px 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: '#4b5563' }}>Project Metrics Charts</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0 10px 0' }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#4b5563' }}>Project Metrics Charts</h4>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: '#3b82f6', fontWeight: 'bold' }}>
+                    <input
+                      type="checkbox"
+                      checked={tempVisibleSections.metricsSummary || false}
+                      onChange={() => handleSectionVisibilityToggle('metricsSummary')}
+                    />
+                    Enable Metrics Section
+                  </label>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  {/* Default Phases */}
-                  {[
-                    { id: 'design', label: 'Design' },
-                    { id: 'partDevelopment', label: 'Part Development' },
-                    { id: 'build', label: 'Build' },
-                    { id: 'gateway', label: 'Gateway' },
-                    { id: 'validation', label: 'Validation' },
-                    { id: 'qualityIssues', label: 'Quality Issues' }
-                  ].map(phase => availablePhases[phase.id] && (
-                    <label key={phase.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={tempVisibleSections[phase.id] || false}
-                        onChange={() => handleSectionVisibilityToggle(phase.id)}
-                      />
-                      {phase.label}
-                    </label>
-                  ))}
+                  {/* Default Phases and Mapped Trackers */}
+                  {(() => {
+                    const defaultPhases = [
+                      { id: 'design', label: 'Design' },
+                      { id: 'partDevelopment', label: 'Part Development' },
+                      { id: 'build', label: 'Build' },
+                      { id: 'gateway', label: 'Gateway' },
+                      { id: 'validation', label: 'Validation' },
+                      { id: 'qualityIssues', label: 'Quality Issues' }
+                    ];
 
-                  {/* Dynamic Trackers */}
-                  {(activeProject?.submodules || []).filter(sub => {
-                    // Avoid duplicating default phases if they are also in submodules
-                    const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-                    // We check if this submodule is already covered by a default phase mapping
-                    const coveredByDefault = defaultIds.some(id => {
-                      const tracker = getTrackerForPhase(id);
-                      return tracker && tracker.id === sub.id;
-                    });
-                    return !coveredByDefault;
-                  }).map(sub => (
-                    <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={tempVisibleSections[sub.id] || false}
-                        onChange={() => handleSectionVisibilityToggle(sub.id)}
-                      />
-                      {sub.displayName || sub.name}
-                    </label>
-                  ))}
+                    const mappedFilenames = new Set();
+                    const phaseList = defaultPhases.map(phase => {
+                      if (!availablePhases[phase.id]) return null;
+                      const tracker = getTrackerForPhase(phase.id);
+                      if (tracker && tracker.name) {
+                        mappedFilenames.add(tracker.name);
+                        const cleanName = tracker.name.replace(/\.[^/.]+$/, "");
+                        return { ...phase, displayLabel: cleanName };
+                      }
+                      return { ...phase, displayLabel: phase.label };
+                    }).filter(Boolean);
+
+                    const unmappedUploads = (activeProject?.uploads || [])
+                      .filter((u, index, self) => 
+                        index === self.findIndex((t) => t.file_name === u.file_name) && 
+                        !mappedFilenames.has(u.file_name)
+                      );
+
+                    return (
+                      <>
+                        {phaseList.map(phase => (
+                          <label key={phase.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <input
+                              type="checkbox"
+                              checked={tempVisibleSections[phase.id] || false}
+                              onChange={() => handleSectionVisibilityToggle(phase.id)}
+                            />
+                            <span title={phase.displayLabel}>{phase.displayLabel}</span>
+                          </label>
+                        ))}
+                        {unmappedUploads.map(upload => (
+                          <label key={upload.upload_id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <input
+                              type="checkbox"
+                              checked={tempVisibleSections[`upload-${upload.file_name}`] || false}
+                              onChange={() => handleSectionVisibilityToggle(`upload-${upload.file_name}`)}
+                            />
+                            <span title={upload.file_name}>{upload.file_name}</span>
+                          </label>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1890,9 +2011,11 @@ const ProjectTitleDashboard = () => {
                         fontSize: '12px',
                         fontWeight: 'bold'
                       }}>
-                        {(activeProject?.submodules || []).find(s => s.id === section)?.displayName ||
+                        {section === 'metricsSummary' ? 'Project Metrics Summary' : 
+                         section.startsWith('upload-') ? section.replace('upload-', '') :
+                         ((activeProject?.submodules || []).find(s => s.id === section)?.displayName ||
                           (activeProject?.submodules || []).find(s => s.id === section)?.name ||
-                          section.charAt(0).toUpperCase() + section.slice(1).replace(/([A-Z])/g, ' $1')}
+                          section.charAt(0).toUpperCase() + section.slice(1).replace(/([A-Z])/g, ' $1'))}
                       </span>
                     ))}
                 </div>
@@ -4001,7 +4124,7 @@ const ProjectTitleDashboard = () => {
                 dashboardData={dashboardData} 
                 onConfigure={() => setShowSimulateModal(true)} 
                 onSendMail={() => setShowEmailModal(true)} 
-                metricsContent={renderMetricsSummary()}
+                metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
               />
               
               {/* Summary Cards Row (Optional - keeping them outside VP Dashboard for now as per Option 1 focus on metrics) */}

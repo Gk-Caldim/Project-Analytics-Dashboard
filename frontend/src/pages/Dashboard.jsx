@@ -182,9 +182,9 @@ const Dashboard = () => {
   const loadDynamicModules = async () => {
     try {
       const { data: structures } = await API.get('/projects/all/structures');
-      const { data: budgets } = await API.get('/budget/');
-
-      const projectsWithBudget = new Set((budgets || []).map(b => capitalizeFirstLetter(b.project_name)));
+      const structureProjectNames = new Set(structures.map(s => capitalizeFirstLetter(s.project_name)));
+      const filteredBudgets = (budgets || []).filter(b => structureProjectNames.has(capitalizeFirstLetter(b.project_name)));
+      const projectsWithBudget = new Set(filteredBudgets.map(b => capitalizeFirstLetter(b.project_name)));
 
       const dashProjectsMap = new Map();
 
