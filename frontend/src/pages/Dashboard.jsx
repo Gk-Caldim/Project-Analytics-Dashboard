@@ -245,6 +245,21 @@ const Dashboard = () => {
             existingSubmodules: dashProject.submodules.length
           });
 
+          // Add Budget Summary as a default first submodule if not already there
+          if (!moduleSet.has('Budget Summary')) {
+            moduleSet.add('Budget Summary');
+            dashProject.submodules.push({
+              id: `project-budget-${struct.project_id}`,
+              moduleId: `budget-summary-${struct.project_id}`,
+              dbProjectId: struct.project_id,
+              name: 'Budget Summary',
+              displayName: 'Budget Summary',
+              type: 'budget-summary',
+              projectName: projectName,
+              context: 'project-dashboard'
+            });
+          }
+
           flatModules.forEach(mod => {
             const modName = mod.module_name;
             if (modName && !moduleSet.has(modName)) {
@@ -253,7 +268,7 @@ const Dashboard = () => {
                 id: `module-${struct.project_id}-${modName}`,
                 moduleId: `module-${struct.project_id}-${modName}`,
                 dbProjectId: struct.project_id,
-                trackerId: mod.trackerId || struct.project_id, // trackerId now provided by API
+                trackerId: mod.trackerId, // trackerId provided by API
                 name: modName,
                 displayName: modName,
                 milestones_count: mod.milestones_count,
@@ -266,23 +281,10 @@ const Dashboard = () => {
         }
       });
 
-      // Add Budget Summary submodule for projects that have budget data
-      for (const project of dashProjectsMap.values()) {
-        const hasBudget = project.submodules.some(sub => sub.type === 'budget');
-        if (!hasBudget && projectsWithBudget.has(project.name)) {
-          project.submodules.push({
-            id: `budget-${project.id}`,
-            moduleId: `budget-${project.id}`,
-            name: 'Budget Summary',
-            displayName: 'Budget Summary',
-            type: 'budget',
-            projectName: project.projectName,
-            context: 'project-dashboard'
-          });
-        }
-      }
+      const initialExpanded = {};
+      finalList.forEach(p => { initialExpanded[p.id] = true; });
+      setExpandedProjects(initialExpanded);
 
-      const finalList = Array.from(dashProjectsMap.values());
       console.log('[Dashboard] Final projectDashboardModules:', finalList);
 
       // Project Dashboard sidebar — shows projects with their modules from DB
