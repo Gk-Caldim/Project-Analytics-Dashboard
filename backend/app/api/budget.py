@@ -120,7 +120,17 @@ def update_revision_status(
         if budget:
             budget.overall_budget = revision.revised_budget
             logger.info(
-                f"[budget revision] Approved — updated '{revision.project_name}' budget to {revision.revised_budget}"
+                f"[budget revision] Approved — updated '{revision.project_name}' budget summary to {revision.revised_budget}"
+            )
+        
+        # Sync to Project Master
+        from app.models.project import Project
+        proj = db.query(Project).filter(Project.name == revision.project_name).first()
+        if proj:
+            proj.budget = revision.revised_budget
+            proj.balance_budget = proj.budget - (proj.utilized_budget or 0.0)
+            logger.info(
+                f"[budget revision] Approved — synced '{revision.project_name}' to Project Master. New Budget: {proj.budget}, Balance: {proj.balance_budget}"
             )
 
     db.commit()

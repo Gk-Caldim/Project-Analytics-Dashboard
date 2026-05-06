@@ -4,8 +4,9 @@ import {
   Upload, Save, RefreshCw, Plus, Trash2, Edit, X, Check,
   AlertTriangle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   Wallet, History, Clock, FileUp, Download, Search, Eye, EyeOff,
-  AlertCircle, ArrowUp, ArrowDown, FileText, CheckCircle
+  AlertCircle, ArrowUp, ArrowDown, FileText, CheckCircle, Calculator
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
@@ -93,6 +94,8 @@ const BudgetMaster = () => {
   const [attachmentName,  setAttachmentName]  = useState(null);
   const [notification,    setNotification]    = useState({ show: false, message: '', type: '' });
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcSimAmount, setCalcSimAmount] = useState('');
 
   const [activeTab,       setActiveTab]       = useState('Table');
 
@@ -415,7 +418,7 @@ const BudgetMaster = () => {
       fd.append('project_name',    selectedProject);
       fd.append('pm_name',         user?.name || 'Unknown');
       fd.append('previous_budget', parseFloat(overallBudget) || 0);
-      fd.append('revised_budget',  parseFloat(revisionData.revised_budget) || 0);
+      fd.append('revised_budget',  (parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0));
       fd.append('reasons',         revisionData.reasons);
       if (revisionData.attachment) fd.append('file', revisionData.attachment);
       await API.post('/budget/revisions/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -433,9 +436,20 @@ const BudgetMaster = () => {
   const handleStatusUpdate = async (id, newStatus, extra = {}) => {
     try {
       await API.patch(`/budget/revisions/${id}`, { status: newStatus, ...extra });
-      showNotification(`Revision ${newStatus.toLowerCase()}`);
+      
+      if (newStatus === 'Approved') {
+        showNotification('Budget approved - new budget updated', 'success');
+      } else if (['Declined', 'Cancelled'].includes(newStatus)) {
+        showNotification('Budget not approved', 'error');
+      } else {
+        showNotification(`Revision ${newStatus.toLowerCase()}`);
+      }
+      
       fetchRevisions();
-      if (newStatus === 'Approved') { fetchInitialData(); if (selectedProject) fetchBudgetData(selectedProject); }
+      if (newStatus === 'Approved') { 
+        fetchInitialData(); 
+        if (selectedProject) fetchBudgetData(selectedProject); 
+      }
     } catch { showNotification('Failed to update revision', 'error'); }
   };
 
@@ -536,7 +550,7 @@ const BudgetMaster = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Revised Budget <span className="text-red-500">*</span>
+                    Additional Budget Needed <span className="text-red-500">*</span>
                   </label>
                   <input type="number" required
                     value={revisionData.revised_budget}
@@ -545,6 +559,15 @@ const BudgetMaster = () => {
                     className="w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100" />
                 </div>
               </div>
+              
+              {revisionData.revised_budget && (
+                <div className="mb-5 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/50 flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Calculated New Total</span>
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400 font-mono">
+                    {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0), false)}
+                  </span>
+                </div>
+              )}
               <div className="mb-5">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Reason for Revision <span className="text-red-500">*</span>
@@ -819,11 +842,121 @@ const BudgetMaster = () => {
               )}
 
               {isPM && (
-                <button onClick={() => setShowRevisionModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
-                  <History className="h-4 w-4" />
-                  <span>Revision Budget</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowRevisionModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm">
+                    <History className="h-4 w-4" />
+                    <span>Revision Budget</span>
+                  </button>
+
+                  <div className="relative">
+                    <button 
+                      onClick={() => setShowCalculator(!showCalculator)}
+                      className={`p-2 rounded-lg border transition-all flex items-center justify-center ${
+                        showCalculator 
+                          ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200 dark:shadow-none' 
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                      }`}
+                      title="Budget Calculator"
+                    >
+                      <Calculator className="h-4 w-4" />
+                    </button>
+
+                    <AnimatePresence>
+                      {showCalculator && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                          className="absolute right-0 top-full mt-3 w-80 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/50 p-5 overflow-hidden"
+                        >
+                          {/* Design Header */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 bg-slate-900 dark:bg-slate-700 rounded-lg">
+                                <Calculator className="h-3.5 w-3.5 text-white" />
+                              </div>
+                              <span className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Quick Calc</span>
+                            </div>
+                            <button onClick={() => setShowCalculator(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {/* Values Stack */}
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-end">
+                              <div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Overall Budget</p>
+                                <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{format(overallBudget, false)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Utilization</p>
+                                <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">{format(totalUtilization, false)}</p>
+                              </div>
+                            </div>
+
+                            {/* Health Bar (Visual Gauge) */}
+                            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${Math.min(100, (totalUtilization / (parseFloat(overallBudget) || 1)) * 100)}%` }}
+                                className={`h-full ${isOverBudget ? 'bg-red-500' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`}
+                              />
+                              {calcSimAmount && (
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${Math.min(100 - (totalUtilization / (parseFloat(overallBudget) || 1)) * 100, (parseFloat(calcSimAmount) / (parseFloat(overallBudget) || 1)) * 100)}%` }}
+                                  className="h-full bg-indigo-400 opacity-60"
+                                />
+                              )}
+                            </div>
+
+                            {/* Simulation Tool */}
+                            <div className="bg-slate-50/50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-700/50">
+                              <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Simulate Expense/Change</label>
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="number" 
+                                  value={calcSimAmount}
+                                  onChange={(e) => setCalcSimAmount(e.target.value)}
+                                  placeholder="Enter amount..."
+                                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm font-mono focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                                />
+                                <button onClick={() => setCalcSimAmount('')} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors">
+                                  <RefreshCw className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Final Results */}
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-xs font-semibold text-slate-500">Remaining Balance</span>
+                                <span className={`text-sm font-mono font-bold ${(parseFloat(overallBudget) || 0) - totalUtilization < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                                  {format((parseFloat(overallBudget) || 0) - totalUtilization, false)}
+                                </span>
+                              </div>
+                              {calcSimAmount && (
+                                <motion.div 
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  className="flex justify-between items-center mt-2 pt-2 border-t border-dashed border-slate-200 dark:border-slate-700"
+                                >
+                                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Projected</span>
+                                  <span className={`text-sm font-mono font-bold ${(parseFloat(overallBudget) || 0) - totalUtilization - (parseFloat(calcSimAmount) || 0) < 0 ? 'text-red-500' : 'text-indigo-600'}`}>
+                                    {format((parseFloat(overallBudget) || 0) - totalUtilization - (parseFloat(calcSimAmount) || 0), false)}
+                                  </span>
+                                </motion.div>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
               )}
 
               {/* Right: Search + rows info */}
