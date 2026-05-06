@@ -101,7 +101,10 @@ const BudgetMaster = () => {
   const [historyData, setHistoryData] = useState([]);
   const [fetchingHistory, setFetchingHistory] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
   const [selectedHistoryDate, setSelectedHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [tempFile, setTempFile] = useState(null);
   const [saveType, setSaveType] = useState('save'); // 'save' or 'sync'
 
   const [activeTab,       setActiveTab]       = useState('Table');
@@ -145,9 +148,11 @@ const BudgetMaster = () => {
   useEffect(() => {
     if (selectedProject) {
       fetchBudgetData(selectedProject);
+      fetchHistory(); // Ensure history is ready for duplicate checks
       setUploadedFile(null);
     } else {
       setTableData([]);
+      setHistoryData([]);
       setUploadedFile(null);
       setAttachmentName(null);
     }
@@ -296,11 +301,14 @@ const BudgetMaster = () => {
   };
 
   // ─── Excel Import ────────────────────────────────────────────────────────────
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
+  const executeUpload = () => {
+    const file = tempFile;
     if (!file) return;
     setIsParsing(true);
     setUploadedFile(file);
+    setShowUploadModal(false);
+    setShowOverwriteWarning(false);
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       setTimeout(() => {
@@ -319,25 +327,18 @@ const BudgetMaster = () => {
               const idx = headers.indexOf(col.label.toLowerCase());
               row[col.label] = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
             });
-            const uc   = parseFloat(row['Unit count'])    || 0;
-            const puc  = parseFloat(row['Per unit cost']) || 0;
-            const ut   = parseFloat(row['Utilized'])      || 0;
-            const comm = parseFloat(row['Commitment'])    || 0;
-            row['Estimated']         = uc * puc;
-            row['Total utilization'] = ut + comm;
-            row['Balance']           = row['Estimated'] - row['Total utilization'];
-            row['Status']            = row['Status'] || 'In Progress';
-            rows.push(row);
+            rows.push(recalc(row));
           }
           setTableData(rows);
-          showNotification('Data imported successfully');
+          showNotification(`Imported ${rows.length} items. Don't forget to Save!`);
+          setActiveTab('Table');
         } catch (err) {
-          showNotification('Failed to parse file', 'error');
+          showNotification('Excel parse failed', 'error');
         } finally {
           setIsParsing(false);
-          e.target.value = null;
+          setTempFile(null);
         }
-      }, 300);
+      }, 500);
     };
     reader.readAsBinaryString(file);
   };
@@ -412,6 +413,7 @@ const BudgetMaster = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
+      fetchHistory(); // Refresh history so the next upload check sees this new version
       showNotification(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
       if (editingRowId) { setEditingRowId(null); setEditingData({}); }
     } catch (err) {
@@ -875,9 +877,13 @@ const BudgetMaster = () => {
 
               {/* File actions */}
               <div className="relative group">
-                <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300">
+                <button 
+                  onClick={() => {
+                    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+                    setShowUploadModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300"
+                >
                   {isParsing ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   <span>{isParsing ? 'Parsing...' : 'Import Excel'}</span>
                 </button>
@@ -1642,6 +1648,117 @@ const BudgetMaster = () => {
                   className="flex-1 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
                   {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                   Confirm & Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Excel Upload Modal ────────────────────────────────────────────────── */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Import Budget Excel</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Upload a new budget snapshot for this project</p>
+              </div>
+              <button onClick={() => setShowUploadModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Project Name</label>
+                <input 
+                  type="text" 
+                  value={selectedProject || ''} 
+                  disabled 
+                  className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 dark:text-slate-400 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Budget Effective Date <span className="text-red-500">*</span></label>
+                <input 
+                  type="date" 
+                  value={selectedHistoryDate}
+                  onChange={(e) => setSelectedHistoryDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Select Excel File <span className="text-red-500">*</span></label>
+                <div className="relative">
+                  <input 
+                    type="file" 
+                    accept=".xlsx,.xls,.csv" 
+                    onChange={(e) => setTempFile(e.target.files[0])}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className={`w-full px-4 py-2.5 bg-white dark:bg-slate-800 border ${tempFile ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 dark:border-slate-700'} border-dashed rounded-xl flex items-center justify-between text-sm`}>
+                    <span className={tempFile ? 'text-blue-600 font-medium' : 'text-slate-400'}>
+                      {tempFile ? tempFile.name : 'Choose file...'}
+                    </span>
+                    <FileUp className={`h-4 w-4 ${tempFile ? 'text-blue-500' : 'text-slate-400'}`} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setShowUploadModal(false)}
+                  className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    if (!tempFile) { showNotification('Please select a file', 'error'); return; }
+                    
+                    const targetDate = String(selectedHistoryDate || '').trim();
+                    const historyArray = Array.isArray(historyData) ? historyData : [];
+                    const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
+                    
+                    if (exists) {
+                      setShowOverwriteWarning(true);
+                    } else {
+                      executeUpload();
+                    }
+                  }}
+                  className="flex-1 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  Confirm Upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Overwrite Warning Modal ─────────────────────────────────────────── */}
+      {showOverwriteWarning && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-red-200 dark:border-red-900/30 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertTriangle className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Overwrite Existing Budget?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                A budget snapshot for <span className="font-bold text-slate-700 dark:text-slate-200">{selectedProject}</span> on <span className="font-bold text-slate-700 dark:text-slate-200">{selectedHistoryDate}</span> already exists. 
+                Uploading again will <span className="text-red-600 font-bold underline">replace</span> the previous data for this specific date.
+              </p>
+              
+              <div className="flex gap-3">
+                <button onClick={() => setShowOverwriteWarning(false)}
+                  className="flex-1 py-2.5 text-sm font-semibold text-slate-600 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={executeUpload}
+                  className="flex-1 py-2.5 text-sm font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all">
+                  Yes, Overwrite
                 </button>
               </div>
             </div>

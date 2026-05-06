@@ -44,6 +44,16 @@ def list_budget_summaries(db: Session = Depends(get_db)):
     return db.query(BudgetSummary).all()
 
 
+# ─── 1. GET / — List all budget summaries ─────────────────────────────────────
+
+@router.get("/", response_model=List[BudgetSummaryResponse])
+def list_budget_summaries(db: Session = Depends(get_db)):
+    """List all budget summaries (used by sidebar to show which projects have budgets)."""
+    # For the sidebar, we might want just the latest for each project, 
+    # but for now, returning all is what the frontend expected.
+    return db.query(BudgetSummary).all()
+
+
 # ─── 2-5. Revision routes — MUST be before /{project_name} ────────────────────
 
 @router.get("/revisions/", response_model=List[BudgetRevisionResponse])
