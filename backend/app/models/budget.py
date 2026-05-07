@@ -8,7 +8,8 @@ class BudgetSummary(Base):
     __tablename__ = "budget_summaries"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_name = Column(String, unique=True, index=True, nullable=False)
+    project_name = Column(String, index=True, nullable=False)
+    budget_date = Column(String, nullable=True)  # YYYY-MM-DD
     uploaded_by = Column(String)
     department = Column(String)
     overall_budget = Column(Float, default=0.0)
