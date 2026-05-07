@@ -730,8 +730,8 @@ const Dashboard = () => {
             }`}
         >
           <div className="flex items-center gap-3">
-            <LayoutIcon className="h-4 w-4" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <LayoutIcon className="h-5 w-5" />
+            <span className="text-[19px] font-medium tracking-tight">
               Dashboard
             </span>
           </div>
@@ -805,8 +805,8 @@ const Dashboard = () => {
             }`}
         >
           <div className="flex items-center gap-3">
-            <FileUp className="h-4 w-4" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <FileUp className="h-5 w-5" />
+            <span className="text-[19px] font-medium tracking-tight">
               Uploads
             </span>
           </div>
@@ -824,7 +824,7 @@ const Dashboard = () => {
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
             >
-              <span className="text-[12px]">
+              <span className="text-[18px]">
                 Trackers
               </span>
             </button>
@@ -851,8 +851,8 @@ const Dashboard = () => {
             }`}
         >
           <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <Calendar className="h-5 w-5" />
+            <span className="text-[19px] font-medium tracking-tight">
               Meetings
             </span>
           </div>
@@ -870,7 +870,7 @@ const Dashboard = () => {
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
             >
-              <span className="text-[12px]">
+              <span className="text-[18px]">
                 {isOnMOMView ? 'MOM Output' : 'All Meetings'}
               </span>
             </button>
@@ -882,7 +882,7 @@ const Dashboard = () => {
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
             >
-              <span className="text-[12px]">
+              <span className="text-[18px]">
                 Create MOM
               </span>
             </button>
@@ -909,8 +909,8 @@ const Dashboard = () => {
             }`}
         >
           <div className="flex items-center gap-3">
-            <Database className="h-4 w-4" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <Database className="h-5 w-5" />
+            <span className="text-[19px] font-medium tracking-tight">
               Master
             </span>
           </div>
@@ -932,7 +932,7 @@ const Dashboard = () => {
                       : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                     }`}
                 >
-                  <span className="text-[12px]">
+                  <span className="text-[18px]">
                     {module.name}
                   </span>
                 </button>
@@ -976,7 +976,7 @@ const Dashboard = () => {
               : 'hover:bg-white/5 text-white/70 hover:text-white'
               }`}
           >
-            <span className="text-body-sm font-medium truncate tracking-tight">
+            <span className="text-[18px] font-medium truncate tracking-tight">
               {projectModule.name}
             </span>
           </div>
@@ -1037,7 +1037,7 @@ const Dashboard = () => {
             : 'text-white/70 hover:text-white'
           }`}
       >
-        <span className={`text-body-sm truncate tracking-tight ${isSelected ? 'font-semibold' : 'font-medium'}`}>
+        <span className={`text-[17px] truncate tracking-tight ${isSelected ? 'font-semibold' : 'font-medium'}`}>
           {fileModule.displayName || (fileModule.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, '')}
         </span>
       </button>
@@ -1059,8 +1059,8 @@ const Dashboard = () => {
             }`}
         >
           <div className="flex items-center gap-3">
-            <Settings className="h-4 w-4" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <Settings className="h-5 w-5" />
+            <span className="text-[19px] font-medium tracking-tight">
               {module.name}
             </span>
           </div>
@@ -1079,12 +1079,12 @@ const Dashboard = () => {
         {activeView !== 'agent' && (
           <div
             ref={sidebarRef}
-            className="fixed lg:relative inset-y-0 left-0 z-30 w-[200px] bg-[#1E293B] flex flex-col overflow-hidden"
+            className="fixed lg:relative inset-y-0 left-0 z-30 w-[280px] bg-[#1E293B] flex flex-col overflow-hidden"
           >
             {/* Logo Section */}
-            <div className="h-14 flex items-center px-4 border-b border-white/5">
+            <div className="h-[72px] flex items-center px-4 border-b border-white/5">
               <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-lg tracking-[0.1em] font-primary">CALDIM</span>
+                <span className="text-white font-bold text-2xl tracking-[0.1em] font-primary">CALDIM</span>
               </div>
             </div>
 

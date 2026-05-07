@@ -62,14 +62,17 @@
     height: 6px;
     width: 6px;
   }
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 10px;
   }
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
@@ -262,7 +265,7 @@
   .app-sidebar {
     @apply z-30 flex flex-col transition-all duration-300 ease-in-out;
     background-color: var(--sidebar-bg);
-    width: 220px;
+    width: 280px;
     flex-shrink: 0;
   }
 
@@ -271,7 +274,7 @@
   }
 
   .sidebar-section-label {
-    font-size: 9px;
+    font-size: 15px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--text-muted);
@@ -281,7 +284,7 @@
 
   .sidebar-nav-item {
     @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
-    padding: 8px 16px;
+    padding: 14px 16px;
     color: var(--text-secondary);
     border-radius: 6px;
     margin: 0 8px 4px 8px;

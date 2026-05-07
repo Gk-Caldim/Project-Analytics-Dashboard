@@ -348,12 +348,12 @@ const ProjectTitleDashboard = () => {
       String(p.dbProjectId) === String(projectId)
     );
   }, [projectId, projects]);
-  
+
   // SEO & Document Title management
   useEffect(() => {
     const title = activeProject ? `${activeProject.name} | Project Dashboard` : 'Deep Project Analytics | Dashboard';
     document.title = title;
-    
+
     // Update meta description for basic SEO
     let metaDescription = document.querySelector('meta[name="description"]');
     if (!metaDescription) {
@@ -361,16 +361,16 @@ const ProjectTitleDashboard = () => {
       metaDescription.name = 'description';
       document.head.appendChild(metaDescription);
     }
-    metaDescription.content = activeProject 
+    metaDescription.content = activeProject
       ? `Real-time analytics and performance tracking for ${activeProject.name}. Monitor milestones, budgets, and critical issues.`
       : 'Comprehensive project analytics dashboard for enterprise-level tracking and reporting.';
   }, [activeProject]);
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    return activeProject.submodules?.find(s => 
-      String(s.id) === String(submoduleId) || 
-      String(s.trackerId) === String(submoduleId) || 
+    return activeProject.submodules?.find(s =>
+      String(s.id) === String(submoduleId) ||
+      String(s.trackerId) === String(submoduleId) ||
       `project-file-${s.trackerId}` === submoduleId
     );
   }, [activeProject, submoduleId]);
@@ -451,7 +451,7 @@ const ProjectTitleDashboard = () => {
             }
 
             const existingProject = uniqueProjectsMap.get(capitalizedName);
-            
+
             // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
             if (struct.dashboard_config?.visibleSections) {
               const sections = { ...struct.dashboard_config.visibleSections };
@@ -481,13 +481,13 @@ const ProjectTitleDashboard = () => {
 
             // MERGE logic instead of overwrite
             if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
-               existingProject.dbProjectId = struct.project_id;
+              existingProject.dbProjectId = struct.project_id;
             }
-            
+
             // Collect all submodules and uploads from all structures matching this name
             existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
             existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
-            
+
             // Deduplicate submodules by ID/Name using a Map for O(N) performance
             const subMap = new Map();
             existingProject.submodules.forEach(s => { if (!subMap.has(s.id)) subMap.set(s.id, s); });
@@ -505,7 +505,7 @@ const ProjectTitleDashboard = () => {
             existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
 
             const moduleMap = new Map();
-            
+
             // Build a map of module_name -> upload_id from uploads
             (struct.uploads || []).forEach(upload => {
               (upload.modules || []).forEach(mod => {
@@ -597,13 +597,13 @@ const ProjectTitleDashboard = () => {
 
           setVisibleSections(sections);
           if (sections.metricsSummary) {
-             // If we have metricsSummary enabled but NO specific upload toggles, enable all by default
-             const hasAnyUploadToggle = Object.keys(sections).some(k => k.startsWith('upload-'));
-             if (!hasAnyUploadToggle) {
-               (selectedProject.uploads || []).forEach(u => {
-                 sections[`upload-${u.file_name}`] = true;
-               });
-             }
+            // If we have metricsSummary enabled but NO specific upload toggles, enable all by default
+            const hasAnyUploadToggle = Object.keys(sections).some(k => k.startsWith('upload-'));
+            if (!hasAnyUploadToggle) {
+              (selectedProject.uploads || []).forEach(u => {
+                sections[`upload-${u.file_name}`] = true;
+              });
+            }
           }
           setShowSimulateModal(false);
         } else {
@@ -885,8 +885,8 @@ const ProjectTitleDashboard = () => {
         budgetUtilized: activeProject.utilized_budget || 0,
         budgetBalance: activeProject.balance_budget || 0,
         // Calculate outlook if possible, otherwise keep prev or 0
-        budgetOutlook: activeProject.budget > 0 
-          ? Math.round((activeProject.utilized_budget / activeProject.budget) * 100) 
+        budgetOutlook: activeProject.budget > 0
+          ? Math.round((activeProject.utilized_budget / activeProject.budget) * 100)
           : '0'
       }));
     }
@@ -1028,7 +1028,7 @@ const ProjectTitleDashboard = () => {
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
     if (!trackerId || trackerId === 'undefined' || trackerId === 'null') return;
-    
+
     // Prevent multiple concurrent loads for the same trackerId or re-loading if failed
     if (submoduleLoading[trackerId]) return;
     if (submoduleData[trackerId]?.failed) return; // Don't auto-retry if failed
@@ -1061,11 +1061,11 @@ const ProjectTitleDashboard = () => {
       console.error(`[ProjectDashboard] Failed to load submodule ${trackerId}:`, error);
       setSubmoduleData(prev => ({
         ...prev,
-        [trackerId]: { 
-          rows: [], 
-          columns: [], 
+        [trackerId]: {
+          rows: [],
+          columns: [],
           error: error.response?.data?.detail || error.message,
-          failed: true 
+          failed: true
         }
       }));
     } finally {
@@ -1130,9 +1130,9 @@ const ProjectTitleDashboard = () => {
       const idToResolve = submoduleId;
       if (idToResolve) {
         // Find the submodule object
-        const sub = activeProject.submodules?.find(s => 
-          String(s.id) === String(idToResolve) || 
-          String(s.trackerId) === String(idToResolve) || 
+        const sub = activeProject.submodules?.find(s =>
+          String(s.id) === String(idToResolve) ||
+          String(s.trackerId) === String(idToResolve) ||
           `project-file-${s.trackerId}` === String(idToResolve)
         );
 
@@ -1220,13 +1220,13 @@ const ProjectTitleDashboard = () => {
         ...allMetricCharts.map(c => c.trackerId),
         selectedSubmodule?.trackerId
       ].filter(Boolean);
-      
+
       const uniqueTrackerIds = [...new Set(visibleTrackerIds)];
 
       uniqueTrackerIds.forEach(trackerId => {
         const data = submoduleData[trackerId];
         const isLoading = submoduleLoading[trackerId];
-        
+
         if (!data && !isLoading) {
           loadSubmoduleData(trackerId);
         } else if (data && data.rows.length === 0 && !data.failed && !isLoading) {
@@ -1406,15 +1406,15 @@ const ProjectTitleDashboard = () => {
   const handleSectionVisibilityToggle = (section) => {
     setTempVisibleSections(prev => {
       const next = { ...prev, [section]: !prev[section] };
-      
+
       // Auto-enable metricsSummary section if any chart is selected
       const defaultPhases = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
       const isChart = defaultPhases.includes(section) || section.startsWith('upload-');
-      
+
       if (isChart && next[section]) {
         next.metricsSummary = true;
       }
-      
+
       return next;
     });
   };
@@ -1564,7 +1564,7 @@ const ProjectTitleDashboard = () => {
       }
     });
     setPdfChartImages(capturedImages);
-    
+
     // Sync current visible sections to PDF preview
     setEmailData(prev => ({
       ...prev,
@@ -1573,7 +1573,7 @@ const ProjectTitleDashboard = () => {
         ...visibleSections
       }
     }));
-    
+
     setShowPdfPreview(true);
   };
 
@@ -1591,12 +1591,12 @@ const ProjectTitleDashboard = () => {
       if (isDuplicate) return false;
 
       if (phase.isDynamic) {
-          const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-          const isAlreadyMapped = defaultIds.some(id => {
-              const tracker = getTrackerForPhase(id);
-              return tracker && tracker.id === phase.id;
-          });
-          if (isAlreadyMapped) return false;
+        const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+        const isAlreadyMapped = defaultIds.some(id => {
+          const tracker = getTrackerForPhase(id);
+          return tracker && tracker.id === phase.id;
+        });
+        if (isAlreadyMapped) return false;
       }
 
       return visibleSections?.[phase.id] && availablePhases?.[phase.id];
@@ -1618,7 +1618,7 @@ const ProjectTitleDashboard = () => {
       const visiblePhaseList = getVisiblePhaseList();
 
       const blob = await pdf(
-        <ReportDocument 
+        <ReportDocument
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
@@ -1633,7 +1633,7 @@ const ProjectTitleDashboard = () => {
           sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
-      
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -1678,7 +1678,7 @@ const ProjectTitleDashboard = () => {
       const visiblePhaseList = getVisiblePhaseList();
 
       const blob = await pdf(
-        <ReportDocument 
+        <ReportDocument
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
@@ -1882,10 +1882,10 @@ const ProjectTitleDashboard = () => {
                 <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
                 <span style={{ fontWeight: '600' }}>Budget Summary</span>
               </label>
-              
-              <div style={{ 
-                border: '1px solid var(--border-subtle)', 
-                borderRadius: '8px', 
+
+              <div style={{
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
                 background: tempVisibleSections.metricsSummary ? '#f0f9ff' : 'white',
                 overflow: 'hidden'
               }}>
@@ -1893,12 +1893,12 @@ const ProjectTitleDashboard = () => {
                   <input type="checkbox" checked={tempVisibleSections.metricsSummary || false} onChange={() => handleSectionVisibilityToggle('metricsSummary')} />
                   <span style={{ fontWeight: '600' }}>Project Metrics Summary</span>
                 </label>
-                
+
                 {tempVisibleSections.metricsSummary && (
-                  <div style={{ 
-                    padding: '12px 12px 12px 40px', 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                  <div style={{
+                    padding: '12px 12px 12px 40px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
                     gap: '8px',
                     backgroundColor: 'rgba(255,255,255,0.5)',
                     borderTop: '1px solid var(--border-subtle)'
@@ -1907,10 +1907,10 @@ const ProjectTitleDashboard = () => {
                       const hasData = submoduleData[chart.trackerId]?.rows?.length > 0;
                       return (
                         <label key={chart.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', position: 'relative' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={tempVisibleSections[chart.id] || false} 
-                            onChange={() => handleSectionVisibilityToggle(chart.id)} 
+                          <input
+                            type="checkbox"
+                            checked={tempVisibleSections[chart.id] || false}
+                            onChange={() => handleSectionVisibilityToggle(chart.id)}
                           />
                           <span style={{ color: hasData ? 'inherit' : 'var(--text-muted)' }}>{chart.title}</span>
                           {!hasData && (
@@ -1945,9 +1945,9 @@ const ProjectTitleDashboard = () => {
                         budget: 'Budget Summary',
                         metricsSummary: 'Project Metrics Summary'
                       };
-                      
+
                       let displayLabel = labels[section] || section;
-                      
+
                       if (section === 'metricsSummary') {
                         const chartCount = Object.entries(tempVisibleSections)
                           .filter(([k, v]) => v && (k.startsWith('upload-') || ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(k)))
@@ -2636,10 +2636,10 @@ const ProjectTitleDashboard = () => {
     // Auto-detect axes if not configured
     if ((!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) && chartData.length > 0) {
       const keys = Object.keys(chartData[0]).filter(k => k !== '__row_index__' && k !== 'id');
-      
+
       // Try to find a date column for X axis
       let xCol = keys.find(k => isDateColumn(chartData, k)) || keys[0];
-      
+
       // Try to find a numeric column for Y axis (excluding the X column)
       let yCol = keys.find(k => k !== xCol && chartData.some(row => !isNaN(parseFloat(row[k])))) || (keys[1] === xCol ? keys[2] : keys[1]);
 
@@ -2648,7 +2648,7 @@ const ProjectTitleDashboard = () => {
           xAxis: xCol,
           yAxis: yCol
         };
-        
+
         // If both are dates, try to infer relationship
         if (isDateColumn(chartData, xCol) && isDateColumn(chartData, yCol)) {
           const derived = inferDateRelationship(xCol, yCol);
@@ -2830,7 +2830,7 @@ const ProjectTitleDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>`;
-              
+
               if (series[0].data) {
                 series[0].data.forEach((item, idx) => {
                   const name = opt.xAxis[0].data ? opt.xAxis[0].data[idx] : idx;
@@ -2845,9 +2845,9 @@ const ProjectTitleDashboard = () => {
               return table;
             }
           },
-          saveAsImage: { 
-            show: true, 
-            title: 'Download', 
+          saveAsImage: {
+            show: true,
+            title: 'Download',
             pixelRatio: 3,
             iconStyle: { borderColor: '#2563EB' }
           }
@@ -3345,93 +3345,93 @@ const ProjectTitleDashboard = () => {
     </div>
   );
 
-    const renderMetricsSummary = () => {
-      if (allMetricCharts.length === 0) return null;
-  
-      const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
-      const startIndex = (metricsPage - 1) * chartsPerPage;
-      const currentCharts = allMetricCharts.slice(startIndex, startIndex + chartsPerPage);
-  
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(3, 1fr)', 
-            gap: '16px' 
-          }}>
-            {currentCharts.map(chart => (
-                <div key={chart.id} style={{ 
-                  backgroundColor: 'white', 
-                  borderRadius: '12px', 
-                  padding: '12px 16px', // Reduced padding
-                  border: '1px solid var(--border-subtle)', 
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-                  height: '380px', // Increased from 340px
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.2s ease'
-                }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '4px', height: '18px', backgroundColor: chart.isDefault ? '#4f46e5' : '#10b981', borderRadius: '2px' }}></div>
-                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{chart.title}</h3>
-                  </div>
-                  {renderChartOptions(chart.id, chart.type)}
+  const renderMetricsSummary = () => {
+    if (allMetricCharts.length === 0) return null;
+
+    const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
+    const startIndex = (metricsPage - 1) * chartsPerPage;
+    const currentCharts = allMetricCharts.slice(startIndex, startIndex + chartsPerPage);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '16px'
+        }}>
+          {currentCharts.map(chart => (
+            <div key={chart.id} style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '12px 16px', // Reduced padding
+              border: '1px solid var(--border-subtle)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              height: '380px', // Increased from 340px
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.2s ease'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '4px', height: '18px', backgroundColor: chart.isDefault ? '#4f46e5' : '#10b981', borderRadius: '2px' }}></div>
+                  <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{chart.title}</h3>
                 </div>
-                <div style={{ flex: 1, minHeight: 0 }}>
-                  {renderChart(chart.id, chart.type, false, chart.trackerId)}
-                </div>
+                {renderChartOptions(chart.id, chart.type)}
               </div>
-            ))}
-          </div>
-          
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-              <button 
-                onClick={() => setMetricsPage(p => Math.max(1, p - 1))}
-                disabled={metricsPage === 1}
-                style={{ 
-                  padding: '8px 20px', 
-                  border: '1px solid #cbd5e1', 
-                  background: 'white', 
-                  borderRadius: '8px', 
-                  cursor: metricsPage === 1 ? 'not-allowed' : 'pointer', 
-                  fontSize: '13px', 
-                  fontWeight: '700',
-                  color: metricsPage === 1 ? 'var(--text-muted)' : 'var(--accent)',
-                  boxShadow: metricsPage === 1 ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ← Previous
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Page {metricsPage}</span>
-                <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>of {totalPages}</span>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                {renderChart(chart.id, chart.type, false, chart.trackerId)}
               </div>
-              <button 
-                onClick={() => setMetricsPage(p => Math.min(totalPages, p + 1))}
-                disabled={metricsPage === totalPages}
-                style={{ 
-                  padding: '8px 20px', 
-                  border: '1px solid #cbd5e1', 
-                  background: 'white', 
-                  borderRadius: '8px', 
-                  cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer', 
-                  fontSize: '13px', 
-                  fontWeight: '700',
-                  color: metricsPage === totalPages ? 'var(--text-muted)' : 'var(--accent)',
-                  boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                Next →
-              </button>
             </div>
-          )}
+          ))}
         </div>
-      );
-    };
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+            <button
+              onClick={() => setMetricsPage(p => Math.max(1, p - 1))}
+              disabled={metricsPage === 1}
+              style={{
+                padding: '8px 20px',
+                border: '1px solid #cbd5e1',
+                background: 'white',
+                borderRadius: '8px',
+                cursor: metricsPage === 1 ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: metricsPage === 1 ? 'var(--text-muted)' : 'var(--accent)',
+                boxShadow: metricsPage === 1 ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s'
+              }}
+            >
+              ← Previous
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Page {metricsPage}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>of {totalPages}</span>
+            </div>
+            <button
+              onClick={() => setMetricsPage(p => Math.min(totalPages, p + 1))}
+              disabled={metricsPage === totalPages}
+              style={{
+                padding: '8px 20px',
+                border: '1px solid #cbd5e1',
+                background: 'white',
+                borderRadius: '8px',
+                cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: metricsPage === totalPages ? 'var(--text-muted)' : 'var(--accent)',
+                boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s'
+              }}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Maximized Chart Modal Component
   const renderMaximizedChartModal = () => {
@@ -3567,9 +3567,9 @@ const ProjectTitleDashboard = () => {
               const config = axisConfigs[activeProject.id]?.[maximizedChart];
               const xAxis = config?.xAxis;
               const yAxis = config?.yAxis;
-              
+
               if (rows.length === 0) return null;
-              
+
               const uniqueX = xAxis ? new Set(rows.map(r => r[xAxis]).filter(Boolean)).size : 0;
               const numericY = yAxis ? rows.map(r => parseFloat(String(r[yAxis]).replace(/[^0-9.]/g, ''))).filter(v => !isNaN(v)) : [];
               const totalY = numericY.reduce((a, b) => a + b, 0);
@@ -3835,14 +3835,14 @@ const ProjectTitleDashboard = () => {
                     onClick={() => {
                       // Initialize selectedSections from current dashboard visibility
                       const sections = { ...visibleSections };
-                      
+
                       // Ensure all submodules have an entry (default to false if not in visibleSections)
                       (activeProject?.submodules || []).forEach(sub => {
                         if (sections[sub.id] === undefined) {
                           sections[sub.id] = false;
                         }
                       });
-                      
+
                       setEmailData(prev => ({ ...prev, selectedSections: sections, includePdf: true }));
                       setShowEmailModal(true);
                     }}
@@ -4041,50 +4041,50 @@ const ProjectTitleDashboard = () => {
           /* Submodule Detail View */
           <div style={{ padding: '0 25px 25px 25px' }}>
             {renderSubmoduleTable(
-                      selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones, 
+              selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones,
               getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
             )}
           </div>
         ) : (
           /* Active Project Dashboard */
           <>
-              <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <VPProjectDashboard 
-                  activeProject={activeProject} 
-                  dashboardData={dashboardData} 
-                  onConfigure={() => setShowSimulateModal(true)} 
-                  onSendMail={() => setShowEmailModal(true)} 
-                  metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
-                  visibleSections={visibleSections}
-                />
-                
-                {visibleSections.budget && (
-                  <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
-                      <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
-                    </header>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
-                      </div>
+            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <VPProjectDashboard
+                activeProject={activeProject}
+                dashboardData={dashboardData}
+                onConfigure={() => setShowSimulateModal(true)}
+                onSendMail={() => setShowEmailModal(true)}
+                metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
+                visibleSections={visibleSections}
+              />
+
+              {visibleSections.budget && (
+                <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+                    <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
+                  </header>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
                     </div>
-                  </section>
-                )}
-              </section>
+                    <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
+                    </div>
+                    <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
+                    </div>
+                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </section>
             {/* End project-dashboard-main-content */}
 
             <PdfPreviewModal
