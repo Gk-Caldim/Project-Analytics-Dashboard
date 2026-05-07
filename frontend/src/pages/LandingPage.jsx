@@ -258,7 +258,7 @@ const LandingPage = () => {
           <h2 className="bottom-cta-title">Ready to give your leadership team a single source of truth?</h2>
           <p className="bottom-cta-desc">Set up your workspace in under 10 minutes. No credit card required for the first 30 days.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Access Workspace</button>
+            <button className="cta-btn-white" onClick={() => navigate('/login')}>Access Workspace</button>
             <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Enterprise Sales</button>
           </div>
         </div>

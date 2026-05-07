@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield } from 'lucide-react';
-import './WorkspaceLogin.css';
+import './LoginPage.css';
 
-const WorkspaceLogin = () => {
+const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { loading } = useSelector((state) => state.auth);
@@ -327,4 +327,4 @@ const WorkspaceLogin = () => {
   );
 };
 
-export default WorkspaceLogin;
+export default LoginPage;

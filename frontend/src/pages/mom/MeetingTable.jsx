@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
 import API from '../../utils/api';
 import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
@@ -30,7 +31,7 @@ const TargetDateCell = ({ value, onChange }) => {
         type="date"
         value={value || ''}
         autoFocus
-        className="w-full bg-white border border-teal-500 rounded px-1 py-1 text-[11px] font-mono focus:outline-none"
+        className="w-full bg-white border border-[#E2E8F0] rounded-[6px] px-2 py-1 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#0D9488] h-[36px]"
         onChange={(e) => {
           onChange(e.target.value);
           setIsEditing(false);
@@ -81,7 +82,7 @@ const ActionTakenCell = ({ value, onChange }) => {
           onChange(localValue);
           setIsEditing(false);
         }}
-        className="w-full bg-white border border-teal-500 rounded p-1 text-xs focus:outline-none resize-none min-h-[40px]"
+        className="w-full bg-white border border-[#E2E8F0] rounded-[6px] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D9488] min-h-[36px] resize-none"
       />
     );
   }
@@ -108,28 +109,34 @@ const ActionTakenCell = ({ value, onChange }) => {
   );
 };
 
+const ProjectCell = ({ projectName, defaultProjectName }) => {
+  const displayValue = projectName || defaultProjectName || '—';
+  const truncatedValue = displayValue.length > 16 ? displayValue.slice(0, 16) + '...' : displayValue;
+
+  return (
+    <div 
+      style={{ 
+        fontSize: '14px', 
+        color: 'var(--color-text-primary, #1e293b)', 
+        whiteSpace: 'nowrap', 
+        overflow: 'hidden', 
+        textOverflow: 'ellipsis',
+        maxWidth: '140px' 
+      }}
+      title={displayValue}
+    >
+      {truncatedValue}
+    </div>
+  );
+};
+
 const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
   const { meetingId, meetingName, projectId: reduxProjectId, projectName: reduxProjectName, status: reduxStatus } = useSelector(state => state.mom);
 
-  // The effective project ID — prefer lockedProjectId (passed in) else Redux
   const effectiveProjectId = lockedProjectId || reduxProjectId;
-
-  // ── Project list (for display only — name resolution) ──────────────────
-  const [projects, setProjects] = useState([]);
-
-  useEffect(() => {
-    API.get('/projects')
-      .then(resp => {
-        const data = resp.data.success
-          ? resp.data.projects
-          : Array.isArray(resp.data) ? resp.data : [];
-        setProjects(data);
-      })
-      .catch(err => console.error('Failed to fetch projects', err));
-  }, []);
 
   const allAssignedTo = React.useMemo(() => {
     if (!meetings || meetings.length <= 1) return null;
@@ -145,17 +152,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     });
   };
 
-  // Helper: resolve project name from id for display
-  const resolveProjectName = (pid) => {
-    if (!pid) return '—';
-    const p = projects.find(pr => String(pr.id ?? pr.project_id) === String(pid));
-    return p ? (p.name ?? p.project_name) : `#${pid}`;
-  };
-
   // ── Sync High-priority MOM rows → Issue Engine ─────────────────
   const [syncFlowState, setSyncFlowState] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
-  const [syncedCount, setSyncedCount] = useState(0);
-  const [attemptedCount, setAttemptedCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [showLinkWarning, setShowLinkWarning] = useState(false);
+  const [syncedBadgeCount, setSyncedBadgeCount] = useState(0);
+  const [syncRoster, setSyncRoster] = useState([]);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [showAutoSyncMenu, setShowAutoSyncMenu] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
     return localStorage.getItem('autoSyncHighCritical') === 'true';
@@ -168,68 +171,51 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const [copied, setCopied] = useState(false);
 
   const handleSyncIssues = async (silent = false) => {
-    // Use the project locked in at MOM creation — no manual selection needed
     if (!effectiveProjectId) {
-      if (silent !== true) toast.error('No project linked to this MOM. Set the project during MOM creation.');
-      return;
-    }
-
-    // ── Step 2: Validate rows ──────────────────────────────────────
-    const rowsToSync = meetings.filter(m => {
-        return m.criticality === 'High' || m.criticality === 'Critical';
-    });
-
-    if (rowsToSync.length === 0) {
-      if (silent !== true) toast.error('No High priority or pending rows found to sync.');
-      return;
-    }
-
-    // Build action items, skip rows missing owner
-    const actions = [];
-    const localSkipped = [];
-
-    rowsToSync.forEach((m, idx) => {
-      const owner      = (m.responsibility || '').trim();
-      const target     = (m.target || '').trim();
-      const actionText = (m.discussion_point || '').trim();
-
-      if (!owner) {
-        localSkipped.push(`Row ${idx + 1}: missing Responsibility (owner)`);
-        return;
+      if (silent !== true) {
+        setShowLinkWarning(true);
+        setTimeout(() => setShowLinkWarning(false), 3000);
       }
+      return;
+    }
 
-      // Parse target date — allow empty/null
+    const rowsToSync = meetings.filter(m => m.criticality === 'High' || m.criticality === 'Critical');
+    if (rowsToSync.length === 0) {
+      if (silent !== true) toast.error('No High priority rows found to sync.');
+      return;
+    }
+
+    const actions = [];
+    rowsToSync.forEach((m, idx) => {
+      const owner = (m.responsibility || '').trim();
+      const target = (m.target || '').trim();
+      const actionText = (m.discussion_point || '').trim();
+      if (!owner) return;
+
       let parsedDate = null;
       if (target) {
         const iso = Date.parse(target);
-        if (!isNaN(iso)) {
-          parsedDate = new Date(iso).toISOString().split('T')[0];
-        } else {
-            parsedDate = null;
-        }
+        if (!isNaN(iso)) parsedDate = new Date(iso).toISOString().split('T')[0];
       }
 
-      const title50 = actionText.slice(0, 50) || `MOM Action ${idx + 1}`;
-
       actions.push({
-        title:       title50,
-        description: actionText || title50,
+        title: actionText.slice(0, 50) || `MOM Action ${idx + 1}`,
+        description: actionText,
         owner,
-        department:  m.function || undefined,
-        priority:    m.criticality === 'High' || m.criticality === 'Critical' ? 'High' : 'Medium',
-        due_date:    parsedDate,
-        status:      m.status === 'Done' || m.status === 'Closed' ? 'Closed' : 'Open',
+        department: m.function || undefined,
+        priority: 'High',
+        due_date: parsedDate,
+        status: m.status === 'Done' || m.status === 'Closed' ? 'Closed' : 'Open',
       });
     });
 
     if (actions.length === 0) {
-      if (silent !== true) toast.error(`All ${rowsToSync.length} High row(s) were skipped — check Responsibility and Target Date fields.`);
+      if (silent !== true) toast.error('Check Responsibility fields before syncing.');
       return;
     }
 
-    // ── Step 3: POST to backend ────────────────────────────────────
-    setAttemptedCount(actions.length);
     setSyncFlowState('syncing');
+    const startTime = Date.now();
     
     try {
       const resp = await API.post('/mom/issues', {
@@ -237,23 +223,18 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         meeting_id: meetingId || null,
         actions,
       });
-      const data = resp.data;
-      setSyncedCount(data.issues_created || actions.length);
+      
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1500) await new Promise(r => setTimeout(r, 1500 - elapsed));
+
       setSyncFlowState('success');
-      if (silent !== true) {
-        // Resolve project name for URL (ProjectDashboard matches by name or string id)
-        const linkedProject = projects.find(pr => String(pr.id ?? pr.project_id) === String(effectiveProjectId));
-        const projectLabel = linkedProject
-          ? encodeURIComponent(linkedProject.name ?? linkedProject.project_name ?? effectiveProjectId)
-          : effectiveProjectId;
-        toast.success('Issues Synced! Redirecting to Project...');
-        setTimeout(() => {
-          navigate(`/dashboard/projects?projectId=${projectLabel}`);
-        }, 1500);
-      }
+      setLastSyncTime(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+      setSyncRoster(rowsToSync);
+      setSyncedBadgeCount(resp.data.issues_created || rowsToSync.length);
+      setShowSyncPanel(true);
+      
+      setTimeout(() => setSyncFlowState('idle'), 3000);
     } catch (err) {
-      const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      if (silent !== true) toast.error(`Sync failed: ${detail}`);
       setSyncFlowState('error');
       setTimeout(() => setSyncFlowState('idle'), 3000);
     }
@@ -362,24 +343,34 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             <div style={{ position: 'relative', display: 'inline-flex' }}>
               <button
                 onClick={handleSyncIssues}
-                disabled={syncFlowState === 'syncing' || !effectiveProjectId}
-                title={!effectiveProjectId ? 'No project linked — set project during MOM creation' : 'Sync High/Critical items to Issue Engine'}
+                disabled={syncFlowState === 'syncing'}
+                title={!effectiveProjectId ? 'No project linked' : 'Sync High items'}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: 500,
-                  background: 'transparent', border: '1px solid #0D9488', color: '#0D9488',
-                  cursor: (!effectiveProjectId || syncFlowState === 'syncing') ? 'not-allowed' : 'pointer',
-                  opacity: (!effectiveProjectId || syncFlowState === 'syncing') ? 0.5 : 1,
-                  transition: 'all 0.2s', height: '36px'
+                  padding: '8px 20px', borderRadius: '6px', fontSize: '14px', fontWeight: 600,
+                  background: syncFlowState === 'syncing' ? 'transparent' : '#0D9488',
+                  border: `1px solid #0D9488`,
+                  color: syncFlowState === 'syncing' ? '#0D9488' : '#fff',
+                  cursor: syncFlowState === 'syncing' ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease', height: '36px'
                 }}
-                onMouseEnter={e => { if (effectiveProjectId && syncFlowState !== 'syncing') e.currentTarget.style.background = '#F0FDFA'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
-                {syncFlowState === 'syncing'
-                  ? <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  : <Zap style={{ width: 16, height: 16 }} />
-                }
-                Sync Issues
+                {syncFlowState === 'syncing' ? (
+                  <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> Syncing...</>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                    <Zap style={{ width: 16, height: 16 }} />
+                    Sync Issues
+                    {syncedBadgeCount > 0 && (
+                      <span style={{
+                        background: '#fff', color: '#0D9488', fontSize: '11px', fontWeight: 800,
+                        padding: '1px 5px', borderRadius: '4px', marginLeft: '6px'
+                      }}>
+                        ✓ {syncedBadgeCount}
+                      </span>
+                    )}
+                  </div>
+                )}
               </button>
               {unsyncedCount > 0 && (
                 <span style={{
@@ -401,11 +392,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 title="Auto-sync settings"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 10px', height: '36px', borderRadius: '6px',
-                  background: 'transparent', border: '1px solid #CBD5E1', color: '#64748B',
+                  padding: '0 12px', height: '36px', borderRadius: '6px',
+                  background: 'transparent', border: '0.5px solid var(--color-border-secondary, #E2E8F0)', color: '#64748B',
                   cursor: syncFlowState === 'syncing' ? 'not-allowed' : 'pointer',
-                  opacity: syncFlowState === 'syncing' ? 0.5 : 1,
-                  transition: 'all 0.2s'
+                  transition: 'none'
                 }}
                 onMouseEnter={e => { if (syncFlowState !== 'syncing') e.currentTarget.style.background = '#F8FAFC'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -438,8 +428,87 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 </div>
               )}
             </div>
-          </div>
         </div>
+      </div>
+
+      {/* ── Inline Sync Roster (Zoho Style) ── */}
+      <AnimatePresence>
+        {showSyncPanel && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              overflow: 'hidden', background: '#F8FAFC',
+              border: '0.5px solid var(--color-border-tertiary, #E2E8F0)',
+              borderLeft: '3px solid #0D9488', borderRadius: '0 8px 8px 0',
+              padding: '16px 20px', marginBottom: '16px', position: 'relative'
+            }}
+          >
+            <button
+              onClick={() => setShowSyncPanel(false)}
+              style={{ position: 'absolute', top: '12px', right: '12px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              <X size={16} />
+            </button>
+
+            {/* Header Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 500, color: '#0F6E56', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle size={16} /> Sync Complete
+              </div>
+              <div style={{ fontSize: '12px', color: '#94A3B8' }}>
+                Synced at {lastSyncTime}
+              </div>
+            </div>
+
+            {/* Summary Row */}
+            <div style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px' }}>
+              {syncRoster.length} issues synced  ·  {syncRoster.filter(r => r.criticality === 'Critical').length} high priority  ·  {syncRoster.filter(r => r.criticality === 'High').length} medium  ·  Linked to: {reduxProjectName || 'Current Project'}
+            </div>
+
+            {/* Roster List */}
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {syncRoster.slice(0, 5).map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px', height: '40px',
+                    borderBottom: '0.5px solid #E2E8F0', fontSize: '13px'
+                  }}
+                >
+                  <span style={{ fontSize: '11px', color: '#94A3B8', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', minWidth: '24px', textAlign: 'center' }}>
+                    {item.s_no || idx + 1}
+                  </span>
+                  <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#334155' }}>
+                    {item.discussion_point}
+                  </div>
+                  <div className={`mvp-priority-pill ${item.criticality}`} style={{ transform: 'scale(0.85)' }}>
+                    {item.criticality}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748B', minWidth: '100px' }}>
+                    {item.responsibility}
+                  </div>
+                </div>
+              ))}
+              {syncRoster.length > 5 && (
+                <button
+                  style={{ marginTop: '12px', color: '#0D9488', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  Show all {syncRoster.length} synced items →
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {showLinkWarning && (
+        <div style={{ marginBottom: '12px', fontSize: '13px', color: '#B45309', fontWeight: 500 }}>
+          Link a project to sync issues.
+        </div>
+      )}
 
         {/* Right: Export Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -450,9 +519,9 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               onClick={() => setShowExportMenu(m => !m)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '8px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-                background: 'transparent', border: '1.5px solid #CBD5E1', color: '#475569',
-                cursor: 'pointer', transition: 'all 0.2s'
+                padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500,
+                background: 'transparent', border: '0.5px solid var(--color-border-secondary, #E2E8F0)', color: '#475569',
+                cursor: 'pointer', transition: 'none', height: '36px'
               }}
               onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -497,10 +566,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             onClick={handlePrint}
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '8px 20px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
+              padding: '8px 20px', borderRadius: '6px', fontSize: '14px', fontWeight: 600,
               background: '#0D9488', color: '#fff', border: 'none',
-              cursor: 'pointer', transition: 'all 0.2s',
-              boxShadow: '0 1px 3px rgba(13,148,136,0.3)'
+              cursor: 'pointer', transition: 'none',
+              height: '36px'
             }}
             onMouseEnter={e => { e.currentTarget.style.background = '#0F766E'; }}
             onMouseLeave={e => { e.currentTarget.style.background = '#0D9488'; }}
@@ -511,40 +580,6 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         </div>
       </div>
 
-      {/* ── Inline Sync Confirmation Bar ── */}
-      {syncFlowState !== 'idle' && syncFlowState !== 'error' && (
-        <div style={{
-          marginBottom: '16px', padding: '12px 16px', borderRadius: '8px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: '#F0FDFA', border: '1px solid #CCFBF1',
-          animation: 'slideDown 0.2s ease-out'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {syncFlowState === 'syncing' ? (
-              <Loader2 style={{ width: 16, height: 16, color: '#0D9488', animation: 'spin 1s linear infinite' }} />
-            ) : (
-              <Check style={{ width: 16, height: 16, color: '#0D9488' }} />
-            )}
-            <span style={{ fontSize: '13px', color: '#0F766E', fontWeight: 600 }}>
-              {syncFlowState === 'syncing'
-                ? `Syncing ${attemptedCount} issues to ${reduxProjectName || `Project #${effectiveProjectId}`} > Recent Meetings...`
-                : `✓ ${syncedCount} issues synced to ${reduxProjectName || `Project #${effectiveProjectId}`}.`}
-            </span>
-          </div>
-          {syncFlowState === 'success' && (
-            <button
-               onClick={() => {
-                 navigate(`/dashboard/projects?projectId=${effectiveProjectId}`);
-               }}
-               style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: 'none', color: '#0D9488', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-               onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-               onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-            >
-              View in Recent Meetings <ArrowRight style={{ width: 14, height: 14 }} />
-            </button>
-          )}
-        </div>
-      )}
 
       {/* ── Send Summary Modal ── */}
       {showSendModal && (
@@ -692,61 +727,65 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
         {/* ── THE GRID ── */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
-              <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid var(--color-border-tertiary)' }}>
-                <th className="px-3 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>S.No</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Function</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Project Name</th>
-                <th className="px-3 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Criticality</th>
-                <th className="px-6 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Action Points discussed</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Responsibility</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Target</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Status</th>
-                <th className="px-4 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Action taken</th>
-                <th className="px-3 py-3 text-left font-medium uppercase print:hidden sticky top-0 z-10 bg-[#F8FAFC]" style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)' }}>Actions</th>
+              <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid #E2E8F0' }}>
+                {[
+                  { label: 'S.No', cls: 'px-3 py-3 text-left' },
+                  { label: 'Function', cls: 'px-4 py-3 text-left' },
+                  { label: 'Project Name', cls: 'px-4 py-3 text-left' },
+                  { label: 'Criticality', cls: 'px-3 py-3 text-left' },
+                  { label: 'Action Points Discussed', cls: 'px-6 py-3 text-left' },
+                  { label: 'Responsibility', cls: 'px-4 py-3 text-left' },
+                  { label: 'Target', cls: 'px-4 py-3 text-center' },
+                  { label: 'Status', cls: 'px-4 py-3 text-center' },
+                  { label: 'Action Taken', cls: 'px-4 py-3 text-left' },
+                ].map((col, i, arr) => (
+                  <th
+                    key={col.label}
+                    className={`${col.cls} font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]`}
+                    style={{
+                      fontSize: '11px', letterSpacing: '0.05em',
+                      color: 'var(--color-text-tertiary)',
+                      borderRight: i < arr.length - 1 ? '1px solid #F1F5F9' : 'none',
+                      borderBottom: '1px solid #E2E8F0'
+                    }}
+                  >{col.label}</th>
+                ))}
+                <th
+                  className="px-3 py-3 text-left font-medium uppercase print:hidden sticky top-0 z-10 bg-[#F8FAFC]"
+                  style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)', borderBottom: '1px solid #E2E8F0' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Actions</span>
+                    {lastSyncTime && (
+                      <span style={{ fontSize: '10px', fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>
+                        Last synced: {lastSyncTime}
+                      </span>
+                    )}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
               {meetings.map((m, idx) => {
+                const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
                 return (
-                  <tr key={m.id || idx} className="hover:bg-gray-50/50 transition-colors group border-b border-gray-100" style={{ height: '52px' }}>
-                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
-                      {m.s_no || m.sno || idx + 1}
+                  <tr key={m.id || idx} className="hover:bg-[#FAFCFF] transition-none group" style={{ height: '52px' }}>
+                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || idx + 1}</td>
+                    <td className="px-4 py-2 text-center" style={cellBorder}>
+                       <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
                     </td>
-                    <td className="px-4 py-2 text-center">
-                       <input 
-                         type="text" 
-                         defaultValue={m.function || 'General'} 
-                         className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full"
-                         style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}
-                         onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })}
-                       />
+                    <td className="px-4 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
+                      <ProjectCell projectName={m.project_name} defaultProjectName={reduxProjectName} />
                     </td>
-                    <td className="px-4 py-2 text-left font-medium" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
-                      {reduxProjectName || (effectiveProjectId ? resolveProjectName(effectiveProjectId) : '—')}
-                    </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center" style={cellBorder}>
                       {(() => {
                         const crit = m.criticality || 'Normal';
                         const c = CRITICALITY_COLORS[crit] || { bg: 'transparent', color: '#64748B', border: '#E2E8F0' };
                         return (
-                          <select 
-                            defaultValue={crit}
-                            style={{
-                              padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700,
-                              textTransform: 'uppercase', textAlign: 'center', display: 'block', margin: '0 auto',
-                              cursor: 'pointer', outline: 'none', appearance: 'auto',
-                              background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-                            }}
-                            onChange={(e) => {
-                              onUpdateMeeting(m.id, { criticality: e.target.value });
-                              // Update style dynamically
-                              const nc = CRITICALITY_COLORS[e.target.value] || { bg: 'transparent', color: '#64748B', border: '#E2E8F0' };
-                              e.target.style.background = nc.bg;
-                              e.target.style.color = nc.color;
-                              e.target.style.borderColor = nc.border;
-                            }}
+                          <select defaultValue={crit} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', display: 'block', margin: '0 auto', cursor: 'pointer', outline: 'none', appearance: 'auto', background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
+                            onChange={(e) => { onUpdateMeeting(m.id, { criticality: e.target.value }); const nc = CRITICALITY_COLORS[e.target.value] || { bg: 'transparent', color: '#64748B', border: '#E2E8F0' }; e.target.style.background = nc.bg; e.target.style.color = nc.color; e.target.style.borderColor = nc.border; }}
                           >
                             <option value="Low">Low</option>
                             <option value="Medium">Medium</option>
@@ -756,25 +795,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
+                    <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
                       <div className="relative group/heuristic flex gap-2 w-full">
-                        <textarea
-                          defaultValue={m.discussion_point || '—'}
-                          className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]"
-                          onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })}
-                        />
-                        {m.isHeuristic ? (
-                          <div className="flex-shrink-0 cursor-help text-amber-500 hover:text-amber-600 mt-1" title="Fallback heuristic used. AI extraction unavailable for this line.">
-                            <Info className="w-4 h-4" />
-                          </div>
-                        ) : (
-                          <div className="flex-shrink-0 cursor-help text-gray-400 hover:text-teal-600 mt-1" title="AI confidence: Medium — review this action point manually">
-                            <Info className="w-4 h-4" />
-                          </div>
-                        )}
+                        <textarea defaultValue={m.discussion_point || '—'} className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]" onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })} />
+                        <div className="flex-shrink-0 cursor-help text-gray-300 hover:text-teal-600 mt-1" title={m.isHeuristic ? 'Fallback heuristic used' : 'AI extracted'}><Info className="w-4 h-4" /></div>
                       </div>
                     </td>
-                    <td className="px-4 py-2 min-w-[180px]">
+                    <td className="px-4 py-2 min-w-[180px]" style={cellBorder}>
                       <Select
                         options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
                         defaultValue={m.responsibility ? { value: m.responsibility, label: m.responsibility } : null}
@@ -782,15 +809,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         placeholder="Search Employee..."
                         className="text-left"
                         styles={{
-                          control: (base) => ({
-                            ...base,
-                            minHeight: '30px',
-                            background: 'transparent',
-                            border: 'none',
-                            boxShadow: 'none',
-                            fontSize: '14px',
-                            color: 'var(--color-text-primary)'
-                          }),
+                          control: (base) => ({ ...base, minHeight: '30px', background: 'transparent', border: 'none', boxShadow: 'none', fontSize: '14px', color: 'var(--color-text-primary)' }),
                           placeholder: (base) => ({ ...base, color: 'var(--color-text-tertiary)' }),
                           singleValue: (base) => ({ ...base, color: 'var(--color-text-primary)' }),
                           indicatorSeparator: () => ({ display: 'none' }),
@@ -798,22 +817,12 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         }}
                       />
                     </td>
-                    <td className="px-4 py-2 text-center text-gray-500">
-                      <TargetDateCell 
-                        value={m.target} 
-                        onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} 
-                      />
+                    <td className="px-4 py-2 text-center text-gray-500" style={cellBorder}>
+                      <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
                     </td>
-                    <td className="px-4 py-2 text-center">
-                       <select 
-                         defaultValue={m.status || 'Pending'}
-                         style={
-                           m.status === 'Pending' || !m.status
-                             ? { background: '#FAEEDA', color: '#854F0B', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' }
-                             : m.status === 'Done'
-                             ? { background: '#D1FAE5', color: '#065F46', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' }
-                             : { fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: '1px solid #E2E8F0', padding: '4px 12px' }
-                         }
+                    <td className="px-4 py-2 text-center" style={cellBorder}>
+                       <select defaultValue={m.status || 'Pending'}
+                         style={m.status === 'Pending' || !m.status ? { background: '#FAEEDA', color: '#854F0B', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' } : m.status === 'Done' ? { background: '#D1FAE5', color: '#065F46', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' } : { fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: '1px solid #E2E8F0', padding: '4px 12px' }}
                          className="cursor-pointer outline-none block mx-auto"
                          onChange={(e) => onUpdateMeeting(m.id, { status: e.target.value })}
                        >
@@ -823,29 +832,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                          <option value="Blocked">BLOCKED</option>
                        </select>
                     </td>
-                    <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }}>
-                      <ActionTakenCell
-                        value={m.action_taken}
-                        onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })}
-                      />
+                    <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
+                      <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
                     </td>
-                    <td className="px-3 py-2 text-center print:hidden">
+                    <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={() => handleManualSyncRow(m)}
-                          className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Sync this row as issue"
-                          disabled={!effectiveProjectId}
-                        >
-                          <Zap className="w-3.5 h-3.5 mx-auto" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteMeeting(m.id || idx)}
-                          className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Delete row"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                        </button>
+                        <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
+                        <button onClick={() => onDeleteMeeting(m.id || idx)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
                       </div>
                     </td>
                   </tr>

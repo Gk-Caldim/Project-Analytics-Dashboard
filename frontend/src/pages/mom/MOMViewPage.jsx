@@ -50,7 +50,6 @@ const MOMViewPage = () => {
 
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [selProject, setSelProject] = useState(String(projectId || ''));
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -58,6 +57,7 @@ const MOMViewPage = () => {
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -69,10 +69,6 @@ const MOMViewPage = () => {
       setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => { });
   }, []);
-
-  useEffect(() => {
-    if (projectId && !selProject) setSelProject(String(projectId));
-  }, [projectId]);
 
   // ── Derive sections from momData ─────────────────────────────────────
   const rows = momData || [];
@@ -101,7 +97,7 @@ const MOMViewPage = () => {
     const stats = {};
     let totalWords = 0;
     transcriptEntries.forEach(e => {
-      if (e.type === 'speech' && e.speaker && e.text) {
+      if (e.type === 'dialogue' && e.speaker && e.text) {
         const words = e.text.trim().split(/\s+/).length;
         if (!stats[e.speaker]) stats[e.speaker] = { name: e.speaker, value: 0 };
         stats[e.speaker].value += words;
@@ -110,6 +106,23 @@ const MOMViewPage = () => {
     });
     return Object.values(stats).sort((a, b) => b.value - a.value);
   }, [transcriptEntries]);
+
+  const metaDisplay = useMemo(() => {
+    let durText = '—';
+    const durEntry = transcriptEntries.find(e => e.type === 'metadata' && (e.field === 'DURATION' || e.label === 'Duration'));
+    if (durEntry && durEntry.value) {
+      durText = durEntry.value.replace(/minutes?/i, 'min').trim();
+    }
+
+    const participantNames = Array.from(new Set(transcriptEntries.filter(e => e.type === 'dialogue' && e.speaker).map(e => e.speaker)));
+    return { duration: durText, participants: participantNames };
+  }, [transcriptEntries]);
+
+  const session = useMemo(() => ({
+    name: meetingName || 'Untitled Session',
+    metadata: metaDisplay,
+    lastSavedTime: lastSaved ? new Date(lastSaved).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'
+  }), [meetingName, metaDisplay, lastSaved]);
 
   const chartOption = useMemo(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c} words ({d}%)' },
@@ -143,15 +156,11 @@ const MOMViewPage = () => {
   }, [dispatch]);
 
   const handleSyncIssues = useCallback(async () => {
-    let targetProjectId = Number(selProject);
-    if (isNaN(targetProjectId) && selProject) {
-      const matched = projects.find(p => (p.name || p.project_name)?.toLowerCase() === String(selProject).toLowerCase());
-      if (matched) targetProjectId = matched.id || matched.project_id;
-    }
-    if (!targetProjectId || isNaN(targetProjectId)) {
-      toast.error('Invalid Project ID. Please link this meeting to a valid project.');
+    if (!projectId) {
+      toast.error('No project linked — link a project during capture.');
       return;
     }
+    const targetProjectId = Number(projectId);
 
     const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical');
     if (highRows.length === 0) { toast.error('No High/Critical rows to sync'); return; }
@@ -191,7 +200,7 @@ const MOMViewPage = () => {
         : (rawDetail || err.message || 'Sync failed');
       toast.error(detail, { id: t });
     } finally { setSyncing(false); }
-  }, [selProject, rows]);
+  }, [projectId, rows]);
 
   const handleCopy = useCallback(() => {
     const header = 'Priority\tAction\tOwner\tDue Date\tStatus';
@@ -204,17 +213,11 @@ const MOMViewPage = () => {
   }, [rows]);
 
   const handleSave = useCallback(async () => {
-    const rawTarget = selProject || projectId;
-    let targetProjectId = Number(rawTarget);
-    if (isNaN(targetProjectId) && rawTarget) {
-      const matched = projects.find(p => (p.name || p.project_name)?.toLowerCase() === String(rawTarget).toLowerCase());
-      if (matched) targetProjectId = matched.id || matched.project_id;
-    }
-
-    if (!targetProjectId || isNaN(targetProjectId)) {
-      toast.error('Invalid Project ID. Please select a valid project before saving.');
+    if (!projectId) {
+      toast.error('No project linked — cannot save MOM.');
       return;
     }
+    const targetProjectId = Number(projectId);
 
     try {
       await dispatch(saveMOM({
@@ -224,7 +227,8 @@ const MOMViewPage = () => {
         projectName,
         momData: rows
       })).unwrap();
-      // saveMOM dispatches show its own status — no extra toast needed
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       const rawDetail = err?.response?.data?.detail || err?.message;
       const detail = Array.isArray(rawDetail)
@@ -232,7 +236,7 @@ const MOMViewPage = () => {
         : (rawDetail || 'Save failed');
       toast.error(`Save failed: ${detail}`);
     }
-  }, [dispatch, meetingId, meetingName, selProject, projectId, projectName, rows]);
+  }, [dispatch, meetingId, meetingName, projectId, projectName, rows]);
 
   // ── Auto-save (Debounced) ──
   useEffect(() => {
@@ -250,261 +254,299 @@ const MOMViewPage = () => {
   }, [rows, meetingId, handleSave, status]);
 
   // ── Render ─────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div className="mvp-root">
-
-      {/* ── Executive Top Bar (Redesign) ── */}
-      <div className="mvp-top-container" style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(248, 250, 252, 0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #E2E8F0', borderTop: '3px solid #0D9488' }}>
-        
-        {/* Header Card */}
-        <div className="mvp-header-card">
-          {/* Left Zone: Title & Context */}
-          <div className="mvp-header-left">
-            <h1 className="mvp-main-title" style={{ fontSize: '24px', fontWeight: 500, color: 'var(--color-text-primary)' }}>{meetingName || 'Meeting Summary'}</h1>
-            <div className="mvp-header-date" style={{ marginBottom: '8px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-              {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
-            </div>
-            {/* Meeting Metadata Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Clock style={{ width: 14, height: 14 }} /> 45 min
-              </span>
-              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Users style={{ width: 14, height: 14 }} /> {Array.from(new Set(rows.map(r => r.responsibility).filter(Boolean))).length || 4} participants
-              </span>
-              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Edit2 style={{ width: 14, height: 14 }} /> Gokula Krishnan
-              </span>
-              <span style={{ color: 'var(--color-border-tertiary)' }}>|</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                Last saved: {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
-
-          {/* Center Zone: Functional Breadcrumb */}
-          <div className="mvp-header-center">
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-              <Link
-                to="/dashboard"
-                style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s' }}
-                onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
-                onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
-              >
-                Dashboard
-              </Link>
-              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
-              <Link
-                to="/dashboard/meetings"
-                style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s' }}
-                onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
-                onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
-              >
-                Meetings
-              </Link>
-              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
-              {meetingId ? (
-                <Link
-                  to={`/dashboard/mom`}
-                  style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.15s', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  onMouseEnter={e => e.target.style.color = 'var(--color-text-primary)'}
-                  onMouseLeave={e => e.target.style.color = 'var(--color-text-secondary)'}
-                  title={meetingName || 'Meeting'}
-                >
-                  {meetingName || 'Capture'}
-                </Link>
-              ) : (
-                <span style={{ color: 'var(--color-text-secondary)', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {meetingName || 'Meeting'}
-                </span>
-              )}
-              <span style={{ color: 'var(--color-text-tertiary)' }}>/</span>
-              <span style={{ color: 'var(--color-text-primary)', fontWeight: 700 }}>MOM Output</span>
-            </nav>
-          </div>
-
-          {/* Right Zone: Project Chip + Status + Save */}
-          <div className="mvp-header-right" style={{ gap: '12px', alignItems: 'center' }}>
-            {/* Project Context Chip */}
-            {(projectName || projectId) && (
-              <div
-                title="Assigned during MOM creation. Change from Meeting Settings."
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '4px 12px', borderRadius: '999px',
-                  border: '1px solid #0D9488', color: '#0D9488',
-                  fontSize: '11px', fontWeight: 700, cursor: 'default',
-                  background: '#F0FDFA', whiteSpace: 'nowrap', maxWidth: '160px'
-                }}
-              >
-                <FolderOpen style={{ width: 12, height: 12, flexShrink: 0 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {projectName || `Project #${projectId}`}
-                </span>
+    <>
+      <div className="mvp-root-wrapper">
+        <div className="mvp-main-content">
+          {/* ── Top Bar ── */}
+          <header className="mvp-top-bar">
+            <div className="mvp-top-bar-inner">
+              <div className="mvp-top-bar-left">
+                <h2 className="mvp-page-title">Minutes of Meeting</h2>
               </div>
-            )}
-
-            {/* Status Badge */}
-            <div 
-              className={`mvp-status-badge ${execSummary.risks > 0 ? 'attention' : 'on-track'}`}
-              title={execSummary.risks > 0 ? "Action Required — Critical risks detected" : "Operational Health Index: Optimal — 0 critical risks, all actions assigned"}
-              style={{ padding: '5px 13px' }}
-            >
-              <span className={`mvp-cloud-dot ${execSummary.risks > 0 ? '' : 'pulse-green'}`} style={{ background: execSummary.risks > 0 ? '#DC2626' : '#166534' }} />
-              {execSummary.risks > 0 ? 'Action Required' : 'On Track'}
+              <div className="mvp-top-bar-right">
+                <button className="mvp-btn-kia">KIA Boards</button>
+                <div className="mvp-user-pill">
+                  <div className="mvp-user-avatar">GK</div>
+                </div>
+              </div>
             </div>
+          </header>
+          <div className="mvp-root">
+            <div className="mvp-content-container">
+              {/* ── Executive Header Card ── */}
+              <div className="mvp-top-container">
 
-            {/* Cloud Sync + Save — moved here from floating row below */}
-            <div className="mvp-cloud-sync-badge" style={{ fontSize: '10px', padding: '4px 10px' }}>
-              <span className={`mvp-cloud-dot ${status === 'saving' ? 'saving' : 'active'}`} />
-              {status === 'saving' ? 'Saving...' : 'Synced'}
+                {/* Breadcrumb */}
+                <nav className="mvp-breadcrumb">
+                  <Link to="/dashboard">Dashboard</Link>
+                  <ChevronRight size={12} />
+                  <Link to="/dashboard/meetings">Meetings</Link>
+                  <ChevronRight size={12} />
+                  <Link to={`/dashboard/meetings?id=${meetingId}`}>{session.name}</Link>
+                  <ChevronRight size={12} />
+                  <span className="active">MOM Output</span>
+                </nav>
+
+                {/* Header Card — Zoho flat style */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
+                  padding: '20px 24px', background: '#fff',
+                  border: '1px solid #E2E8F0', borderRadius: '10px',
+                  gap: '24px'
+                }}>
+                  {/* Left: session identity */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <h1 style={{ fontSize: '18px', fontWeight: 600, color: '#0F172A', margin: 0, lineHeight: 1.2 }}>
+                        {session.name}
+                      </h1>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>
+                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </div>
+                    {/* Slim meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
+                        <Clock style={{ width: 12, height: 12, color: '#94A3B8' }} />
+                        {session.metadata.duration || '—'}
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
+                        <Users style={{ width: 12, height: 12, color: '#94A3B8' }} />
+                        {session.metadata.participants.length > 0 ? `${session.metadata.participants.length} participants` : 'No participants'}
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+                        Saved {session.lastSavedTime !== '—' ? `at ${session.lastSavedTime}` : 'not yet'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right: controls column */}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'flex-end', justifyContent: 'space-between',
+                    gap: '10px', flexShrink: 0
+                  }}>
+                    {/* Project chip */}
+                    {projectName ? (
+                      <div style={{
+                        padding: '3px 12px', borderRadius: '4px',
+                        background: '#F0FDFA', color: '#0D9488',
+                        border: '1px solid #99F6E4',
+                        fontSize: '12px', fontWeight: 600,
+                        whiteSpace: 'nowrap', maxWidth: '180px',
+                        overflow: 'hidden', textOverflow: 'ellipsis'
+                      }} title={projectName}>
+                        {projectName}
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '3px 12px', borderRadius: '4px',
+                        background: '#FFFBEB', color: '#D97706',
+                        border: '1px solid #FDE68A',
+                        fontSize: '12px', fontWeight: 600
+                      }}>
+                        No Project Linked
+                      </div>
+                    )}
+
+                    {/* Status */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      fontSize: '11px', fontWeight: 600, color: '#059669',
+                      textTransform: 'uppercase', letterSpacing: '0.05em'
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
+                      On Track
+                    </div>
+
+                    {/* Save */}
+                    <button
+                      onClick={handleSave}
+                      disabled={status === 'saving'}
+                      style={{
+                        height: '34px', padding: '0 20px',
+                        background: '#0D9488', color: '#fff',
+                        border: 'none', borderRadius: '6px',
+                        fontSize: '13px', fontWeight: 600, fontFamily: 'inherit',
+                        cursor: status === 'saving' ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        opacity: status === 'saving' ? 0.7 : 1,
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={e => { if (status !== 'saving') e.currentTarget.style.background = '#0B7F74'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = '#0D9488'; }}
+                    >
+                      {status === 'saving' ? <><Loader size={13} className="animate-spin" /> Saving…</> : saveSuccess ? <><Check size={13} /> Saved</> : 'Save MOM'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Body ── */}
+              <div className="mvp-body">
+                {/* ── 1. The Dynamic Metrics Band ── */}
+                <div className="mvp-section">
+                  <div className="mvp-stats-band">
+                    <div className="mvp-stat-item risks">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <div className="mvp-stat-value">{execSummary.risks}</div>
+                          <div className="mvp-stat-label">Key Risks</div>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.risks === 0 ? '#166534' : '#DC2626', marginTop: '4px' }}>
+                          {execSummary.risks === 0 ? '↓ from last meeting' : `${execSummary.risks} new`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mvp-stat-item pending">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <div className="mvp-stat-value">{execSummary.attention}</div>
+                          <div className="mvp-stat-label">Pending Actions</div>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.attention > 0 ? '#D97706' : '#64748B', marginTop: '4px' }}>
+                          {execSummary.attention > 0 ? `${execSummary.attention} new` : 'None pending'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mvp-stat-item resolved">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <div className="mvp-stat-value">{execSummary.completed}</div>
+                          <div className="mvp-stat-label">Resolved</div>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+                          {execSummary.completed === 0 ? 'None yet' : 'In progress'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mvp-stat-item total">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <div className="mvp-stat-value">{rows.length}</div>
+                          <div className="mvp-stat-label">Total Actions</div>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+                          Captured from transcript
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── 2. The Original Meeting Table ── */}
+                <div style={{ marginTop: '24px' }}>
+                  <MeetingTable
+                    meetings={rows}
+                    employees={employees}
+                    onUpdateMeeting={handleUpdate}
+                    onDeleteMeeting={handleDelete}
+                    lockedProjectId={projectId ? String(projectId) : undefined}
+                  />
+                </div>
+
+                <style>{`
+                  @keyframes greenPulse {
+                    0% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.4); }
+                    70% { box-shadow: 0 0 0 6px rgba(22, 101, 52, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0); }
+                  }
+                  .pulse-green {
+                    animation: greenPulse 2s infinite;
+                  }
+                `}</style>
+              </div>
             </div>
-            <button className="mvp-btn primary" onClick={handleSave} disabled={status === 'saving'}
-              style={{ padding: '6px 16px', fontSize: '12px' }}>
-              Save
-            </button>
           </div>
         </div>
-        {/* No separate action row — save/sync now live in header */}
+
+        <MOMSyncResultModal
+          isOpen={showSyncModal}
+          onClose={() => setShowSyncModal(false)}
+          results={syncResult}
+        />
+
+        {/* Discussion Drawer (Simplified) */}
+        <AnimatePresence>
+          {discussionOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setDiscussionOpen(false)}
+                style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }}
+              />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '480px', background: '#fff', boxShadow: '-10px 0 40px rgba(0,0,0,0.1)', zIndex: 1001, display: 'flex', flexDirection: 'column' }}
+              >
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F0FDFA', color: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Raw Discussion</h3>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>Full transcript history for this session</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setDiscussionOpen(false)} style={{ padding: '8px', borderRadius: '50%', border: 'none', background: '#F1F5F9', color: '#64748B', cursor: 'pointer' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                  {transcriptEntries.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {transcriptEntries.map((entry, idx) => {
+                        if (entry.type === 'event') {
+                          return (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                              <Zap size={14} style={{ color: '#0D9488' }} />
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>{entry.label}</span>
+                            </div>
+                          );
+                        }
+                        const color = getSpeakerColor(entry.speaker);
+                        return (
+                          <div key={idx} style={{ display: 'flex', gap: '12px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: color.bg, color: color.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
+                              {entry.speaker?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{entry.speaker}</span>
+                                <span style={{ fontSize: '10px', color: '#94A3B8' }}>{entry.time}</span>
+                              </div>
+                              <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
+                                {entry.text}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94A3B8', textAlign: 'center' }}>
+                      <MessageSquare size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
+                      <p style={{ fontSize: '14px' }}>No discussion data available for this meeting.</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
-
-      {/* ── Sync Result Modal ── */}
-      <MOMSyncResultModal
-        show={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        result={syncResult}
-      />
-
-      {/* ── Body ── */}
-      <div className="mvp-body">
-
-        {/* ── Sync Status Alert ── */}
-        {syncResult && (
-          <div style={{
-            backgroundColor: syncResult.issues_created > 0 ? '#dcfce7' : '#fef3c7',
-            border: `1px solid ${syncResult.issues_created > 0 ? '#86efac' : '#fcd34d'}`,
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: syncResult.issues_created > 0 ? '#166534' : '#854d0e'
-          }}>
-            <span>{syncResult.issues_created > 0 ? '✓' : '⚠'}</span>
-            <span>
-              {syncResult.issues_created > 0
-                ? `Successfully created ${syncResult.issues_created} issue${syncResult.issues_created !== 1 ? 's' : ''}`
-                : `No issues created (${syncResult.issues_skipped} skipped)`}
-              {syncResult.missing_dates_downgraded > 0 && `, ${syncResult.missing_dates_downgraded} priority downgraded`}
-            </span>
-            <button
-              onClick={() => setShowSyncModal(true)}
-              style={{
-                marginLeft: 'auto',
-                background: 'none',
-                border: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontWeight: '700',
-                textDecoration: 'underline'
-              }}
-            >
-              View Details
-            </button>
-            <button
-              onClick={() => setSyncResult(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '16px',
-                padding: '0 4px'
-              }}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* ── Single Horizontal Metric Band (Stats Row) ── */}
-        <div className="mvp-section mvp-fade-up">
-          <div className="mvp-stats-band">
-            <div className="mvp-stat-item risks">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <div className="mvp-stat-value">{execSummary.risks}</div>
-                  <div className="mvp-stat-label">Key Risks</div>
-                </div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.risks === 0 ? '#166534' : '#DC2626', marginTop: '4px' }}>
-                  {execSummary.risks === 0 ? '↓ from last meeting' : `${execSummary.risks} new`}
-                </div>
-              </div>
-            </div>
-            <div className="mvp-stat-item pending">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <div className="mvp-stat-value">{execSummary.attention}</div>
-                  <div className="mvp-stat-label">Pending Actions</div>
-                </div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.attention > 0 ? '#D97706' : '#64748B', marginTop: '4px' }}>
-                  {execSummary.attention > 0 ? `${execSummary.attention} new` : 'None pending'}
-                </div>
-              </div>
-            </div>
-            <div className="mvp-stat-item resolved">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <div className="mvp-stat-value">{execSummary.completed}</div>
-                  <div className="mvp-stat-label">Resolved</div>
-                </div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                  {execSummary.completed === 0 ? 'None yet' : 'In progress'}
-                </div>
-              </div>
-            </div>
-            <div className="mvp-stat-item total">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <div className="mvp-stat-value">{rows.length}</div>
-                  <div className="mvp-stat-label">Total Actions</div>
-                </div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                  Captured from transcript
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── 2. The Original Meeting Table ── */}
-        <div style={{ marginTop: '24px' }}>
-          <MeetingTable
-            meetings={rows}
-            employees={employees}
-            onUpdateMeeting={handleUpdate}
-            onDeleteMeeting={handleDelete}
-            lockedProjectId={projectId ? String(projectId) : undefined}
-          />
-        </div>
-
-        <style>{`
-          @keyframes greenPulse {
-            0% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(22, 101, 52, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0); }
-          }
-          .pulse-green {
-            animation: greenPulse 2s infinite;
-          }
-        `}</style>
-      </div>
-    </div>
+    </>
   );
 };
 

@@ -34,7 +34,7 @@ import EnterprisePage from './pages/EnterprisePage';
 import CustomersPage from './pages/CustomersPage';
 import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
-import WorkspaceLogin from './pages/WorkspaceLogin';
+import LoginPage from './pages/LoginPage';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -171,7 +171,7 @@ function App() {
       <ErrorBoundary>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
-          <Route path="/login" element={<WorkspaceLogin />} />
+          <Route path="/login" element={<LoginPage />} />
           
           <Route
             path="/dashboard"
