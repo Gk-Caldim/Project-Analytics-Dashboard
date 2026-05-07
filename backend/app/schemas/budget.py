@@ -7,6 +7,7 @@ from datetime import datetime
 
 class BudgetSummaryBase(BaseModel):
     project_name: str
+    budget_date: Optional[str] = None
     uploaded_by: Optional[str] = None
     department: Optional[str] = None
     overall_budget: Optional[float] = 0.0

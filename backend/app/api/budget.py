@@ -7,15 +7,12 @@ Static/literal paths must come BEFORE parameterized paths to avoid conflicts.
 e.g. /revisions/ must be defined BEFORE /{project_name}
 
 Routes:
-  GET    /                              — list all budget summaries
-  GET    /revisions/                   — list all revision requests  [BEFORE /{project_name}]
-  POST   /revisions/                   — submit a revision request
-  PATCH  /revisions/{revision_id}      — update revision status
-  GET    /revisions/{revision_id}/attachment — download revision attachment
-  GET    /{project_name}/attachment    — download stored Excel for a project
-  GET    /{project_name}               — get budget for a specific project
+  GET    /history/{project_name}       — list all versions for a project
+  GET    /version/{budget_id}          — get a specific version
+  GET    /{project_name}               — get LATEST budget for a specific project
   POST   /{project_name}               — save/update budget (multipart/form-data)
-  DELETE /{project_name}               — delete a project budget
+  DELETE /version/{budget_id}          — delete a specific version
+  DELETE /{project_name}               — delete ALL versions for a project
 """
 
 import base64
@@ -44,6 +41,16 @@ router = APIRouter()
 @router.get("/", response_model=List[BudgetSummaryResponse])
 def list_budget_summaries(db: Session = Depends(get_db)):
     """List all budget summaries (used by sidebar to show which projects have budgets)."""
+    return db.query(BudgetSummary).all()
+
+
+# ─── 1. GET / — List all budget summaries ─────────────────────────────────────
+
+@router.get("/", response_model=List[BudgetSummaryResponse])
+def list_budget_summaries(db: Session = Depends(get_db)):
+    """List all budget summaries (used by sidebar to show which projects have budgets)."""
+    # For the sidebar, we might want just the latest for each project, 
+    # but for now, returning all is what the frontend expected.
     return db.query(BudgetSummary).all()
 
 
@@ -120,7 +127,17 @@ def update_revision_status(
         if budget:
             budget.overall_budget = revision.revised_budget
             logger.info(
-                f"[budget revision] Approved — updated '{revision.project_name}' budget to {revision.revised_budget}"
+                f"[budget revision] Approved — updated '{revision.project_name}' budget summary to {revision.revised_budget}"
+            )
+        
+        # Sync to Project Master
+        from app.models.project import Project
+        proj = db.query(Project).filter(Project.name == revision.project_name).first()
+        if proj:
+            proj.budget = revision.revised_budget
+            proj.balance_budget = proj.budget - (proj.utilized_budget or 0.0)
+            logger.info(
+                f"[budget revision] Approved — synced '{revision.project_name}' to Project Master. New Budget: {proj.budget}, Balance: {proj.balance_budget}"
             )
 
     db.commit()
@@ -152,6 +169,36 @@ def get_revision_attachment(revision_id: int, db: Session = Depends(get_db)):
         media_type=content_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+# ─── 2.5. Version & History routes ──────────────────────────────────────────
+
+@router.get("/history/{project_name}", response_model=List[BudgetSummaryResponse])
+def list_budget_history(project_name: str, db: Session = Depends(get_db)):
+    """List all budget snapshots/versions for a project."""
+    return db.query(BudgetSummary).filter(
+        BudgetSummary.project_name == project_name
+    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).all()
+
+
+@router.get("/version/{budget_id}", response_model=BudgetSummaryResponse)
+def get_budget_version(budget_id: int, db: Session = Depends(get_db)):
+    """Get a specific budget version by ID."""
+    budget = db.query(BudgetSummary).filter(BudgetSummary.id == budget_id).first()
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget version not found")
+    return budget
+
+
+@router.delete("/version/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_budget_version(budget_id: int, db: Session = Depends(get_db)):
+    """Delete a specific budget version."""
+    budget = db.query(BudgetSummary).filter(BudgetSummary.id == budget_id).first()
+    if not budget:
+        raise HTTPException(status_code=404, detail="Budget version not found")
+    db.delete(budget)
+    db.commit()
+    return None
 
 
 # ─── 6-9. Project budget routes ────────────────────────────────────────────────
@@ -187,10 +234,10 @@ def get_budget_attachment(project_name: str, db: Session = Depends(get_db)):
 
 @router.get("/{project_name}", response_model=BudgetSummaryResponse)
 def get_budget_summary(project_name: str, db: Session = Depends(get_db)):
-    """Get budget data for a specific project."""
+    """Get the LATEST budget data for a specific project."""
     budget = db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
-    ).first()
+    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
     if not budget:
         # Return empty response (not 404) so frontend renders empty table
         return BudgetSummaryResponse(
@@ -208,6 +255,7 @@ def get_budget_summary(project_name: str, db: Session = Depends(get_db)):
 @router.post("/{project_name}", response_model=BudgetSummaryResponse)
 async def save_budget_summary(
     project_name: str,
+    budget_date: Optional[str] = Form(None),
     overall_budget: float = Form(0.0),
     uploaded_by: Optional[str] = Form(None),
     department: Optional[str] = Form(None),
@@ -236,9 +284,16 @@ async def save_budget_summary(
         except Exception as e:
             logger.error(f"[budget] Failed to read uploaded file: {e}")
 
-    budget = db.query(BudgetSummary).filter(
-        BudgetSummary.project_name == project_name
-    ).first()
+    # Find if a budget for this project AND this specific date already exists
+    # If no date is provided, we treat it as a "Default/Current" record for now
+    query = db.query(BudgetSummary).filter(BudgetSummary.project_name == project_name)
+    if budget_date:
+        query = query.filter(BudgetSummary.budget_date == budget_date)
+    else:
+        # If no date, we check for a record with NULL date
+        query = query.filter(BudgetSummary.budget_date == None)
+    
+    budget = query.first()
 
     if budget:
         budget.overall_budget = overall_budget
@@ -253,6 +308,7 @@ async def save_budget_summary(
     else:
         budget = BudgetSummary(
             project_name=project_name,
+            budget_date=budget_date,
             uploaded_by=uploaded_by,
             department=department,
             overall_budget=overall_budget,

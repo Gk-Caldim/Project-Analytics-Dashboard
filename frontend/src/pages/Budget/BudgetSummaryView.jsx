@@ -63,8 +63,8 @@ const BudgetSummaryView = () => {
         return obj;
       });
       return { columns: headers, rows: dataRows };
-    } 
-    
+    }
+
     // Case 2: Array of objects - Fallback if data was saved as JSON objects
     if (typeof firstItem === 'object' && firstItem !== null) {
       const headers = Object.keys(firstItem);

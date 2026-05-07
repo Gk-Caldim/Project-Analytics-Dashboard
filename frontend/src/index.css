@@ -42,6 +42,13 @@
   --border-strong: rgba(14, 27, 46, 0.15);
   --surface: #FFFFFF;
   --bg: var(--primary);
+
+  /* New Theme Variables */
+  --accent: #2E7CF6;
+  --text-tertiary: #64748B;
+  --blue-50: #eff6ff;
+  --amber: #f59e0b;
+  --green: #10b981;
 }
 
 /* Utils */
@@ -127,7 +134,7 @@
   }
 
   .master-table-container {
-    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-xl border border-slate-200/80;
+    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80;
   }
 
   .master-table-inner {
