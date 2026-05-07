@@ -283,7 +283,7 @@ const PricingPage = () => {
           <h2 className="bottom-cta-title">Not sure which plan fits? Let's figure it out together.</h2>
           <p className="bottom-cta-desc">Our enterprise team has helped 200+ companies choose the right tier.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/workspace-login')}>Start Free Trial</button>
+            <button className="cta-btn-white" onClick={() => navigate('/login')}>Start Free Trial</button>
             <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Sales</button>
           </div>
         </div>

@@ -50,10 +50,10 @@ const PublicNavbar = () => {
           >
             Enterprise
           </a>
-          <button className="public-nav-login" onClick={() => navigate('/workspace-login')}>
+          <button className="public-nav-login" onClick={() => navigate('/login')}>
             Sign In
           </button>
-          <button className="public-btn-primary" onClick={() => navigate('/workspace-login')}>
+          <button className="public-btn-primary" onClick={() => navigate('/login')}>
             Access Workspace
           </button>
         </div>

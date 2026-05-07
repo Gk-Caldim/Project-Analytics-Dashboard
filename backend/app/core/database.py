@@ -25,7 +25,7 @@ engine = create_engine(
     pool_size=5,          # Maintain up to 5 permanent connections
     max_overflow=10,      # Allow up to 10 extra temporary connections
     pool_timeout=30,      # Wait up to 30s for a connection from the pool
-    pool_recycle=1800,    # Recycle connections after 30 minutes
+    pool_recycle=300,     # Recycle connections after 5 minutes (lower than Supabase timeout)
     pool_pre_ping=True,   # Check connection health before using it
     connect_args=connect_args,
 )

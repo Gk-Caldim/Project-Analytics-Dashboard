@@ -144,7 +144,7 @@ const Dashboard = () => {
   ], []);
 
   const otherModules = useMemo(() => [
-    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings className="h-5 w-5" /> },
+    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings className="h-4 w-4" /> },
   ], []);
 
 
@@ -235,7 +235,7 @@ const Dashboard = () => {
 
           // Use flat top-level modules (deduplicated by server) when available
           const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
-          
+
           // Correctly initialize moduleSet from existing submodules to prevent duplicates
           const moduleSet = new Set(dashProject.submodules.map(s => s.name));
 
@@ -301,7 +301,7 @@ const Dashboard = () => {
 
   // Storage listeners with simple debounce
   const loadDynamicModulesRef = useRef(null);
-  
+
   useEffect(() => {
     const debouncedLoad = () => {
       if (loadDynamicModulesRef.current) {
@@ -718,7 +718,7 @@ const Dashboard = () => {
       const searchParams = new URLSearchParams();
       if (pId) searchParams.set('projectId', pId);
       if (idToSelect) searchParams.set('submoduleId', idToSelect);
-      
+
       navigate({
         pathname: '/dashboard/projects',
         search: searchParams.toString()
@@ -755,47 +755,23 @@ const Dashboard = () => {
     if (!hasPermission('Dashboard')) return null;
 
     const isActive = activeModule === 'project-dashboard';
-    const isExpanded = expandedModules['project-dashboard'];
-    const hasDynamicModules = projectDashboardModules.length > 0;
-    const isHovered = hoveredModule === 'project-dashboard';
 
     return (
       <div key="project-dashboard">
-        <div
-          onMouseEnter={() => setHoveredModule('project-dashboard')}
-          onMouseLeave={() => setHoveredModule(null)}
+        <button
           onClick={() => handleModuleClick('project-dashboard')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-            } ${isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
+          className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-[3px] ${isActive
+              ? 'border-l-[#0D9488] text-white font-medium'
+              : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
             }`}
         >
-          <div className="flex items-center">
-            {isSidebarExpanded && (
-              <span className="text-body-sm font-medium tracking-tight">
-                Dashboard
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <LayoutIcon className="h-4 w-4" />
+            <span className="text-[13px] font-medium tracking-tight">
+              Dashboard
+            </span>
           </div>
-          {isSidebarExpanded && hasDynamicModules && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion('project-dashboard', e);
-              }}
-              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
-          )}
-        </div>
-
-        {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {projectDashboardModules.map(projectModule => renderProjectModule(projectModule, 'project-dashboard'))}
-          </div>
-        )}
+        </button>
       </div>
     );
   };
@@ -853,44 +829,41 @@ const Dashboard = () => {
     if (!hasPermission('Upload Trackers')) return null;
 
     const isExpanded = expandedModules['uploads'];
-    const isActive = activeModule === 'uploads-main' || uploadsSubmodules.some(s => s.id === activeModule);
-    const isHovered = hoveredModule === 'uploads-main';
+    const isActive = activeModule === 'uploads-main' || activeModule === 'upload-trackers';
 
     return (
       <div key="uploads">
         <div
-          onMouseEnter={() => setHoveredModule('uploads-main')}
-          onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => handleModuleClick('uploads-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-            } ${isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
+          onClick={() => toggleModuleExpansion('uploads')}
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
+              ? 'text-white'
+              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
             }`}
         >
-          <div className="flex items-center">
-            {isSidebarExpanded && (
-              <span className="text-body-sm font-medium tracking-tight">
-                Uploads
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <FileUp className="h-4 w-4" />
+            <span className="text-[13px] font-medium tracking-tight">
+              Uploads
+            </span>
           </div>
-          {isSidebarExpanded && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion('uploads', e);
-              }}
-              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
-          )}
+          <button className="ml-auto">
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
         </div>
 
-        {isSidebarExpanded && isExpanded && (
-          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {renderUploadTrackersModule()}
+        {isExpanded && (
+          <div className="space-y-0.5 mt-0.5 pb-1">
+            <button
+              onClick={() => handleModuleClick('upload-trackers')}
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'upload-trackers'
+                  ? 'border-l-[#0D9488] text-white font-medium'
+                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
+                }`}
+            >
+              <span className="text-[12px]">
+                Trackers
+              </span>
+            </button>
           </div>
         )}
       </div>
@@ -907,79 +880,45 @@ const Dashboard = () => {
     return (
       <div key="mom">
         <div
-          onMouseEnter={() => setHoveredModule('mom-main')}
-          onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => handleModuleClick('meetings')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${
-            isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-          } ${
-            isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
-          }`}
+          onClick={() => toggleModuleExpansion('mom')}
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
+              ? 'text-white'
+              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
+            }`}
         >
-          <div className="flex items-center">
-            {isSidebarExpanded && (
-              <span className="text-body-sm font-medium tracking-tight">
-                Meetings
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <Calendar className="h-4 w-4" />
+            <span className="text-[13px] font-medium tracking-tight">
+              Meetings
+            </span>
           </div>
-          {isSidebarExpanded && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion('mom', e);
-              }}
-              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
-          )}
+          <button className="ml-auto">
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
         </div>
 
-        {isSidebarExpanded && isExpanded && (
-          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {/* All Meetings — active when on meetings list OR MOM output page */}
-            <div>
-              <button
-                key="meetings"
-                onMouseEnter={() => setHoveredModule('meetings')}
-                onMouseLeave={() => setHoveredModule(null)}
-                onClick={() => handleModuleClick('meetings')}
-                className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-2 ${
-                  isAllMeetingsActive
-                    ? 'border-l-[#0D9488] bg-brand-primary/10 text-white font-semibold'
-                    : 'border-l-transparent hover:bg-white/5 text-white/70 hover:text-white'
-                }`}
-              >
-                <span className="text-body-sm font-medium tracking-tight">
-                  All Meetings
-                </span>
-              </button>
-              {/* Contextual label when viewing a specific MOM output */}
-              {isOnMOMView && momMeetingName && isSidebarExpanded && (
-                <div className="px-4 pb-1 -mt-0.5">
-                  <span className="text-[10px] italic text-white/35 leading-none block truncate">
-                    Viewing: {momMeetingName}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Create MOM — only active when explicitly on the capture page */}
+        {isExpanded && (
+          <div className="space-y-0.5 mt-0.5 pb-1">
             <button
-              key="mom-module"
-              onMouseEnter={() => setHoveredModule('mom-module')}
-              onMouseLeave={() => setHoveredModule(null)}
-              onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-2 ${
-                activeModule === 'mom-module' && !isOnMOMView
-                  ? 'border-l-[#0D9488] bg-brand-primary/10 text-white font-semibold'
-                  : 'border-l-transparent hover:bg-white/5 text-white/70 hover:text-white'
-              }`}
+              onClick={() => handleModuleClick('meetings')}
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${isAllMeetingsActive
+                  ? 'border-l-[#0D9488] text-white font-medium'
+                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
+                }`}
             >
-              <span className="text-body-sm font-medium tracking-tight">
+              <span className="text-[12px]">
+                {isOnMOMView ? 'MOM Output' : 'All Meetings'}
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleModuleClick('mom-module')}
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module' && !isOnMOMView
+                  ? 'border-l-[#0D9488] text-white font-medium'
+                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
+                }`}
+            >
+              <span className="text-[12px]">
                 Create MOM
               </span>
             </button>
@@ -995,58 +934,42 @@ const Dashboard = () => {
 
     const isExpanded = expandedModules['masters'];
     const isActive = activeModule === 'masters-main' || mastersSubmodules.some(s => s.id === activeModule);
-    const isHovered = hoveredModule === 'masters-main';
 
     return (
       <div key="masters">
         <div
-          onMouseEnter={() => setHoveredModule('masters-main')}
-          onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => handleModuleClick('masters-main')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-            } ${isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
+          onClick={() => toggleModuleExpansion('masters')}
+          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
+              ? 'text-white'
+              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
             }`}
         >
-          <div className="flex items-center">
-            {isSidebarExpanded && (
-              <span className="text-body-sm font-medium tracking-tight">
-                Master
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <Database className="h-4 w-4" />
+            <span className="text-[13px] font-medium tracking-tight">
+              Master
+            </span>
           </div>
-          {isSidebarExpanded && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion('masters', e);
-              }}
-              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
-          )}
+          <button className="ml-auto">
+            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          </button>
         </div>
 
-        {isSidebarExpanded && isExpanded && (
-          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {visibleSubmodules.map((submodule) => {
-              const isSubmoduleActive = activeModule === submodule.id;
-
+        {isExpanded && (
+          <div className="space-y-0.5 mt-0.5 pb-1">
+            {visibleSubmodules.map(module => {
+              const isSubActive = activeModule === module.id;
               return (
                 <button
-                  key={submodule.id}
-                  onMouseEnter={() => setHoveredModule(submodule.id)}
-                  onMouseLeave={() => setHoveredModule(null)}
-                  onClick={() => handleModuleClick(submodule.id)}
-                  className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSubmoduleActive
-                    ? 'bg-brand-primary/10 text-white font-semibold'
-                    : 'hover:bg-white/5 text-white/70 hover:text-white'
+                  key={module.id}
+                  onClick={() => handleModuleClick(module.id)}
+                  className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${isSubActive
+                      ? 'border-l-[#0D9488] text-white font-medium'
+                      : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                     }`}
                 >
-                  <span className="text-body-sm font-medium tracking-tight">
-                    {submodule.name}
+                  <span className="text-[12px]">
+                    {module.name}
                   </span>
                 </button>
               );
@@ -1157,25 +1080,25 @@ const Dashboard = () => {
   };
 
   const renderOtherModules = () => {
-    return otherModules.filter(module => module.id !== 'upload-trackers').map((module, index) => {
+    return otherModules.filter(module => module.id !== 'upload-trackers').map((module) => {
       if (!hasPermission(module.name)) return null;
 
       const isActive = activeModule === module.id;
-      const isHovered = hoveredModule === module.id;
       return (
         <button
           key={module.id}
           onClick={() => handleModuleClick(module.id)}
-          className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSidebarExpanded ? '' : 'justify-center'} ${isActive
-            ? 'bg-brand-primary/10 text-white font-semibold'
-            : 'hover:bg-white/5 text-white/70 hover:text-white'
+          className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-[3px] ${isActive
+              ? 'border-l-[#0D9488] text-white font-medium'
+              : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
             }`}
         >
-          {isSidebarExpanded && (
-            <span className="text-body-sm font-medium tracking-tight">
+          <div className="flex items-center gap-3">
+            <Settings className="h-4 w-4" />
+            <span className="text-[13px] font-medium tracking-tight">
               {module.name}
             </span>
-          )}
+          </div>
         </button>
       );
     });
@@ -1191,27 +1114,13 @@ const Dashboard = () => {
         {activeView !== 'agent' && (
           <div
             ref={sidebarRef}
-            className={`
-              fixed lg:relative inset-y-0 left-0 z-30
-              ${isSidebarExpanded ? 'w-60' : 'w-16'}
-              bg-[#0E1B2E]
-            border-r border-white/5
-              transform transition-all duration-250 ease-product lg:transform-none
-              flex flex-col
-              overflow-hidden
-            `}
+            className="fixed lg:relative inset-y-0 left-0 z-30 w-[200px] bg-[#1E293B] flex flex-col overflow-hidden"
           >
-            {/* Logo Section - Aligned with Header */}
+            {/* Logo Section */}
             <div className="h-14 flex items-center px-4 border-b border-white/5">
-              {isSidebarExpanded ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-bold text-lg tracking-[0.1em] font-primary">CALDIM</span>
-                </div>
-              ) : (
-                <div className="flex justify-center w-full">
-                  <span className="text-white font-bold text-lg">C</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-lg tracking-[0.1em] font-primary">CALDIM</span>
+              </div>
             </div>
 
             {/* Navigation */}
@@ -1233,17 +1142,8 @@ const Dashboard = () => {
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
             ? 'bg-[#171717] border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
-            {/* Left - Toggle & Title */}
+            {/* Left - Title */}
             <div className="flex items-center gap-4 flex-1">
-              {activeView !== 'agent' && (
-                <button
-                  onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
-                  className="p-2 rounded-md text-text-secondary hover:text-text-primary hover:bg-app-surface transition-all duration-fast"
-                  title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  {sidebarCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-                </button>
-              )}
               <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
                 {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
               </h1>
@@ -1329,7 +1229,7 @@ const Dashboard = () => {
                           </span>
                         )}
                       </div>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           dispatch(markNotificationsRead());
@@ -1341,10 +1241,10 @@ const Dashboard = () => {
                     </div>
                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                       {HARDCODED_NOTIFICATIONS.map((notif) => (
-                        <div 
+                        <div
                           key={notif.id}
-                          className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${activeView === 'agent' 
-                            ? 'border-white/5 hover:bg-white/5' 
+                          className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${activeView === 'agent'
+                            ? 'border-white/5 hover:bg-white/5'
                             : 'border-border hover:bg-app-surface'}`}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary/10'}`}>
