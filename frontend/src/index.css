@@ -12,15 +12,15 @@
 
 :root {
   /* Industrial Analytics Brand Colors - Redesign 2026 */
-  --brand-navy: #0004ab;
-  --brand-primary-bg: #F4F6F9;
+  --brand-navy: #2563EB;
+  --brand-primary-bg: #F8FAFC;
 
   /* Redesign Specs */
-  --secondary: #000000;
+  --secondary: #0F172A;
   /* Brand black for text (headers/body) */
-  --sidebar-bg: #1a1a1a;
+  --sidebar-bg: #FFFFFF;
   /* Medium dark black for sidebar */
-  --primary: #F4F6F9;
+  --primary: #F8FAFC;
   /* Light Gray for surfaces and background */
 
   /* Typography */
@@ -28,27 +28,25 @@
   --font-primary: var(--font-inter);
   --font-mono: 'DM Mono', monospace;
 
-  /* Spacing System (8px based) */
-  --space-1: 8px;
-  --space-2: 16px;
-  --space-3: 24px;
-  --space-4: 32px;
-
   /* Layout Variables */
   --text-primary: #0F172A;
   --text-secondary: #475569;
-  --text-muted: #94A3B8;
-  --border-subtle: rgba(14, 27, 46, 0.08);
-  --border-strong: rgba(14, 27, 46, 0.15);
+  --text-muted: #64748B;
+  --border-subtle: #CBD5E1;
+  --border-strong: #94A3B8;
   --surface: #FFFFFF;
-  --bg: var(--primary);
+  --bg: #F8FAFC;
+  --elevated-card: #F1F5F9;
 
   /* New Theme Variables */
-  --accent: #2E7CF6;
-  --text-tertiary: #64748B;
+  --accent: #2563EB;
+  --accent-hover: #3B82F6;
+  --accent-analytics: #0891B2;
+  --text-tertiary: #475569;
   --blue-50: #eff6ff;
   --amber: #f59e0b;
   --green: #10b981;
+  --red: #ef4444;
 }
 
 /* Utils */
@@ -276,7 +274,7 @@
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.28);
+    color: var(--text-muted);
     padding: 20px 16px 8px;
     font-weight: 500;
   }
@@ -284,7 +282,7 @@
   .sidebar-nav-item {
     @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
     padding: 8px 16px;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--text-secondary);
     border-radius: 6px;
     margin: 0 8px 4px 8px;
     width: calc(100% - 16px);
@@ -297,16 +295,16 @@
   }
 
   .sidebar-nav-item:hover:not(.sidebar-nav-item-active) {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--bg);
+    color: var(--accent);
   }
 
   .sidebar-nav-item-inactive {
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--text-muted);
   }
 
   .sidebar-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--border-subtle);
     padding: 16px;
     display: flex;
     align-items: center;
@@ -327,7 +325,7 @@
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--border-subtle);
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb:hover {

@@ -69,7 +69,7 @@ const WorkspaceDashboard = () => {
       <aside className="ws-sidebar">
         <div className="ws-sidebar-top">
           <div className="ws-sidebar-logo" onClick={() => navigate('/')} style={{ height: '56px', display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingLeft: '16px' }}>
-            <span className="ws-logo-text" style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '0.1em', color: '#fff' }}>CALDIM</span>
+            <span className="ws-logo-text" style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '0.1em', color: 'var(--text-primary)' }}>CALDIM</span>
           </div>
 
           <nav className="ws-side-nav scrollbar-hide">

@@ -93,20 +93,20 @@ const VPProjectDashboard = ({
                     const isHigh = issue.priority === 'High' || issue.priority === 'Critical';
                     return (
                       <div key={issue.id} style={{
-                        padding: '16px', border: '1px solid #E2E8F0', borderRadius: '10px',
+                        padding: '16px', border: '1px solid var(--border-subtle)', borderRadius: '10px',
                         background: '#fff', display: 'flex', flexDirection: 'column', gap: '12px',
                         boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s ease'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', lineHeight: '1.4' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: '1.4' }}>
                             {issue.title}
                           </div>
                           <div className={`vppd-badge ${isHigh ? 'red' : 'yellow'}`} style={{ whiteSpace: 'nowrap' }}>
                             {issue.priority}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-                          <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--elevated-card)' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontWeight: 700, color: '#334155' }}>{issue.owner}</span>
                             <span>•</span>
                             <span>{issue.created_at ? new Date(issue.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Unknown'}</span>
