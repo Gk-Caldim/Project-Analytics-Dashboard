@@ -63,14 +63,14 @@ const PriorityBadge = ({ priority }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
-  const [issue, setIssue]           = useState(initialIssue);
-  const [loading, setLoading]       = useState(false);
+  const [issue, setIssue] = useState(initialIssue);
+  const [loading, setLoading] = useState(false);
   const [editStatus, setEditStatus] = useState(false);
-  const [newStatus, setNewStatus]   = useState(initialIssue.status);
+  const [newStatus, setNewStatus] = useState(initialIssue.status);
   const [newComment, setNewComment] = useState('');
-  const [newAction, setNewAction]   = useState({ action_text: '', responsible_person: '', target_date: '' });
+  const [newAction, setNewAction] = useState({ action_text: '', responsible_person: '', target_date: '' });
   const [showAddAction, setShowAddAction] = useState(false);
-  const [saving, setSaving]         = useState(false);
+  const [saving, setSaving] = useState(false);
   const [commentSending, setCommentSending] = useState(false);
 
   // Reload full issue with relations on mount
@@ -107,7 +107,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
   };
 
   const [editOwner, setEditOwner] = useState(false);
-  const [newOwner, setNewOwner]   = useState(issue.owner);
+  const [newOwner, setNewOwner] = useState(issue.owner);
   const handleOwnerSave = async () => {
     try {
       setSaving(true);
@@ -123,7 +123,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
   };
 
   const [editDue, setEditDue] = useState(false);
-  const [newDue, setNewDue]   = useState(issue.due_date || '');
+  const [newDue, setNewDue] = useState(issue.due_date || '');
   const handleDueSave = async () => {
     try {
       setSaving(true);
@@ -245,10 +245,10 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                 </div>
                 {editOwner ? (
                   <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                    <input 
-                      value={newOwner} 
+                    <input
+                      value={newOwner}
                       onChange={e => setNewOwner(e.target.value)}
-                      style={styles.inlineInput} 
+                      style={styles.inlineInput}
                     />
                     <button onClick={handleOwnerSave} style={styles.inlineSave} disabled={saving}>✓</button>
                     <button onClick={() => setEditOwner(false)} style={styles.inlineCancel}>✕</button>
@@ -272,11 +272,11 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                 </div>
                 {editDue ? (
                   <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                    <input 
+                    <input
                       type="date"
-                      value={newDue ? newDue.split('T')[0] : ''} 
+                      value={newDue ? newDue.split('T')[0] : ''}
                       onChange={e => setNewDue(e.target.value)}
-                      style={styles.inlineInput} 
+                      style={styles.inlineInput}
                     />
                     <button onClick={handleDueSave} style={styles.inlineSave} disabled={saving}>✓</button>
                     <button onClick={() => setEditDue(false)} style={styles.inlineCancel}>✕</button>
@@ -327,9 +327,9 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                     <div style={styles.auditDot} />
                     <div style={{ flex: 1 }}>
                       <div style={styles.auditText}>
-                        <span style={{ fontWeight: 700, color: '#1e3a5f' }}>{log.changed_by}</span> updated 
-                        <span style={{ fontWeight: 700, margin: '0 4px' }}>{log.field_changed}</span> 
-                        from <span style={styles.oldVal}>{log.old_value || 'None'}</span> 
+                        <span style={{ fontWeight: 700, color: '#1e3a5f' }}>{log.changed_by}</span> updated
+                        <span style={{ fontWeight: 700, margin: '0 4px' }}>{log.field_changed}</span>
+                        from <span style={styles.oldVal}>{log.old_value || 'None'}</span>
                         to <span style={styles.newVal}>{log.new_value}</span>
                       </div>
                       <div style={styles.auditTime}>
@@ -415,14 +415,14 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                     <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600 }}>{action.action_text}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
                       {action.responsible_person && (
-                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                           <User size={10} /> {action.responsible_person}
-                         </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <User size={10} /> {action.responsible_person}
+                        </div>
                       )}
                       {action.target_date && (
-                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                           <Clock size={10} /> {new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                         </div>
+                        <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={10} /> {new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -450,7 +450,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a5f' }}>{c.created_by}</span>
                       <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                         {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <div style={{ fontSize: '13px', color: '#475569', marginTop: 3, lineHeight: 1.5 }}>{c.comment_text}</div>
@@ -527,7 +527,7 @@ const styles = {
   metaValue: { fontSize: '14px', color: '#1e293b', fontWeight: 600, marginTop: 2 },
   section: { marginBottom: 30 },
   descriptionBox: {
-    fontSize: '14px', color: '#475569', lineHeight: '1.6', 
+    fontSize: '14px', color: '#475569', lineHeight: '1.6',
     backgroundColor: '#fff', padding: '12px 16px', borderRadius: 8,
     border: '1px solid #f1f5f9',
   },
@@ -615,11 +615,11 @@ const styles = {
     padding: '2px 6px', fontSize: '12px', outline: 'none',
   },
   inlineSave: {
-    background: '#10b981', color: '#fff', border: 'none', 
+    background: '#10b981', color: '#fff', border: 'none',
     borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
   },
   inlineCancel: {
-    background: '#ef4444', color: '#fff', border: 'none', 
+    background: '#ef4444', color: '#fff', border: 'none',
     borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
   },
   commentInputBox: {

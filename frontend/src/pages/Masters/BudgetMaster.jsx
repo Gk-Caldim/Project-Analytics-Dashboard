@@ -6,7 +6,7 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles } from 'lucide-react';
 import useCurrency from '../../hooks/useCurrency';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
@@ -158,6 +158,11 @@ const BudgetMaster = () => {
   const [waitingDate, setWaitingDate] = useState('');
   const [showWaitingModal, setShowWaitingModal] = useState(null);
   const [showSaveDropdown, setShowSaveDropdown] = useState(false);
+
+  // Market Analysis state
+  const [marketAnalysis, setMarketAnalysis] = useState(null);
+  const [fetchingMarket, setFetchingMarket] = useState(false);
+  const [showMarketSuggestion, setShowMarketSuggestion] = useState(false);
 
   const user = useSelector(state => state.auth.user);
   const userRole = user?.role || 'Employee';
@@ -568,6 +573,32 @@ const BudgetMaster = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Budget");
     XLSX.writeFile(wb, `Budget_${selectedProject || 'Export'}.xlsx`);
     showNotification('Exported as Excel');
+  };
+
+  const handleFetchMarketAnalysis = async () => {
+    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    setFetchingMarket(true);
+    try {
+      const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}`);
+      setMarketAnalysis(res.data);
+      setShowMarketSuggestion(true);
+      showNotification('Market analysis completed');
+    } catch (err) {
+      showNotification('Failed to fetch market analysis', 'error');
+    } finally {
+      setFetchingMarket(false);
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (!marketAnalysis) return;
+    setRevisionData({ 
+      ...revisionData, 
+      revised_budget: marketAnalysis.delta.toString(),
+      reasons: marketAnalysis.reasoning
+    });
+    setShowMarketSuggestion(false);
+    showNotification('Suggestion applied with detailed reasoning');
   };
 
   const handleExportPDF = () => {
@@ -1288,8 +1319,75 @@ const BudgetMaster = () => {
                                 onChange={e => setRevisionData({ ...revisionData, revised_budget: e.target.value })}
                                 placeholder="0.00"
                                 className="w-full px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
+                              
+                              <button type="button" onClick={handleFetchMarketAnalysis} disabled={fetchingMarket}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-amber-200 shadow-sm disabled:opacity-50">
+                                {fetchingMarket ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                Analyze Market
+                              </button>
                             </div>
                           </div>
+
+                          {showMarketSuggestion && marketAnalysis && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              className="bg-white dark:bg-slate-900 border-2 border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden"
+                            >
+                              <div className="bg-amber-500 px-6 py-3 flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-white">
+                                  <Sparkles className="w-4 h-4" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">Smart Market Analysis</span>
+                                </div>
+                                <span className="text-[10px] font-black text-amber-100 uppercase tracking-widest">
+                                  Confidence: High
+                                </span>
+                              </div>
+                              
+                              <div className="p-6">
+                                <div className="grid grid-cols-2 gap-4 mb-6">
+                                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilization</p>
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                      {Math.round(marketAnalysis.utilization_ratio * 100)}%
+                                    </p>
+                                  </div>
+                                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                      {format(marketAnalysis.remaining_balance, false)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                  <div>
+                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Suggested Adjustment</p>
+                                    <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                                      +{format(marketAnalysis.delta, false)}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                      "{marketAnalysis.reasoning}"
+                                    </p>
+                                  </div>
+
+                                  <div className="flex gap-3 pt-2">
+                                    <button type="button" onClick={handleAcceptSuggestion}
+                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg active:scale-95">
+                                      Apply Suggestion
+                                    </button>
+                                    <button type="button" onClick={() => setShowMarketSuggestion(false)}
+                                      className="px-6 h-12 bg-white dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 transition-all border border-slate-200 dark:border-slate-700">
+                                      Dismiss
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
 
                           {revisionData.revised_budget && (
                             <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
@@ -1582,6 +1680,144 @@ const BudgetMaster = () => {
                     </p>
                   </div>
                   <p className="text-[10px] text-slate-400 font-bold">Requests awaiting action</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── BUDGET ANALYTICS TAB ──────────────────────────────────────────────── */}
+          {activeTab === 'Analytics' && (
+            <div className="space-y-8 pb-12">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Budget Distribution Chart (Simulated with CSS) */}
+                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Allocation</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">By Category</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-6">
+                    {estimatedBreakdown.map((cat, idx) => {
+                      const percentage = totalEstimated > 0 ? (cat.value / totalEstimated) * 100 : 0;
+                      return (
+                        <div key={idx} className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</span>
+                            <span className="text-[10px] font-black text-slate-400">{format(cat.value, false)} ({Math.round(percentage)}%)</span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percentage}%` }}
+                              transition={{ duration: 1, delay: idx * 0.1 }}
+                              className={`h-full rounded-full ${
+                                idx === 0 ? 'bg-blue-600' : 
+                                idx === 1 ? 'bg-emerald-600' : 
+                                idx === 2 ? 'bg-indigo-600' : 'bg-slate-600'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {estimatedBreakdown.length === 0 && (
+                      <div className="py-12 text-center text-slate-400 text-xs italic">No allocation data available</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Utilization Health */}
+                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-8">Utilization Health</h3>
+                  
+                  <div className="flex items-center justify-center py-4">
+                    <div className="relative w-48 h-48 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle
+                          cx="96" cy="96" r="88"
+                          stroke="currentColor" strokeWidth="12"
+                          fill="transparent"
+                          className="text-slate-100 dark:text-slate-900"
+                        />
+                        <motion.circle
+                          cx="96" cy="96" r="88"
+                          stroke="currentColor" strokeWidth="12"
+                          fill="transparent"
+                          strokeDasharray={2 * Math.PI * 88}
+                          initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
+                          animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - Math.min(1, totalUtilization / (parseFloat(overallBudget) || 1))) }}
+                          transition={{ duration: 1.5, ease: "easeOut" }}
+                          strokeLinecap="round"
+                          className={isOverBudget ? 'text-red-500' : 'text-blue-600'}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span className={`text-3xl font-black ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-white'}`}>
+                          {Math.round((totalUtilization / (parseFloat(overallBudget) || 1)) * 100)}%
+                        </span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Utilized</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Spent (Utilized)</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalUtilized, false)}</p>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Committed</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalCommitment, false)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category-wise Over-budget Warning */}
+              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6">Category Risk Assessment</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-700">
+                        <th className="py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
+                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimate</th>
+                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilized</th>
+                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance</th>
+                        <th className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                      {estimatedBreakdown.map((cat, idx) => {
+                        const catUtil = tableData
+                          .filter(r => (r.Category || 'Other') === cat.label)
+                          .reduce((s, r) => s + (parseFloat(r['Total utilization']) || 0), 0);
+                        const balance = cat.value - catUtil;
+                        const isRisk = catUtil > cat.value;
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                            <td className="py-4 text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</td>
+                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(cat.value, false)}</td>
+                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(catUtil, false)}</td>
+                            <td className={`py-4 text-right text-xs font-bold ${balance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(balance, false)}</td>
+                            <td className="py-4 text-center">
+                              <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                isRisk ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              }`}>
+                                {isRisk ? 'Over Budget' : 'Within Limit'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {estimatedBreakdown.length === 0 && (
+                        <tr><td colSpan={5} className="py-12 text-center text-slate-400 text-xs italic">No category data available</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

@@ -86,8 +86,13 @@
   white-space: nowrap;
 }
 
-.mdp-btn-schedule:hover { background: #1E3A8A; }
-.mdp-btn-schedule:active { transform: scale(0.97); }
+.mdp-btn-schedule:hover {
+  background: #1E3A8A;
+}
+
+.mdp-btn-schedule:active {
+  transform: scale(0.97);
+}
 
 /* ── Body Layout ── */
 .mdp-body {
@@ -118,7 +123,7 @@
 }
 
 .mdp-insight-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
 
 .mdp-insight-icon {
@@ -131,10 +136,25 @@
   flex-shrink: 0;
 }
 
-.mdp-insight-icon.indigo { background: #DBEAFE; color: #1E40AF; }
-.mdp-insight-icon.emerald { background: #d1fae5; color: #059669; }
-.mdp-insight-icon.amber { background: #fef3c7; color: #d97706; }
-.mdp-insight-icon.blue { background: #dbeafe; color: #2563eb; }
+.mdp-insight-icon.indigo {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.mdp-insight-icon.emerald {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.mdp-insight-icon.amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.mdp-insight-icon.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
 
 .mdp-insight-body {}
 
@@ -185,8 +205,14 @@
   scrollbar-color: #e5e7eb #f9fafb;
 }
 
-.mdp-calendar-strip::-webkit-scrollbar { height: 4px; }
-.mdp-calendar-strip::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
+.mdp-calendar-strip::-webkit-scrollbar {
+  height: 4px;
+}
+
+.mdp-calendar-strip::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 2px;
+}
 
 .mdp-calendar-days {
   display: flex;
@@ -227,7 +253,9 @@
   color: #9ca3af;
 }
 
-.mdp-cal-day.today .mdp-cal-day-name { color: #1E40AF; }
+.mdp-cal-day.today .mdp-cal-day-name {
+  color: #1E40AF;
+}
 
 .mdp-cal-day-num {
   font-size: 20px;
@@ -236,7 +264,9 @@
   line-height: 1.2;
 }
 
-.mdp-cal-day.today .mdp-cal-day-num { color: #1E3A8A; }
+.mdp-cal-day.today .mdp-cal-day-num {
+  color: #1E3A8A;
+}
 
 .mdp-cal-events {
   flex: 1;
@@ -254,7 +284,9 @@
   transition: background 0.15s;
 }
 
-.mdp-cal-event-pill:hover { background: #e0e7ff; }
+.mdp-cal-event-pill:hover {
+  background: #e0e7ff;
+}
 
 .mdp-cal-event-time {
   font-size: 9px;
@@ -295,7 +327,9 @@
   transition: box-shadow 0.2s;
 }
 
-.mdp-live-banner:hover { box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1); }
+.mdp-live-banner:hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+}
 
 .mdp-live-badge {
   display: inline-flex;
@@ -321,8 +355,17 @@
 }
 
 @keyframes livePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.4); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
+  }
 }
 
 .mdp-live-title {
@@ -354,7 +397,9 @@
   transition: background 0.2s;
 }
 
-.mdp-btn-enter:hover { background: #1E3A8A; }
+.mdp-btn-enter:hover {
+  background: #1E3A8A;
+}
 
 /* ── History Table ── */
 .mdp-table-wrap {
@@ -396,7 +441,7 @@
 .mdp-table-filter-btn.active {
   background: #ffffff;
   color: #111827;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .mdp-history-table {
@@ -425,7 +470,9 @@
   white-space: nowrap;
 }
 
-.mdp-history-table tbody tr:last-child td { border-bottom: none; }
+.mdp-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
 
 .mdp-history-table tbody tr {
   cursor: pointer;
@@ -460,10 +507,25 @@
   letter-spacing: 0.06em;
 }
 
-.mdp-status-pill.completed { background: #d1fae5; color: #065f46; }
-.mdp-status-pill.pending   { background: #fef3c7; color: #92400e; }
-.mdp-status-pill.cancelled { background: #fee2e2; color: #991b1b; }
-.mdp-status-pill.live      { background: #dbeafe; color: #1e40af; }
+.mdp-status-pill.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.mdp-status-pill.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mdp-status-pill.cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.mdp-status-pill.live {
+  background: #dbeafe;
+  color: #1e40af;
+}
 
 .mdp-view-btn {
   display: inline-flex;
@@ -504,8 +566,15 @@
 
 /* ── Animations ── */
 @keyframes mdpFadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .mdp-fade-up {

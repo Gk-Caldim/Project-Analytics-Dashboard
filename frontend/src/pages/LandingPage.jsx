@@ -95,7 +95,7 @@ const LandingPage = () => {
 
             
             <h1 className="zoho-hero-title">
-              The operating system for <span className="text-brand-red">business intelligence.</span>
+              The operating system for <span className="text-brand-primary">business intelligence.</span>
             </h1>
             <p className="zoho-hero-desc">
               Manage your corporate portfolio, track meeting workflows, and monitor budgets through a single unified suite. Designed for absolute operational control.

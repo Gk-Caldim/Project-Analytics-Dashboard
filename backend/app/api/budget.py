@@ -123,11 +123,12 @@ def update_revision_status(
     if payload.status == "Approved":
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == revision.project_name
-        ).first()
+        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        
         if budget:
             budget.overall_budget = revision.revised_budget
             logger.info(
-                f"[budget revision] Approved — updated '{revision.project_name}' budget summary to {revision.revised_budget}"
+                f"[budget revision] Approved — updated LATEST '{revision.project_name}' budget summary to {revision.revised_budget}"
             )
         
         # Sync to Project Master
@@ -172,6 +173,113 @@ def get_revision_attachment(revision_id: int, db: Session = Depends(get_db)):
 
 
 # ─── 2.5. Version & History routes ──────────────────────────────────────────
+
+@router.get("/market-analysis")
+def get_market_analysis():
+    """
+    Get current market analysis factors (Inflation, Currency Rates).
+    In a real app, this might call an external API.
+    """
+    # Based on latest search data for May 2026
+    return {
+        "inflation_rate": 4.95,
+        "currency_rates": {
+            "USD": 94.2,
+            "INR": 1.0,
+            "EUR": 102.5,
+            "GBP": 118.4
+        },
+        "last_updated": "2026-05-07"
+    }
+
+
+@router.get("/proposal/{project_name}")
+def generate_budget_proposal(
+    project_name: str,
+    inflation_rate: Optional[float] = None,
+    currency_factor: Optional[float] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate a sophisticated budget revision suggestion.
+    Analyzes Estimation, Utilization, and Balance to provide a practical recommendation.
+    """
+    # 1. Get latest budget
+    budget = db.query(BudgetSummary).filter(
+        BudgetSummary.project_name == project_name
+    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+
+    if not budget:
+        return {
+            "project_name": project_name,
+            "overall_budget": 0.0,
+            "budget_data": [],
+            "message": "No previous budget found."
+        }
+
+    # Use defaults if not provided (from market analysis)
+    if inflation_rate is None:
+        inflation_rate = 4.95
+    if currency_factor is None:
+        currency_factor = 1.0  # Default to no change if not specified
+
+    # 2. Extract Metrics
+    total_estimated = budget.overall_budget or 0.0
+    total_utilized = 0.0
+    
+    for row in (budget.budget_data or []):
+        try:
+            util = float(row.get('Utilized') or 0.0)
+            comm = float(row.get('Commitment') or 0.0)
+            total_utilized += (util + comm)
+        except (ValueError, TypeError):
+            continue
+
+    remaining_balance = max(0, total_estimated - total_utilized)
+    utilization_ratio = (total_utilized / total_estimated) if total_estimated > 0 else 0
+
+    # 3. Sophisticated Calculation
+    # We apply inflation and currency factors ONLY to the remaining balance (future costs)
+    # Because utilized costs are already locked in at past rates.
+    suggested_additional = remaining_balance * (inflation_rate / 100)
+    
+    # Currency adjustment (if currency_factor is e.g. 1.05, it adds 5% for exchange risk)
+    if currency_factor != 1.0:
+        suggested_additional += (remaining_balance * (currency_factor - 1))
+
+    # Risk-based buffer
+    risk_reason = ""
+    if utilization_ratio > 0.8:
+        # High utilization risk -> add 5% contingency on the whole budget
+        contingency = total_estimated * 0.05
+        suggested_additional += contingency
+        risk_reason = " High utilization (>80%) detected; added 5% contingency buffer."
+
+    # 4. Generate Reasoning
+    reasoning = (
+        f"Market Analysis Suggestion: Based on current inflation of {inflation_rate}% "
+        f"applied to the remaining balance of {round(remaining_balance, 2)}. "
+    )
+    if currency_factor != 1.0:
+        reasoning += f"Adjusted for currency fluctuation factor of {currency_factor}x. "
+    
+    reasoning += f"Total suggested revision: {round(suggested_additional, 2)}."
+    if risk_reason:
+        reasoning += risk_reason
+
+    return {
+        "project_name": project_name,
+        "current_overall_budget": round(total_estimated, 2),
+        "total_utilized": round(total_utilized, 2),
+        "remaining_balance": round(remaining_balance, 2),
+        "utilization_ratio": round(utilization_ratio, 4),
+        "suggested_overall_budget": round(total_estimated + suggested_additional, 2),
+        "delta": round(suggested_additional, 2),
+        "inflation_rate": inflation_rate,
+        "currency_factor": currency_factor,
+        "reasoning": reasoning
+    }
+
 
 @router.get("/history/{project_name}", response_model=List[BudgetSummaryResponse])
 def list_budget_history(project_name: str, db: Session = Depends(get_db)):

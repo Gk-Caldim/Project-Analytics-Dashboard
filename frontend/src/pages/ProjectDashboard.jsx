@@ -348,12 +348,12 @@ const ProjectTitleDashboard = () => {
       String(p.dbProjectId) === String(projectId)
     );
   }, [projectId, projects]);
-  
+
   // SEO & Document Title management
   useEffect(() => {
     const title = activeProject ? `${activeProject.name} | Project Dashboard` : 'Deep Project Analytics | Dashboard';
     document.title = title;
-    
+
     // Update meta description for basic SEO
     let metaDescription = document.querySelector('meta[name="description"]');
     if (!metaDescription) {
@@ -361,16 +361,16 @@ const ProjectTitleDashboard = () => {
       metaDescription.name = 'description';
       document.head.appendChild(metaDescription);
     }
-    metaDescription.content = activeProject 
+    metaDescription.content = activeProject
       ? `Real-time analytics and performance tracking for ${activeProject.name}. Monitor milestones, budgets, and critical issues.`
       : 'Comprehensive project analytics dashboard for enterprise-level tracking and reporting.';
   }, [activeProject]);
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    return activeProject.submodules?.find(s => 
-      String(s.id) === String(submoduleId) || 
-      String(s.trackerId) === String(submoduleId) || 
+    return activeProject.submodules?.find(s =>
+      String(s.id) === String(submoduleId) ||
+      String(s.trackerId) === String(submoduleId) ||
       `project-file-${s.trackerId}` === submoduleId
     );
   }, [activeProject, submoduleId]);
@@ -451,7 +451,7 @@ const ProjectTitleDashboard = () => {
             }
 
             const existingProject = uniqueProjectsMap.get(capitalizedName);
-            
+
             // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
             if (struct.dashboard_config?.visibleSections) {
               const sections = { ...struct.dashboard_config.visibleSections };
@@ -481,13 +481,13 @@ const ProjectTitleDashboard = () => {
 
             // MERGE logic instead of overwrite
             if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
-               existingProject.dbProjectId = struct.project_id;
+              existingProject.dbProjectId = struct.project_id;
             }
-            
+
             // Collect all submodules and uploads from all structures matching this name
             existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
             existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
-            
+
             // Deduplicate submodules by ID/Name using a Map for O(N) performance
             const subMap = new Map();
             existingProject.submodules.forEach(s => { if (!subMap.has(s.id)) subMap.set(s.id, s); });
@@ -505,7 +505,7 @@ const ProjectTitleDashboard = () => {
             existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
 
             const moduleMap = new Map();
-            
+
             // Build a map of module_name -> upload_id from uploads
             (struct.uploads || []).forEach(upload => {
               (upload.modules || []).forEach(mod => {
@@ -597,13 +597,13 @@ const ProjectTitleDashboard = () => {
 
           setVisibleSections(sections);
           if (sections.metricsSummary) {
-             // If we have metricsSummary enabled but NO specific upload toggles, enable all by default
-             const hasAnyUploadToggle = Object.keys(sections).some(k => k.startsWith('upload-'));
-             if (!hasAnyUploadToggle) {
-               (selectedProject.uploads || []).forEach(u => {
-                 sections[`upload-${u.file_name}`] = true;
-               });
-             }
+            // If we have metricsSummary enabled but NO specific upload toggles, enable all by default
+            const hasAnyUploadToggle = Object.keys(sections).some(k => k.startsWith('upload-'));
+            if (!hasAnyUploadToggle) {
+              (selectedProject.uploads || []).forEach(u => {
+                sections[`upload-${u.file_name}`] = true;
+              });
+            }
           }
           setShowSimulateModal(false);
         } else {
@@ -885,8 +885,8 @@ const ProjectTitleDashboard = () => {
         budgetUtilized: activeProject.utilized_budget || 0,
         budgetBalance: activeProject.balance_budget || 0,
         // Calculate outlook if possible, otherwise keep prev or 0
-        budgetOutlook: activeProject.budget > 0 
-          ? Math.round((activeProject.utilized_budget / activeProject.budget) * 100) 
+        budgetOutlook: activeProject.budget > 0
+          ? Math.round((activeProject.utilized_budget / activeProject.budget) * 100)
           : '0'
       }));
     }
@@ -1028,7 +1028,7 @@ const ProjectTitleDashboard = () => {
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
     if (!trackerId || trackerId === 'undefined' || trackerId === 'null') return;
-    
+
     // Prevent multiple concurrent loads for the same trackerId or re-loading if failed
     if (submoduleLoading[trackerId]) return;
     if (submoduleData[trackerId]?.failed) return; // Don't auto-retry if failed
@@ -1061,11 +1061,11 @@ const ProjectTitleDashboard = () => {
       console.error(`[ProjectDashboard] Failed to load submodule ${trackerId}:`, error);
       setSubmoduleData(prev => ({
         ...prev,
-        [trackerId]: { 
-          rows: [], 
-          columns: [], 
+        [trackerId]: {
+          rows: [],
+          columns: [],
           error: error.response?.data?.detail || error.message,
-          failed: true 
+          failed: true
         }
       }));
     } finally {
@@ -1130,9 +1130,9 @@ const ProjectTitleDashboard = () => {
       const idToResolve = submoduleId;
       if (idToResolve) {
         // Find the submodule object
-        const sub = activeProject.submodules?.find(s => 
-          String(s.id) === String(idToResolve) || 
-          String(s.trackerId) === String(idToResolve) || 
+        const sub = activeProject.submodules?.find(s =>
+          String(s.id) === String(idToResolve) ||
+          String(s.trackerId) === String(idToResolve) ||
           `project-file-${s.trackerId}` === String(idToResolve)
         );
 
@@ -1220,13 +1220,13 @@ const ProjectTitleDashboard = () => {
         ...allMetricCharts.map(c => c.trackerId),
         selectedSubmodule?.trackerId
       ].filter(Boolean);
-      
+
       const uniqueTrackerIds = [...new Set(visibleTrackerIds)];
 
       uniqueTrackerIds.forEach(trackerId => {
         const data = submoduleData[trackerId];
         const isLoading = submoduleLoading[trackerId];
-        
+
         if (!data && !isLoading) {
           loadSubmoduleData(trackerId);
         } else if (data && data.rows.length === 0 && !data.failed && !isLoading) {
@@ -1406,15 +1406,15 @@ const ProjectTitleDashboard = () => {
   const handleSectionVisibilityToggle = (section) => {
     setTempVisibleSections(prev => {
       const next = { ...prev, [section]: !prev[section] };
-      
+
       // Auto-enable metricsSummary section if any chart is selected
       const defaultPhases = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
       const isChart = defaultPhases.includes(section) || section.startsWith('upload-');
-      
+
       if (isChart && next[section]) {
         next.metricsSummary = true;
       }
-      
+
       return next;
     });
   };
@@ -1564,7 +1564,7 @@ const ProjectTitleDashboard = () => {
       }
     });
     setPdfChartImages(capturedImages);
-    
+
     // Sync current visible sections to PDF preview
     setEmailData(prev => ({
       ...prev,
@@ -1573,7 +1573,7 @@ const ProjectTitleDashboard = () => {
         ...visibleSections
       }
     }));
-    
+
     setShowPdfPreview(true);
   };
 
@@ -1591,12 +1591,12 @@ const ProjectTitleDashboard = () => {
       if (isDuplicate) return false;
 
       if (phase.isDynamic) {
-          const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-          const isAlreadyMapped = defaultIds.some(id => {
-              const tracker = getTrackerForPhase(id);
-              return tracker && tracker.id === phase.id;
-          });
-          if (isAlreadyMapped) return false;
+        const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+        const isAlreadyMapped = defaultIds.some(id => {
+          const tracker = getTrackerForPhase(id);
+          return tracker && tracker.id === phase.id;
+        });
+        if (isAlreadyMapped) return false;
       }
 
       return visibleSections?.[phase.id] && availablePhases?.[phase.id];
@@ -1618,7 +1618,7 @@ const ProjectTitleDashboard = () => {
       const visiblePhaseList = getVisiblePhaseList();
 
       const blob = await pdf(
-        <ReportDocument 
+        <ReportDocument
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
@@ -1633,7 +1633,7 @@ const ProjectTitleDashboard = () => {
           sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
-      
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -1678,7 +1678,7 @@ const ProjectTitleDashboard = () => {
       const visiblePhaseList = getVisiblePhaseList();
 
       const blob = await pdf(
-        <ReportDocument 
+        <ReportDocument
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
@@ -1815,7 +1815,7 @@ const ProjectTitleDashboard = () => {
           boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
         }}>
           <div style={{
-            backgroundColor: '#1e3a5f',
+            backgroundColor: 'var(--accent)',
             color: 'white',
             padding: '15px 20px',
             fontSize: '18px',
@@ -1851,16 +1851,16 @@ const ProjectTitleDashboard = () => {
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1e3a5f' }}>Dashboard Sections:</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--accent)' }}>Dashboard Sections:</h3>
               <button
                 onClick={handleSelectAllVisibility}
                 style={{
                   padding: '6px 12px',
                   fontSize: '13px',
                   borderRadius: '4px',
-                  border: '1px solid #1e3a5f',
-                  backgroundColor: allSelected ? '#1e3a5f' : 'white',
-                  color: allSelected ? 'white' : '#1e3a5f',
+                  border: '1px solid var(--accent)',
+                  backgroundColor: allSelected ? 'var(--accent)' : 'white',
+                  color: allSelected ? 'white' : 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: 'bold'
                 }}
@@ -1870,22 +1870,22 @@ const ProjectTitleDashboard = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
                 <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
                 <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
                 <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
                 <span style={{ fontWeight: '600' }}>MOM Issues</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
                 <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
                 <span style={{ fontWeight: '600' }}>Budget Summary</span>
               </label>
-              
-              <div style={{ 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '8px', 
+
+              <div style={{
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '8px',
                 background: tempVisibleSections.metricsSummary ? '#f0f9ff' : 'white',
                 overflow: 'hidden'
               }}>
@@ -1893,28 +1893,28 @@ const ProjectTitleDashboard = () => {
                   <input type="checkbox" checked={tempVisibleSections.metricsSummary || false} onChange={() => handleSectionVisibilityToggle('metricsSummary')} />
                   <span style={{ fontWeight: '600' }}>Project Metrics Summary</span>
                 </label>
-                
+
                 {tempVisibleSections.metricsSummary && (
-                  <div style={{ 
-                    padding: '12px 12px 12px 40px', 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                  <div style={{
+                    padding: '12px 12px 12px 40px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
                     gap: '8px',
                     backgroundColor: 'rgba(255,255,255,0.5)',
-                    borderTop: '1px solid #e2e8f0'
+                    borderTop: '1px solid var(--border-subtle)'
                   }}>
                     {allPossibleCharts.map(chart => {
                       const hasData = submoduleData[chart.trackerId]?.rows?.length > 0;
                       return (
                         <label key={chart.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', position: 'relative' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={tempVisibleSections[chart.id] || false} 
-                            onChange={() => handleSectionVisibilityToggle(chart.id)} 
+                          <input
+                            type="checkbox"
+                            checked={tempVisibleSections[chart.id] || false}
+                            onChange={() => handleSectionVisibilityToggle(chart.id)}
                           />
-                          <span style={{ color: hasData ? 'inherit' : '#94a3b8' }}>{chart.title}</span>
+                          <span style={{ color: hasData ? 'inherit' : 'var(--text-muted)' }}>{chart.title}</span>
                           {!hasData && (
-                            <span style={{ fontSize: '9px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '1px 4px', borderRadius: '4px', fontWeight: 'bold' }}>
+                            <span style={{ fontSize: '9px', backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', padding: '1px 4px', borderRadius: '4px', fontWeight: 'bold' }}>
                               NO DATA
                             </span>
                           )}
@@ -1933,7 +1933,7 @@ const ProjectTitleDashboard = () => {
               borderRadius: '6px',
               border: '1px solid #e0e0e0'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: '#1e3a5f' }}>Dashboard Preview:</h4>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--accent)' }}>Dashboard Preview:</h4>
               <div style={{ fontSize: '13px', color: '#4b5563' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
@@ -1945,9 +1945,9 @@ const ProjectTitleDashboard = () => {
                         budget: 'Budget Summary',
                         metricsSummary: 'Project Metrics Summary'
                       };
-                      
+
                       let displayLabel = labels[section] || section;
-                      
+
                       if (section === 'metricsSummary') {
                         const chartCount = Object.entries(tempVisibleSections)
                           .filter(([k, v]) => v && (k.startsWith('upload-') || ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(k)))
@@ -1975,7 +1975,7 @@ const ProjectTitleDashboard = () => {
                   </div>
                 )}
               </div>
-              <div style={{ marginTop: '10px', fontSize: '12px', color: '#1e3a5f', fontWeight: 'bold' }}>
+              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--accent)', fontWeight: 'bold' }}>
                 Total visible sections: {availableSectionKeys.filter(key => tempVisibleSections[key]).length}
               </div>
             </div>
@@ -2015,7 +2015,7 @@ const ProjectTitleDashboard = () => {
                 fontSize: '14px',
                 borderRadius: '4px',
                 border: 'none',
-                backgroundColor: '#1e3a5f',
+                backgroundColor: 'var(--accent)',
                 color: 'white',
                 cursor: 'pointer',
                 fontWeight: 'bold'
@@ -2041,7 +2041,7 @@ const ProjectTitleDashboard = () => {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-          <div style={{ backgroundColor: '#1e3a5f', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
             <span>Edit Project Milestones</span>
             <button onClick={() => setShowEditMilestones(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
           </div>
@@ -2049,22 +2049,22 @@ const ProjectTitleDashboard = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '12px' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0', width: '80px' }}>Type</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 1</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 2</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 3</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 4</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 5</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Gate 6</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Implementation</th>
+                  <tr style={{ backgroundColor: 'var(--elevated-card)' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)', width: '80px' }}>Type</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 1</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 2</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 3</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 4</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 5</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Gate 6</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Implementation</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', fontWeight: 'bold', backgroundColor: '#f8fafc' }}>PLAN</td>
+                    <td style={{ padding: '10px', border: '1px solid var(--border-subtle)', fontWeight: 'bold', backgroundColor: 'var(--bg)' }}>PLAN</td>
                     {['a', 'b', 'c', 'd', 'e', 'f'].map(char => (
-                      <td key={char} style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td key={char} style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <input
                           type="text"
                           value={milestoneForm.plan[char]}
@@ -2077,7 +2077,7 @@ const ProjectTitleDashboard = () => {
                         />
                       </td>
                     ))}
-                    <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                       <input
                         type="text"
                         value={milestoneForm.plan.implementation}
@@ -2091,9 +2091,9 @@ const ProjectTitleDashboard = () => {
                     </td>
                   </tr>
                   <tr>
-                    <td style={{ padding: '10px', border: '1px solid #e2e8f0', fontWeight: 'bold', backgroundColor: '#f8fafc' }}>ACTUAL</td>
+                    <td style={{ padding: '10px', border: '1px solid var(--border-subtle)', fontWeight: 'bold', backgroundColor: 'var(--bg)' }}>ACTUAL</td>
                     {['a', 'b', 'c', 'd', 'e', 'f'].map(char => (
-                      <td key={char} style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td key={char} style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <input
                           type="text"
                           value={milestoneForm.actual[char]}
@@ -2106,7 +2106,7 @@ const ProjectTitleDashboard = () => {
                         />
                       </td>
                     ))}
-                    <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                       <input
                         type="text"
                         value={milestoneForm.actual.implementation}
@@ -2122,9 +2122,9 @@ const ProjectTitleDashboard = () => {
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
               <button onClick={() => setShowEditMilestones(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: '#1e3a5f', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -2166,7 +2166,7 @@ const ProjectTitleDashboard = () => {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-          <div style={{ backgroundColor: '#1e3a5f', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
             <span>Edit Critical Issues</span>
             <button onClick={() => setShowEditIssues(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
           </div>
@@ -2179,26 +2179,26 @@ const ProjectTitleDashboard = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '12px' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0' }}>Issue Description</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0', width: '120px' }}>Responsibility</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0', width: '120px' }}>Function</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0', width: '100px' }}>Target Date</th>
-                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #e2e8f0', width: '100px' }}>Status</th>
-                    <th style={{ padding: '10px', textAlign: 'center', border: '1px solid #e2e8f0', width: '50px' }}>Action</th>
+                  <tr style={{ backgroundColor: 'var(--elevated-card)' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)' }}>Issue Description</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)', width: '120px' }}>Responsibility</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)', width: '120px' }}>Function</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)', width: '100px' }}>Target Date</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid var(--border-subtle)', width: '100px' }}>Status</th>
+                    <th style={{ padding: '10px', textAlign: 'center', border: '1px solid var(--border-subtle)', width: '50px' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {issuesForm.map((issue) => (
                     <tr key={issue.id}>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <textarea
                           value={issue.issue}
                           onChange={(e) => updateIssue(issue.id, 'issue', e.target.value)}
                           style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px', resize: 'vertical', minHeight: '40px' }}
                         />
                       </td>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <input
                           type="text"
                           value={issue.responsibility}
@@ -2206,7 +2206,7 @@ const ProjectTitleDashboard = () => {
                           style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}
                         />
                       </td>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <input
                           type="text"
                           value={issue.function}
@@ -2214,7 +2214,7 @@ const ProjectTitleDashboard = () => {
                           style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}
                         />
                       </td>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <input
                           type="date"
                           value={issue.targetDate}
@@ -2222,7 +2222,7 @@ const ProjectTitleDashboard = () => {
                           style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '11px' }}
                         />
                       </td>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <select
                           value={issue.status}
                           onChange={(e) => updateIssue(issue.id, 'status', e.target.value)}
@@ -2233,7 +2233,7 @@ const ProjectTitleDashboard = () => {
                           <option value="Closed">Closed</option>
                         </select>
                       </td>
-                      <td style={{ padding: '5px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                      <td style={{ padding: '5px', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
                         <button onClick={() => removeIssue(issue.id)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}>
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -2243,9 +2243,9 @@ const ProjectTitleDashboard = () => {
                 </tbody>
               </table>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '15px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
               <button onClick={() => setShowEditIssues(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: '#1e3a5f', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -2427,7 +2427,7 @@ const ProjectTitleDashboard = () => {
       return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
           <div style={{ backgroundColor: 'white', borderRadius: '12px', width: '95vw', maxWidth: '1200px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ backgroundColor: '#1e3a5f', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
                 <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Edit Budget Summary</span>
               </div>
@@ -2436,19 +2436,19 @@ const ProjectTitleDashboard = () => {
               </button>
             </div>
 
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, backgroundColor: '#f8fafc' }}>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, backgroundColor: 'var(--bg)' }}>
               <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>Project Name:</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Project Name:</span>
                   <input
                     type="text"
                     value={modalProjectName}
                     onChange={e => setModalProjectName(e.target.value)}
-                    style={{ border: 'none', color: '#1e3a5f', fontWeight: '800', fontSize: '14px', outline: 'none', width: '180px' }}
+                    style={{ border: 'none', color: 'var(--accent)', fontWeight: '800', fontSize: '14px', outline: 'none', width: '180px' }}
                   />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>Status:</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Status:</span>
                   <select
                     value={modalProjectStatus}
                     onChange={e => setModalProjectStatus(e.target.value)}
@@ -2462,8 +2462,8 @@ const ProjectTitleDashboard = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
-                  <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 'bold' }}>System Currency:</span>
-                  <span style={{ color: '#1e3a5f', fontWeight: '800', fontSize: '14px' }}>{symbol}</span>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>System Currency:</span>
+                  <span style={{ color: 'var(--accent)', fontWeight: '800', fontSize: '14px' }}>{symbol}</span>
                 </div>
                 <div style={{ flex: 1 }}></div>
 
@@ -2481,14 +2481,14 @@ const ProjectTitleDashboard = () => {
                 </button>
               </div>
 
-              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'white', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                    <tr style={{ backgroundColor: 'var(--bg)', borderBottom: '2px solid var(--border-subtle)' }}>
                       {headers.map((h, i) => (
                         <th key={i} style={{
                           padding: '12px 14px',
-                          borderRight: i === headers.length - 1 ? 'none' : '1px solid #e2e8f0',
+                          borderRight: i === headers.length - 1 ? 'none' : '1px solid var(--border-subtle)',
                           color: '#475569',
                           fontWeight: 'bold'
                         }}>
@@ -2506,7 +2506,7 @@ const ProjectTitleDashboard = () => {
                       const canDelete = !isHeader && !isTotal;
 
                       return (
-                        <tr key={idx} style={{ backgroundColor: isTotal ? '#f8fafc' : 'white', borderBottom: '1px solid #e2e8f0' }}>
+                        <tr key={idx} style={{ backgroundColor: isTotal ? 'var(--bg)' : 'white', borderBottom: '1px solid var(--border-subtle)' }}>
                           {row.map((cell, colIdx) => {
                             const isCalculatedCell = colIdx === 5 || colIdx === 7 || isTotal;
                             const isLabelCell = colIdx === 0 && (isHeader || isTotal);
@@ -2515,10 +2515,10 @@ const ProjectTitleDashboard = () => {
                             return (
                               <td key={colIdx} style={{
                                 padding: '0',
-                                borderRight: colIdx === row.length - 1 ? 'none' : '1px solid #e2e8f0'
+                                borderRight: colIdx === row.length - 1 ? 'none' : '1px solid var(--border-subtle)'
                               }}>
                                 {isReadOnly ? (
-                                  <div style={{ padding: '12px 14px', color: isHeader || isTotal ? '#1e3a5f' : '#334155', fontWeight: isHeader || isTotal ? 'bold' : 'normal', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+                                  <div style={{ padding: '12px 14px', color: isHeader || isTotal ? 'var(--accent)' : '#334155', fontWeight: isHeader || isTotal ? 'bold' : 'normal', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
                                     {cell}
                                   </div>
                                 ) : (
@@ -2550,9 +2550,9 @@ const ProjectTitleDashboard = () => {
               </div>
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: 'white' }}>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: 'white' }}>
               <button onClick={() => setShowEditSummary(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: '10px 20px', borderRadius: '6px', backgroundColor: '#1e3a5f', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+              <button onClick={handleSave} style={{ padding: '10px 20px', borderRadius: '6px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -2576,7 +2576,7 @@ const ProjectTitleDashboard = () => {
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '400px', maxWidth: '100%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
-          <div style={{ backgroundColor: '#1e3a5f', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Edit {currentConfig.title}</span>
             <button onClick={() => setShowEditSummary(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
           </div>
@@ -2587,7 +2587,7 @@ const ProjectTitleDashboard = () => {
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#4b5563', marginBottom: '5px' }}>{field.label}</label>
                   <div style={{ position: 'relative' }}>
                     {field.key.toLowerCase().includes('amount') || field.key.toLowerCase().includes('budget') ? (
-                      <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: '#1e3a5f' }}>{symbol}</span>
+                      <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: 'var(--accent)' }}>{symbol}</span>
                     ) : null}
                     <input
                       type="text"
@@ -2608,7 +2608,7 @@ const ProjectTitleDashboard = () => {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowEditSummary(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: '#1e3a5f', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+              <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -2636,10 +2636,10 @@ const ProjectTitleDashboard = () => {
     // Auto-detect axes if not configured
     if ((!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) && chartData.length > 0) {
       const keys = Object.keys(chartData[0]).filter(k => k !== '__row_index__' && k !== 'id');
-      
+
       // Try to find a date column for X axis
       let xCol = keys.find(k => isDateColumn(chartData, k)) || keys[0];
-      
+
       // Try to find a numeric column for Y axis (excluding the X column)
       let yCol = keys.find(k => k !== xCol && chartData.some(row => !isNaN(parseFloat(row[k])))) || (keys[1] === xCol ? keys[2] : keys[1]);
 
@@ -2648,7 +2648,7 @@ const ProjectTitleDashboard = () => {
           xAxis: xCol,
           yAxis: yCol
         };
-        
+
         // If both are dates, try to infer relationship
         if (isDateColumn(chartData, xCol) && isDateColumn(chartData, yCol)) {
           const derived = inferDateRelationship(xCol, yCol);
@@ -2669,15 +2669,15 @@ const ProjectTitleDashboard = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f8fafc',
+          backgroundColor: 'var(--bg)',
           border: '1px dashed #cbd5e1',
           borderRadius: '12px',
-          color: '#64748b',
+          color: 'var(--text-secondary)',
           padding: '20px'
         }}>
           <Settings className="h-8 w-8 mb-3 opacity-20" />
-          <p style={{ fontSize: '14px', fontWeight: '800', color: '#1e3a5f' }}>Attributes Required</p>
-          <p style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center', color: '#64748b' }}>
+          <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Attributes Required</p>
+          <p style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             Select X and Y axes in the settings to visualize this data.
           </p>
         </div>
@@ -2693,10 +2693,10 @@ const ProjectTitleDashboard = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: '#f8fafc',
-          border: '1px solid #e2e8f0',
+          backgroundColor: 'var(--bg)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '12px',
-          color: '#64748b'
+          color: 'var(--text-secondary)'
         }}>
           <p style={{ fontSize: '12px', fontWeight: '600' }}>No data found in database</p>
         </div>
@@ -2783,21 +2783,21 @@ const ProjectTitleDashboard = () => {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
         backgroundColor: 'rgba(255, 255, 255, 0.96)',
-        borderColor: '#e2e8f0',
+        borderColor: '#CBD5E1',
         borderWidth: 1,
-        textStyle: { color: '#1e3a5f', fontSize: 12 },
+        textStyle: { color: '#2563EB', fontSize: 12 },
         extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
         formatter: (params) => {
           if (!params || params.length === 0) return '';
-          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; color: #1e3a5f;">${formatXAxisValue(params[0].axisValue)}</div>`;
+          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #2563EB;">${formatXAxisValue(params[0].axisValue)}</div>`;
           params.forEach(p => {
             const val = typeof p.value === 'number' ? Math.round(p.value * 100) / 100 : p.value;
             html += `<div style="display: flex; justify-content: space-between; gap: 24px; align-items: center; margin-bottom: 3px;">
               <span style="display: flex; align-items: center;">
                 <span style="display:inline-block;margin-right:8px;border-radius:2px;width:10px;height:10px;background-color:${p.color};"></span>
-                <span style="color: #64748b; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
+                <span style="color: #475569; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
               </span>
-              <span style="font-weight: 800; color: #1e3a5f;">${val} ${derivedConfig ? 'Days' : ''}</span>
+              <span style="font-weight: 800; color: #2563EB;">${val} ${derivedConfig ? 'Days' : ''}</span>
             </div>`;
           });
           return html;
@@ -2815,29 +2815,29 @@ const ProjectTitleDashboard = () => {
             lang: ['Data View', 'Close', 'Refresh'],
             backgroundColor: '#fff',
             textareaColor: '#fff',
-            textareaBorderColor: '#e2e8f0',
-            textColor: '#1e3a5f',
-            buttonColor: '#1e3a5f',
+            textareaBorderColor: '#CBD5E1',
+            textColor: '#2563EB',
+            buttonColor: '#2563EB',
             buttonTextColor: '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
               let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;">
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
-                  <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-                    <th style="padding:10px;color:#1e3a5f;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
-                    <th style="padding:10px;color:#1e3a5f;font-weight:800;">Value</th>
+                  <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
+                    <th style="padding:10px;color:#2563EB;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
+                    <th style="padding:10px;color:#2563EB;font-weight:800;">Value</th>
                   </tr>
                 </thead>
                 <tbody>`;
-              
+
               if (series[0].data) {
                 series[0].data.forEach((item, idx) => {
                   const name = opt.xAxis[0].data ? opt.xAxis[0].data[idx] : idx;
                   const val = typeof item === 'object' ? item.value : item;
-                  table += `<tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:8px 10px;color:#64748b;">${name}</td>
-                    <td style="padding:8px 10px;color:#1e3a5f;font-weight:700;">${val}</td>
+                  table += `<tr style="border-bottom:1px solid #F1F5F9;">
+                    <td style="padding:8px 10px;color:#475569;">${name}</td>
+                    <td style="padding:8px 10px;color:#2563EB;font-weight:700;">${val}</td>
                   </tr>`;
                 });
               }
@@ -2845,15 +2845,15 @@ const ProjectTitleDashboard = () => {
               return table;
             }
           },
-          saveAsImage: { 
-            show: true, 
-            title: 'Download', 
+          saveAsImage: {
+            show: true,
+            title: 'Download',
             pixelRatio: 3,
-            iconStyle: { borderColor: '#1e3a5f' }
+            iconStyle: { borderColor: '#2563EB' }
           }
         },
-        iconStyle: { borderColor: '#94a3b8' },
-        emphasis: { iconStyle: { borderColor: '#1e3a5f' } }
+        iconStyle: { borderColor: 'var(--text-muted)' },
+        emphasis: { iconStyle: { borderColor: '#2563EB' } }
       },
       dataZoom: xLabels.length > 10 ? [
         { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
@@ -2867,7 +2867,7 @@ const ProjectTitleDashboard = () => {
         left: 'center',
         itemWidth: 10,
         itemHeight: 10,
-        textStyle: { fontSize: 10, color: '#64748b', fontWeight: '600' },
+        textStyle: { fontSize: 10, color: '#475569', fontWeight: '600' },
         pageButtonPosition: 'end',
         pageIconSize: 10,
         padding: [5, 10]
@@ -2887,17 +2887,17 @@ const ProjectTitleDashboard = () => {
           rotate: xLabels.length > 5 ? (chartType === 'bar-rotated' ? 45 : 35) : 0,
           formatter: formatXAxisValue,
           fontSize: 10,
-          color: '#64748b'
+          color: '#475569'
         },
-        axisLine: { lineStyle: { color: '#e2e8f0' } }
+        axisLine: { lineStyle: { color: '#CBD5E1' } }
       },
       yAxis: {
         type: 'value',
         name: yAxisLabel,
         boundaryGap: ['15%', '15%'],
-        nameTextStyle: { color: '#64748b', fontSize: 11, fontWeight: 'bold' },
-        axisLabel: { color: '#64748b', fontSize: 10 },
-        splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
+        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 'bold' },
+        axisLabel: { color: '#475569', fontSize: 10 },
+        splitLine: { lineStyle: { type: 'dashed', color: '#F1F5F9' } }
       }
     };
 
@@ -2930,7 +2930,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e3a5f',
+                color: '#2563EB',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -2963,7 +2963,7 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                color: '#1e3a5f',
+                color: '#2563EB',
                 fontSize: 10,
                 fontWeight: 'bold'
               }
@@ -2998,10 +2998,10 @@ const ProjectTitleDashboard = () => {
           tooltip: {
             trigger: 'item',
             backgroundColor: 'rgba(255, 255, 255, 0.96)',
-            borderColor: '#e2e8f0',
+            borderColor: '#CBD5E1',
             borderWidth: 1,
-            textStyle: { color: '#1e3a5f' },
-            formatter: (p) => `<div style="padding: 4px;"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:#64748b">Value:</span> <b>${p.value}</b><br/><span style="color:#64748b">Share:</span> <b>${p.percent}%</b></div>`
+            textStyle: { color: '#2563EB' },
+            formatter: (p) => `<div style="padding: 4px;"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:#475569">Value:</span> <b>${p.value}</b><br/><span style="color:#475569">Share:</span> <b>${p.percent}%</b></div>`
           },
           toolbox: baseOption.toolbox, // retain toolbox from base option
           legend: baseOption.legend,
@@ -3025,9 +3025,9 @@ const ProjectTitleDashboard = () => {
                 edgeDistance: 10,
                 lineHeight: 15,
                 rich: {
-                  name: { fontSize: 9, fontWeight: '700', color: '#1e3a5f', padding: [0, 0, 2, 0] },
+                  name: { fontSize: 9, fontWeight: '700', color: '#2563EB', padding: [0, 0, 2, 0] },
                   value: { fontSize: 9, fontWeight: '800', color: '#3b82f6' },
-                  percent: { fontSize: 9, color: '#64748b' }
+                  percent: { fontSize: 9, color: '#475569' }
                 }
               },
               labelLine: {
@@ -3057,8 +3057,8 @@ const ProjectTitleDashboard = () => {
           xAxis: {
             type: 'value',
             boundaryGap: ['15%', '15%'],
-            axisLabel: { color: '#64748b', fontSize: 10 },
-            splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } }
+            axisLabel: { color: '#475569', fontSize: 10 },
+            splitLine: { lineStyle: { type: 'dashed', color: '#F1F5F9' } }
           },
           yAxis: {
             type: 'category',
@@ -3066,7 +3066,7 @@ const ProjectTitleDashboard = () => {
             axisLabel: {
               interval: 0,
               fontSize: 10,
-              color: '#1e3a5f',
+              color: '#2563EB',
               fontWeight: '600'
             }
           },
@@ -3092,7 +3092,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e3a5f',
+                color: '#2563EB',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3138,7 +3138,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e3a5f',
+                color: '#2563EB',
                 fontSize: 9,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3188,7 +3188,7 @@ const ProjectTitleDashboard = () => {
           },
           yAxis: {
             ...baseOption.yAxis,
-            splitLine: { show: true, lineStyle: { type: 'solid', color: '#f1f5f9' } }
+            splitLine: { show: true, lineStyle: { type: 'solid', color: '#F1F5F9' } }
           },
           series: [
             {
@@ -3228,8 +3228,8 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={size}>
-        <div style={{ marginBottom: '6px', fontSize: '10px', color: '#64748b', textAlign: 'center', backgroundColor: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontWeight: 'bold', color: '#1e3a5f' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ mx: 2, opacity: 0.3 }}>|</span> <span style={{ fontWeight: 'bold', color: '#1e3a5f' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
+        <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+          <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ mx: 2, opacity: 0.3 }}>|</span> <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
         </div>
         <ReactECharts
           ref={(e) => {
@@ -3269,8 +3269,8 @@ const ProjectTitleDashboard = () => {
           fontSize: '10px',
           borderRadius: '4px',
           border: '1px solid #cbd5e1',
-          backgroundColor: '#f8fafc',
-          color: '#1e3a5f',
+          backgroundColor: 'var(--bg)',
+          color: 'var(--accent)',
           cursor: 'pointer',
           fontWeight: 'bold',
           outline: 'none',
@@ -3296,8 +3296,8 @@ const ProjectTitleDashboard = () => {
           height: '24px',
           borderRadius: '4px',
           border: '1px solid #cbd5e1',
-          backgroundColor: showAxisSelector === chartId ? '#1e3a5f' : '#f8fafc',
-          color: showAxisSelector === chartId ? 'white' : '#1e3a5f',
+          backgroundColor: showAxisSelector === chartId ? 'var(--accent)' : 'var(--bg)',
+          color: showAxisSelector === chartId ? 'white' : 'var(--accent)',
           cursor: 'pointer',
           fontSize: '10px',
           fontWeight: 'bold',
@@ -3320,7 +3320,7 @@ const ProjectTitleDashboard = () => {
           height: '24px',
           borderRadius: '4px',
           border: '1px solid #cbd5e1',
-          backgroundColor: '#1e3a5f',
+          backgroundColor: 'var(--accent)',
           color: 'white',
           cursor: 'pointer',
           fontSize: '10px',
@@ -3345,93 +3345,93 @@ const ProjectTitleDashboard = () => {
     </div>
   );
 
-    const renderMetricsSummary = () => {
-      if (allMetricCharts.length === 0) return null;
-  
-      const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
-      const startIndex = (metricsPage - 1) * chartsPerPage;
-      const currentCharts = allMetricCharts.slice(startIndex, startIndex + chartsPerPage);
-  
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(3, 1fr)', 
-            gap: '16px' 
-          }}>
-            {currentCharts.map(chart => (
-                <div key={chart.id} style={{ 
-                  backgroundColor: 'white', 
-                  borderRadius: '12px', 
-                  padding: '12px 16px', // Reduced padding
-                  border: '1px solid #e2e8f0', 
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-                  height: '380px', // Increased from 340px
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.2s ease'
-                }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '4px', height: '18px', backgroundColor: chart.isDefault ? '#4f46e5' : '#10b981', borderRadius: '2px' }}></div>
-                    <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{chart.title}</h3>
-                  </div>
-                  {renderChartOptions(chart.id, chart.type)}
+  const renderMetricsSummary = () => {
+    if (allMetricCharts.length === 0) return null;
+
+    const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
+    const startIndex = (metricsPage - 1) * chartsPerPage;
+    const currentCharts = allMetricCharts.slice(startIndex, startIndex + chartsPerPage);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '16px'
+        }}>
+          {currentCharts.map(chart => (
+            <div key={chart.id} style={{
+              backgroundColor: 'white',
+              borderRadius: '12px',
+              padding: '12px 16px', // Reduced padding
+              border: '1px solid var(--border-subtle)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              height: '380px', // Increased from 340px
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.2s ease'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '4px', height: '18px', backgroundColor: chart.isDefault ? '#4f46e5' : '#10b981', borderRadius: '2px' }}></div>
+                  <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{chart.title}</h3>
                 </div>
-                <div style={{ flex: 1, minHeight: 0 }}>
-                  {renderChart(chart.id, chart.type, false, chart.trackerId)}
-                </div>
+                {renderChartOptions(chart.id, chart.type)}
               </div>
-            ))}
-          </div>
-          
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-              <button 
-                onClick={() => setMetricsPage(p => Math.max(1, p - 1))}
-                disabled={metricsPage === 1}
-                style={{ 
-                  padding: '8px 20px', 
-                  border: '1px solid #cbd5e1', 
-                  background: 'white', 
-                  borderRadius: '8px', 
-                  cursor: metricsPage === 1 ? 'not-allowed' : 'pointer', 
-                  fontSize: '13px', 
-                  fontWeight: '700',
-                  color: metricsPage === 1 ? '#94a3b8' : '#1e3a5f',
-                  boxShadow: metricsPage === 1 ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                ← Previous
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '14px', fontWeight: '800', color: '#1e3a5f' }}>Page {metricsPage}</span>
-                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>of {totalPages}</span>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                {renderChart(chart.id, chart.type, false, chart.trackerId)}
               </div>
-              <button 
-                onClick={() => setMetricsPage(p => Math.min(totalPages, p + 1))}
-                disabled={metricsPage === totalPages}
-                style={{ 
-                  padding: '8px 20px', 
-                  border: '1px solid #cbd5e1', 
-                  background: 'white', 
-                  borderRadius: '8px', 
-                  cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer', 
-                  fontSize: '13px', 
-                  fontWeight: '700',
-                  color: metricsPage === totalPages ? '#94a3b8' : '#1e3a5f',
-                  boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                Next →
-              </button>
             </div>
-          )}
+          ))}
         </div>
-      );
-    };
+
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '10px', padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+            <button
+              onClick={() => setMetricsPage(p => Math.max(1, p - 1))}
+              disabled={metricsPage === 1}
+              style={{
+                padding: '8px 20px',
+                border: '1px solid #cbd5e1',
+                background: 'white',
+                borderRadius: '8px',
+                cursor: metricsPage === 1 ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: metricsPage === 1 ? 'var(--text-muted)' : 'var(--accent)',
+                boxShadow: metricsPage === 1 ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s'
+              }}
+            >
+              ← Previous
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Page {metricsPage}</span>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: '500' }}>of {totalPages}</span>
+            </div>
+            <button
+              onClick={() => setMetricsPage(p => Math.min(totalPages, p + 1))}
+              disabled={metricsPage === totalPages}
+              style={{
+                padding: '8px 20px',
+                border: '1px solid #cbd5e1',
+                background: 'white',
+                borderRadius: '8px',
+                cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer',
+                fontSize: '13px',
+                fontWeight: '700',
+                color: metricsPage === totalPages ? 'var(--text-muted)' : 'var(--accent)',
+                boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s'
+              }}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Maximized Chart Modal Component
   const renderMaximizedChartModal = () => {
@@ -3479,20 +3479,20 @@ const ProjectTitleDashboard = () => {
           fontFamily: 'Inter, sans-serif'
         }}>
           <div style={{
-            backgroundColor: '#f8fafc',
-            color: '#1e3a5f',
+            backgroundColor: 'var(--bg)',
+            color: 'var(--accent)',
             padding: '16px 24px',
             fontSize: '16px',
             fontWeight: '900',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '2px solid #e2e8f0',
+            borderBottom: '2px solid var(--border-subtle)',
             textTransform: 'uppercase',
             letterSpacing: '0.02em'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ backgroundColor: '#1e3a5f', width: '3px', height: '20px' }} />
+              <div style={{ backgroundColor: 'var(--accent)', width: '3px', height: '20px' }} />
               <span>{humanizeLabel(phaseLabel)} Analysis</span>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -3503,8 +3503,8 @@ const ProjectTitleDashboard = () => {
                   fontSize: '12px',
                   borderRadius: '4px',
                   border: '1px solid #cbd5e1',
-                  backgroundColor: showAxisSelector === maximizedChart ? '#1e3a5f' : 'white',
-                  color: showAxisSelector === maximizedChart ? 'white' : '#1e3a5f',
+                  backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
+                  color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '800',
                   transition: 'none'
@@ -3522,7 +3522,7 @@ const ProjectTitleDashboard = () => {
                   borderRadius: '4px',
                   border: '1px solid #cbd5e1',
                   backgroundColor: 'white',
-                  color: '#1e3a5f',
+                  color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '800',
                   outline: 'none',
@@ -3539,7 +3539,7 @@ const ProjectTitleDashboard = () => {
                 <option value="timeline">Timeline</option>
               </select>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0', margin: '0 4px' }} />
+              <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
 
               <button
                 onClick={handleCloseMaximize}
@@ -3547,9 +3547,9 @@ const ProjectTitleDashboard = () => {
                   padding: '8px 20px',
                   fontSize: '12px',
                   borderRadius: '4px',
-                  border: '1px solid #1e3a5f',
+                  border: '1px solid var(--accent)',
                   backgroundColor: 'white',
-                  color: '#1e3a5f',
+                  color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '900',
                   letterSpacing: '0.05em'
@@ -3559,7 +3559,7 @@ const ProjectTitleDashboard = () => {
               </button>
             </div>
           </div>
-          <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: '#f8fafc' }}>
+          <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg)' }}>
             {/* Stats Overview Bar */}
             {(() => {
               const tid = getTrackerForPhase(maximizedChart)?.trackerId;
@@ -3567,9 +3567,9 @@ const ProjectTitleDashboard = () => {
               const config = axisConfigs[activeProject.id]?.[maximizedChart];
               const xAxis = config?.xAxis;
               const yAxis = config?.yAxis;
-              
+
               if (rows.length === 0) return null;
-              
+
               const uniqueX = xAxis ? new Set(rows.map(r => r[xAxis]).filter(Boolean)).size : 0;
               const numericY = yAxis ? rows.map(r => parseFloat(String(r[yAxis]).replace(/[^0-9.]/g, ''))).filter(v => !isNaN(v)) : [];
               const totalY = numericY.reduce((a, b) => a + b, 0);
@@ -3579,30 +3579,30 @@ const ProjectTitleDashboard = () => {
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>
                   {[
-                    { label: 'Total Records', value: rows.length, color: '#1e3a5f' },
-                    { label: `Unique ${xAxis || 'X-Axis'}`, value: uniqueX, color: '#1e3a5f' },
-                    { label: `Average ${yAxis || 'Y-Axis'}`, value: avgY, color: '#1e3a5f' },
-                    { label: `Maximum ${yAxis || 'Y-Axis'}`, value: maxY, color: '#1e3a5f' }
+                    { label: 'Total Records', value: rows.length, color: 'var(--accent)' },
+                    { label: `Unique ${xAxis || 'X-Axis'}`, value: uniqueX, color: 'var(--accent)' },
+                    { label: `Average ${yAxis || 'Y-Axis'}`, value: avgY, color: 'var(--accent)' },
+                    { label: `Maximum ${yAxis || 'Y-Axis'}`, value: maxY, color: 'var(--accent)' }
                   ].map((stat, i) => (
-                    <div key={i} style={{ backgroundColor: 'white', padding: '16px 20px', borderRadius: '4px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${stat.color}` }}>
-                      <div style={{ fontSize: '10px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</div>
-                      <div style={{ fontSize: '20px', fontWeight: '900', color: '#1e3a5f' }}>{stat.value}</div>
+                    <div key={i} style={{ backgroundColor: 'white', padding: '16px 20px', borderRadius: '4px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${stat.color}` }}>
+                      <div style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</div>
+                      <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--accent)' }}>{stat.value}</div>
                     </div>
                   ))}
                 </div>
               );
             })()}
 
-            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', marginBottom: '30px' }}>
+            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
               <div style={{ height: '550px' }}>
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
             </div>
 
             {/* Detailed Data View Table */}
-            <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a5f' }}>Detailed Data View</h4>
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--accent)' }}>Detailed Data View</h4>
                 <button
                   onClick={() => {
                     const tid = getTrackerForPhase(maximizedChart)?.trackerId;
@@ -3644,16 +3644,16 @@ const ProjectTitleDashboard = () => {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 20px', color: '#475569', fontWeight: '800', borderBottom: '2px solid #e2e8f0' }}>#</th>
-                      <th style={{ padding: '12px 20px', color: '#1e3a5f', fontWeight: '800', borderBottom: '2px solid #e2e8f0' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
-                      <th style={{ padding: '12px 20px', color: '#1e3a5f', fontWeight: '800', borderBottom: '2px solid #e2e8f0' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
+                    <tr style={{ backgroundColor: 'var(--elevated-card)', textAlign: 'left' }}>
+                      <th style={{ padding: '12px 20px', color: '#475569', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
+                      <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
+                      <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
                       {/* Show other relevant columns if available */}
                       {Object.keys(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows[0] || {})
                         .filter(k => k !== axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis && k !== axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis && !k.startsWith('_'))
                         .slice(0, 3)
                         .map(key => (
-                          <th key={key} style={{ padding: '12px 20px', color: '#64748b', fontWeight: '600', borderBottom: '2px solid #e2e8f0' }}>{humanizeLabel(key)}</th>
+                          <th key={key} style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '600', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(key)}</th>
                         ))
                       }
                     </tr>
@@ -3662,15 +3662,15 @@ const ProjectTitleDashboard = () => {
                     {(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows || []).slice(0, 50).map((row, idx) => {
                       const config = axisConfigs[activeProject.id]?.[maximizedChart];
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#f9fafb' }}>
-                          <td style={{ padding: '10px 20px', color: '#94a3b8', fontWeight: '600' }}>{idx + 1}</td>
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--elevated-card)', backgroundColor: idx % 2 === 0 ? 'white' : '#f9fafb' }}>
+                          <td style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: '600' }}>{idx + 1}</td>
                           <td style={{ padding: '10px 20px', color: '#1e293b', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
                           <td style={{ padding: '10px 20px', color: '#3b82f6', fontWeight: '800' }}>{row[config?.yAxis]}</td>
                           {Object.keys(row)
                             .filter(k => k !== config?.xAxis && k !== config?.yAxis && !k.startsWith('_'))
                             .slice(0, 3)
                             .map(key => (
-                              <td key={key} style={{ padding: '10px 20px', color: '#64748b' }}>{row[key]}</td>
+                              <td key={key} style={{ padding: '10px 20px', color: 'var(--text-secondary)' }}>{row[key]}</td>
                             ))
                           }
                         </tr>
@@ -3679,7 +3679,7 @@ const ProjectTitleDashboard = () => {
                   </tbody>
                 </table>
                 {(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows || []).length > 50 && (
-                  <div style={{ padding: '15px', textAlign: 'center', color: '#64748b', fontSize: '12px', fontStyle: 'italic' }}>
+                  <div style={{ padding: '15px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px', fontStyle: 'italic' }}>
                     Showing top 50 rows. Use "Export CSV" for full results.
                   </div>
                 )}
@@ -3694,7 +3694,7 @@ const ProjectTitleDashboard = () => {
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: '#f8fafc',
+      backgroundColor: 'var(--bg)',
       padding: '16px',
       fontFamily: "'Inter', sans-serif"
     }}>
@@ -3762,7 +3762,7 @@ const ProjectTitleDashboard = () => {
             padding: '16px 32px',
             fontSize: '16px',
             fontWeight: '600',
-            borderBottom: '1px solid #e2e8f0',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
@@ -3797,7 +3797,7 @@ const ProjectTitleDashboard = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <span>{activeProject.name} Dashboard</span>
                   {activeProject.project_manager && (
-                    <span style={{ fontSize: '11px', fontWeight: '500', color: '#64748b', marginTop: '2px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '500', color: 'var(--text-secondary)', marginTop: '2px' }}>
                       PM: {activeProject.project_manager}
                     </span>
                   )}
@@ -3835,14 +3835,14 @@ const ProjectTitleDashboard = () => {
                     onClick={() => {
                       // Initialize selectedSections from current dashboard visibility
                       const sections = { ...visibleSections };
-                      
+
                       // Ensure all submodules have an entry (default to false if not in visibleSections)
                       (activeProject?.submodules || []).forEach(sub => {
                         if (sections[sub.id] === undefined) {
                           sections[sub.id] = false;
                         }
                       });
-                      
+
                       setEmailData(prev => ({ ...prev, selectedSections: sections, includePdf: true }));
                       setShowEmailModal(true);
                     }}
@@ -3894,7 +3894,7 @@ const ProjectTitleDashboard = () => {
 
                 {/* Center: Bulk Actions Menu */}
                 {selectionMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
                     <span style={{ fontSize: '12px', fontWeight: 'bold', marginRight: '8px', color: 'var(--text-secondary)' }}>
                       {selectedProjects.length} selected
                     </span>
@@ -3918,9 +3918,9 @@ const ProjectTitleDashboard = () => {
                       </button>
                       {isBulkMenuOpen && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, width: '120px' }}>
-                          <div onClick={() => { setStagedBulkUrgency(null); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', color: 'var(--text-secondary)' }}>Clear</div>
+                          <div onClick={() => { setStagedBulkUrgency(null); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', color: 'var(--text-secondary)' }}>Clear</div>
                           {['Low', 'Medium', 'High', 'Critical'].map(level => (
-                            <div key={level} onClick={() => { setStagedBulkUrgency(level); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontWeight: stagedBulkUrgency === level ? '600' : 'normal', background: stagedBulkUrgency === level ? 'var(--bg)' : 'transparent' }}>{level}</div>
+                            <div key={level} onClick={() => { setStagedBulkUrgency(level); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', fontWeight: stagedBulkUrgency === level ? '600' : 'normal', background: stagedBulkUrgency === level ? 'var(--bg)' : 'transparent' }}>{level}</div>
                           ))}
                         </div>
                       )}
@@ -3958,12 +3958,12 @@ const ProjectTitleDashboard = () => {
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button
                       onClick={() => setViewMode('grid')}
-                      style={{ background: viewMode === 'grid' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
+                      style={{ background: viewMode === 'grid' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
                       <Layout size={16} />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
-                      style={{ background: viewMode === 'list' ? '#f1f5f9' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
+                      style={{ background: viewMode === 'list' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     </button>
                   </div>
@@ -4041,50 +4041,50 @@ const ProjectTitleDashboard = () => {
           /* Submodule Detail View */
           <div style={{ padding: '0 25px 25px 25px' }}>
             {renderSubmoduleTable(
-                      selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones, 
+              selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones,
               getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
             )}
           </div>
         ) : (
           /* Active Project Dashboard */
           <>
-              <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <VPProjectDashboard 
-                  activeProject={activeProject} 
-                  dashboardData={dashboardData} 
-                  onConfigure={() => setShowSimulateModal(true)} 
-                  onSendMail={() => setShowEmailModal(true)} 
-                  metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
-                  visibleSections={visibleSections}
-                />
-                
-                {visibleSections.budget && (
-                  <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
-                      <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
-                    </header>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                      <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#0f172a' }}>{symbol}{summaryData.budgetApproved}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
-                      </div>
+            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <VPProjectDashboard
+                activeProject={activeProject}
+                dashboardData={dashboardData}
+                onConfigure={() => setShowSimulateModal(true)}
+                onSendMail={() => setShowEmailModal(true)}
+                metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
+                visibleSections={visibleSections}
+              />
+
+              {visibleSections.budget && (
+                <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                  <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+                    <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
+                  </header>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
                     </div>
-                  </section>
-                )}
-              </section>
+                    <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
+                    </div>
+                    <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
+                    </div>
+                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
+                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </section>
             {/* End project-dashboard-main-content */}
 
             <PdfPreviewModal
@@ -4165,7 +4165,7 @@ const RichTextEditor = ({ value, onChange }) => {
 
   return (
     <div style={{ border: '1px solid #c0c0c0', borderRadius: '4px', overflow: 'hidden' }}>
-      <div style={{ backgroundColor: '#f8fafc', padding: '6px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '4px' }}>
+      <div style={{ backgroundColor: 'var(--bg)', padding: '6px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: '4px' }}>
         <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('bold'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>B</button>
         <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('italic'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontStyle: 'italic' }}>I</button>
         <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('underline'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>U</button>
@@ -4234,7 +4234,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
 
   return (
     <div style={{ marginBottom: '12px' }}>
-      <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>{label}</label>
+      <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--accent)', fontSize: '13px' }}>{label}</label>
       <div
         style={{
           display: 'flex',
@@ -4255,11 +4255,11 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
           <div key={`${type}-${index}`} style={{
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: '#e2e8f0',
+            backgroundColor: 'var(--border-subtle)',
             padding: '2px 8px',
             borderRadius: '12px',
             fontSize: '12px',
-            color: '#1e3a5f'
+            color: 'var(--accent)'
           }}>
             <span>{email}</span>
             <button
@@ -4270,7 +4270,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
                 border: 'none',
                 marginLeft: '4px',
                 cursor: 'pointer',
-                color: '#64748b',
+                color: 'var(--text-secondary)',
                 fontWeight: 'bold',
                 fontSize: '14px',
                 padding: '0 2px'
@@ -4349,12 +4349,12 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
                     display: 'flex',
                     flexDirection: 'column',
                     opacity: isDisabled ? 0.4 : 1,
-                    backgroundColor: isDisabled ? '#f8fafc' : 'white'
+                    backgroundColor: isDisabled ? 'var(--bg)' : 'white'
                   }}
                   onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = '#f0f7ff'; }}
                   onMouseLeave={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = 'white'; }}
                 >
-                  <span style={{ fontWeight: 'bold', fontSize: '12px', color: '#1e3a5f' }}>{contact.name || 'Unknown Name'}</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '12px', color: 'var(--accent)' }}>{contact.name || 'Unknown Name'}</span>
                   <span style={{ fontSize: '11px', color: '#6b7280' }}>{contact.email} • {contact.department || 'No Dept'}</span>
                 </div>
               )
@@ -4449,7 +4449,7 @@ const EmailModal = ({
       }}>
         {/* Header */}
         <div style={{
-          backgroundColor: '#1e3a5f',
+          backgroundColor: 'var(--accent)',
           color: 'white',
           padding: '15px 20px',
           fontSize: '18px',
@@ -4483,7 +4483,7 @@ const EmailModal = ({
           flex: 1
         }}>
           <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '15px' }}>
-            Email the dashboard summary for <span style={{ fontWeight: 'bold', color: '#1e3a5f' }}>{activeProject?.name}</span>.
+            Email the dashboard summary for <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{activeProject?.name}</span>.
           </p>
 
           {formError && (
@@ -4494,7 +4494,7 @@ const EmailModal = ({
 
           {/* To, CC, BCC fields */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4px' }}>
-            <label style={{ fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
+            <label style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
             <div style={{ display: 'flex', gap: '10px' }}>
               {!showCc && <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer', padding: 0 }} onClick={() => setShowCc(true)}>Add CC</button>}
               {!showBcc && <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer', padding: 0 }} onClick={() => setShowBcc(true)}>Add BCC</button>}
