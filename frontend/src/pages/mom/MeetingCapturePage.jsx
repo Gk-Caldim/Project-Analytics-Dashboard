@@ -149,22 +149,47 @@ function isNoiseLine(text) {
   return false;
 }
 
-const ACTION_VERBS = /\b(will|need|must|assign|action|decide|agree|approve|plan|schedule|review|update|fix|resolve|create|build|share|send|follow|investigate|check|verify|test|deploy|start|finish|complete|work on|look into)\b/i;
+const ACTION_VERBS = /\b(will|need|must|assign|action|decide|agree|approve|plan|schedule|review|update|fix|resolve|create|build|share|send|follow|investigate|check|verify|test|deploy|start|finish|complete|work on|look into|align|discuss|roadmap|revamp|feature)\b/i;
 
 function isActionable(text) {
   if (ACTION_VERBS.test(text)) return true;
-  if (text.length > 40 && !text.includes('?')) return true;
+  if (text.length > 45) return true; // Long sentences are usually discussion points
   return false;
 }
 
 // ── Generate MOM rows from entries ────────────────────────────────────────
 function makeRowsFromEntries(entries, meta) {
   const { meetingTitle, projectId, projectName, currentUserName } = meta;
-  const speechEntries = entries.filter(e => e.type === 'dialogue' && e.speaker !== 'Unattributed');
+  const speechEntries = entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker !== 'Unattributed');
   const generatedRows = [];
   let rowCount = 1;
 
   speechEntries.forEach(entry => {
+    // If it's a manual entry, we trust it more
+    if (entry.type === 'manual') {
+      let funcStr = 'General';
+      const tl = entry.text.toLowerCase();
+      if (/api|backend|database|db|sql|server|latency|endpoint|python|fastapi/i.test(tl)) funcStr = 'Backend';
+      else if (/ui|frontend|react|dashboard|button|page|screen|component|css/i.test(tl)) funcStr = 'Frontend';
+      else if (entry.entry_type === 'decision') funcStr = 'Decision';
+
+      generatedRows.push({
+        id: Date.now() + Math.random(),
+        s_no: String(rowCount++),
+        function: funcStr,
+        project_name: projectName || meetingTitle || 'Untitled',
+        criticality: 'Medium',
+        discussion_point: entry.text,
+        responsibility: entry.speaker || currentUserName,
+        target: '',
+        project_id: projectId ? Number(projectId) : undefined,
+        status: entry.entry_type === 'decision' ? 'Closed' : 'Pending',
+        action_taken: 'None',
+        isManual: true
+      });
+      return;
+    }
+
     let rawSentences = [entry.text];
     if (/[.?!]/.test(entry.text)) {
       rawSentences = entry.text.replace(/([a-z])\.([A-Z])/g, "$1. $2").split(/(?<=[.?!])\s+/);
@@ -282,6 +307,9 @@ const MeetingCapturePage = () => {
   const speakerColorMapRef = useRef({});
 
   const [manualText, setManualText] = useState('');
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [manualForm, setManualForm] = useState({ speaker: '', text: '', type: 'note' });
+  const [genError, setGenError] = useState(null);
   const [renamingSpeaker, setRenamingSpeaker] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [isConfirmingSpeakers, setIsConfirmingSpeakers] = useState(false);
@@ -307,7 +335,10 @@ const MeetingCapturePage = () => {
 
   useEffect(() => {
     if (projectId && projects.length > 0) {
-      const p = projects.find(proj => String(proj.id || proj.project_id) === String(projectId));
+      // Find by either dbProjectId (integer) or id (slug/integer)
+      const p = projects.find(proj => 
+        String(proj.dbProjectId || proj.id || proj.project_id) === String(projectId)
+      );
       if (p) setProjectName(p.name || p.project_name);
     }
   }, [projectId, projects]);
@@ -472,15 +503,54 @@ const MeetingCapturePage = () => {
     setRenamingSpeaker(null);
   };
 
+  const saveManualLine = () => {
+    if (!manualForm.speaker.trim() || !manualForm.text.trim()) {
+      toast.error('Speaker and content are required');
+      return;
+    }
+    const color = getSpeakerColor(manualForm.speaker);
+    const newEntry = {
+      id: Date.now() + Math.random(),
+      type: 'manual',
+      speaker: manualForm.speaker,
+      text: manualForm.text,
+      entry_type: manualForm.type,
+      time: nowTime(),
+      ...color
+    };
+    setEntries(prev => {
+      const updated = [...prev, newEntry];
+      broadcastEntries(updated);
+      return updated;
+    });
+    setIsAddingManual(false);
+    setManualForm({ speaker: '', text: '', type: 'note' });
+  };
+
+  const cancelManualLine = () => {
+    setIsAddingManual(false);
+    setManualForm({ speaker: '', text: '', type: 'note' });
+  };
+
   const addNewLine = () => {
-    setEntries(prev => [...prev, { id: Date.now(), type: 'dialogue', speaker: currentUser.name, time: nowTime(), text: '', ...getSpeakerColor(currentUser.name) }]);
+    setIsAddingManual(true);
+    setManualForm(prev => ({ ...prev, speaker: currentUser.name }));
   };
 
   const handleGenerate = async () => {
     if (!projectId) { toast.error('Select a project first'); return; }
     setGenerating(true);
     try {
-      const payload = { transcript: entries.filter(e => e.type === 'dialogue').map(e => ({ speaker: e.speaker, text: e.text, time: e.time })), title: meetingTitle, projectId };
+      const payload = { 
+        transcript: entries.filter(e => e.type === 'dialogue' || e.type === 'manual').map(e => ({ 
+          speaker: e.speaker, 
+          text: e.text, 
+          time: e.time,
+          isManual: e.type === 'manual'
+        })), 
+        title: meetingTitle, 
+        projectId 
+      };
       const resp = await API.post(`/meetings/${meetingId}/generate-mom`, payload);
       
       // One source of truth for Redux
@@ -511,13 +581,43 @@ const MeetingCapturePage = () => {
             project_name: projectName
           }))
         ];
+        if (aiRows.length > 0) {
+          aiRows[0]._rawEntries = entries;
+        }
         dispatch(setMomData(aiRows));
-        navigate('/dashboard/mom/view');
+        
+        if (aiRows.length === 0) {
+          // If AI fails to find structured points, try heuristic fallback instead of just erroring
+          const fallback = makeRowsFromEntries(entries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
+          if (fallback.length > 0) {
+            dispatch(setMomData(fallback));
+            navigate('/dashboard/mom/view');
+            return;
+          }
+          setGenError("Generation produced no content. Check transcript format.");
+          setGenerating(false);
+          return;
+        }
+
+        setGenError(null);
+        const mid = resp.data.meeting_id || meetingId;
+        navigate(`/dashboard/mom/view/${mid}`);
       }
     } catch (_) {
       const rows = makeRowsFromEntries(entries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
+      if (rows.length > 0) {
+        rows[0]._rawEntries = entries;
+      }
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
       dispatch(setMomData(rows));
+      
+      if (rows.length === 0) {
+        setGenError("Generation produced no content. Check transcript format.");
+        setGenerating(false);
+        return;
+      }
+
+      setGenError(null);
       navigate('/dashboard/mom/view');
     } finally { setGenerating(false); }
   };
@@ -581,7 +681,11 @@ const MeetingCapturePage = () => {
                 onChange={e => setProjectId(e.target.value)}
               >
                 <option value="">Select a project...</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                {projects.map(p => (
+                  <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
             {!isProjectLinked && (
@@ -665,38 +769,69 @@ const MeetingCapturePage = () => {
               {isConfirmingSpeakers ? 'CONFIRM SPEAKERS' : (hasEntries ? 'TRANSCRIPT REVIEW' : 'PREVIEW')}
             </span>
             {hasEntries && !isConfirmingSpeakers && (() => {
-              const dialogues = entries.filter(e => e.type === 'dialogue' && e.speaker);
+              const dialogues = entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker);
               const hasDialogues = dialogues.length > 0;
               return (
-                <button className="mcp-generate-btn-inline" onClick={handleGenerate} disabled={generating || !hasDialogues}>
-                  {generating ? 'Processing...' : 'Generate MOM'}
-                </button>
+                <div style={{ position: 'relative' }}>
+                  <button 
+                    className="mcp-generate-btn-inline" 
+                    onClick={handleGenerate} 
+                    disabled={generating || !hasDialogues}
+                    style={{ 
+                      background: '#0D9488', 
+                      color: 'white', 
+                      fontSize: '14px', 
+                      fontWeight: 500, 
+                      padding: '9px 20px', 
+                      borderRadius: '6px', 
+                      border: 'none',
+                      cursor: (generating || !hasDialogues) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {generating ? 'Processing...' : 'Generate MOM'}
+                  </button>
+                  {genError && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', fontSize: '13px', color: '#F59E0B', width: '240px', textAlign: 'right', fontWeight: 500 }}>
+                      {genError}
+                    </div>
+                  )}
+                </div>
               );
             })()}
           </div>
 
           {hasEntries && !isConfirmingSpeakers && (() => {
-            const dialogues = entries.filter(e => e.type === 'dialogue' && e.speaker);
+            const dialogues = entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker);
             const metadata  = entries.filter(e => e.type === 'metadata');
             const uniqueSpeakers = Array.from(new Set(dialogues.map(e => e.speaker))).filter(n => !PLATFORM_NAMES.has(n.toLowerCase()));
+            
+            const isNoDialogue = dialogues.length === 0;
+            const summaryText = isNoDialogue 
+              ? "No dialogue detected — check transcript format"
+              : `${dialogues.length} lines · ${metadata.length} metadata · ${uniqueSpeakers.length} speakers — ready to generate MOM`;
+            
             return (
-              <div className="mcp-summary-bar">
-                <span style={{ color: '#0D9488', fontSize: '13px', fontWeight: 500 }}>
-                  {dialogues.length} lines · {metadata.length} metadata · {uniqueSpeakers.length} speakers
+              <div className="mcp-summary-bar" style={{ padding: '8px 24px' }}>
+                <span style={{ 
+                  color: isNoDialogue ? '#F59E0B' : '#0D9488', 
+                  fontSize: '13px', 
+                  fontWeight: 500 
+                }}>
+                  {summaryText}
                 </span>
               </div>
             );
           })()}
 
-          {hasEntries && !isConfirmingSpeakers && entries.some(e => e.type === 'dialogue' && isNoiseLine(e.text)) && (
+          {hasEntries && !isConfirmingSpeakers && entries.some(e => (e.type === 'dialogue' || e.type === 'manual') && isNoiseLine(e.text)) && (
             <div className="mcp-cleanup-banner">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <AlertCircle size={16} color="#F59E0B" style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: '13px', color: '#92400E' }}>
-                  {entries.filter(e => e.type === 'dialogue' && isNoiseLine(e.text)).length} filler lines detected
+                  {entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && isNoiseLine(e.text)).length} filler lines detected — these are greetings and mic checks
                 </span>
               </div>
-              <button className="mcp-cleanup-btn" onClick={() => { const cleaned = entries.filter(e => e.type !== 'dialogue' || !isNoiseLine(e.text)); setEntries(cleaned); broadcastEntries(cleaned); toast.success('Filler lines removed'); }}>Remove Filler</button>
+              <button className="mcp-cleanup-btn" onClick={() => { const cleaned = entries.filter(e => (e.type !== 'dialogue' && e.type !== 'manual') || !isNoiseLine(e.text)); setEntries(cleaned); broadcastEntries(cleaned); toast.success('Filler lines removed'); }}>Remove Filler Lines</button>
             </div>
           )}
 
@@ -755,7 +890,7 @@ const MeetingCapturePage = () => {
                   </div>
                 )}
                 <div style={{ marginTop: 16 }}>
-                  {[...entries.filter(e => e.type === 'dialogue' && e.speaker), ...(interimEntry ? [interimEntry] : [])].map(e => {
+                  {[...entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker), ...(interimEntry ? [interimEntry] : [])].map(e => {
                     const isNoise = isNoiseLine(e.text);
                     return (
                       <div key={e.id} className="mcp-dialogue-card" style={{ opacity: isNoise ? 0.7 : 1 }}>
@@ -765,6 +900,9 @@ const MeetingCapturePage = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                               <span onClick={() => handleRenameSpeaker(e.speaker)} style={{ fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>{e.speaker}</span>
                               <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{e.time}</span>
+                              {e.type === 'manual' && (
+                                <span style={{ background: '#EEF2FF', color: '#4338CA', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 600 }}>MANUAL</span>
+                              )}
                               {isNoise && <span className="mcp-filler-chip">FILLER</span>}
                               <div style={{ marginLeft: 'auto' }}>
                                 <button className="mcp-delete-btn" onClick={() => deleteEntry(e.id)}><X size={14} /></button>
@@ -779,6 +917,109 @@ const MeetingCapturePage = () => {
                       </div>
                     );
                   })}
+
+                  {isAddingManual && (
+                    <div style={{ 
+                      borderLeft: '3px solid #0D9488', 
+                      padding: '12px 16px', 
+                      background: '#F8FAFC', 
+                      borderRadius: '0 8px 8px 0', 
+                      marginBottom: '8px',
+                      animation: 'mcp-slide-up 0.2s ease-out'
+                    }}>
+                      {/* Row 1 — speaker + label */}
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          placeholder="Speaker name" 
+                          value={manualForm.speaker}
+                          onChange={e => setManualForm(prev => ({ ...prev, speaker: e.target.value }))}
+                          style={{ 
+                            fontSize: '13px', 
+                            fontWeight: 500, 
+                            color: '#1E293B',
+                            border: 'none', 
+                            borderBottom: '1px solid #E2E8F0', 
+                            background: 'transparent', 
+                            width: '160px', 
+                            padding: '2px 0',
+                            outline: 'none'
+                          }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '12px' }}>Manual entry</span>
+                      </div>
+
+                      {/* Row 2 — content textarea */}
+                      <textarea 
+                        placeholder="Type meeting note, decision, or action item..."
+                        value={manualForm.text}
+                        onChange={e => setManualForm(prev => ({ ...prev, text: e.target.value }))}
+                        style={{ 
+                          width: '100%', 
+                          marginTop: '8px', 
+                          fontSize: '14px', 
+                          color: '#1E293B', 
+                          border: 'none', 
+                          borderBottom: '1px solid #E2E8F0',
+                          background: 'transparent', 
+                          resize: 'none', 
+                          minHeight: '60px', 
+                          lineHeight: '1.6', 
+                          outline: 'none'
+                        }}
+                      />
+
+                      {/* Row 3 — type selector + save */}
+                      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center' }}>
+                        <select 
+                          value={manualForm.type}
+                          onChange={e => setManualForm(prev => ({ ...prev, type: e.target.value }))}
+                          style={{ 
+                            fontSize: '12px', 
+                            border: '0.5px solid #E2E8F0',
+                            borderRadius: '4px', 
+                            padding: '3px 8px', 
+                            color: '#475569',
+                            background: '#fff',
+                            outline: 'none'
+                          }}
+                        >
+                          <option value="note">Note</option>
+                          <option value="decision">Decision</option>
+                          <option value="action">Action Item</option>
+                        </select>
+                        
+                        <button 
+                          onClick={saveManualLine}
+                          style={{ 
+                            marginLeft: '8px', 
+                            fontSize: '12px', 
+                            color: '#0D9488',
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: 'pointer', 
+                            fontWeight: 500 
+                          }}
+                        >
+                          Save
+                        </button>
+                        
+                        <button 
+                          onClick={cancelManualLine}
+                          style={{ 
+                            marginLeft: '8px', 
+                            fontSize: '12px', 
+                            color: '#94A3B8',
+                            background: 'none', 
+                            border: 'none', 
+                            cursor: 'pointer' 
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <button onClick={addNewLine} style={{ color: '#0D9488', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '8px 0' }}>
                     <Plus size={13} /> Add line
                   </button>

@@ -40,6 +40,7 @@ from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
 from app.models.transcript import Transcript  # noqa: F401
 from app.models.mom import MOMSession  # noqa: F401
+from app.models.mom_sync_history import MomSyncHistory # noqa: F401
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
  # noqa: F401
@@ -174,9 +175,12 @@ app.include_router(tracker_router, prefix=API_PREFIX, tags=["Tracker"])
 from app.api.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix=API_PREFIX)
 
-from app.api.issues import router as issues_router, mom_router
+from app.api.issues import router as issues_router, mom_router as history_mom_router
 app.include_router(issues_router, prefix=API_PREFIX, tags=["Issues"])
-app.include_router(mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
+app.include_router(history_mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
+
+from app.routers.mom import router as new_mom_router
+app.include_router(new_mom_router, prefix="/api/mom", tags=["mom"])
 
 from app.api.websockets import router as websockets_router
 app.include_router(websockets_router, prefix=API_PREFIX)

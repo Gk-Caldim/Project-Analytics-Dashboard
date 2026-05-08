@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-# Use QueuePool for connection pooling to speed up queries
-from sqlalchemy.pool import QueuePool
+# Use QueuePool for local, NullPool for Cloud/Supabase to avoid pooler conflicts
+from sqlalchemy.pool import QueuePool, NullPool
 from app.core.config import DATABASE_URL, IS_CLOUD_DB
 
 # Create engine with connection pooling
@@ -10,7 +10,7 @@ connect_args = {}
 if IS_CLOUD_DB:
     connect_args = {
         "sslmode": "require",
-        "options": "-c statement_cache_size=0 -c statement_timeout=15000",  # DISABLE prepared statements & add 15s timeout
+        "options": "-c statement_timeout=15000",  # Add 15s timeout
         "connect_timeout": 10,  # 10 second timeout for establishing the connection
     }
 else:
@@ -19,16 +19,33 @@ else:
         "connect_timeout": 10
     }
 
-engine = create_engine(
-    DATABASE_URL,
-    poolclass=QueuePool,
-    pool_size=5,          # Maintain up to 5 permanent connections
-    max_overflow=10,      # Allow up to 10 extra temporary connections
-    pool_timeout=30,      # Wait up to 30s for a connection from the pool
-    pool_recycle=300,     # Recycle connections after 5 minutes (lower than Supabase timeout)
-    pool_pre_ping=True,   # Check connection health before using it
-    connect_args=connect_args,
-)
+# Use NullPool for Cloud (Supabase) because it already uses PgBouncer (Transaction mode)
+# Using client-side pooling on top of PgBouncer can cause connection exhaustion or "prepared statement" errors.
+pool_class = NullPool if IS_CLOUD_DB else QueuePool
+pool_args = {}
+
+if not IS_CLOUD_DB:
+    pool_args = {
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
+
+print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        poolclass=pool_class,
+        connect_args=connect_args,
+        **pool_args
+    )
+    print(f"[DB] Engine created successfully.")
+except Exception as e:
+    print(f"[DB] FAILED to create engine: {e}")
+    raise
+
 
 SessionLocal = sessionmaker(
     autocommit=False,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
 import API from '../../utils/api';
@@ -59,6 +59,7 @@ const TargetDateCell = ({ value, onChange }) => {
     <div 
       onClick={() => setIsEditing(true)}
       className={`flex items-center justify-center gap-1 cursor-pointer hover:bg-gray-50 rounded px-1 py-1 transition-colors ${isOverdue ? 'text-red-600 font-bold' : 'text-gray-600 font-mono font-bold'}`}
+      style={{ whiteSpace: 'nowrap' }}
     >
       <Calendar size={12} />
       <span>{formatted}</span>
@@ -134,9 +135,19 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
-  const { meetingId, meetingName, projectId: reduxProjectId, projectName: reduxProjectName, status: reduxStatus } = useSelector(state => state.mom);
+  const { 
+    meetingId, 
+    meetingName, 
+    projectId: reduxProjectId, 
+    projectName: reduxProjectName, 
+    status: reduxStatus,
+    lastSaved: reduxLastSaved,
+    date: reduxDate
+  } = useSelector(state => state.mom);
 
   const effectiveProjectId = lockedProjectId || reduxProjectId;
+
+
 
   const allAssignedTo = React.useMemo(() => {
     if (!meetings || meetings.length <= 1) return null;
@@ -179,9 +190,22 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       return;
     }
 
-    const rowsToSync = meetings.filter(m => m.criticality === 'High' || m.criticality === 'Critical');
+    const rowsToSync = meetings.filter(m => {
+      const text = (m.discussion_point || '').trim();
+      
+      // Exclude empty action points
+      if (!text) return false;
+      
+      return true;
+    });
+
     if (rowsToSync.length === 0) {
-      if (silent !== true) toast.error('No High priority rows found to sync.');
+      if (silent !== true) {
+        toast.error(
+          'No valid action items found. ' +
+          'Review the table to ensure there are items to sync.'
+        );
+      }
       return;
     }
 
@@ -193,19 +217,35 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       if (!owner) return;
 
       let parsedDate = null;
-      if (target) {
-        const iso = Date.parse(target);
-        if (!isNaN(iso)) parsedDate = new Date(iso).toISOString().split('T')[0];
+      if (target && target !== '—' && target.toLowerCase() !== 'tbd') {
+        // 1. Try native parsing
+        const timestamp = Date.parse(target);
+        if (!isNaN(timestamp)) {
+          parsedDate = new Date(timestamp).toISOString().split('T')[0];
+        } else {
+          // 2. Manual parsing for DD/MM/YYYY
+          const parts = target.split(/[-/]/);
+          if (parts.length === 3) {
+            // DD/MM/YYYY or DD-MM-YYYY
+            if (parts[2].length === 4 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+              parsedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+            // YYYY/MM/DD
+            else if (parts[0].length === 4 && !isNaN(parts[1]) && !isNaN(parts[2])) {
+               parsedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+          }
+        }
       }
 
       actions.push({
-        title: actionText.slice(0, 50) || `MOM Action ${idx + 1}`,
-        description: actionText,
+        title: actionText.length > 150 ? actionText.slice(0, 147) + '...' : actionText,
+        description: actionText.length > 150 ? actionText : '',
         owner,
-        department: m.function || undefined,
-        priority: 'High',
+        department: m.function || 'General',
+        priority: m.criticality === 'Critical' ? 'High' : (m.criticality || 'Medium'),
         due_date: parsedDate,
-        status: m.status === 'Done' || m.status === 'Closed' ? 'Closed' : 'Open',
+        status: m.status || 'PENDING',
       });
     });
 
@@ -214,13 +254,23 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       return;
     }
 
+    const targetProjectId = Number(effectiveProjectId);
+    if (isNaN(targetProjectId)) {
+      if (silent !== true) toast.error('Invalid Project ID. Please re-link the project.');
+      setSyncFlowState('error');
+      return;
+    }
+
     setSyncFlowState('syncing');
     const startTime = Date.now();
     
     try {
       const resp = await API.post('/mom/issues', {
-        project_id: Number(effectiveProjectId),
+        project_id: targetProjectId,
         meeting_id: meetingId || null,
+        meeting_name: meetingName || 'Untitled Meeting',
+        date: reduxDate || new Date().toISOString().split('T')[0],
+        mom_output_url: window.location.href,
         actions,
       });
       
@@ -240,6 +290,14 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     }
   };
 
+  // ── Auto-sync on Save Logic ────────────────────────────────────
+  useEffect(() => {
+    if (autoSyncEnabled && reduxStatus === 'saved' && reduxLastSaved) {
+      // Trigger sync silently
+      handleSyncIssues(true);
+    }
+  }, [reduxLastSaved, reduxStatus, autoSyncEnabled]);
+
   // ── Manual per-row sync: push ANY row to Issue Engine ──────────────
   const handleManualSyncRow = async (row) => {
     if (!effectiveProjectId) {
@@ -252,7 +310,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       return;
     }
     const actionText = (row.discussion_point || '').trim();
-    const title50 = actionText.slice(0, 50) || 'MOM Action';
+    const titleText = actionText.length > 150 ? actionText.slice(0, 147) + '...' : actionText;
+    const descText = actionText.length > 150 ? actionText : '';
     let parsedDate = null;
     if (row.target) {
       const iso = Date.parse(row.target);
@@ -262,8 +321,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       await API.post('/mom/issues/manual', {
         project_id: Number(effectiveProjectId),
         meeting_id: meetingId || null,
-        title: title50,
-        description: actionText || title50,
+        title: titleText || 'MOM Action',
+        description: descText,
         owner,
         department: row.function || undefined,
         priority: row.criticality === 'High' || row.criticality === 'Critical' ? 'High' : 'Medium',
@@ -421,7 +480,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         Auto-sync on save
                       </div>
                       <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px', lineHeight: '1.3' }}>
-                        Automatically sync Critical & High priority issues when saving MOM.
+                        Automatically sync all action items to project dashboard when saving MOM.
                       </div>
                     </div>
                   </label>
@@ -469,36 +528,56 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             </div>
 
             {/* Roster List */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {syncRoster.slice(0, 5).map((item, idx) => (
                 <div
                   key={idx}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '12px', height: '40px',
-                    borderBottom: '0.5px solid #E2E8F0', fontSize: '13px'
+                    borderBottom: '0.5px solid #E2E8F0', fontSize: '13px',
+                    padding: '0 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.5)'
                   }}
                 >
-                  <span style={{ fontSize: '11px', color: '#94A3B8', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', minWidth: '24px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#94A3B8', background: '#fff', padding: '2px 6px', borderRadius: '4px', minWidth: '24px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
                     {item.s_no || idx + 1}
                   </span>
-                  <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#334155' }}>
+                  <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#334155', fontWeight: 500 }}>
                     {item.discussion_point}
                   </div>
                   <div className={`mvp-priority-pill ${item.criticality}`} style={{ transform: 'scale(0.85)' }}>
                     {item.criticality}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#64748B', minWidth: '100px' }}>
+                  <div style={{ fontSize: '12px', color: '#64748B', minWidth: '100px', textAlign: 'right' }}>
                     {item.responsibility}
                   </div>
                 </div>
               ))}
-              {syncRoster.length > 5 && (
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #E2E8F0' }}>
                 <button
-                  style={{ marginTop: '12px', color: '#0D9488', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                  onClick={() => navigate(`/dashboard/projects?projectId=${effectiveProjectId}`)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 700,
+                    background: '#fff', color: '#0D9488', border: '1.5px solid #0D9488',
+                    cursor: 'pointer', transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#F0FDFA'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
                 >
-                  Show all {syncRoster.length} synced items →
+                  <Layout size={14} />
+                  View in Dashboard
+                  <ArrowRight size={14} />
                 </button>
-              )}
+
+                {syncRoster.length > 5 && (
+                  <button
+                    style={{ color: '#64748B', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    + {syncRoster.length - 5} more items synced
+                  </button>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
@@ -820,39 +899,37 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     <td className="px-4 py-2 text-center text-gray-500" style={cellBorder}>
                       <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
                     </td>
-                    <td className="px-4 py-2 text-center" style={cellBorder}>
-                       <select defaultValue={m.status || 'Pending'}
-                         style={m.status === 'Pending' || !m.status ? { background: '#FAEEDA', color: '#854F0B', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' } : m.status === 'Done' ? { background: '#D1FAE5', color: '#065F46', fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: 'none', padding: '4px 12px' } : { fontSize: '12px', fontWeight: 500, borderRadius: '4px', border: '1px solid #E2E8F0', padding: '4px 12px' }}
-                         className="cursor-pointer outline-none block mx-auto"
-                         onChange={(e) => onUpdateMeeting(m.id, { status: e.target.value })}
-                       >
-                         <option value="Pending">PENDING</option>
-                         <option value="Done">RESOLVED</option>
-                         <option value="Closed">CLOSED</option>
-                         <option value="Blocked">BLOCKED</option>
-                       </select>
-                    </td>
-                    <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
-                      <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
-                    </td>
-                    <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
-                        <button onClick={() => onDeleteMeeting(m.id || idx)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {/* Empty Rows to complete the "Form" look if fewer than 10 rows */}
-              {meetings.length < 5 && Array.from({ length: 5 - meetings.length }).map((_, i) => (
-                <tr key={`empty-${i}`} className="h-12">
-                  {Array.from({ length: 10 }).map((__, j) => (
-                    <td key={`cell-${j}`} className={`border border-gray-200 ${j === 9 ? 'print:hidden' : ''}`}></td>
-                  ))}
-                </tr>
-              ))}
+                     <td className="px-4 py-2 text-center" style={cellBorder}>
+                        <select 
+                          value={m.status || 'Pending'}
+                          style={
+                            m.status === 'Closed' || m.status === 'Done' 
+                              ? { background: '#D1FAE5', color: '#065F46', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: 'none', padding: '4px 10px' } 
+                              : (m.status === 'Pending' || m.status === 'Open')
+                                ? { background: '#FAEEDA', color: '#854F0B', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: 'none', padding: '4px 10px' }
+                                : { background: '#F1F5F9', color: '#475569', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: '1px solid #E2E8F0', padding: '4px 10px' }
+                          }
+                          className="cursor-pointer outline-none block mx-auto uppercase"
+                          onChange={(e) => onUpdateMeeting(m.id, { status: e.target.value })}
+                        >
+                          <option value="Open">OPEN</option>
+                          <option value="Pending">PENDING</option>
+                          <option value="In Progress">IN PROGRESS</option>
+                          <option value="Closed">CLOSED</option>
+                        </select>
+                     </td>
+                     <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
+                       <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
+                     </td>
+                     <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
+                       <div className="flex items-center justify-center gap-1">
+                         <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
+                         <button onClick={() => onDeleteMeeting(m.id || idx)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
+                       </div>
+                     </td>
+                   </tr>
+                 );
+               })}
             </tbody>
           </table>
         </div>

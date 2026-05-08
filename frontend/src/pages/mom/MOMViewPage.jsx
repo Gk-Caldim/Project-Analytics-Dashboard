@@ -4,7 +4,7 @@
  * Backend frozen: uses existing momSlice + POST /mom/issues API
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
@@ -52,12 +52,17 @@ const MOMViewPage = () => {
   const [employees, setEmployees] = useState([]);
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const { meetingId: urlMeetingId } = useParams();
+  const effectiveMeetingId = urlMeetingId || meetingId;
+
+  const [loading, setLoading] = useState(false);
+  const [localTranscript, setLocalTranscript] = useState([]);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -68,7 +73,80 @@ const MOMViewPage = () => {
     API.get('/employees').then(r => {
       setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => { });
-  }, []);
+
+    // Hydrate if meetingId is provided in URL and Redux is empty or needs refresh
+    if (urlMeetingId && (!momData || momData.length === 0 || meetingId !== urlMeetingId)) {
+      setLoading(true);
+      
+      Promise.all([
+        API.get(`/meetings/${urlMeetingId}`).catch(() => null),
+        API.get(`/mom/${urlMeetingId}`).catch(() => null)
+      ])
+        .then(([meetingRes, momRes]) => {
+          const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
+          if (!m) {
+            toast.error("Failed to load meeting details.");
+            return;
+          }
+
+          const transcript = m.transcript || [];
+          setLocalTranscript(transcript); // Store transcript locally so it survives even if rows are empty
+
+          let finalRows = [];
+
+          if (momRes?.data?.mom_data) {
+            // Priority 1: Saved edited MOM data
+            finalRows = momRes.data.mom_data;
+          } else if (m.intelligence_data) {
+            // Priority 2: Original AI generated data
+            const intel = m.intelligence_data;
+            finalRows = [
+              ...(intel?.action_items || []).map(a => ({ 
+                id: Math.random(), 
+                function: 'General', 
+                criticality: a.priority || 'Medium', 
+                discussion_point: a.description, 
+                responsibility: a.owner, 
+                target: a.due_date || 'TBD', 
+                status: 'Pending', 
+                project_id: m.project_id,
+                project_name: m.title
+              })),
+              ...(intel?.decisions || []).map(d => ({ 
+                id: Math.random(), 
+                function: 'Decision', 
+                criticality: 'Medium', 
+                discussion_point: d, 
+                responsibility: 'Everyone', 
+                status: 'Resolved', 
+                project_id: m.project_id,
+                project_name: m.title
+              }))
+            ];
+          }
+
+          if (finalRows.length > 0) {
+            finalRows[0]._rawEntries = transcript;
+          }
+
+          dispatch(setMomDataRedux(finalRows));
+          dispatch({ 
+            type: 'mom/setMeetingContext', 
+            payload: { 
+              meetingId: m.id, 
+              meetingName: m.title, 
+              projectId: m.project_id,
+              projectName: m.project_id ? m.title : ''
+            } 
+          });
+        })
+        .catch(err => {
+          console.error("Hydration failed", err);
+          toast.error("Failed to load saved meeting data.");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [urlMeetingId, dispatch]);
 
   // ── Derive sections from momData ─────────────────────────────────────
   const rows = momData || [];
@@ -76,21 +154,21 @@ const MOMViewPage = () => {
   // Executive Summary counts
   const execSummary = useMemo(() => {
     const risks = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical').length;
-    const attention = rows.filter(r => r.status === 'Pending' || r.status === 'Blocked').length;
-    const completed = rows.filter(r => r.status === 'Done' || r.status === 'Closed').length;
-    const decisions = rows.filter(r => r._rawEntries?.some(e => e.type === 'event' && e.label === 'Decisions') || false).length;
-    return { risks, attention, completed, decisions };
+    const pending = rows.filter(r => r.status === 'Pending' || r.status === 'Open').length;
+    const resolved = rows.filter(r => r.status === 'Done' || r.status === 'Closed' || r.status === 'Resolved').length;
+    return { risks, pending, resolved, total: rows.length };
   }, [rows]);
 
-  // Discussion entries from raw transcript stored per row
+  // Discussion entries from raw transcript stored per row or local state
   const transcriptEntries = useMemo(() => {
+    if (localTranscript && localTranscript.length > 0) return localTranscript;
     for (const row of rows) {
       if (Array.isArray(row._rawEntries) && row._rawEntries.length > 0) {
         return row._rawEntries;
       }
     }
     return [];
-  }, [rows]);
+  }, [rows, localTranscript]);
 
   // Participation Metrics
   const participationData = useMemo(() => {
@@ -111,7 +189,7 @@ const MOMViewPage = () => {
     let durText = '—';
     const durEntry = transcriptEntries.find(e => e.type === 'metadata' && (e.field === 'DURATION' || e.label === 'Duration'));
     if (durEntry && durEntry.value) {
-      durText = durEntry.value.replace(/minutes?/i, 'min').trim();
+      durText = durEntry.value.replace(/minutes?|min/gi, '').trim();
     }
 
     const participantNames = Array.from(new Set(transcriptEntries.filter(e => e.type === 'dialogue' && e.speaker).map(e => e.speaker)));
@@ -155,53 +233,6 @@ const MOMViewPage = () => {
     dispatch(deleteMomRow(id));
   }, [dispatch]);
 
-  const handleSyncIssues = useCallback(async () => {
-    if (!projectId) {
-      toast.error('No project linked — link a project during capture.');
-      return;
-    }
-    const targetProjectId = Number(projectId);
-
-    const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical');
-    if (highRows.length === 0) { toast.error('No High/Critical rows to sync'); return; }
-
-    const actions = highRows
-      .filter(r => r.responsibility?.trim())
-      .map(r => ({
-        title: (r.discussion_point || '').slice(0, 50),
-        description: r.discussion_point || '',
-        owner: r.responsibility || '',
-        department: r.function,
-        priority: r.criticality === 'Critical' || r.criticality === 'High' ? 'High' : 'Medium',
-        due_date: (() => { const d = Date.parse(r.target); return isNaN(d) ? null : new Date(d).toISOString().split('T')[0]; })(),
-        status: 'Open',
-      }));
-
-    if (actions.length === 0) { toast.error('Rows missing Responsibility — fill Owner column first'); return; }
-
-    setSyncing(true);
-    const t = toast.loading('Syncing to Issue Engine…');
-    try {
-      const resp = await API.post('/mom/issues', { project_id: targetProjectId, actions });
-      setSyncResult(resp.data);
-      setShowSyncModal(true);
-
-      if (resp.data.issues_created > 0) {
-        toast.success(`✓ ${resp.data.issues_created} issues created`, { id: t });
-      } else if (resp.data.missing_dates_downgraded > 0) {
-        toast.success(`⬇ ${resp.data.missing_dates_downgraded} priority downgraded`, { id: t });
-      } else {
-        toast.error(`No issues created (${resp.data.issues_skipped} skipped)`, { id: t });
-      }
-    } catch (err) {
-      const rawDetail = err?.response?.data?.detail;
-      const detail = Array.isArray(rawDetail)
-        ? rawDetail.map(e => `${e.loc?.join('.')} — ${e.msg}`).join('; ')
-        : (rawDetail || err.message || 'Sync failed');
-      toast.error(detail, { id: t });
-    } finally { setSyncing(false); }
-  }, [projectId, rows]);
-
   const handleCopy = useCallback(() => {
     const header = 'Priority\tAction\tOwner\tDue Date\tStatus';
     const body = rows.map(r => `${r.criticality}\t${r.discussion_point}\t${r.responsibility}\t${r.target}\t${r.status}`).join('\n');
@@ -218,6 +249,10 @@ const MOMViewPage = () => {
       return;
     }
     const targetProjectId = Number(projectId);
+    if (isNaN(targetProjectId)) {
+      toast.error('Invalid Project ID — please re-select your project.');
+      return;
+    }
 
     try {
       await dispatch(saveMOM({
@@ -310,78 +345,94 @@ const MOMViewPage = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
                         <Clock style={{ width: 12, height: 12, color: '#94A3B8' }} />
-                        {session.metadata.duration || '—'}
+                        {session.metadata.duration !== '—' ? `${session.metadata.duration} min` : '—'}
                       </span>
                       <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
                         <Users style={{ width: 12, height: 12, color: '#94A3B8' }} />
-                        {session.metadata.participants.length > 0 ? `${session.metadata.participants.length} participants` : 'No participants'}
+                        {session.metadata.participants.length > 0 ? `${session.metadata.participants.length} participants` : '—'}
                       </span>
                       <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
-                      <span style={{ fontSize: '12px', color: '#94A3B8' }}>
-                        Saved {session.lastSavedTime !== '—' ? `at ${session.lastSavedTime}` : 'not yet'}
+                      <span style={{ fontSize: '13px', color: '#64748B' }}>
+                        {session.lastSavedTime !== '—' ? `Last saved: ${session.lastSavedTime}` : 'not yet'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Right: controls column */}
+                  {/* Right: controls bar — Split into two right-aligned rows */}
                   <div style={{
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'flex-end', justifyContent: 'space-between',
-                    gap: '10px', flexShrink: 0
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                    justifyContent: 'center', gap: '12px', flexShrink: 0
                   }}>
-                    {/* Project chip */}
-                    {projectName ? (
-                      <div style={{
-                        padding: '3px 12px', borderRadius: '4px',
-                        background: '#F0FDFA', color: '#0D9488',
-                        border: '1px solid #99F6E4',
-                        fontSize: '12px', fontWeight: 600,
-                        whiteSpace: 'nowrap', maxWidth: '180px',
-                        overflow: 'hidden', textOverflow: 'ellipsis'
-                      }} title={projectName}>
-                        {projectName}
-                      </div>
-                    ) : (
-                      <div style={{
-                        padding: '3px 12px', borderRadius: '4px',
-                        background: '#FFFBEB', color: '#D97706',
-                        border: '1px solid #FDE68A',
-                        fontSize: '12px', fontWeight: 600
-                      }}>
-                        No Project Linked
-                      </div>
-                    )}
+                    {/* Row 1: Project & Status Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {projectName ? (
+                        <div style={{
+                          padding: '4px 12px', borderRadius: '4px',
+                          background: '#F0FDFA', color: '#0D9488',
+                          border: '1px solid #99F6E4',
+                          fontSize: '12px', fontWeight: 700,
+                          whiteSpace: 'nowrap', maxWidth: '180px',
+                          overflow: 'hidden', textOverflow: 'ellipsis'
+                        }} title={projectName}>
+                          {projectName}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '4px 12px', borderRadius: '4px',
+                          background: '#FFFBEB', color: '#D97706',
+                          border: '1px solid #FDE68A',
+                          fontSize: '12px', fontWeight: 700
+                        }}>
+                          No Project Linked
+                        </div>
+                      )}
 
-                    {/* Status */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      fontSize: '11px', fontWeight: 600, color: '#059669',
-                      textTransform: 'uppercase', letterSpacing: '0.05em'
-                    }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
-                      On Track
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        fontSize: '11px', fontWeight: 700, color: '#059669',
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
+                        On Track
+                      </div>
                     </div>
 
-                    {/* Save */}
-                    <button
-                      onClick={handleSave}
-                      disabled={status === 'saving'}
-                      style={{
-                        height: '34px', padding: '0 20px',
-                        background: '#0D9488', color: '#fff',
-                        border: 'none', borderRadius: '6px',
-                        fontSize: '13px', fontWeight: 600, fontFamily: 'inherit',
-                        cursor: status === 'saving' ? 'not-allowed' : 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        opacity: status === 'saving' ? 0.7 : 1,
-                        transition: 'background 0.15s'
-                      }}
-                      onMouseEnter={e => { if (status !== 'saving') e.currentTarget.style.background = '#0B7F74'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = '#0D9488'; }}
-                    >
-                      {status === 'saving' ? <><Loader size={13} className="animate-spin" /> Saving…</> : saveSuccess ? <><Check size={13} /> Saved</> : 'Save MOM'}
-                    </button>
+                    {/* Row 2: Buttons Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        onClick={handleSave}
+                        disabled={status === 'saving'}
+                        style={{
+                          height: '36px', padding: '7px 16px',
+                          background: '#0D9488', color: '#fff',
+                          border: 'none', borderRadius: '6px',
+                          fontSize: '13px', fontWeight: 500, fontFamily: 'inherit',
+                          cursor: status === 'saving' ? 'not-allowed' : 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          opacity: status === 'saving' ? 0.7 : 1,
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {status === 'saving' ? <><Loader size={14} className="animate-spin" /> Saving…</> : saveSuccess ? <><Check size={14} /> Saved</> : 'Save MOM'}
+                      </button>
+
+                      <button
+                        onClick={() => setDiscussionOpen(true)}
+                        style={{
+                          height: '36px', padding: '7px 16px',
+                          background: 'white', color: '#0D9488',
+                          border: '1px solid #0D9488', borderRadius: '6px',
+                          fontSize: '13px', fontWeight: 500, fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <MessageSquare size={14} />
+                        View Transcript
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -397,41 +448,32 @@ const MOMViewPage = () => {
                           <div className="mvp-stat-value">{execSummary.risks}</div>
                           <div className="mvp-stat-label">Key Risks</div>
                         </div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.risks === 0 ? '#166534' : '#DC2626', marginTop: '4px' }}>
-                          {execSummary.risks === 0 ? '↓ from last meeting' : `${execSummary.risks} new`}
-                        </div>
                       </div>
                     </div>
                     <div className="mvp-stat-item pending">
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.attention}</div>
+                          <div className="mvp-stat-value">{execSummary.pending}</div>
                           <div className="mvp-stat-label">Pending Actions</div>
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: execSummary.attention > 0 ? '#D97706' : '#64748B', marginTop: '4px' }}>
-                          {execSummary.attention > 0 ? `${execSummary.attention} new` : 'None pending'}
                         </div>
                       </div>
                     </div>
                     <div className="mvp-stat-item resolved">
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.completed}</div>
+                          <div className="mvp-stat-value">{execSummary.resolved}</div>
                           <div className="mvp-stat-label">Resolved</div>
                         </div>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                          {execSummary.completed === 0 ? 'None yet' : 'In progress'}
+                          {execSummary.resolved === 0 ? 'None yet' : 'Tasks completed'}
                         </div>
                       </div>
                     </div>
                     <div className="mvp-stat-item total">
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{rows.length}</div>
+                          <div className="mvp-stat-value">{execSummary.total}</div>
                           <div className="mvp-stat-label">Total Actions</div>
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
-                          Captured from transcript
                         </div>
                       </div>
                     </div>
@@ -440,13 +482,30 @@ const MOMViewPage = () => {
 
                 {/* ── 2. The Original Meeting Table ── */}
                 <div style={{ marginTop: '24px' }}>
-                  <MeetingTable
-                    meetings={rows}
-                    employees={employees}
-                    onUpdateMeeting={handleUpdate}
-                    onDeleteMeeting={handleDelete}
-                    lockedProjectId={projectId ? String(projectId) : undefined}
-                  />
+                  {rows.length > 0 ? (
+                    <MeetingTable
+                      meetings={rows}
+                      employees={employees}
+                      onUpdateMeeting={handleUpdate}
+                      onDeleteMeeting={handleDelete}
+                      lockedProjectId={projectId ? String(projectId) : undefined}
+                    />
+                  ) : (
+                    <div style={{ padding: '48px', textAlign: 'center', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                      <p style={{ fontSize: '15px', color: '#1E293B', fontWeight: 500 }}>
+                        No action items generated
+                      </p>
+                      <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '6px' }}>
+                        Go back to Review and verify transcript content.
+                      </p>
+                      <Link 
+                        to="/dashboard/mom" 
+                        style={{ fontSize: '13px', color: '#0D9488', marginTop: '16px', display: 'inline-block', fontWeight: 500 }}
+                      >
+                        ← Back to Review
+                      </Link>
+                    </div>
+                  )}
                 </div>
 
                 <style>{`

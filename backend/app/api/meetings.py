@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.meeting import Meeting
+from app.models.project import Project
 from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator
 from app.services.google_token_service import GoogleTokenService
 from app.services.email_service import email_service
@@ -246,39 +247,46 @@ async def google_clear_tokens(db: Session = Depends(get_db)):
 
 @router.get("/")
 async def list_meetings(db: Session = Depends(get_db)):
-    meetings = db.query(Meeting).all()
-    results = []
-    for m in meetings:
-        
-        # parse attendees
-        attendees_list = []
-        try:
-            attendees_list = json.loads(m.attendees) if m.attendees else []
-        except Exception:
-            attendees_list = []
+    try:
+        meetings = db.query(Meeting).all()
+        results = []
+        for m in meetings:
             
-        results.append({
-            "id":           m.id,
-            "title":        m.title,
-            "date":         m.date,
-            "time":         m.time,
-            "platform":     m.platform,
-            "join_url":     m.join_url,
-            "joinUrl":      m.join_url,
-            "meeting_code": m.meeting_code,
-            "meetingCode":  m.meeting_code,
-            "status":       m.status,
-            "duration":     m.duration_minutes,
-            "attendees":    attendees_list,
-            "agenda_text":  m.agenda_text,
-            "action_item_count": m.action_item_count,
-            "actual_duration_minutes": m.actual_duration_minutes,
-            "attendance_rate": m.attendance_rate,
-            "attendance_rate": m.attendance_rate,
-            "mom_generated": m.mom_generated,
-            "project_id":    m.project_id,
-        })
-    return {"success": True, "meetings": results}
+            # parse attendees
+            attendees_list = []
+            try:
+                attendees_list = json.loads(m.attendees) if m.attendees else []
+            except Exception:
+                attendees_list = []
+                
+            results.append({
+                "id":           m.id,
+                "title":        m.title,
+                "date":         m.date,
+                "time":         m.time,
+                "platform":     m.platform,
+                "join_url":     m.join_url,
+                "joinUrl":      m.join_url,
+                "meeting_code": m.meeting_code,
+                "meetingCode":  m.meeting_code,
+                "status":       m.status,
+                "duration":     m.duration_minutes,
+                "attendees":    attendees_list,
+                "agenda_text":  m.agenda_text,
+                "action_item_count": m.action_item_count,
+                "actual_duration_minutes": m.actual_duration_minutes,
+                "attendance_rate": m.attendance_rate,
+                "mom_generated": m.mom_generated,
+                "project_id":    m.project_id,
+            })
+        return {"success": True, "meetings": results}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(
+            f"[meetings/list] Error: {e}", exc_info=True
+        )
+        # Return empty list — do not crash. Frontend handles empty gracefully.
+        return {"success": True, "meetings": []}
 
 
 @router.get("/availability")
@@ -421,6 +429,8 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "cancellation_note": meeting.cancellation_note,
             "cancelled_by": meeting.cancelled_by,
             "project_id":   meeting.project_id,
+            "transcript":   json.loads(meeting.transcript) if meeting.transcript else [],
+            "intelligence_data": json.loads(meeting.intelligence_data) if meeting.intelligence_data else None,
         },
     }
 
@@ -512,15 +522,25 @@ async def generate_mom(meeting_id: str, payload: dict, db: Session = Depends(get
     transcript = payload.get("transcript", [])
     title = meeting.title if meeting else payload.get("title", "Untitled Meeting")
     
+    # Get Project Name for context
+    project_name = "Unknown Project"
+    if meeting and meeting.project_id:
+        proj = db.query(Project).filter(Project.id == meeting.project_id).first()
+        if proj:
+            project_name = proj.name
+
     # Call LLM Service
-    intelligence = llm_service.generate_mom_intelligence(transcript, title)
+    intelligence = llm_service.generate_mom_intelligence(transcript, title, project_name)
     
     if meeting:
         meeting.mom_generated = True
         meeting.action_item_count = len(intelligence.get("action_items", []))
+        meeting.transcript = json.dumps(transcript)
+        meeting.intelligence_data = json.dumps(intelligence)
         db.commit()
     
     return {
         "success": True,
+        "meeting_id": meeting_id,
         "intelligence": intelligence
     }
