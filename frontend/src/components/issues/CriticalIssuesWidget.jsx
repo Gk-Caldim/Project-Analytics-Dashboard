@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  AlertCircle, Clock, ChevronRight, Filter, Search, 
+import {
+  AlertCircle, Clock, ChevronRight, Filter, Search,
   User, Calendar, TrendingDown, TrendingUp, Minus,
   CheckCircle2, AlertTriangle, ListFilter
 } from 'lucide-react';
@@ -12,7 +12,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
-  
+
   // Filter States
   const [statusFilter, setStatusFilter] = useState('All'); // Default to All instead of Open to show more data
   const [priorityFilter, setPriorityFilter] = useState('High'); // Keep High as default for 'Critical' widget
@@ -24,7 +24,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
       setLoading(true);
       // Fetch issues based on filters
       // Backend handles sorting (Overdue first)
-      const data = await listIssues({ 
+      const data = await listIssues({
         project_id: projectId,
         status: statusFilter === 'All' ? undefined : statusFilter,
         priority: priorityFilter === 'All' ? undefined : priorityFilter
@@ -46,7 +46,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
   const filteredIssues = useMemo(() => {
     let result = issues;
     if (searchQuery) {
-      result = result.filter(iss => 
+      result = result.filter(iss =>
         iss.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         iss.owner?.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -102,10 +102,10 @@ const CriticalIssuesWidget = ({ projectId }) => {
           <span style={styles.countBadge}>{issues.length}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button 
+          <button
             onClick={() => setShowFilters(!showFilters)}
-            style={{ 
-              ...styles.iconBtn, 
+            style={{
+              ...styles.iconBtn,
               backgroundColor: showFilters ? '#eff6ff' : 'transparent',
               border: showFilters ? '1px solid #bfdbfe' : '1px solid transparent'
             }}
@@ -120,16 +120,16 @@ const CriticalIssuesWidget = ({ projectId }) => {
         <div style={styles.filterBar}>
           <div style={styles.searchBox}>
             <Search size={14} color="#94a3b8" />
-            <input 
-              placeholder="Search title or owner..." 
+            <input
+              placeholder="Search title or owner..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               style={styles.searchInput}
             />
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select 
-              value={statusFilter} 
+            <select
+              value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
               style={styles.select}
             >
@@ -138,8 +138,8 @@ const CriticalIssuesWidget = ({ projectId }) => {
               <option value="In Progress">In Progress</option>
               <option value="Closed">Closed</option>
             </select>
-            <select 
-              value={priorityFilter} 
+            <select
+              value={priorityFilter}
               onChange={e => setPriorityFilter(e.target.value)}
               style={styles.select}
             >
@@ -158,15 +158,15 @@ const CriticalIssuesWidget = ({ projectId }) => {
           <div style={styles.emptyState}>
             <CheckCircle2 size={32} color="#10b981" style={{ marginBottom: 12, opacity: 0.5 }} />
             <div style={styles.emptyText}>
-              {searchQuery || statusFilter !== 'All' || priorityFilter !== 'High' 
-                ? "No issues match these filters." 
+              {searchQuery || statusFilter !== 'All' || priorityFilter !== 'High'
+                ? "No issues match these filters."
                 : "No critical issues"}
             </div>
           </div>
         ) : (
           filteredIssues.map(issue => (
-            <div 
-              key={issue.id} 
+            <div
+              key={issue.id}
               style={styles.row}
               onClick={() => setSelectedIssue(issue)}
             >
@@ -177,12 +177,12 @@ const CriticalIssuesWidget = ({ projectId }) => {
                   <div style={styles.issueMeta}>
                     <span style={styles.metaItem}><User size={10} /> {issue.owner}</span>
                     <span style={styles.separator} />
-                    <span style={{ 
-                      ...styles.metaItem, 
+                    <span style={{
+                      ...styles.metaItem,
                       color: issue.health_status === 'Overdue' ? '#ef4444' : '#64748b',
                       fontWeight: issue.health_status === 'Overdue' ? 700 : 500
                     }}>
-                      <Calendar size={10} /> 
+                      <Calendar size={10} />
                       {issue.due_date ? new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'No Due Date'}
                     </span>
                   </div>
@@ -196,8 +196,8 @@ const CriticalIssuesWidget = ({ projectId }) => {
 
       {/* ── Details Panel ── */}
       {selectedIssue && (
-        <IssueDetailModal 
-          issue={selectedIssue} 
+        <IssueDetailModal
+          issue={selectedIssue}
           onClose={() => setSelectedIssue(null)}
           onUpdated={fetchIssues}
         />

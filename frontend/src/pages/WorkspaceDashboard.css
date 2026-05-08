@@ -1,15 +1,15 @@
 .ws-dash-root {
   display: flex;
   min-height: 100vh;
-  background-color: var(--brand-surface);
-  font-family: var(--font-sans);
-  color: var(--brand-navy);
+  background-color: var(--bg);
+  font-family: var(--font-primary);
+  color: var(--text-primary);
 }
 
 /* ── SIDEBAR ── */
 .ws-sidebar {
   width: 240px;
-  background-color: var(--brand-navy);
+  background-color: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -17,7 +17,7 @@
   top: 0;
   height: 100vh;
   flex-shrink: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--border-subtle);
 }
 
 .ws-sidebar-top {
@@ -44,7 +44,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 24px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -53,19 +53,19 @@
 }
 
 .ws-nav-item:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--accent);
+  background-color: var(--bg);
 }
 
 .ws-nav-item.active {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-left-color: var(--brand-red);
+  color: var(--accent);
+  background-color: var(--elevated-card);
+  border-left-color: var(--accent);
 }
 
 .ws-sidebar-bottom {
   padding: 24px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .ws-user-profile {

@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
 
 :root {
-  --brand-red: #C8341A;
-  --red-hover: #A0280F;
-  --red-light-bg: #FAECE7;
-  --navy: #0D1B2A;
-  --muted-text: #6B7280;
-  --surface: #F7F6F3;
-  --border: rgba(13, 27, 42, 0.12);
+  --brand-red: #2563EB;
+  --red-hover: #3B82F6;
+  --red-light-bg: #eff6ff;
+  --navy: #0F172A;
+  --muted-text: #475569;
+  --surface: #F8FAFC;
+  --border: #CBD5E1;
   --font-serif: 'Playfair Display', serif;
-  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --font-sans: 'Inter', -apple-system, sans-serif;
 }
 
 .zoho-lp-root {
@@ -173,7 +173,7 @@
   margin-bottom: 24px;
 }
 
-.text-brand-red {
+.text-brand-primary {
   color: var(--brand-red);
 }
 
