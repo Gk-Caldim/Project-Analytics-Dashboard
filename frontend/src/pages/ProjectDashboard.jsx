@@ -2785,11 +2785,11 @@ const ProjectTitleDashboard = () => {
         backgroundColor: 'rgba(255, 255, 255, 0.96)',
         borderColor: '#CBD5E1',
         borderWidth: 1,
-        textStyle: { color: '#2563EB', fontSize: 12 },
+        textStyle: { color: '#1e293b', fontSize: 12 },
         extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
         formatter: (params) => {
           if (!params || params.length === 0) return '';
-          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #2563EB;">${formatXAxisValue(params[0].axisValue)}</div>`;
+          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #1e293b;">${formatXAxisValue(params[0].axisValue)}</div>`;
           params.forEach(p => {
             const val = typeof p.value === 'number' ? Math.round(p.value * 100) / 100 : p.value;
             html += `<div style="display: flex; justify-content: space-between; gap: 24px; align-items: center; margin-bottom: 3px;">
@@ -2797,7 +2797,7 @@ const ProjectTitleDashboard = () => {
                 <span style="display:inline-block;margin-right:8px;border-radius:2px;width:10px;height:10px;background-color:${p.color};"></span>
                 <span style="color: #475569; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
               </span>
-              <span style="font-weight: 800; color: #2563EB;">${val} ${derivedConfig ? 'Days' : ''}</span>
+              <span style="font-weight: 800; color: #1e293b;">${val} ${derivedConfig ? 'Days' : ''}</span>
             </div>`;
           });
           return html;
@@ -2816,8 +2816,8 @@ const ProjectTitleDashboard = () => {
             backgroundColor: '#fff',
             textareaColor: '#fff',
             textareaBorderColor: '#CBD5E1',
-            textColor: '#2563EB',
-            buttonColor: '#2563EB',
+            textColor: '#1e293b',
+            buttonColor: '#1e293b',
             buttonTextColor: '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
@@ -2825,8 +2825,8 @@ const ProjectTitleDashboard = () => {
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
                   <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
-                    <th style="padding:10px;color:#2563EB;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
-                    <th style="padding:10px;color:#2563EB;font-weight:800;">Value</th>
+                    <th style="padding:10px;color:#1e293b;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
+                    <th style="padding:10px;color:#1e293b;font-weight:800;">Value</th>
                   </tr>
                 </thead>
                 <tbody>`;
@@ -2837,7 +2837,7 @@ const ProjectTitleDashboard = () => {
                   const val = typeof item === 'object' ? item.value : item;
                   table += `<tr style="border-bottom:1px solid #F1F5F9;">
                     <td style="padding:8px 10px;color:#475569;">${name}</td>
-                    <td style="padding:8px 10px;color:#2563EB;font-weight:700;">${val}</td>
+                    <td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val}</td>
                   </tr>`;
                 });
               }
@@ -2849,11 +2849,11 @@ const ProjectTitleDashboard = () => {
             show: true,
             title: 'Download',
             pixelRatio: 3,
-            iconStyle: { borderColor: '#2563EB' }
+            iconStyle: { borderColor: '#1e293b' }
           }
         },
         iconStyle: { borderColor: 'var(--text-muted)' },
-        emphasis: { iconStyle: { borderColor: '#2563EB' } }
+        emphasis: { iconStyle: { borderColor: '#1e293b' } }
       },
       dataZoom: xLabels.length > 10 ? [
         { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
@@ -2930,7 +2930,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -2963,7 +2963,7 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold'
               }
@@ -3000,7 +3000,7 @@ const ProjectTitleDashboard = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.96)',
             borderColor: '#CBD5E1',
             borderWidth: 1,
-            textStyle: { color: '#2563EB' },
+            textStyle: { color: '#1e293b' },
             formatter: (p) => `<div style="padding: 4px;"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:#475569">Value:</span> <b>${p.value}</b><br/><span style="color:#475569">Share:</span> <b>${p.percent}%</b></div>`
           },
           toolbox: baseOption.toolbox, // retain toolbox from base option
@@ -3025,7 +3025,7 @@ const ProjectTitleDashboard = () => {
                 edgeDistance: 10,
                 lineHeight: 15,
                 rich: {
-                  name: { fontSize: 9, fontWeight: '700', color: '#2563EB', padding: [0, 0, 2, 0] },
+                  name: { fontSize: 9, fontWeight: '700', color: '#1e293b', padding: [0, 0, 2, 0] },
                   value: { fontSize: 9, fontWeight: '800', color: '#3b82f6' },
                   percent: { fontSize: 9, color: '#475569' }
                 }
@@ -3066,7 +3066,7 @@ const ProjectTitleDashboard = () => {
             axisLabel: {
               interval: 0,
               fontSize: 10,
-              color: '#2563EB',
+              color: '#1e293b',
               fontWeight: '600'
             }
           },
@@ -3092,7 +3092,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3138,7 +3138,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 9,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''

@@ -15,6 +15,7 @@ import {
   markNotificationsRead
 } from '../store/slices/navSlice';
 import { logout } from '../store/slices/authSlice';
+import Sidebar from '../components/Sidebar';
 import AgentView from './AgentView';
 import {
   Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
@@ -100,12 +101,8 @@ const Dashboard = () => {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
   const unreadNotifications = useSelector(state => state.nav.unreadNotifications);
-  const [hoveredModule, setHoveredModule] = useState(null);
-
   const profileMenuRef = useRef(null);
   const notificationMenuRef = useRef(null);
-  const sidebarRef = useRef(null);
-  const hoverTimeoutRef = useRef(null);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
   const [notificationMenuPosition, setNotificationMenuPosition] = useState({ top: 0, right: 0 });
 
@@ -159,9 +156,7 @@ const Dashboard = () => {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      if (sidebarRef.current) {
-        // Any specific cleanup
-      }
+      // Any specific cleanup
     };
   }, []);
 
@@ -184,7 +179,7 @@ const Dashboard = () => {
     try {
       const { default: APIInstance } = await import("../utils/api");
       const structuresData = await APIInstance.get('/projects/all/structures');
-      
+
       const structures = Array.isArray(structuresData.data) ? structuresData.data : [];
       console.log('[Dashboard] dynamic modules fetched:', structures.length);
 
@@ -195,7 +190,7 @@ const Dashboard = () => {
 
         const projectName = capitalizeFirstLetter(struct.project_name || 'Uncategorized');
         const projectKey = struct.project_id;
-        
+
         const projectModule = {
           id: projectKey,
           moduleId: `project-${projectKey}`,
@@ -216,7 +211,7 @@ const Dashboard = () => {
             // Strip file extension for display
             const trackerName = fileName.replace(/\.[^/.]+$/, '');
             const trackerId = u.upload_id;
-            
+
             // Avoid duplicates
             if (!projectModule.submodules.some(s => s.trackerId === trackerId)) {
               projectModule.submodules.push({
@@ -238,10 +233,10 @@ const Dashboard = () => {
       });
 
       const finalList = Array.from(dashProjectsMap.values());
-      
+
       // Auto-expand loaded projects
       const initialExpanded = {};
-      finalList.forEach(p => { 
+      finalList.forEach(p => {
         initialExpanded[`project-dashboard-${p.id}`] = true;
         initialExpanded[`upload-trackers-${p.id}`] = true;
       });
@@ -249,10 +244,10 @@ const Dashboard = () => {
 
       setProjectDashboardModules(finalList);
       setUploadTrackerModules(finalList);
-      
+
       // Cache to localStorage for faster initial load
       localStorage.setItem('project_dashboard_modules', JSON.stringify(finalList));
-      
+
     } catch (error) {
       console.error('[Dashboard] Critical error in loadDynamicModules:', error);
     }
@@ -715,359 +710,7 @@ const Dashboard = () => {
   // RENDER FUNCTIONS - ALL WITH WHITE TEXT ON BLUE BACKGROUND
   // ==========================================================================
 
-  const renderProjectDashboardModule = () => {
-    if (!hasPermission('Dashboard')) return null;
-
-    const isActive = activeModule === 'project-dashboard';
-
-    return (
-      <div key="project-dashboard">
-        <button
-          onClick={() => handleModuleClick('project-dashboard')}
-          className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-[3px] ${isActive
-              ? 'border-l-[#0D9488] text-white font-medium'
-              : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-            }`}
-        >
-          <div className="flex items-center gap-3">
-            <LayoutIcon className="h-5 w-5" />
-            <span className="text-[19px] font-medium tracking-tight">
-              Dashboard
-            </span>
-          </div>
-        </button>
-      </div>
-    );
-  };
-
-  const renderUploadTrackersModule = () => {
-    if (!hasPermission('Upload Trackers')) return null;
-
-    const isActive = activeModule === 'upload-trackers';
-    const isExpanded = expandedModules['upload-trackers'];
-    const hasDynamicModules = uploadTrackerModules.length > 0;
-    const isHovered = hoveredModule === 'upload-trackers';
-
-    return (
-      <div key="upload-trackers">
-        <div
-          onMouseEnter={() => setHoveredModule('upload-trackers')}
-          onMouseLeave={() => setHoveredModule(null)}
-          onClick={() => handleModuleClick('upload-trackers')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast ${isSidebarExpanded ? 'justify-between px-4 py-2' : 'justify-center p-2'
-            } ${isActive
-              ? 'bg-brand-primary/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/60 hover:text-white'
-            }`}
-        >
-          <div className="flex items-center">
-            {isSidebarExpanded && (
-              <span className="text-body-sm font-medium tracking-tight">
-                Trackers
-              </span>
-            )}
-          </div>
-          {isSidebarExpanded && hasDynamicModules && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion('upload-trackers', e);
-              }}
-              className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-            </button>
-          )}
-        </div>
-
-        {isSidebarExpanded && isExpanded && hasDynamicModules && (
-          <div className="ml-[1.75rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {uploadTrackerModules.map(projectModule => renderProjectModule(projectModule, 'upload-trackers'))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderUploadsModule = () => {
-    if (!hasPermission('Upload Trackers')) return null;
-
-    const isExpanded = expandedModules['uploads'];
-    const isActive = activeModule === 'uploads-main' || activeModule === 'upload-trackers';
-
-    return (
-      <div key="uploads">
-        <div
-          onClick={() => toggleModuleExpansion('uploads')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
-              ? 'text-white'
-              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
-            }`}
-        >
-          <div className="flex items-center gap-3">
-            <FileUp className="h-5 w-5" />
-            <span className="text-[19px] font-medium tracking-tight">
-              Uploads
-            </span>
-          </div>
-          <button className="ml-auto">
-            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-0.5 mt-0.5 pb-1">
-            <button
-              onClick={() => handleModuleClick('upload-trackers')}
-              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'upload-trackers'
-                  ? 'border-l-[#0D9488] text-white font-medium'
-                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-                }`}
-            >
-              <span className="text-[18px]">
-                Trackers
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderMOMModule = () => {
-    if (!hasPermission('MOM')) return null;
-
-    const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || isOnMOMView;
-    const isAllMeetingsActive = activeModule === 'meetings' || isOnMOMView;
-
-    return (
-      <div key="mom">
-        <div
-          onClick={() => toggleModuleExpansion('mom')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
-              ? 'text-white'
-              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
-            }`}
-        >
-          <div className="flex items-center gap-3">
-            <Calendar className="h-5 w-5" />
-            <span className="text-[19px] font-medium tracking-tight">
-              Meetings
-            </span>
-          </div>
-          <button className="ml-auto">
-            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-0.5 mt-0.5 pb-1">
-            <button
-              onClick={() => handleModuleClick('meetings')}
-              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${isAllMeetingsActive
-                  ? 'border-l-[#0D9488] text-white font-medium'
-                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-                }`}
-            >
-              <span className="text-[18px]">
-                {isOnMOMView ? 'MOM Output' : 'All Meetings'}
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module' && !isOnMOMView
-                  ? 'border-l-[#0D9488] text-white font-medium'
-                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-                }`}
-            >
-              <span className="text-[18px]">
-                Create MOM
-              </span>
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderMastersModule = () => {
-    const visibleSubmodules = mastersSubmodules.filter(sub => hasPermission(sub.name));
-    if (visibleSubmodules.length === 0) return null;
-
-    const isExpanded = expandedModules['masters'];
-    const isActive = activeModule === 'masters-main' || mastersSubmodules.some(s => s.id === activeModule);
-
-    return (
-      <div key="masters">
-        <div
-          onClick={() => toggleModuleExpansion('masters')}
-          className={`w-full flex items-center cursor-pointer transition-all duration-fast px-4 py-2 ${isActive
-              ? 'text-white'
-              : 'text-[#94A3B8] opacity-60 hover:opacity-100'
-            }`}
-        >
-          <div className="flex items-center gap-3">
-            <Database className="h-5 w-5" />
-            <span className="text-[19px] font-medium tracking-tight">
-              Master
-            </span>
-          </div>
-          <button className="ml-auto">
-            {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-          </button>
-        </div>
-
-        {isExpanded && (
-          <div className="space-y-0.5 mt-0.5 pb-1">
-            {visibleSubmodules.map(module => {
-              const isSubActive = activeModule === module.id;
-              return (
-                <button
-                  key={module.id}
-                  onClick={() => handleModuleClick(module.id)}
-                  className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${isSubActive
-                      ? 'border-l-[#0D9488] text-white font-medium'
-                      : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-                    }`}
-                >
-                  <span className="text-[18px]">
-                    {module.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ==========================================================================
-  // FIXED: Pass isSelected function to renderProjectModule
-  // ==========================================================================
-  const renderProjectModule = (projectModule, context) => {
-    const projectKey = projectModule.id || projectModule.projectId || projectModule.name;
-    const uniqueId = `${context}-${projectKey}`;
-    // Check both Redux and local state for expansion
-    const isExpanded = expandedModules[uniqueId] || expandedProjects[uniqueId] || false;
-    const hasFiles = projectModule.submodules?.length > 0;
-    const isHovered = hoveredModule === uniqueId;
-
-    return (
-      <div key={uniqueId} className="group">
-        <div className="flex items-center justify-between">
-          <div
-            onMouseEnter={() => setHoveredModule(uniqueId)}
-            onMouseLeave={() => setHoveredModule(null)}
-            onClick={(e) => {
-              toggleModuleExpansion(uniqueId, e);
-              if (context === 'project-dashboard') {
-                handleModuleClick('project-dashboard');
-                const pId = projectModule.id || projectModule.projectId || projectModule.name;
-                window.dispatchEvent(new CustomEvent('openProjectDashboardMain', {
-                  detail: { projectId: pId }
-                }));
-              }
-            }}
-            className={`flex-1 flex items-center px-4 py-2 transition-all duration-fast cursor-pointer ${isHovered
-              ? 'bg-white/10 text-white font-semibold'
-              : 'hover:bg-white/5 text-white/70 hover:text-white'
-              }`}
-          >
-            <span className="text-[18px] font-medium truncate tracking-tight">
-              {projectModule.name}
-            </span>
-          </div>
-          {hasFiles && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleModuleExpansion(uniqueId, e);
-              }}
-              className="p-1 mr-2 rounded hover:bg-white/5 transition-colors text-white/20 hover:text-white"
-            >
-              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            </button>
-          )}
-        </div>
-
-        {isExpanded && hasFiles && (
-          <div className="ml-[1.25rem] border-l border-white/5 space-y-0.5 mt-0.5 pb-1">
-            {projectModule.submodules.map(fileModule => renderFileModule(fileModule, context, projectKey))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ==========================================================================
-  // FIXED: Use context-specific selection check with project key
-  // ==========================================================================
-  const renderFileModule = (fileModule, context, projectKey) => {
-    const isSelected = isFileSelected(fileModule, context);
-    const fileId = `${context}-${fileModule.id}-${projectKey}`;
-    const isHovered = hoveredModule === fileId;
-
-    return (
-      <button
-        key={fileId}
-        onMouseEnter={() => setHoveredModule(fileId)}
-        onMouseLeave={() => setHoveredModule(null)}
-        onClick={() => {
-          if (context === 'upload-trackers') {
-            handleFileModuleClick(fileModule);
-          } else if (context === 'project-dashboard') {
-            if (fileModule.type === 'budget') {
-              dispatch(setActiveModule(fileModule.id));
-              navigate(`/dashboard/budget-summary/${fileModule.projectName}`);
-            } else {
-              handleProjectFileClick({
-                ...fileModule,
-                projectName: fileModule.projectName || projectKey
-              });
-            }
-          }
-        }}
-        className={`w-full flex items-center px-4 py-2 transition-all duration-fast ${isSelected
-          ? 'bg-brand-primary/10 text-white font-semibold'
-          : isHovered
-            ? 'bg-white/10 text-white'
-            : 'text-white/70 hover:text-white'
-          }`}
-      >
-        <span className={`text-[17px] truncate tracking-tight ${isSelected ? 'font-semibold' : 'font-medium'}`}>
-          {fileModule.displayName || (fileModule.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, '')}
-        </span>
-      </button>
-    );
-  };
-
-  const renderOtherModules = () => {
-    return otherModules.filter(module => module.id !== 'upload-trackers').map((module) => {
-      if (!hasPermission(module.name)) return null;
-
-      const isActive = activeModule === module.id;
-      return (
-        <button
-          key={module.id}
-          onClick={() => handleModuleClick(module.id)}
-          className={`w-full flex items-center px-4 py-2 transition-all duration-fast border-l-[3px] ${isActive
-              ? 'border-l-[#0D9488] text-white font-medium'
-              : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
-            }`}
-        >
-          <div className="flex items-center gap-3">
-            <Settings className="h-5 w-5" />
-            <span className="text-[19px] font-medium tracking-tight">
-              {module.name}
-            </span>
-          </div>
-        </button>
-      );
-    });
-  };
+  // Redundant render functions removed - now using Sidebar component
 
   // Determine if sidebar should be expanded
   const isSidebarExpanded = !sidebarCollapsed;
@@ -1077,28 +720,20 @@ const Dashboard = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Clean Surface Color */}
         {activeView !== 'agent' && (
-          <div
-            ref={sidebarRef}
-            className="fixed lg:relative inset-y-0 left-0 z-30 w-[280px] bg-[#1E293B] flex flex-col overflow-hidden"
-          >
-            {/* Logo Section */}
-            <div className="h-[72px] flex items-center px-4 border-b border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-2xl tracking-[0.1em] font-primary">CALDIM</span>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 space-y-0.5 scrollbar-hide">
-              {renderProjectDashboardModule()}
-              {renderMOMModule()}
-              {renderMastersModule()}
-              {renderUploadsModule()}
-              {renderOtherModules()}
-            </div>
-
-            {/* User Section at Bottom removed as per request */}
-          </div>
+          <Sidebar
+            activeModule={activeModule}
+            expandedModules={expandedModules}
+            handleModuleClick={handleModuleClick}
+            toggleModuleExpansion={toggleModuleExpansion}
+            projectDashboardModules={projectDashboardModules}
+            uploadTrackerModules={uploadTrackerModules}
+            mastersSubmodules={mastersSubmodules}
+            otherModules={otherModules}
+            isFileSelected={isFileSelected}
+            handleFileModuleClick={handleFileModuleClick}
+            handleProjectFileClick={handleProjectFileClick}
+            hasAccess={hasPermission}
+          />
         )}
 
         {/* Main Content Area */}

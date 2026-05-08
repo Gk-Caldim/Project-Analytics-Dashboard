@@ -110,7 +110,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
               border: showFilters ? '1px solid #bfdbfe' : '1px solid transparent'
             }}
           >
-            <ListFilter size={16} color={showFilters ? '#2563eb' : '#64748b'} />
+            <ListFilter size={16} color={showFilters ? '#1e293b' : '#64748b'} />
           </button>
         </div>
       </div>

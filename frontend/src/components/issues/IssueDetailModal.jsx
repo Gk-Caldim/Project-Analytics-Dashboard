@@ -591,7 +591,7 @@ const styles = {
   ghostBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '6px 12px', borderRadius: '8px',
-    backgroundColor: '#eff6ff', color: '#2563eb',
+    backgroundColor: '#eff6ff', color: '#1e293b',
     fontSize: '11px', fontWeight: 700, border: '1px solid #dbeafe', cursor: 'pointer',
   },
   statusEditBox: {

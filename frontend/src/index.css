@@ -9,14 +9,14 @@
 
 :root {
   /* Industrial Analytics Brand Colors - Redesign 2026 */
-  --brand-navy: #2563EB;
+  --brand-navy: #1e293b;
   --brand-primary-bg: #F8FAFC;
 
   /* Redesign Specs */
   --secondary: #0F172A;
   /* Brand black for text (headers/body) */
-  --sidebar-bg: #FFFFFF;
-  /* Medium dark black for sidebar */
+  --sidebar-bg: #1e293b;
+  /* Premium Navy for sidebar */
   --primary: #F8FAFC;
   /* Light Gray for surfaces and background */
 
@@ -36,7 +36,7 @@
   --elevated-card: #F1F5F9;
 
   /* New Theme Variables */
-  --accent: #2563EB;
+  --accent: #1e293b;
   --accent-hover: #3B82F6;
   --accent-analytics: #0891B2;
   --text-tertiary: #475569;
@@ -260,14 +260,11 @@
   /* CENTRALIZED SIDEBAR STYLES (EXECUTIVE UI)                                  */
   /* ========================================================================== */
   .app-sidebar {
-    @apply z-30 flex flex-col transition-all duration-300 ease-in-out;
+    @apply z-30 flex flex-col;
     background-color: var(--sidebar-bg);
     width: 280px;
     flex-shrink: 0;
-  }
-
-  .app-sidebar.collapsed {
-    width: 72px;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
   }
 
   .sidebar-section-label {
@@ -281,26 +278,59 @@
 
   .sidebar-nav-item {
     @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
-    padding: 14px 16px;
-    color: var(--text-secondary);
-    border-radius: 6px;
-    margin: 0 8px 4px 8px;
-    width: calc(100% - 16px);
+    padding: 10px 16px;
+    color: rgba(255, 255, 255, 0.6);
+    border-left: 3px solid transparent;
+    margin-bottom: 2px;
+  }
+
+  .sidebar-nav-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
   }
 
   .sidebar-nav-item-active {
-    background: rgba(46, 124, 246, 0.18);
+    background: rgba(13, 148, 136, 0.15); /* Teal accent background */
+    color: #ffffff !important;
+    border-left-color: #0D9488 !important; /* Teal accent border */
+    font-weight: 600;
+  }
+
+  .sidebar-sub-item {
+    @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
+    padding: 6px 16px 6px 20px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 14px;
+    position: relative;
+  }
+
+  .sidebar-sub-item:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .sidebar-sub-item-active {
     color: #ffffff;
-    font-weight: 500;
+    font-weight: 600;
   }
 
-  .sidebar-nav-item:hover:not(.sidebar-nav-item-active) {
-    background: var(--bg);
-    color: var(--accent);
+  .sidebar-sub-item-active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background: #0D9488;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(13, 148, 136, 0.6);
   }
 
-  .sidebar-nav-item-inactive {
-    color: var(--text-muted);
+  .sidebar-tree-container {
+    margin-left: 26px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 2px;
+    margin-bottom: 4px;
   }
 
   .sidebar-footer {

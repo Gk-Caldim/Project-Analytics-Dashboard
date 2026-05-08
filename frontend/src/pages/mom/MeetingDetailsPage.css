@@ -86,7 +86,7 @@
 }
 
 .mdp2-status-badge.live      { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-.mdp2-status-badge.upcoming  { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+.mdp2-status-badge.upcoming  { background: #eff6ff; color: #1e293b; border: 1px solid #bfdbfe; }
 .mdp2-status-badge.ended     { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; }
 .mdp2-status-badge.cancelled { background: #f9fafb; color: #9ca3af; border: 1px solid #e5e7eb; }
 
@@ -333,7 +333,7 @@
 }
 
 .mdp2-agenda-tag.dur { background: #f3f4f6; color: #6b7280; }
-.mdp2-agenda-tag.who { background: #eff6ff; color: #2563eb; }
+.mdp2-agenda-tag.who { background: #eff6ff; color: #1e293b; }
 
 .mdp2-agenda-del {
   color: #d1d5db;
@@ -472,7 +472,7 @@
   flex-shrink: 0;
 }
 
-.mdp2-att-tag.host   { background: #eff6ff; color: #2563eb; }
+.mdp2-att-tag.host   { background: #eff6ff; color: #1e293b; }
 .mdp2-att-tag.ok     { background: #d1fae5; color: #065f46; }
 .mdp2-att-tag.wait   { background: #fef3c7; color: #92400e; }
 .mdp2-att-tag.no     { background: #fee2e2; color: #991b1b; }

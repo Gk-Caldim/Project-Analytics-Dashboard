@@ -19,7 +19,7 @@ export default {
           panel: '#F1F5F9',
         },
         brand: {
-          primary: '#2563EB',
+          primary: '#1e293b',
           accent: '#0891B2',
           hover: '#3B82F6',
         },
@@ -36,7 +36,7 @@ export default {
           success: '#10B981',
           warning: '#F59E0B',
           error: '#EF4444',
-          info: '#2563EB',
+          info: '#1e293b',
           neutral: '#64748B',
         },
         // Legacy maroon colors for backward compatibility
