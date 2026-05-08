@@ -50,7 +50,12 @@ const VPProjectDashboard = ({
         const momSpecific = Array.isArray(issues)
           ? issues
               .filter(i => (i.source || '').toUpperCase() === 'MOM')
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .sort((a, b) => {
+                const timeDiff = new Date(b.created_at) - new Date(a.created_at);
+                // If they were synced in the same batch, keep insertion order (top-to-bottom of table)
+                if (timeDiff === 0) return a.id - b.id;
+                return timeDiff;
+              })
           : [];
         setMomIssues(momSpecific);
 

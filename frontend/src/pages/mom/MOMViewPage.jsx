@@ -294,20 +294,6 @@ const MOMViewPage = () => {
     <>
       <div className="mvp-root-wrapper">
         <div className="mvp-main-content">
-          {/* ── Top Bar ── */}
-          <header className="mvp-top-bar">
-            <div className="mvp-top-bar-inner">
-              <div className="mvp-top-bar-left">
-                <h2 className="mvp-page-title">Minutes of Meeting</h2>
-              </div>
-              <div className="mvp-top-bar-right">
-                <button className="mvp-btn-kia">KIA Boards</button>
-                <div className="mvp-user-pill">
-                  <div className="mvp-user-avatar">GK</div>
-                </div>
-              </div>
-            </div>
-          </header>
           <div className="mvp-root">
             <div className="mvp-content-container">
               {/* ── Executive Header Card ── */}
@@ -441,42 +427,73 @@ const MOMViewPage = () => {
               <div className="mvp-body">
                 {/* ── 1. The Dynamic Metrics Band ── */}
                 <div className="mvp-section">
-                  <div className="mvp-stats-band">
-                    <div className="mvp-stat-item risks">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.risks}</div>
-                          <div className="mvp-stat-label">Key Risks</div>
-                        </div>
+                  <div className="mvp-stats-band" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    
+                    {/* KEY RISKS */}
+                    <div className="mvp-stat-item risks" style={{ 
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FECACA', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCA5A5', opacity: 0.2 }}>
+                        <AlertTriangle size={64} />
                       </div>
-                    </div>
-                    <div className="mvp-stat-item pending">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.pending}</div>
-                          <div className="mvp-stat-label">Pending Actions</div>
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <AlertTriangle size={16} /> Key Risks
                       </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#991B1B', lineHeight: 1 }}>{execSummary.risks}</div>
                     </div>
-                    <div className="mvp-stat-item resolved">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.resolved}</div>
-                          <div className="mvp-stat-label">Resolved</div>
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+
+                    {/* PENDING ACTIONS */}
+                    <div className="mvp-stat-item pending" style={{ 
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FDE68A', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCD34D', opacity: 0.2 }}>
+                        <Clock size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Clock size={16} /> Pending Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#92400E', lineHeight: 1 }}>{execSummary.pending}</div>
+                    </div>
+
+                    {/* RESOLVED */}
+                    <div className="mvp-stat-item resolved" style={{ 
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)', 
+                      border: '1px solid #BBF7D0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#86EFAC', opacity: 0.2 }}>
+                        <CheckCircle size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <CheckCircle size={16} /> Resolved
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 800, color: '#166534', lineHeight: 1 }}>{execSummary.resolved}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#15803D', opacity: 0.8 }}>
                           {execSummary.resolved === 0 ? 'None yet' : 'Tasks completed'}
                         </div>
                       </div>
                     </div>
-                    <div className="mvp-stat-item total">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.total}</div>
-                          <div className="mvp-stat-label">Total Actions</div>
-                        </div>
+
+                    {/* TOTAL ACTIONS */}
+                    <div className="mvp-stat-item total" style={{ 
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', 
+                      border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#CBD5E1', opacity: 0.2 }}>
+                        <Target size={64} />
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Target size={16} /> Total Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#334155', lineHeight: 1 }}>{execSummary.total}</div>
                     </div>
+
                   </div>
                 </div>
 

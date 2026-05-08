@@ -39,6 +39,13 @@ class SyncIssuesRequest(BaseModel):
 @router.post("/issues")
 async def sync_mom_issues(req: SyncIssuesRequest, db: Session = Depends(get_db)):
     try:
+        # CLEANUP: Delete any orphaned ghost issues (created from manual syncs when meeting_id was missing)
+        db.query(Issue).filter(
+            Issue.project_id == req.project_id,
+            Issue.source == "MOM",
+            Issue.meeting_id == None
+        ).delete(synchronize_session=False)
+
         # Step 1: Delete all existing MOM issues for this project+meeting
         # to prevent duplication on re-sync
         if req.meeting_id:

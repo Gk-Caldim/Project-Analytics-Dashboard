@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,73 @@ const STATUS_STYLES = {
   'Done': 'text-emerald-600 font-bold',
   'Closed': 'text-gray-400 font-medium line-through',
 };
+
+// ── Custom Pill Dropdown Component ─────────────────────────────────────────
+const PillDropdown = ({ value, options, onChange, colors }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const activeColor = colors[value] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block', margin: '0 auto' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        style={{
+          background: activeColor.bg, color: activeColor.color, border: `1px solid ${activeColor.border}`,
+          padding: '4px 10px', borderRadius: '12px', fontSize: '10px', fontWeight: 800,
+          textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+          outline: 'none', transition: 'all 0.2s', letterSpacing: '0.05em', minWidth: '80px', justifyContent: 'center'
+        }}
+      >
+        {value}
+        <ChevronDown size={12} style={{ opacity: 0.6, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '4px' }} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -5, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -5, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: 'absolute', top: 'calc(100% + 4px)', left: '50%', transform: 'translateX(-50%)',
+              background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, overflow: 'hidden', minWidth: '110px'
+            }}
+          >
+            {options.map((opt) => (
+              <div
+                key={opt}
+                onClick={(e) => { e.stopPropagation(); onChange(opt); setIsOpen(false); }}
+                style={{
+                  padding: '8px 12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
+                  color: '#334155', cursor: 'pointer', textAlign: 'center',
+                  background: value === opt ? '#F8FAFC' : 'transparent',
+                  borderBottom: '1px solid #F1F5F9', letterSpacing: '0.05em'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#F1F5F9'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = value === opt ? '#F8FAFC' : 'transparent'; }}
+              >
+                {opt}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 
 const TargetDateCell = ({ value, onChange }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -169,6 +236,9 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const [showLinkWarning, setShowLinkWarning] = useState(false);
   const [syncedBadgeCount, setSyncedBadgeCount] = useState(0);
   const [syncRoster, setSyncRoster] = useState([]);
+  
+  // Stable ID for deduplication when Redux meetingId is missing
+  const tempMeetingIdRef = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`);
   const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [showAutoSyncMenu, setShowAutoSyncMenu] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
@@ -214,8 +284,9 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       const owner = (m.responsibility || '').trim();
       const target = (m.target || '').trim();
       const actionText = (m.discussion_point || '').trim();
-      if (!owner) return;
-
+      
+      // Removed the !owner block so literally every row syncs as requested.
+      
       let parsedDate = null;
       if (target && target !== '—' && target.toLowerCase() !== 'tbd') {
         // 1. Try native parsing
@@ -249,11 +320,6 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       });
     });
 
-    if (actions.length === 0) {
-      if (silent !== true) toast.error('Check Responsibility fields before syncing.');
-      return;
-    }
-
     const targetProjectId = Number(effectiveProjectId);
     if (isNaN(targetProjectId)) {
       if (silent !== true) toast.error('Invalid Project ID. Please re-link the project.');
@@ -264,10 +330,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     setSyncFlowState('syncing');
     const startTime = Date.now();
     
+    // Ensure we always send a stable meeting_id so backend can deduplicate accurately
+    const finalMeetingId = meetingId || tempMeetingIdRef.current;
+    
     try {
       const resp = await API.post('/mom/issues', {
         project_id: targetProjectId,
-        meeting_id: meetingId || null,
+        meeting_id: finalMeetingId,
         meeting_name: meetingName || 'Untitled Meeting',
         date: reduxDate || new Date().toISOString().split('T')[0],
         mom_output_url: window.location.href,
@@ -290,7 +359,6 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     }
   };
 
-  // ── Auto-sync on Save Logic ────────────────────────────────────
   useEffect(() => {
     if (autoSyncEnabled && reduxStatus === 'saved' && reduxLastSaved) {
       // Trigger sync silently
@@ -391,273 +459,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
       {/* Removed old syncResult Toast - replaced by toast.success */}
 
-      {/* ── Action Toolbar (Hidden in Print) ── */}
-      <div className="flex items-center justify-between w-full print:hidden" style={{ marginBottom: '16px' }}>
 
-        {/* Left: Workflow Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-          {/* Sync Issues — with unsynced badge and auto-sync toggle */}
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px', position: 'relative' }}>
-            <div style={{ position: 'relative', display: 'inline-flex' }}>
-              <button
-                onClick={handleSyncIssues}
-                disabled={syncFlowState === 'syncing'}
-                title={!effectiveProjectId ? 'No project linked' : 'Sync High items'}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 20px', borderRadius: '6px', fontSize: '14px', fontWeight: 600,
-                  background: syncFlowState === 'syncing' ? 'transparent' : '#0D9488',
-                  border: `1px solid #0D9488`,
-                  color: syncFlowState === 'syncing' ? '#0D9488' : '#fff',
-                  cursor: syncFlowState === 'syncing' ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease', height: '36px'
-                }}
-              >
-                {syncFlowState === 'syncing' ? (
-                  <><Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} /> Syncing...</>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-                    <Zap style={{ width: 16, height: 16 }} />
-                    Sync Issues
-                    {syncedBadgeCount > 0 && (
-                      <span style={{
-                        background: '#fff', color: '#0D9488', fontSize: '11px', fontWeight: 800,
-                        padding: '1px 5px', borderRadius: '4px', marginLeft: '6px'
-                      }}>
-                        ✓ {syncedBadgeCount}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </button>
-              {unsyncedCount > 0 && (
-                <span style={{
-                  position: 'absolute', top: '-7px', right: '-2px',
-                  background: '#0D9488', color: '#fff',
-                  fontSize: '9px', fontWeight: 800, borderRadius: '999px',
-                  padding: '1px 5px', lineHeight: '14px', pointerEvents: 'none', zIndex: 10
-                }}>
-                  {unsyncedCount}
-                </span>
-              )}
-            </div>
-            
-            {/* Auto-sync gear toggle */}
-            <div style={{ position: 'relative', display: 'inline-flex' }}>
-              <button
-                onClick={() => setShowAutoSyncMenu(!showAutoSyncMenu)}
-                disabled={syncFlowState === 'syncing'}
-                title="Auto-sync settings"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 12px', height: '36px', borderRadius: '6px',
-                  background: 'transparent', border: '0.5px solid var(--color-border-secondary, #E2E8F0)', color: '#64748B',
-                  cursor: syncFlowState === 'syncing' ? 'not-allowed' : 'pointer',
-                  transition: 'none'
-                }}
-                onMouseEnter={e => { if (syncFlowState !== 'syncing') e.currentTarget.style.background = '#F8FAFC'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <Settings style={{ width: 16, height: 16 }} />
-              </button>
-
-              {showAutoSyncMenu && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
-                  background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: '220px', padding: '12px'
-                }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', margin: 0 }}>
-                    <input 
-                      type="checkbox" 
-                      checked={autoSyncEnabled}
-                      onChange={(e) => setAutoSyncEnabled(e.target.checked)}
-                      style={{ marginTop: '2px', accentColor: '#0D9488' }} 
-                    />
-                    <div>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1E293B', lineHeight: '1.2' }}>
-                        Auto-sync on save
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px', lineHeight: '1.3' }}>
-                        Automatically sync all action items to project dashboard when saving MOM.
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
-        </div>
-      </div>
-
-      {/* ── Inline Sync Roster (Zoho Style) ── */}
-      <AnimatePresence>
-        {showSyncPanel && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              overflow: 'hidden', background: '#F8FAFC',
-              border: '0.5px solid var(--color-border-tertiary, #E2E8F0)',
-              borderLeft: '3px solid #0D9488', borderRadius: '0 8px 8px 0',
-              padding: '16px 20px', marginBottom: '16px', position: 'relative'
-            }}
-          >
-            <button
-              onClick={() => setShowSyncPanel(false)}
-              style={{ position: 'absolute', top: '12px', right: '12px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              <X size={16} />
-            </button>
-
-            {/* Header Row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 500, color: '#0F6E56', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={16} /> Sync Complete
-              </div>
-              <div style={{ fontSize: '12px', color: '#94A3B8' }}>
-                Synced at {lastSyncTime}
-              </div>
-            </div>
-
-            {/* Summary Row */}
-            <div style={{ fontSize: '13px', color: '#64748B', marginBottom: '16px' }}>
-              {syncRoster.length} issues synced  ·  {syncRoster.filter(r => r.criticality === 'Critical').length} high priority  ·  {syncRoster.filter(r => r.criticality === 'High').length} medium  ·  Linked to: {reduxProjectName || 'Current Project'}
-            </div>
-
-            {/* Roster List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {syncRoster.slice(0, 5).map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px', height: '40px',
-                    borderBottom: '0.5px solid #E2E8F0', fontSize: '13px',
-                    padding: '0 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.5)'
-                  }}
-                >
-                  <span style={{ fontSize: '11px', color: '#94A3B8', background: '#fff', padding: '2px 6px', borderRadius: '4px', minWidth: '24px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
-                    {item.s_no || idx + 1}
-                  </span>
-                  <div style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#334155', fontWeight: 500 }}>
-                    {item.discussion_point}
-                  </div>
-                  <div className={`mvp-priority-pill ${item.criticality}`} style={{ transform: 'scale(0.85)' }}>
-                    {item.criticality}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#64748B', minWidth: '100px', textAlign: 'right' }}>
-                    {item.responsibility}
-                  </div>
-                </div>
-              ))}
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #E2E8F0' }}>
-                <button
-                  onClick={() => navigate(`/dashboard/projects?projectId=${effectiveProjectId}`)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 700,
-                    background: '#fff', color: '#0D9488', border: '1.5px solid #0D9488',
-                    cursor: 'pointer', transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#F0FDFA'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}
-                >
-                  <Layout size={14} />
-                  View in Dashboard
-                  <ArrowRight size={14} />
-                </button>
-
-                {syncRoster.length > 5 && (
-                  <button
-                    style={{ color: '#64748B', fontSize: '13px', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    + {syncRoster.length - 5} more items synced
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {showLinkWarning && (
-        <div style={{ marginBottom: '12px', fontSize: '13px', color: '#B45309', fontWeight: 500 }}>
-          Link a project to sync issues.
-        </div>
-      )}
-
-        {/* Right: Export Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-          {/* Export ▾ dropdown */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowExportMenu(m => !m)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 500,
-                background: 'transparent', border: '0.5px solid var(--color-border-secondary, #E2E8F0)', color: '#475569',
-                cursor: 'pointer', transition: 'none', height: '36px'
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              <FileText style={{ width: 14, height: 14 }} />
-              Export
-              <ChevronDown style={{ width: 12, height: 12 }} />
-            </button>
-            {showExportMenu && (
-              <div style={{
-                position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 50,
-                background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.1)', minWidth: '160px', overflow: 'hidden'
-              }}>
-                {[
-                  { label: 'Copy CSV', icon: <Clipboard style={{ width: 13, height: 13 }} />, action: () => { handleCopy(); setShowExportMenu(false); } },
-                  { label: 'Export as PDF', icon: <Download style={{ width: 13, height: 13 }} />, action: () => { handlePrint(); setShowExportMenu(false); } },
-                  { label: 'Export as XLSX', icon: <FileText style={{ width: 13, height: 13 }} />, action: () => { toast('XLSX export coming soon', { icon: '📥' }); setShowExportMenu(false); } },
-                ].map(item => (
-                  <button
-                    key={item.label}
-                    onClick={item.action}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '8px',
-                      width: '100%', padding: '10px 16px', fontSize: '12px',
-                      fontWeight: 600, color: '#374151', background: 'transparent',
-                      border: 'none', cursor: 'pointer', textAlign: 'left',
-                      transition: 'background 0.15s'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#F8FAFC'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    {item.icon}{item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Primary CTA: Download PDF */}
-          <button
-            onClick={handlePrint}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '8px 20px', borderRadius: '6px', fontSize: '14px', fontWeight: 600,
-              background: '#0D9488', color: '#fff', border: 'none',
-              cursor: 'pointer', transition: 'none',
-              height: '36px'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#0F766E'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#0D9488'; }}
-          >
-            <Download style={{ width: 14, height: 14 }} />
-            Download PDF
-          </button>
-        </div>
-      </div>
 
 
       {/* ── Send Summary Modal ── */}
@@ -791,18 +593,182 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       {/* ── FORM TEMPLATE START ── */}
       <div className="bg-white border border-gray-300 shadow-xl rounded-sm overflow-hidden print:border-0 print:shadow-none">
 
-        {/* Clean Section Header */}
-        <div className="pt-6 pb-2 px-6 flex items-center justify-between border-b border-[#0D9488]">
-          <div style={{ flex: 1 }} />
-          <h1 className="text-[11px] font-bold uppercase tracking-widest text-gray-500" style={{ textAlign: 'center' }}>
-            Minutes of Meeting
-          </h1>
+        {/* Clean Section Header (Document Identity) */}
+        <div className="pt-8 pb-4 px-8 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
+          <div style={{ flex: 1 }}>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-1">
+              Official Record
+            </div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <h1 className="text-[14px] font-extrabold uppercase tracking-[0.2em] text-gray-800">
+              Minutes of Meeting
+            </h1>
+          </div>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-            <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-              FORM NO: MOM/STD/2026 <span className="mx-2 text-gray-300">|</span> REV: 04-APR-2026
+            <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-right">
+              FORM NO: MOM/STD/2026 <br/>
+              <span className="text-gray-300">REV: 04-APR-2026</span>
             </div>
           </div>
         </div>
+
+        {/* ── Phase 5: Consolidated Command Bar ── */}
+        <div className="px-6 py-3 bg-[#F8FAFC] border-b border-[#E2E8F0] flex items-center justify-between print:hidden">
+           {/* Left side: Sync & Automation */}
+           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ position: 'relative', display: 'inline-flex' }}>
+                <button
+                  onClick={handleSyncIssues}
+                  disabled={syncFlowState === 'syncing'}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '0 16px', borderRadius: '4px', fontSize: '13px', fontWeight: 700,
+                    background: syncFlowState === 'syncing' ? 'transparent' : '#0D9488',
+                    border: `1px solid #0D9488`,
+                    color: syncFlowState === 'syncing' ? '#0D9488' : '#fff',
+                    cursor: syncFlowState === 'syncing' ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease', height: '32px'
+                  }}
+                >
+                  {syncFlowState === 'syncing' ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                  {syncFlowState === 'syncing' ? 'Syncing...' : 'Sync Issues'}
+                  {syncedBadgeCount > 0 && <span className="ml-2 bg-white text-[#0D9488] px-1.5 rounded text-[10px]">✓ {syncedBadgeCount}</span>}
+                </button>
+                {unsyncedCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold rounded-full px-1.5 py-0.5 border-2 border-white">
+                    {unsyncedCount}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowAutoSyncMenu(!showAutoSyncMenu)}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors border border-gray-200"
+                  title="Auto-sync Settings"
+                >
+                  <Settings size={16} />
+                </button>
+                {showAutoSyncMenu && (
+                  <div className="absolute left-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl p-3 min-w-[240px]">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={autoSyncEnabled}
+                        onChange={(e) => setAutoSyncEnabled(e.target.checked)}
+                        className="mt-1 accent-[#0D9488]"
+                      />
+                      <div>
+                        <div className="text-[12px] font-bold text-gray-800">Auto-sync on save</div>
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-tight">Automatically sync action items when document is saved.</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {showLinkWarning && <span className="text-[11px] text-amber-600 font-bold animate-pulse">Link a project to sync issues.</span>}
+           </div>
+
+           {/* Right side: Exports */}
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center gap-2 px-3 h-8 rounded border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50 transition-colors"
+                >
+                  <FileText size={14} /> Export <ChevronDown size={12} />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded shadow-lg min-w-[140px] overflow-hidden">
+                    {[
+                      { label: 'Copy CSV', icon: <Clipboard size={12} />, action: handleCopy },
+                      { label: 'Print PDF', icon: <Download size={12} />, action: handlePrint },
+                    ].map(item => (
+                      <button
+                        key={item.label}
+                        onClick={() => { item.action(); setShowExportMenu(false); }}
+                        className="flex items-center gap-2 w-full px-4 py-2 text-[11px] font-bold text-gray-700 hover:bg-teal-50 hover:text-[#0D9488] transition-colors text-left"
+                      >
+                        {item.icon} {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-2 px-4 h-8 rounded bg-gray-800 text-white text-xs font-bold hover:bg-black transition-colors"
+              >
+                <Download size={14} /> Download PDF
+              </button>
+           </div>
+        </div>
+
+        {/* Global Slide-out Drawer (Always rendered at body level via fixed position) */}
+        <AnimatePresence>
+          {showSyncPanel && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9999 }}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowSyncPanel(false)}
+                style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(2px)' }}
+              />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                style={{
+                  position: 'absolute', right: 0, top: 0, bottom: 0, width: '400px', maxWidth: '100vw',
+                  background: '#F8FAFC', borderLeft: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column'
+                }}
+              >
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h2 style={{ fontSize: '18px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle color="#0D9488" /> Sync Complete</h2>
+                    <p style={{ fontSize: '12px', color: '#64748B' }}>Synced at {lastSyncTime}</p>
+                  </div>
+                  <button onClick={() => setShowSyncPanel(false)} className="p-2 rounded-full hover:bg-gray-100"><X size={20} /></button>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                  <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Total Synced</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800 }}>{syncRoster.length} Issues</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748B' }}>Project</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800 }}>{reduxProjectName || 'Current'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {syncRoster.map((item, idx) => (
+                      <div key={idx} style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{item.discussion_point}</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                           <span className={`mvp-priority-pill ${item.criticality}`} style={{ transform: 'scale(0.8)', transformOrigin: 'left' }}>{item.criticality}</span>
+                           <span style={{ fontSize: '11px', color: '#64748B' }}>{item.responsibility}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ padding: '24px', borderTop: '1px solid #E2E8F0', background: '#fff' }}>
+                  <button
+                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/projects?projectId=${effectiveProjectId}`); }}
+                    className="w-full flex items-center justify-center gap-2 bg-[#0D9488] text-white py-3 rounded-lg font-bold hover:bg-[#0F766E] transition-all shadow-lg"
+                  >
+                    View in Dashboard <ArrowRight size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
         {/* ── THE GRID ── */}
         <div className="overflow-x-auto">
@@ -861,16 +827,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     <td className="px-3 py-2 text-center" style={cellBorder}>
                       {(() => {
                         const crit = m.criticality || 'Normal';
-                        const c = CRITICALITY_COLORS[crit] || { bg: 'transparent', color: '#64748B', border: '#E2E8F0' };
                         return (
-                          <select defaultValue={crit} style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', display: 'block', margin: '0 auto', cursor: 'pointer', outline: 'none', appearance: 'auto', background: c.bg, color: c.color, border: `1px solid ${c.border}` }}
-                            onChange={(e) => { onUpdateMeeting(m.id, { criticality: e.target.value }); const nc = CRITICALITY_COLORS[e.target.value] || { bg: 'transparent', color: '#64748B', border: '#E2E8F0' }; e.target.style.background = nc.bg; e.target.style.color = nc.color; e.target.style.borderColor = nc.border; }}
-                          >
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                          </select>
+                          <PillDropdown
+                            value={crit}
+                            options={['Low', 'Medium', 'High', 'Critical']}
+                            onChange={(val) => onUpdateMeeting(m.id, { criticality: val })}
+                            colors={CRITICALITY_COLORS}
+                          />
                         );
                       })()}
                     </td>
@@ -900,23 +863,18 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                       <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
                     </td>
                      <td className="px-4 py-2 text-center" style={cellBorder}>
-                        <select 
+                        <PillDropdown
                           value={m.status || 'Pending'}
-                          style={
-                            m.status === 'Closed' || m.status === 'Done' 
-                              ? { background: '#D1FAE5', color: '#065F46', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: 'none', padding: '4px 10px' } 
-                              : (m.status === 'Pending' || m.status === 'Open')
-                                ? { background: '#FAEEDA', color: '#854F0B', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: 'none', padding: '4px 10px' }
-                                : { background: '#F1F5F9', color: '#475569', fontSize: '11px', fontWeight: 700, borderRadius: '4px', border: '1px solid #E2E8F0', padding: '4px 10px' }
-                          }
-                          className="cursor-pointer outline-none block mx-auto uppercase"
-                          onChange={(e) => onUpdateMeeting(m.id, { status: e.target.value })}
-                        >
-                          <option value="Open">OPEN</option>
-                          <option value="Pending">PENDING</option>
-                          <option value="In Progress">IN PROGRESS</option>
-                          <option value="Closed">CLOSED</option>
-                        </select>
+                          options={['Open', 'Pending', 'In Progress', 'Done', 'Closed']}
+                          onChange={(val) => onUpdateMeeting(m.id, { status: val })}
+                          colors={{
+                            'Done': { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
+                            'Closed': { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' },
+                            'Pending': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+                            'Open': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+                            'In Progress': { bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' }
+                          }}
+                        />
                      </td>
                      <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
                        <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
