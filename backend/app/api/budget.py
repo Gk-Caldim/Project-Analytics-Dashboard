@@ -41,14 +41,6 @@ router = APIRouter()
 @router.get("/", response_model=List[BudgetSummaryResponse])
 def list_budget_summaries(db: Session = Depends(get_db)):
     """List all budget summaries (used by sidebar to show which projects have budgets)."""
-    return db.query(BudgetSummary).all()
-
-
-# ─── 1. GET / — List all budget summaries ─────────────────────────────────────
-
-@router.get("/", response_model=List[BudgetSummaryResponse])
-def list_budget_summaries(db: Session = Depends(get_db)):
-    """List all budget summaries (used by sidebar to show which projects have budgets)."""
     # For the sidebar, we might want just the latest for each project, 
     # but for now, returning all is what the frontend expected.
     return db.query(BudgetSummary).all()
@@ -343,21 +335,30 @@ def get_budget_attachment(project_name: str, db: Session = Depends(get_db)):
 @router.get("/{project_name}", response_model=BudgetSummaryResponse)
 def get_budget_summary(project_name: str, db: Session = Depends(get_db)):
     """Get the LATEST budget data for a specific project."""
-    budget = db.query(BudgetSummary).filter(
-        BudgetSummary.project_name == project_name
-    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
-    if not budget:
-        # Return empty response (not 404) so frontend renders empty table
-        return BudgetSummaryResponse(
-            id=0,
-            project_name=project_name,
-            uploaded_by="",
-            department="",
-            overall_budget=0.0,
-            budget_data=[],
-            attachment_name=None
-        )
-    return budget
+    logger.info(f"[budget] Fetching budget for project: {project_name}")
+    try:
+        budget = db.query(BudgetSummary).filter(
+            BudgetSummary.project_name == project_name
+        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        
+        if not budget:
+            logger.info(f"[budget] No budget found for project: {project_name}. Returning default.")
+            # Return empty response (not 404) so frontend renders empty table
+            return BudgetSummaryResponse(
+                id=0,
+                project_name=project_name,
+                uploaded_by="",
+                department="",
+                overall_budget=0.0,
+                budget_data=[],
+                attachment_name=None
+            )
+        
+        logger.info(f"[budget] Found budget for project: {project_name} (ID: {budget.id})")
+        return budget
+    except Exception as e:
+        logger.error(f"[budget] Error fetching budget for {project_name}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post("/{project_name}", response_model=BudgetSummaryResponse)

@@ -173,3 +173,82 @@
 table tr:hover td {
   background: #f8fafc;
 }
+/* ── 6. MOM Form Table Styles ── */
+.vppd-mom-table-container {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vppd-mom-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 2px solid #0D9488;
+  margin-bottom: 4px;
+}
+
+.vppd-mom-form-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 0;
+  text-align: center;
+}
+
+.vppd-mom-form-meta {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vppd-mom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+}
+
+.vppd-mom-table th {
+  padding: 12px 16px;
+  background: #F8FAFC;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #E2E8F0;
+  border-right: 1px solid #F1F5F9;
+  text-align: left;
+}
+
+.vppd-mom-table th:last-child {
+  border-right: none;
+}
+
+.vppd-mom-table td {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #1E293B;
+  border-bottom: 1px solid #F1F5F9;
+  border-right: 1px solid #F1F5F9;
+  vertical-align: middle;
+}
+
+.vppd-mom-table td:last-child {
+  border-right: none;
+}
+
+.vppd-mom-table tr:hover td {
+  background: #FAFCFF;
+}
+
+.vppd-mom-table tr:last-child td {
+  border-bottom: none;
+}

@@ -11,7 +11,7 @@ class BudgetSummaryBase(BaseModel):
     uploaded_by: Optional[str] = None
     department: Optional[str] = None
     overall_budget: Optional[float] = 0.0
-    budget_data: Optional[List[Any]] = []
+    budget_data: Optional[Any] = []
     attachment_name: Optional[str] = None
 
 

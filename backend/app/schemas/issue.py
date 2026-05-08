@@ -15,8 +15,8 @@ from pydantic import BaseModel, field_validator, model_validator
 
 
 # ─── Enums / literals ────────────────────────────────────────────────────────
-PriorityLiteral = Literal["High", "Medium", "Low"]
-StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned", "Delayed"]
+PriorityLiteral = Literal["High", "Medium", "Low", "Critical"]
+StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned", "Delayed", "Pending", "Resolved", "PENDING", "RESOLVED"]
 SourceLiteral   = Literal["Manual", "MOM", "Tracker"]
 ActionStatusLiteral = Literal["Pending", "In Progress", "Done"]
 
@@ -216,20 +216,23 @@ class MOMActionItem(BaseModel):
     @model_validator(mode="after")
     def apply_mom_governance_rules(self) -> "MOMActionItem":
         # Normalise priority to a valid literal, defaulting to Medium
-        valid_priorities = {"High", "Medium", "Low"}
+        valid_priorities = {"High", "Medium", "Low", "Critical"}
         if self.priority not in valid_priorities:
             self.priority = "Medium"
-        # Normalise status — MOM rows may have Blocked/Done/Delayed etc.
-        # Endpoint always creates issues as 'Open'; just sanitise here
-        valid_statuses = {"Open", "In Progress", "Closed", "Planned", "Delayed"}
+        
+        # Dashboard expects exactly what is sent, so no coercion for new statuses
+        valid_statuses = {"Open", "In Progress", "Closed", "Planned", "Delayed", "Pending", "Resolved", "PENDING", "RESOLVED"}
         if self.status not in valid_statuses:
-            self.status = "Open"
+            self.status = "PENDING"
         return self
 
 
 class MOMIssueCreate(BaseModel):
     project_id:   int
     meeting_id:   Optional[str] = None   # FK to meetings.id (string UUID or int)
+    meeting_name: Optional[str] = None
+    date:         Optional[str] = None
+    mom_output_url: Optional[str] = None
     actions:      List[MOMActionItem]
 
     @field_validator("actions")

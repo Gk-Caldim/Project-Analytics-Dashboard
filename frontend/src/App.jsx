@@ -114,6 +114,10 @@ function App() {
                 icon: <Sparkles className="w-4 h-4 text-emerald-600" />,
                 style: { border: '1px solid #10b981', padding: '12px', background: '#f0fdf4' },
               });
+              window.dispatchEvent(new CustomEvent('MOM_SAVED', { detail: data }));
+            }
+            if (data.type === 'ISSUE_SYNCED') {
+              window.dispatchEvent(new CustomEvent('ISSUE_SYNCED', { detail: data }));
             }
           } catch (e) {
             console.warn('WS Message non-JSON:', event.data);
@@ -194,7 +198,7 @@ function App() {
             <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
             
             <Route path="mom" element={<MeetingCapturePage />} />
-            <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/view/:meetingId?" element={<MOMViewPage />} />
             <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
             <Route path="mom/legacy" element={<MOMModule />} />
             <Route path="meetings" element={<MeetingsDashboardPage />} />

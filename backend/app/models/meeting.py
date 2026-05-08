@@ -44,6 +44,8 @@ class Meeting(Base):
     
     # Advanced / Rich content
     agenda_text = Column(Text, nullable=True)
+    transcript = Column(Text, nullable=True)
+    intelligence_data = Column(Text, nullable=True) # JSON blob of action items & decisions
     
     # Analytics
     actual_duration_minutes = Column(Integer, nullable=True)
