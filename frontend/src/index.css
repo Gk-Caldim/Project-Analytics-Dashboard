@@ -285,7 +285,6 @@
   }
 
   .sidebar-nav-item:hover {
-    background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
   }
 
@@ -299,13 +298,13 @@
   .sidebar-sub-item {
     @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
     padding: 6px 16px 6px 20px;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255, 255, 255, 0.6);
     font-size: 14px;
     position: relative;
   }
 
   .sidebar-sub-item:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: #ffffff;
   }
 
   .sidebar-sub-item-active {
@@ -321,9 +320,9 @@
     transform: translateY(-50%);
     width: 6px;
     height: 6px;
-    background: #0D9488;
+    background: #14b8a6; /* Brighter teal */
     border-radius: 50%;
-    box-shadow: 0 0 8px rgba(13, 148, 136, 0.6);
+    box-shadow: 0 0 10px rgba(20, 184, 166, 0.8);
   }
 
   .sidebar-tree-container {

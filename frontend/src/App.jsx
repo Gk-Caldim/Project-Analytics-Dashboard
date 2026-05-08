@@ -59,12 +59,16 @@ function App() {
         const companyName = settings.find(s => s.key === 'company_name')?.value;
         const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
         const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
+        const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
+        const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
 
-        if (companyName || companyLogo || baseCurrency) {
+        if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
           dispatch(setBranding({
             companyName,
             companyLogo,
-            baseCurrency
+            baseCurrency,
+            sidebarDashboardLimit,
+            sidebarDashboardMode
           }));
         }
 

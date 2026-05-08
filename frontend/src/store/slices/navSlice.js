@@ -14,6 +14,8 @@ const initialState = {
   companyLogo: sessionStorage.getItem('company_logo') || null,
   companyName: sessionStorage.getItem('company_name') || 'Industrial Analytics Platform',
   baseCurrency: sessionStorage.getItem('base_currency') || 'USD ($)',
+  sidebarDashboardLimit: parseInt(sessionStorage.getItem('sidebar_dashboard_limit')) || 10,
+  sidebarDashboardMode: sessionStorage.getItem('sidebar_dashboard_mode') || 'custom',
   exchangeRates: JSON.parse(sessionStorage.getItem('exchange_rates')) || { 'USD': 1, 'INR': 83.2, 'EUR': 0.92 },
   activeView: sessionStorage.getItem('active_view') || 'dashboard',
   navigationHistory: JSON.parse(sessionStorage.getItem('navigation_history')) || [],
@@ -80,6 +82,14 @@ const navSlice = createSlice({
       if (baseCurrency !== undefined) {
         state.baseCurrency = baseCurrency;
         sessionStorage.setItem('base_currency', baseCurrency);
+      }
+      if (action.payload.sidebarDashboardLimit !== undefined) {
+        state.sidebarDashboardLimit = parseInt(action.payload.sidebarDashboardLimit);
+        sessionStorage.setItem('sidebar_dashboard_limit', action.payload.sidebarDashboardLimit);
+      }
+      if (action.payload.sidebarDashboardMode !== undefined) {
+        state.sidebarDashboardMode = action.payload.sidebarDashboardMode;
+        sessionStorage.setItem('sidebar_dashboard_mode', action.payload.sidebarDashboardMode);
       }
     },
     setExchangeRates: (state, action) => {

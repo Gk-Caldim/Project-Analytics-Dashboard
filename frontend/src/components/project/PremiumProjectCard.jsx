@@ -76,55 +76,64 @@ const PremiumProjectCard = ({
           )}
         </div>
 
-        <div className="card-menu-container" ref={menuRef}>
-          <button 
-            className="menu-trigger"
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-          >
-            <MoreVertical size={18} />
-          </button>
-          
-          {menuOpen && (
-            <div className="card-dropdown-menu" onClick={e => e.stopPropagation()}>
-              <button className="dropdown-item" onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}>
-                <Pin size={14} style={{ transform: isPinned ? 'none' : 'rotate(45deg)' }} /> 
-                {isPinned ? 'Unpin Project' : 'Pin to Top'}
-              </button>
-              
-              <div className="dropdown-divider" />
-              <div className="dropdown-label">Priority Level</div>
-              
-              <div className="urgency-options">
-                {['Low', 'Medium', 'High', 'Critical'].map(level => {
-                  let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
-                  return (
-                    <button 
-                      key={level}
-                      className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
-                      style={{ color: urgency === level ? lColor : 'inherit' }}
-                      onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
-                    >
-                      <div className="urgency-dot-small" style={{ background: lColor }} />
-                      {level}
-                    </button>
-                  );
-                })}
-              </div>
+        {viewMode === 'grid' && (
+          <div className="card-menu-container" ref={menuRef}>
+            <button 
+              className="menu-trigger"
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            >
+              <MoreVertical size={18} />
+            </button>
+            
+            {menuOpen && (
+              <div className="card-dropdown-menu" onClick={e => e.stopPropagation()}>
+                <button className="dropdown-item" onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}>
+                  <Pin size={14} style={{ transform: isPinned ? 'none' : 'rotate(45deg)' }} /> 
+                  {isPinned ? 'Unpin Project' : 'Pin to Top'}
+                </button>
+                
+                <div className="dropdown-divider" />
+                <div className="dropdown-label">Priority Level</div>
+                
+                <div className="urgency-options">
+                  {['Low', 'Medium', 'High', 'Critical'].map(level => {
+                    let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
+                    return (
+                      <button 
+                        key={level}
+                        className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
+                        style={{ color: urgency === level ? lColor : 'inherit' }}
+                        onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
+                      >
+                        <div className="urgency-dot-small" style={{ background: lColor }} />
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
 
-              <div className="dropdown-divider" />
-              <button 
-                className="dropdown-item" 
-                style={{ color: '#F04438' }} 
-                onClick={() => { onDeleteRequest(project); setMenuOpen(false); }}
-              >
-                <Trash2 size={14} /> Delete Project
-              </button>
-            </div>
-          )}
-        </div>
+                <div className="dropdown-divider" />
+                <button 
+                  className="dropdown-item" 
+                  style={{ color: '#F04438' }} 
+                  onClick={() => { onDeleteRequest(project); setMenuOpen(false); }}
+                >
+                  <Trash2 size={14} /> Delete Project
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="card-divider" />
+      {viewMode === 'list' && (
+        <div className="list-manager-info">
+          <span className="meta-label">Manager</span>
+          <span className="meta-value">{project.project_manager || 'Not Assigned'}</span>
+        </div>
+      )}
+
+
 
       <div className="card-content-wrapper">
         <div className="meta-grid">
@@ -141,6 +150,54 @@ const PremiumProjectCard = ({
         </div>
 
         <div className="card-actions">
+          {viewMode === 'list' && (
+            <div className="card-menu-container" ref={menuRef}>
+              <button 
+                className="menu-trigger"
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+              >
+                <MoreVertical size={18} />
+              </button>
+              
+              {menuOpen && (
+                <div className="card-dropdown-menu" onClick={e => e.stopPropagation()}>
+                  <button className="dropdown-item" onClick={() => { onPinToggle(!isPinned); setMenuOpen(false); }}>
+                    <Pin size={14} style={{ transform: isPinned ? 'none' : 'rotate(45deg)' }} /> 
+                    {isPinned ? 'Unpin Project' : 'Pin to Top'}
+                  </button>
+                  
+                  <div className="dropdown-divider" />
+                  <div className="dropdown-label">Priority Level</div>
+                  
+                  <div className="urgency-options">
+                    {['Low', 'Medium', 'High', 'Critical'].map(level => {
+                      let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
+                      return (
+                        <button 
+                          key={level}
+                          className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
+                          style={{ color: urgency === level ? lColor : 'inherit' }}
+                          onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
+                        >
+                          <div className="urgency-dot-small" style={{ background: lColor }} />
+                          {level}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="dropdown-divider" />
+                  <button 
+                    className="dropdown-item" 
+                    style={{ color: '#F04438' }} 
+                    onClick={() => { onDeleteRequest(project); setMenuOpen(false); }}
+                  >
+                    <Trash2 size={14} /> Delete Project
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <button 
              className="view-button" 
              onClick={(e) => {

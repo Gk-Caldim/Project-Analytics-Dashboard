@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSelector } from 'react-redux';
 import { slideInLeft } from '../utils/animations';
 import { 
     Layout as LayoutIcon, 
@@ -33,6 +34,11 @@ const Sidebar = ({
     handleProjectFileClick,
     hasAccess
 }) => {
+    const { 
+        sidebarDashboardLimit = 10, 
+        sidebarDashboardMode = 'custom',
+        navigationHistory = []
+    } = useSelector(state => state.nav);
 
     const renderProjectDashboardModule = () => {
         const isActive = activeModule === 'project-dashboard';
@@ -51,7 +57,7 @@ const Sidebar = ({
                     </div>
                     {hasDynamicModules && (
                         <div onClick={(e) => { e.stopPropagation(); toggleModuleExpansion('project-dashboard', e); }}>
-                            {isExpanded ? <ChevronDown size={14} className="opacity-40" /> : <ChevronRight size={14} className="opacity-40" />}
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
                     )}
                 </div>
@@ -62,50 +68,83 @@ const Sidebar = ({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden bg-white/[0.02]"
+                            className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
-                                {projectDashboardModules.map((pm, idx) => {
-                                const projectKey = pm.id || pm.projectId || pm.name;
-                                const uniqueId = `project-dashboard-${projectKey}`;
-                                const isProjExpanded = expandedModules[uniqueId];
+                                {(() => {
+                                    let displayedModules = projectDashboardModules || [];
+                                    if (sidebarDashboardMode === 'recent') {
+                                        const recentProjectIds = navigationHistory
+                                            .filter(h => h.type === 'project' || h.context === 'project-dashboard')
+                                            .map(h => h.dbProjectId || h.id)
+                                            .filter(id => id);
+                                        const uniqueRecentIds = [...new Set(recentProjectIds)].slice(0, 2);
+                                        
+                                        if (uniqueRecentIds.length > 0) {
+                                            displayedModules = projectDashboardModules.filter(pm => 
+                                                uniqueRecentIds.includes(pm.id || pm.projectId)
+                                            );
+                                        } else {
+                                            displayedModules = projectDashboardModules.slice(0, 2);
+                                        }
+                                    } else {
+                                        displayedModules = projectDashboardModules.slice(0, sidebarDashboardLimit);
+                                    }
+                                    
+                                    return (
+                                        <>
+                                            {displayedModules.map((pm, idx) => {
+                                                const projectKey = pm.id || pm.projectId || pm.name;
+                                                const uniqueId = `project-dashboard-${projectKey}`;
+                                                const isProjExpanded = expandedModules[uniqueId];
 
-                                return (
-                                    <div key={pm.id || idx} className="py-1">
-                                        <div 
-                                            className="flex items-center justify-between px-6 py-2 cursor-pointer hover:bg-white/5 group"
-                                            onClick={(e) => toggleModuleExpansion(uniqueId, e)}
-                                        >
-                                            <span className="text-[13px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
-                                            {pm.submodules?.length > 0 && (
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {isProjExpanded ? <ChevronDown size={12} className="text-white/20" /> : <ChevronRight size={12} className="text-white/20" />}
+                                                return (
+                                                    <div key={pm.id || idx} className="py-1">
+                                                        <div 
+                                                            className="flex items-center justify-between px-6 py-2 cursor-pointer group"
+                                                            onClick={(e) => toggleModuleExpansion(uniqueId, e)}
+                                                        >
+                                                            <span className="text-[13px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
+                                                            {pm.submodules?.length > 0 && (
+                                                                <div className="opacity-100 group-hover:opacity-100 transition-opacity">
+                                                                    {isProjExpanded ? <ChevronDown size={12} className="text-white/70" /> : <ChevronRight size={12} className="text-white/70" />}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {isProjExpanded && pm.submodules && (
+                                                            <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                                                {pm.submodules.map(fileModule => {
+                                                                    const isSelected = isFileSelected(fileModule, 'project-dashboard');
+                                                                    return (
+                                                                        <div
+                                                                            key={fileModule.id}
+                                                                            onClick={() => handleProjectFileClick({ ...fileModule, projectName: pm.name })}
+                                                                            className={`sidebar-sub-item ${isSelected ? 'sidebar-sub-item-active' : ''}`}
+                                                                        >
+                                                                            <span className="truncate">
+                                                                                {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            {sidebarDashboardMode === 'recent' && projectDashboardModules.length > 2 && (
+                                                <div 
+                                                    className="sidebar-sub-item text-[11px] text-white/30 italic hover:text-white/60 mt-2 px-10"
+                                                    onClick={() => handleModuleClick('project-dashboard')}
+                                                >
+                                                    View all projects in Dashboard...
                                                 </div>
                                             )}
-                                        </div>
-                                        
-                                {isProjExpanded && pm.submodules && (
-                                    <div className="sidebar-tree-container ml-4 border-l border-white/5">
-                                        {pm.submodules.map(fileModule => {
-                                            const isSelected = isFileSelected(fileModule, 'project-dashboard');
-                                            return (
-                                                <div
-                                                    key={fileModule.id}
-                                                    onClick={() => handleProjectFileClick({ ...fileModule, projectName: pm.name })}
-                                                    className={`sidebar-sub-item ${isSelected ? 'sidebar-sub-item-active' : ''}`}
-                                                >
-                                                    <span className="truncate">
-                                                        {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                        </>
+                                    );
+                                })()}
                             </div>
-                        );
-                    })}
-                </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -128,7 +167,7 @@ const Sidebar = ({
                         <span className="text-[16px] font-medium tracking-tight">Meetings</span>
                     </div>
                     <div>
-                        {isExpanded ? <ChevronDown size={14} className="opacity-40" /> : <ChevronRight size={14} className="opacity-40" />}
+                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                     </div>
                 </div>
                 
@@ -138,7 +177,7 @@ const Sidebar = ({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden bg-white/[0.02]"
+                            className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
                                 <div
@@ -176,7 +215,7 @@ const Sidebar = ({
                         <span className="text-[16px] font-medium tracking-tight">Master</span>
                     </div>
                     <div>
-                        {isExpanded ? <ChevronDown size={14} className="opacity-40" /> : <ChevronRight size={14} className="opacity-40" />}
+                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                     </div>
                 </div>
                 
@@ -186,7 +225,7 @@ const Sidebar = ({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden bg-white/[0.02]"
+                            className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
                                 {mastersSubmodules.map(module => {
@@ -226,7 +265,7 @@ const Sidebar = ({
                     </div>
                     {hasDynamicModules && (
                         <div>
-                            {isExpanded ? <ChevronDown size={14} className="opacity-40" /> : <ChevronRight size={14} className="opacity-40" />}
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
                     )}
                 </div>
@@ -237,7 +276,7 @@ const Sidebar = ({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden bg-white/[0.02]"
+                            className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
                                 <div

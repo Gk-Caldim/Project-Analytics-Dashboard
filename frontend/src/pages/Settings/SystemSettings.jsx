@@ -30,7 +30,7 @@ const SystemSettings = () => {
     {
       group: 'ORGANIZATION',
       items: [
-        { id: 'Organization', label: 'Identity' },
+        { id: 'Organization', label: 'System' },
         { id: 'Branding', label: 'Visual Branding' },
       ]
     },
@@ -116,10 +116,12 @@ const SystemSettings = () => {
         return { key, value, category: original?.category || 'General', type: original?.type || 'text' };
       });
       await API.patch('/settings/bulk', { settings: settingsToUpdate });
-      if (modifiedSettings.company_name || modifiedSettings.base_currency) {
+      if (modifiedSettings.company_name || modifiedSettings.base_currency || modifiedSettings.sidebar_dashboard_limit || modifiedSettings.sidebar_dashboard_mode) {
         dispatch(setBranding({ 
           companyName: modifiedSettings.company_name,
-          baseCurrency: modifiedSettings.base_currency
+          baseCurrency: modifiedSettings.base_currency,
+          sidebarDashboardLimit: modifiedSettings.sidebar_dashboard_limit,
+          sidebarDashboardMode: modifiedSettings.sidebar_dashboard_mode
         }));
       }
       if (modifiedSettings.primary_color || modifiedSettings.secondary_color || modifiedSettings.display_mode) {

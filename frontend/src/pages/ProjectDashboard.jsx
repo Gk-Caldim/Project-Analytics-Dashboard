@@ -3878,163 +3878,141 @@ const ProjectTitleDashboard = () => {
             <div style={{ padding: '28px' }}>
               {/* Dashboard Content removed title and stats here */}
 
-              {/* Action Menu Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                {/* Left: Search Bar */}
-                <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '300px' }}>
-                  <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-tertiary)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search projects..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '14px', outline: 'none' }}
-                  />
-                </div>
-
-                {/* Center: Bulk Actions Menu */}
-                {selectionMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', marginRight: '8px', color: 'var(--text-secondary)' }}>
-                      {selectedProjects.length} selected
-                    </span>
-
-                    <button
-                      onClick={() => setStagedBulkPin(stagedBulkPin === true ? null : true)}
-                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === true ? 'var(--blue-50)' : 'white', color: stagedBulkPin === true ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === true ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === true ? '600' : 'normal' }}>
-                      Pin
-                    </button>
-                    <button
-                      onClick={() => setStagedBulkPin(stagedBulkPin === false ? null : false)}
-                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === false ? 'var(--blue-50)' : 'white', color: stagedBulkPin === false ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === false ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === false ? '600' : 'normal' }}>
-                      Unpin
-                    </button>
-
-                    <div style={{ position: 'relative', marginLeft: '4px' }}>
-                      <button
-                        onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)}
-                        style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkUrgency ? 'var(--blue-50)' : 'white', color: stagedBulkUrgency ? 'var(--accent)' : 'var(--text-primary)', border: '1px solid', borderColor: stagedBulkUrgency ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: stagedBulkUrgency ? '600' : 'normal' }}>
-                        {stagedBulkUrgency ? `Urgency: ${stagedBulkUrgency}` : 'Set Urgency'} <ChevronDown size={12} />
-                      </button>
-                      {isBulkMenuOpen && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, width: '120px' }}>
-                          <div onClick={() => { setStagedBulkUrgency(null); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', color: 'var(--text-secondary)' }}>Clear</div>
-                          {['Low', 'Medium', 'High', 'Critical'].map(level => (
-                            <div key={level} onClick={() => { setStagedBulkUrgency(level); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', fontWeight: stagedBulkUrgency === level ? '600' : 'normal', background: stagedBulkUrgency === level ? 'var(--bg)' : 'transparent' }}>{level}</div>
-                          ))}
-                        </div>
-                      )}
+              {/* Unified Project Overview Container */}
+              <div style={{ backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-navy)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
+                    
+                    {/* Search Bar Integrated into Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'white' }}
+                      />
                     </div>
+                  </div>
 
-                    {(stagedBulkPin !== null || stagedBulkUrgency !== null) && selectedProjects.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {/* Bulk Actions Menu (Visible when selecting) */}
+                    {selectionMode && selectedProjects.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginRight: '4px' }}>
+                          {selectedProjects.length} selected
+                        </span>
+                        <button onClick={() => handleBulkPin(true)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Pin</button>
+                        <button onClick={() => handleBulkPin(false)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Unpin</button>
+                        {/* More bulk actions could go here */}
+                        <button 
+                          onClick={() => {
+                            setSelectionMode(false);
+                            setSelectedProjects([]);
+                          }} 
+                          style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
                         onClick={() => {
-                          if (stagedBulkPin !== null) handleBulkPin(stagedBulkPin);
-                          if (stagedBulkUrgency !== null) handleBulkUrgency(stagedBulkUrgency);
-                          setStagedBulkPin(null);
-                          setStagedBulkUrgency(null);
-                          setSelectionMode(false);
-                          setSelectedProjects([]);
+                          setSelectionMode(!selectionMode);
+                          if (selectionMode) setSelectedProjects([]);
                         }}
-                        style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Check size={14} /> Apply
+                        style={{ background: selectionMode ? 'var(--brand-navy)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        {selectionMode ? 'Cancel' : 'Select'}
                       </button>
-                    )}
+
+                      <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }}></div>
+
+                      <div style={{ display: 'flex', background: 'white', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px' }}>
+                        <button
+                          onClick={() => setViewMode('grid')}
+                          style={{ background: viewMode === 'grid' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'grid' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
+                          <Layout size={14} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('list')}
+                          style={{ background: viewMode === 'list' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'list' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: viewMode === 'grid' ? '24px' : '0',
+                  display: 'grid',
+                  gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
+                  gap: viewMode === 'grid' ? '20px' : '0',
+                  flex: 1,
+                  position: 'relative'
+                }}>
+                  {filteredAndSortedProjects.length === 0 ? (
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                      <div style={{ marginBottom: '12px', opacity: 0.5 }}><Search size={40} style={{ margin: '0 auto' }} /></div>
+                      No projects match your current filters or search query.
+                    </div>
+                  ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
+                    <PremiumProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={handleProjectSelect}
+                      isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
+                      viewMode={viewMode}
+                      selectionMode={selectionMode}
+                      isSelected={selectedProjects.includes(project.id)}
+                      onSelect={(selected) => {
+                        if (selected) setSelectedProjects(prev => [...prev, project.id]);
+                        else setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                      }}
+                      isPinned={pinnedProjects.includes(project.id)}
+                      onPinToggle={(pin) => {
+                        if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
+                        else setPinnedProjects(prev => prev.filter(id => id !== project.id));
+                      }}
+                      urgency={projectUrgency[project.id] || 'None'}
+                      onUrgencyChange={(level) => {
+                        setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
+                      }}
+                      onDeleteRequest={(p) => setProjectToDelete(p)}
+                    />
+                  ))}
+                </div>
+
+                {/* Integrated Pagination at Footer */}
+                {filteredAndSortedProjects.length > itemsPerPage && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#f8fafc', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length} projects
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
+                        disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
-
-                {/* Right: View Toggles & Select Mode */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button
-                    onClick={() => {
-                      setSelectionMode(!selectionMode);
-                      if (selectionMode) setSelectedProjects([]);
-                    }}
-                    style={{ background: selectionMode ? 'var(--accent)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
-                  >
-                    {selectionMode ? 'Cancel' : 'Select'}
-                  </button>
-                  <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      style={{ background: viewMode === 'grid' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
-                      <Layout size={16} />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      style={{ background: viewMode === 'list' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                    </button>
-                  </div>
-                </div>
               </div>
-
-              {/* Section Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
-              </div>
-
-              {/* Grid/List Content */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
-                gap: '16px'
-              }}>
-                {filteredAndSortedProjects.length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    No projects found. Please add a project module to get started.
-                  </div>
-                ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
-                  <PremiumProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={handleProjectSelect}
-                    isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
-                    viewMode={viewMode}
-                    selectionMode={selectionMode}
-                    isSelected={selectedProjects.includes(project.id)}
-                    onSelect={(selected) => {
-                      if (selected) setSelectedProjects(prev => [...prev, project.id]);
-                      else setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                    }}
-                    isPinned={pinnedProjects.includes(project.id)}
-                    onPinToggle={(pin) => {
-                      if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
-                      else setPinnedProjects(prev => prev.filter(id => id !== project.id));
-                    }}
-                    urgency={projectUrgency[project.id] || 'None'}
-                    onUrgencyChange={(level) => {
-                      setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
-                    }}
-                    onDeleteRequest={(p) => setProjectToDelete(p)}
-                  />
-                ))}
-              </div>
-
-              {filteredAndSortedProjects.length > itemsPerPage && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
-                  <button
-                    aria-label="Go to previous page"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
-                  >
-                    Previous
-                  </button>
-                  <span style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    Page {currentPage} of {Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                  </span>
-                  <button
-                    aria-label="Go to next page"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
-                    disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         ) : selectedSubmodule ? (
