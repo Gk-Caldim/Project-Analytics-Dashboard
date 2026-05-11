@@ -27,6 +27,7 @@ class MOMAction(BaseModel):
     priority: Optional[str] = "Medium"
     due_date: Optional[str] = None
     status: Optional[str] = "Pending"
+    action_taken: Optional[str] = None
 
 class SyncIssuesRequest(BaseModel):
     project_id: int
@@ -72,7 +73,7 @@ async def sync_mom_issues(req: SyncIssuesRequest, db: Session = Depends(get_db))
                 project_id=req.project_id,
                 meeting_id=req.meeting_id,
                 title=action.title,
-                description=action.description or action.title,
+                description=f"{action.description or action.title}\n\n[Action Taken]: {action.action_taken}" if action.action_taken else (action.description or action.title),
                 owner=action.owner or "Unassigned",
                 department=action.department or "General",
                 priority=action.priority or "Medium",

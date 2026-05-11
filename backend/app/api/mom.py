@@ -10,12 +10,14 @@ import logging
 import traceback
 from datetime import datetime, timezone
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.mom import MOMSession
 from app.models.meeting import Meeting
+from app.models.project import Project
 from app.schemas.mom import MOMSave, MOMOut
 
 logger = logging.getLogger(__name__)
@@ -116,6 +118,107 @@ async def delete_mom(meeting_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         logger.error("Error deleting MOM: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/all")
+async def list_all_moms(
+    project_id: Optional[int] = None,
+    sort: Optional[str] = "date_desc",  # date_desc|date_asc|name_asc|name_desc|items_desc|items_asc
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    List all saved MOM sessions.
+    Supports filtering by project_id, full-text search on meeting_name/project_name,
+    and sorting by date, name, or action item count.
+    """
+    try:
+        # 1. Fetch saved MOMSessions
+        query = db.query(MOMSession)
+        if project_id is not None:
+            query = query.filter(MOMSession.project_id == project_id)
+        sessions = query.all()
+
+        results = []
+        seen_meeting_ids = set()
+
+        for s in sessions:
+            seen_meeting_ids.add(s.meeting_id)
+            action_count = len(s.mom_data) if isinstance(s.mom_data, list) else 0
+            results.append({
+                "id": s.id,
+                "meeting_id": s.meeting_id,
+                "meeting_name": s.meeting_name or "Untitled MOM",
+                "project_id": s.project_id,
+                "project_name": s.project_name or "No Project",
+                "action_item_count": action_count,
+                "created_at": s.created_at,
+                "updated_at": s.updated_at,
+                "is_draft": False
+            })
+
+        # 2. Fetch drafted meetings (mom_generated = True)
+        meeting_query = db.query(Meeting, Project.name.label("p_name"))\
+            .outerjoin(Project, Meeting.project_id == Project.id)\
+            .filter(Meeting.mom_generated == True)
+        
+        if project_id is not None:
+            meeting_query = meeting_query.filter(Meeting.project_id == project_id)
+        
+        drafts = meeting_query.all()
+
+        for m, p_name in drafts:
+            if m.id in seen_meeting_ids:
+                continue
+            
+            results.append({
+                "id": f"draft-{m.id}",
+                "meeting_id": m.id,
+                "meeting_name": m.title or "Untitled Draft",
+                "project_id": m.project_id,
+                "project_name": p_name or "No Project",
+                "action_item_count": m.action_item_count or 0,
+                "created_at": m.created_at,
+                "updated_at": m.updated_at,
+                "is_draft": True
+            })
+
+        # 3. Apply Search Filter
+        if search:
+            search_lower = search.strip().lower()
+            results = [
+                r for r in results
+                if search_lower in (r["meeting_name"] or "").lower()
+                or search_lower in (r["project_name"] or "").lower()
+            ]
+
+        # 4. Sorting logic
+        if sort == "date_desc":
+            results.sort(key=lambda r: r["updated_at"] or datetime.min, reverse=True)
+        elif sort == "date_asc":
+            results.sort(key=lambda r: r["updated_at"] or datetime.max)
+        elif sort == "name_asc":
+            results.sort(key=lambda r: (r["meeting_name"] or "").lower())
+        elif sort == "name_desc":
+            results.sort(key=lambda r: (r["meeting_name"] or "").lower(), reverse=True)
+        elif sort == "items_desc":
+            results.sort(key=lambda r: r["action_item_count"], reverse=True)
+        elif sort == "items_asc":
+            results.sort(key=lambda r: r["action_item_count"])
+
+        # 5. Format for JSON
+        for r in results:
+            if isinstance(r["created_at"], datetime):
+                r["created_at"] = r["created_at"].isoformat()
+            if isinstance(r["updated_at"], datetime):
+                r["updated_at"] = r["updated_at"].isoformat()
+
+        return {"success": True, "total": len(results), "moms": results}
+
+    except Exception as e:
+        logger.error("Error listing MOMs: %s", str(e))
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -263,8 +263,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     const rowsToSync = meetings.filter(m => {
       const text = (m.discussion_point || '').trim();
       
-      // Exclude empty action points
-      if (!text) return false;
+      // Accuracy Filter: Exclude empty action points or obvious system logs
+      if (!text || text === '—') return false;
+      if (text.startsWith('[Meeting ended')) return false;
+      if (text.toLowerCase().includes('action items (auto-detected):')) return false;
       
       return true;
     });
@@ -317,6 +319,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         priority: m.criticality === 'Critical' ? 'High' : (m.criticality || 'Medium'),
         due_date: parsedDate,
         status: m.status || 'PENDING',
+        action_taken: (m.action_taken || '').trim(),
       });
     });
 
