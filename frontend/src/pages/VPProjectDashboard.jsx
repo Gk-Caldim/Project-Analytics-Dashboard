@@ -28,7 +28,7 @@ const VPProjectDashboard = ({
 
   const fetchMomIssues = useCallback(() => {
     if (!activeProject?.dbProjectId) return;
-    
+
     // Guard: skip if already fetching
     if (fetchingRef.current) {
       console.log('[VPPD] Fetch already in progress, skipping duplicate call');
@@ -37,7 +37,7 @@ const VPProjectDashboard = ({
 
     fetchingRef.current = true;
     setLoadingMom(true);
-    console.log('[VPPD] Fetching issues for project:', 
+    console.log('[VPPD] Fetching issues for project:',
       activeProject.dbProjectId, activeProject.name);
 
     const issuesPromise = listIssues({ project_id: activeProject.dbProjectId });
@@ -49,8 +49,8 @@ const VPProjectDashboard = ({
       .then(([issues, historyRes]) => {
         const momSpecific = Array.isArray(issues)
           ? issues
-              .filter(i => (i.source || '').toUpperCase() === 'MOM')
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .filter(i => (i.source || '').toUpperCase() === 'MOM')
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           : [];
         setMomIssues(momSpecific);
 
@@ -73,7 +73,7 @@ const VPProjectDashboard = ({
     const newId = activeProject?.dbProjectId;
     if (!newId || newId === projectIdRef.current) return;
     projectIdRef.current = newId;
-    
+
     fetchMomIssues();
 
     API.get('/meetings')
@@ -86,7 +86,7 @@ const VPProjectDashboard = ({
           setRecentMeetings(projectMeetings);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const refreshTimeoutRef = { current: null };
     const handleRemoteUpdate = () => {
@@ -138,7 +138,7 @@ const VPProjectDashboard = ({
         {(visibleSections.criticalIssues ?? true) && (
           <div className="vppd-section full">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 500, color: '#0D9488' }}>MOM Issues</span>
+              <span style={{ fontSize: '16px', fontWeight: 500, color: '#0D9488' }}>Critical Issues</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <span style={{ fontSize: '13px', color: '#94A3B8' }}>TOTAL: {momIssues.length}</span>
                 <span style={{ fontSize: '13px', color: '#F59E0B', fontWeight: 500 }}>

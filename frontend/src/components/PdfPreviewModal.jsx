@@ -23,8 +23,9 @@ const PdfPreviewModal = ({
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [sectionOrder, setSectionOrder] = useState([
-    'milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts'
+    'charts', 'criticalIssues', 'budget', 'milestones', 'resource', 'quality'
   ]);
+
 
   const onDragEnd = (result) => {
     if (!result.destination) return;

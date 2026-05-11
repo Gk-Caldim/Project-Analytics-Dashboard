@@ -689,6 +689,24 @@ const ProjectTitleDashboard = () => {
     });
   }, [selectedFileId, submoduleId, projectId]);
 
+  useEffect(() => {
+    if (!activeProject?.dbProjectId) return;
+
+    import('../api/issues').then(({ listIssues }) => {
+      listIssues({ project_id: activeProject.dbProjectId })
+        .then(issues => {
+          const momSpecific = Array.isArray(issues)
+            ? issues
+              .filter(i => (i.source || '').toUpperCase() === 'MOM')
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            : [];
+          setCriticalIssues(momSpecific);
+        })
+        .catch(console.error);
+    });
+  }, [activeProject?.dbProjectId]);
+
+
 
   // BUFFER STATE for Dashboard Configuration Modal
   const [tempVisibleSections, setTempVisibleSections] = useState({ ...visibleSections });
@@ -1876,7 +1894,7 @@ const ProjectTitleDashboard = () => {
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
                 <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
-                <span style={{ fontWeight: '600' }}>MOM Issues</span>
+                <span style={{ fontWeight: '600' }}>Critical Issues</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
                 <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
@@ -2369,8 +2387,30 @@ const ProjectTitleDashboard = () => {
             // Update Dashboard UI context to the explicitly saved project
             setSelectedBudgetProject(targetProject);
             setBudgetTableData(calculatedForm);
+
+            // Extract grand totals for summaryData to ensure PDF is updated
+            let totalApproved = 0;
+            let totalUtilized = 0;
+            calculatedForm.forEach(row => {
+              if (row[0] && String(row[0]).startsWith('Total')) {
+                totalApproved += parseNum(row[3]);
+                totalUtilized += parseNum(row[4]);
+              }
+            });
+            const totalBalance = totalApproved - totalUtilized;
+            const totalOutlook = totalApproved > 0 ? Math.round((totalUtilized / totalApproved) * 100) : 0;
+
+            setSummaryData(prev => ({
+              ...prev,
+              budgetApproved: totalApproved,
+              budgetUtilized: totalUtilized,
+              budgetBalance: totalBalance,
+              budgetOutlook: totalOutlook
+            }));
+
             setShowSaveNotification(true);
             setTimeout(() => setShowSaveNotification(false), 3000);
+
           } catch (error) {
             console.error('Error saving budget/project data to backend:', error);
           }
@@ -3713,7 +3753,9 @@ const ProjectTitleDashboard = () => {
         show={showEmailModal}
         onClose={() => setShowEmailModal(false)}
         activeProject={activeProject}
+        visibleSections={visibleSections}
         emailData={emailData}
+
         setEmailData={setEmailData}
         allEmployees={allEmployees}
         employeeSearchTerm={employeeSearchTerm}
@@ -3883,7 +3925,7 @@ const ProjectTitleDashboard = () => {
                 <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-navy)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
-                    
+
                     {/* Search Bar Integrated into Header */}
                     <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
                       <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)' }} />
@@ -3907,11 +3949,11 @@ const ProjectTitleDashboard = () => {
                         <button onClick={() => handleBulkPin(true)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Pin</button>
                         <button onClick={() => handleBulkPin(false)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Unpin</button>
                         {/* More bulk actions could go here */}
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectionMode(false);
                             setSelectedProjects([]);
-                          }} 
+                          }}
                           style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                         >
                           Clear
@@ -4349,7 +4391,9 @@ const EmailModal = ({
   show,
   onClose,
   activeProject,
+  visibleSections,
   emailData,
+
   setEmailData,
   allEmployees,
   employeeSearchTerm,
@@ -4595,6 +4639,9 @@ const EmailModal = ({
                 { id: 'qualityIssues', label: 'Quality Issues' },
 
               ].filter(section => {
+                // Only show if visible on the dashboard
+                if (!visibleSections[section.id]) return false;
+
                 const metricKeys = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
                 if (metricKeys.includes(section.id)) return availablePhases[section.id];
                 return true;
@@ -4611,6 +4658,13 @@ const EmailModal = ({
 
               {/* Dynamic Trackers */}
               {(activeProject?.submodules || []).filter(sub => {
+                // Filter out unnamed or unwanted submodules
+                const name = sub.displayName || sub.name || '';
+                if (!name.trim()) return false;
+
+                // Only show if visible on the dashboard
+                if (!visibleSections[sub.id]) return false;
+
                 const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
                 const coveredByDefault = defaultIds.some(id => {
                   const tracker = getTrackerForPhase(id);
