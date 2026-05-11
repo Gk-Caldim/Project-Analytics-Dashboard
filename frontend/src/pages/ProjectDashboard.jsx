@@ -687,6 +687,9 @@ const ProjectTitleDashboard = () => {
       getDashboard(resolvedProjectId, resolvedModule)
         .then(res => {
           setDashboardData(res);
+          if (res?.milestones) {
+            setMilestones(res.milestones);
+          }
         })
         .catch(console.error);
     });

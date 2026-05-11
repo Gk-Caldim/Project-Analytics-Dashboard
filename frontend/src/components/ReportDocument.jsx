@@ -542,7 +542,6 @@ const ReportDocument = ({
                     <Text style={[styles.budgetValue, { color: '#f97316' }]}>{summaryData?.qualityOpen || '0'}</Text>
                   </View>
                   <View style={[styles.budgetCard, { backgroundColor: '#fef2f2', borderColor: '#fee2e2' }]}>
-
                     <Text style={[styles.budgetLabel, { color: '#991b1b' }]}>Critical</Text>
                     <Text style={[styles.budgetValue, { color: '#ef4444' }]}>{summaryData?.qualityCritical || '0'}</Text>
                   </View>
