@@ -1452,6 +1452,9 @@ const ProjectTitleDashboard = () => {
       if (['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(key)) {
         return availablePhases[key];
       }
+      if (key === 'milestones') return !!(dashboardData?.milestones?.length > 0);
+      if (key === 'criticalIssues') return !!(criticalIssues?.length > 0);
+      if (key === 'budget') return budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
       return true;
     });
 
@@ -1805,7 +1808,16 @@ const ProjectTitleDashboard = () => {
   const renderSimulateModal = () => {
     if (!showSimulateModal) return null;
 
-    const availableSectionKeys = ['milestones', 'criticalIssues', 'budget', 'metricsSummary'];
+    const hasMilestones = !!(dashboardData?.milestones?.length > 0);
+    const hasCriticalIssues = !!(criticalIssues?.length > 0);
+    const hasBudgetData = budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
+
+    const availableSectionKeys = [
+      hasMilestones && 'milestones',
+      hasCriticalIssues && 'criticalIssues',
+      hasBudgetData && 'budget',
+      'metricsSummary'
+    ].filter(Boolean);
 
     const allSelected = availableSectionKeys.every(key => tempVisibleSections[key]);
 
@@ -1888,18 +1900,24 @@ const ProjectTitleDashboard = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
-                <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
-                <span style={{ fontWeight: '600' }}>Critical Issues</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
-                <span style={{ fontWeight: '600' }}>Budget Summary</span>
-              </label>
+              {hasMilestones && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
+                  <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
+                </label>
+              )}
+              {hasCriticalIssues && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
+                  <span style={{ fontWeight: '600' }}>Critical Issues</span>
+                </label>
+              )}
+              {hasBudgetData && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
+                  <span style={{ fontWeight: '600' }}>Budget Summary</span>
+                </label>
+              )}
 
               <div style={{
                 border: '1px solid var(--border-subtle)',
@@ -1955,7 +1973,7 @@ const ProjectTitleDashboard = () => {
               <div style={{ fontSize: '13px', color: '#4b5563' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
-                    .filter(([section, selected]) => selected && ['milestones', 'criticalIssues', 'budget', 'metricsSummary'].includes(section))
+                    .filter(([section, selected]) => selected && availableSectionKeys.includes(section))
                     .map(([section]) => {
                       const labels = {
                         milestones: 'Milestone Progress Tracker',
