@@ -9,7 +9,7 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles
 } from 'lucide-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
@@ -176,7 +176,9 @@ const ProjectTitleDashboard = () => {
   const [chartTypes, setChartTypes] = useState({});
   const [axisConfigs, setAxisConfigs] = useState({});
   const [maximizedChart, setMaximizedChart] = useState(null);
+  const [budgetViewMode, setBudgetViewMode] = useState('simplified'); // 'simplified' | 'table'
   const [showAxisSelector, setShowAxisSelector] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2879,26 +2881,50 @@ const ProjectTitleDashboard = () => {
             buttonTextColor: '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
-              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;">
+              if (!series || series.length === 0) return '<div style="padding:20px;">No data available</div>';
+              
+              const xAxis = opt.xAxis && opt.xAxis[0];
+              const yAxis = opt.yAxis && opt.yAxis[0];
+              
+              let xHeader = 'Category';
+              if (xAxis && xAxis.name) xHeader = xAxis.name;
+              else if (yAxis && yAxis.type === 'category' && yAxis.name) xHeader = yAxis.name;
+              
+              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;background:white;">
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
                   <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
-                    <th style="padding:10px;color:#1e293b;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
-                    <th style="padding:10px;color:#1e293b;font-weight:800;">Value</th>
-                  </tr>
-                </thead>
-                <tbody>`;
-
-              if (series[0].data) {
-                series[0].data.forEach((item, idx) => {
-                  const name = opt.xAxis[0].data ? opt.xAxis[0].data[idx] : idx;
+                    <th style="padding:10px;color:#1e293b;font-weight:800;">${xHeader}</th>`;
+              
+              series.forEach(s => {
+                table += `<th style="padding:10px;color:#1e293b;font-weight:800;">${s.name || 'Value'}</th>`;
+              });
+              
+              table += `</tr></thead><tbody>`;
+              
+              const dataLen = series[0].data ? series[0].data.length : 0;
+              for (let i = 0; i < dataLen; i++) {
+                let name = i;
+                if (xAxis && xAxis.data && xAxis.data[i]) {
+                  name = typeof xAxis.data[i] === 'object' ? xAxis.data[i].value : xAxis.data[i];
+                } else if (yAxis && yAxis.data && yAxis.data[i]) {
+                  name = typeof yAxis.data[i] === 'object' ? yAxis.data[i].value : yAxis.data[i];
+                } else if (series[0].data[i] && series[0].data[i].name) {
+                  name = series[0].data[i].name;
+                }
+                
+                table += `<tr style="border-bottom:1px solid #F1F5F9;">
+                  <td style="padding:8px 10px;color:#475569;">${name}</td>`;
+                
+                series.forEach(s => {
+                  const item = s.data[i];
                   const val = typeof item === 'object' ? item.value : item;
-                  table += `<tr style="border-bottom:1px solid #F1F5F9;">
-                    <td style="padding:8px 10px;color:#475569;">${name}</td>
-                    <td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val}</td>
-                  </tr>`;
+                  table += `<td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val !== undefined ? val : '-'}</td>`;
                 });
+                
+                table += `</tr>`;
               }
+              
               table += '</tbody></table></div>';
               return table;
             }
@@ -3403,6 +3429,224 @@ const ProjectTitleDashboard = () => {
     </div>
   );
 
+  const renderBudgetTable = () => {
+    // Columns the user wants: Sno, Category, Item name, unity type, Estimated, Utilized, commitment, total utilization, balance
+    const targetCols = [
+      { id: 'sno', label: 'Sno', keys: ['sno', 'Sno', 'S.No', '#', 'SNo'] },
+      { id: 'category', label: 'Category', keys: ['category', 'Category'] },
+      { id: 'item_name', label: 'Item name', keys: ['item_name', 'Item Name', 'Item name', 'Item'] },
+      { id: 'unit_type', label: 'unity type', keys: ['unit_type', 'Unit Type', 'unity type', 'Unit', 'unit_type'] },
+      { id: 'estimated', label: 'Estimated', keys: ['estimated', 'Estimated', 'Estimation'] },
+      { id: 'utilized', label: 'Utilized', keys: ['utilized', 'Utilized'] },
+      { id: 'commitment', label: 'commitment', keys: ['commitment', 'Commitment', 'commitment'] },
+      { id: 'total_utilization', label: 'total utilization', keys: ['total_utilization', 'Total utilization', 'Total Utilization', 'total utilization'] },
+      { id: 'balance', label: 'balance', keys: ['balance', 'Balance', 'balance'] }
+    ];
+
+    // Handle array of arrays (convert to objects)
+    let rows = [];
+    if (budgetTableData && budgetTableData.length > 0) {
+      if (Array.isArray(budgetTableData[0])) {
+        const headers = budgetTableData[0];
+        rows = budgetTableData.slice(1).map(r => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = r[i]; });
+          return obj;
+        });
+      } else {
+        rows = budgetTableData;
+      }
+    }
+
+    return (
+      <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              {targetCols.map(col => (
+                <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No detailed budget records found.</td></tr>
+            ) : rows.map((row, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fcfdfe' }}>
+                {targetCols.map(col => {
+                  const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
+                  let val = valKey !== undefined ? row[valKey] : '-';
+                  
+                  // Format monetary values
+                  if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
+                    if (val !== '-') {
+                      val = format(val, false);
+                    }
+                  }
+                  
+                  return (
+                    <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
+                      {val}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderAnalysisExplanation = (chartId) => {
+    const config = axisConfigs[activeProject.id]?.[chartId];
+    const tid = getTrackerForPhase(chartId)?.trackerId;
+    const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
+    if (!config || rows.length === 0) return null;
+
+    const isNumeric = rows.some(row => {
+      const val = row[config.yAxis];
+      return val !== null && val !== undefined && val !== '' && !isNaN(parseFloat(val));
+    });
+
+    const text = `Analyzing ${humanizeLabel(chartId)} for ${activeProject.name}. This visualization explores the distribution of ${humanizeLabel(config.yAxis)} across different ${humanizeLabel(config.xAxis)} categories. By aggregating ${rows.length} records using a ${isNumeric ? 'Summation' : 'Frequency Count'} logic, we can clearly identify how ${humanizeLabel(config.yAxis)} varies across the project scope. This breakdown highlights primary drivers and helps focus management attention where it matters most.`;
+
+    const container = {
+      hidden: { opacity: 0 },
+      visible: (i = 1) => ({
+        opacity: 1,
+        transition: { staggerChildren: 0.03, delayChildren: 0.1 * i },
+      }),
+    };
+
+    const child = {
+      visible: {
+        opacity: 1,
+        y: 0,
+        transition: {
+          type: "spring",
+          damping: 12,
+          stiffness: 100,
+        },
+      },
+      hidden: {
+        opacity: 0,
+        y: 20,
+        transition: {
+          type: "spring",
+          damping: 12,
+          stiffness: 100,
+        },
+      },
+    };
+
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        backdropFilter: 'blur(12px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          style={{
+            maxWidth: '750px',
+            width: '100%',
+            backgroundColor: 'white',
+            borderRadius: '24px',
+            padding: '50px',
+            position: 'relative',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}
+        >
+          <button
+            onClick={() => setShowExplanation(false)}
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              border: 'none',
+              background: '#f1f5f9',
+              cursor: 'pointer',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b'
+            }}
+          >
+            <X size={18} />
+          </button>
+
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
+                <Sparkles size={20} />
+              </div>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1e3a5f', letterSpacing: '-0.025em' }}>AI Analysis Deep Dive</h2>
+            </div>
+            <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
+          </div>
+
+          <motion.div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}
+            variants={container}
+            initial="hidden"
+            animate="visible"
+          >
+            {text.split(" ").map((word, index) => (
+              <motion.span
+                variants={child}
+                key={index}
+                style={{ 
+                  fontSize: '19px', 
+                  lineHeight: '1.6', 
+                  fontWeight: '500', 
+                  color: '#334155',
+                  letterSpacing: '-0.01em'
+                }}
+              >
+                {word}
+              </motion.span>
+            ))}
+          </motion.div>
+
+          <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setShowExplanation(false)}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: 'var(--accent)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Close Insights
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   const renderMetricsSummary = () => {
     if (allMetricCharts.length === 0) return null;
 
@@ -3554,22 +3798,36 @@ const ProjectTitleDashboard = () => {
               <span>{humanizeLabel(phaseLabel)} Analysis</span>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button
-                onClick={() => toggleAxisSelector(maximizedChart)}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
-                  color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
-                  cursor: 'pointer',
-                  fontWeight: '800',
-                  transition: 'none'
-                }}
-              >
-                AXES CONFIG
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => toggleAxisSelector(maximizedChart)}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    borderRadius: '4px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
+                    color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
+                    cursor: 'pointer',
+                    fontWeight: '800',
+                    transition: 'none'
+                  }}
+                >
+                  AXES CONFIG
+                </button>
+                {showAxisSelector === maximizedChart && (
+                  <AxisSelectorModal
+                    chartId={maximizedChart}
+                    onClose={() => setShowAxisSelector(null)}
+                    activeProject={activeProject}
+                    axisConfigs={axisConfigs}
+                    submoduleData={submoduleData}
+                    tracker={getTrackerForPhase(maximizedChart)}
+                    availableColumns={availableColumns}
+                    handleAxesUpdate={handleAxesUpdate}
+                  />
+                )}
+              </div>
 
               <select
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
@@ -3618,44 +3876,151 @@ const ProjectTitleDashboard = () => {
             </div>
           </div>
           <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg)' }}>
-            {/* Stats Overview Bar */}
-            {(() => {
-              const tid = getTrackerForPhase(maximizedChart)?.trackerId;
-              const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
-              const config = axisConfigs[activeProject.id]?.[maximizedChart];
-              const xAxis = config?.xAxis;
-              const yAxis = config?.yAxis;
-
-              if (rows.length === 0) return null;
-
-              const uniqueX = xAxis ? new Set(rows.map(r => r[xAxis]).filter(Boolean)).size : 0;
-              const numericY = yAxis ? rows.map(r => parseFloat(String(r[yAxis]).replace(/[^0-9.]/g, ''))).filter(v => !isNaN(v)) : [];
-              const totalY = numericY.reduce((a, b) => a + b, 0);
-              const avgY = numericY.length > 0 ? (totalY / numericY.length).toFixed(1) : 0;
-              const maxY = numericY.length > 0 ? Math.max(...numericY) : 0;
-
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>
-                  {[
-                    { label: 'Total Records', value: rows.length, color: 'var(--accent)' },
-                    { label: `Unique ${xAxis || 'X-Axis'}`, value: uniqueX, color: 'var(--accent)' },
-                    { label: `Average ${yAxis || 'Y-Axis'}`, value: avgY, color: 'var(--accent)' },
-                    { label: `Maximum ${yAxis || 'Y-Axis'}`, value: maxY, color: 'var(--accent)' }
-                  ].map((stat, i) => (
-                    <div key={i} style={{ backgroundColor: 'white', padding: '16px 20px', borderRadius: '4px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${stat.color}` }}>
-                      <div style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</div>
-                      <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--accent)' }}>{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
             <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
               <div style={{ height: '550px' }}>
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
             </div>
+
+            {/* Analysis Logic Summary Table */}
+            {(() => {
+              const tracker = getTrackerForPhase(maximizedChart);
+              const tid = tracker?.trackerId;
+              const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
+              
+              let config = axisConfigs[activeProject.id]?.[maximizedChart];
+              if (!config && tracker) {
+                const cols = tracker.columns || [];
+                config = {
+                  xAxis: cols[0] || '',
+                  yAxis: cols[1] || cols[0] || ''
+                };
+              }
+              
+              if (!config || rows.length === 0) return null;
+
+              const groupedData = {};
+              const isNumeric = rows.some(row => {
+                const val = row[config.yAxis];
+                return val !== null && val !== undefined && val !== '' && !isNaN(parseFloat(val));
+              });
+
+              rows.forEach(row => {
+                let xVal = row[config.xAxis];
+                if (xVal === null || xVal === undefined || String(xVal).trim() === '') {
+                  xVal = 'Uncategorized';
+                } else {
+                  xVal = String(xVal).trim();
+                }
+
+                let yVal = row[config.yAxis];
+                if (!groupedData[xVal]) groupedData[xVal] = 0;
+
+                if (isNumeric) {
+                  if (yVal !== null && yVal !== undefined && yVal !== '') {
+                    groupedData[xVal] += parseFloat(yVal) || 0;
+                  }
+                } else {
+                  if (yVal !== null && yVal !== undefined && String(yVal).trim() !== '') {
+                    groupedData[xVal] += 1;
+                  }
+                }
+              });
+
+              const sortedEntries = Object.entries(groupedData).sort((a, b) => {
+                if (a[0] === 'Uncategorized') return 1;
+                if (b[0] === 'Uncategorized') return -1;
+                const numA = parseFloat(a[0]);
+                const numB = parseFloat(b[0]);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a[0].localeCompare(b[0]);
+              });
+
+              return (
+                <div style={{ 
+                  backgroundColor: '#f8fafc', 
+                  padding: '24px', 
+                  borderRadius: '12px', 
+                  border: '1px solid #e2e8f0', 
+                  marginBottom: '30px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '20px'
+                }}>
+                  <div style={{ 
+                    backgroundColor: 'var(--accent)', 
+                    color: 'white', 
+                    padding: '10px', 
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <Sparkles size={22} />
+                  </div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Analysis Summary</h5>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                          {isNumeric ? 'SUMMATION' : 'COUNT'} LOGIC
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setShowExplanation(true)}
+                        style={{
+                          backgroundColor: 'var(--accent)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        <MessageSquare size={14} />
+                        Explain Analysis
+                      </button>
+                    </div>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{humanizeLabel(config.xAxis)}</th>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedEntries.slice(0, 10).map(([x, y]) => (
+                            <tr key={x} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '10px 16px', color: '#1e293b', fontWeight: '600' }}>{x}</td>
+                              <td style={{ padding: '10px 16px', color: 'var(--accent)', fontWeight: '900', fontSize: '13px' }}>
+                                {isNumeric ? (Math.round(y * 100) / 100).toLocaleString() : y}
+                              </td>
+                            </tr>
+                          ))}
+                          {sortedEntries.length > 10 && (
+                            <tr style={{ backgroundColor: '#f8fafc' }}>
+                              <td colSpan="2" style={{ padding: '10px 16px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', fontSize: '11px' }}>
+                                Showing top 10 categories. Total {sortedEntries.length} categories analyzed.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Detailed Data View Table */}
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
@@ -3706,14 +4071,6 @@ const ProjectTitleDashboard = () => {
                       <th style={{ padding: '12px 20px', color: '#475569', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
                       <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
                       <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
-                      {/* Show other relevant columns if available */}
-                      {Object.keys(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows[0] || {})
-                        .filter(k => k !== axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis && k !== axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis && !k.startsWith('_'))
-                        .slice(0, 3)
-                        .map(key => (
-                          <th key={key} style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '600', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(key)}</th>
-                        ))
-                      }
                     </tr>
                   </thead>
                   <tbody>
@@ -3724,13 +4081,6 @@ const ProjectTitleDashboard = () => {
                           <td style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: '600' }}>{idx + 1}</td>
                           <td style={{ padding: '10px 20px', color: '#1e293b', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
                           <td style={{ padding: '10px 20px', color: '#3b82f6', fontWeight: '800' }}>{row[config?.yAxis]}</td>
-                          {Object.keys(row)
-                            .filter(k => k !== config?.xAxis && k !== config?.yAxis && !k.startsWith('_'))
-                            .slice(0, 3)
-                            .map(key => (
-                              <td key={key} style={{ padding: '10px 20px', color: 'var(--text-secondary)' }}>{row[key]}</td>
-                            ))
-                          }
                         </tr>
                       );
                     })}
@@ -3743,6 +4093,9 @@ const ProjectTitleDashboard = () => {
                 )}
               </div>
             </div>
+            
+            {/* AI Analysis Explanation Overlay */}
+            {showExplanation && renderAnalysisExplanation(maximizedChart)}
           </div>
         </div>
       </div>
@@ -4099,27 +4452,70 @@ const ProjectTitleDashboard = () => {
               {visibleSections.budget && (
                 <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                   <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+                      
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                        <button 
+                          onClick={() => setBudgetViewMode('simplified')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: budgetViewMode === 'simplified' ? 'white' : 'transparent',
+                            color: budgetViewMode === 'simplified' ? 'var(--accent)' : '#64748b',
+                            boxShadow: budgetViewMode === 'simplified' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Simplified
+                        </button>
+                        <button 
+                          onClick={() => setBudgetViewMode('table')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: budgetViewMode === 'table' ? 'white' : 'transparent',
+                            color: budgetViewMode === 'table' ? 'var(--accent)' : '#64748b',
+                            boxShadow: budgetViewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Table View
+                        </button>
+                      </div>
+                    </div>
                     <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
                   </header>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                  {budgetViewMode === 'simplified' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
+                      </div>
                     </div>
-                    <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
-                    </div>
-                    <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
-                    </div>
-                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
-                    </div>
-                  </div>
+                  ) : (
+                    renderBudgetTable()
+                  )}
                 </section>
               )}
             </section>
