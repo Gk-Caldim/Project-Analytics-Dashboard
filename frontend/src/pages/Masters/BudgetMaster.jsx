@@ -6,7 +6,7 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
@@ -15,19 +15,19 @@ const READONLY_COLS = ['Estimated', 'Total utilization', 'Balance'];
 const NUMERIC_COLS = ['Unit count', 'Per unit cost', 'Utilized', 'Commitment'];
 
 const initialColumns = [
-  { id: 'sno', label: 'Sno', visible: true },
-  { id: 'category', label: 'Category', visible: true },
-  { id: 'item_name', label: 'Item Name', visible: true },
-  { id: 'unit_type', label: 'Unit Type', visible: true },
-  { id: 'unit_count', label: 'Unit count', visible: true },
-  { id: 'per_unit_cost', label: 'Per unit cost', visible: true },
-  { id: 'estimated', label: 'Estimated', visible: true },
-  { id: 'utilized', label: 'Utilized', visible: true },
-  { id: 'commitment', label: 'Commitment', visible: true },
-  { id: 'total_utilization', label: 'Total utilization', visible: true },
-  { id: 'balance', label: 'Balance', visible: true },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'comments', label: 'Comments', visible: true },
+  { id: 'sno', label: 'Sno', visible: true, type: 'text' },
+  { id: 'category', label: 'Category', visible: true, type: 'text' },
+  { id: 'item_name', label: 'Item Name', visible: true, type: 'text' },
+  { id: 'unit_type', label: 'Unit Type', visible: true, type: 'text' },
+  { id: 'unit_count', label: 'Unit count', visible: true, type: 'number' },
+  { id: 'per_unit_cost', label: 'Per unit cost', visible: true, type: 'currency' },
+  { id: 'estimated', label: 'Estimated', visible: true, type: 'currency' },
+  { id: 'utilized', label: 'Utilized', visible: true, type: 'currency' },
+  { id: 'commitment', label: 'Commitment', visible: true, type: 'currency' },
+  { id: 'total_utilization', label: 'Total utilization', visible: true, type: 'currency' },
+  { id: 'balance', label: 'Balance', visible: true, type: 'currency' },
+  { id: 'status', label: 'Status', visible: true, type: 'status' },
+  { id: 'comments', label: 'Comments', visible: true, type: 'text' },
 ];
 
 const isMonetary = (label) => MONETARY_COLS.includes(label);
@@ -163,6 +163,11 @@ const BudgetMaster = () => {
   const [marketAnalysis, setMarketAnalysis] = useState(null);
   const [fetchingMarket, setFetchingMarket] = useState(false);
   const [showMarketSuggestion, setShowMarketSuggestion] = useState(false);
+
+  // Custom Column State
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColumnData, setNewColumnData] = useState({ label: '', type: 'text' });
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
 
   const user = useSelector(state => state.auth.user);
   const userRole = user?.role || 'Employee';
@@ -300,8 +305,17 @@ const BudgetMaster = () => {
   });
 
   const handleEditChange = (label, value) => {
+    const col = columns.find(c => c.label === label);
+    let val = value;
+
+    // Preserve data types
+    if (col?.type === 'number' || col?.type === 'currency') {
+      const parsed = parseFloat(value);
+      val = isNaN(parsed) ? (value === '' ? '' : value) : parsed;
+    }
+
     setEditingData(prev => {
-      const next = { ...prev, [label]: value };
+      const next = { ...prev, [label]: val };
       if ([...NUMERIC_COLS, 'Utilized', 'Commitment'].includes(label)) {
         const uc = parseFloat(next['Unit count']) || 0;
         const puc = parseFloat(next['Per unit cost']) || 0;
@@ -313,6 +327,28 @@ const BudgetMaster = () => {
       }
       return next;
     });
+  };
+
+  const addColumn = () => {
+    if (!newColumnData.label) { toast.error('Column label is required'); return; }
+    if (columns.some(c => c.label.toLowerCase() === newColumnData.label.toLowerCase())) {
+      toast.error('Column already exists');
+      return;
+    }
+
+    const newCol = {
+      id: `custom_${Date.now()}`,
+      label: newColumnData.label,
+      visible: true,
+      type: newColumnData.type,
+      custom: true
+    };
+
+    setColumns(prev => [...prev, newCol]);
+    setTableData(prev => prev.map(row => ({ ...row, [newCol.label]: '' })));
+    setShowAddColumnModal(false);
+    setNewColumnData({ label: '', type: 'text' });
+    toast.success(`Column "${newCol.label}" added`);
   };
 
   const addRow = () => {
@@ -746,6 +782,58 @@ const BudgetMaster = () => {
 
 
 
+      {/* ── Add Column Modal ────────────────────────────────────────────────── */}
+      {showAddColumnModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add New Column</h3>
+              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <ChevronDown className="w-5 h-5 rotate-180" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Column Label</label>
+                <input 
+                  type="text" 
+                  value={newColumnData.label}
+                  onChange={e => setNewColumnData({ ...newColumnData, label: e.target.value })}
+                  placeholder="e.g., Tax Rate"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Data Type</label>
+                <select 
+                  value={newColumnData.type}
+                  onChange={e => setNewColumnData({ ...newColumnData, type: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                >
+                  <option value="text">Text</option>
+                  <option value="number">Number</option>
+                  <option value="currency">Currency</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-4 mt-8">
+                <button onClick={() => setShowAddColumnModal(false)}
+                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:bg-slate-800/80 transition-all">
+                  Cancel
+                </button>
+                <button onClick={addColumn}
+                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+                  Add Column
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Waiting Period Modal ─────────────────────────────────────────────── */}
       {showWaitingModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -939,10 +1027,31 @@ const BudgetMaster = () => {
               {/* Table Toolbar */}
               <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
-                  <button onClick={addRow}
-                    className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm">
-                    Add Item
-                  </button>
+                  <div className="relative">
+                    <button onClick={() => setShowAddDropdown(!showAddDropdown)}
+                      className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
+                      Add Item
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showAddDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                          <button onClick={() => { addRow(); setShowAddDropdown(false); }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
+                            <Plus className="w-4 h-4 text-blue-500" />
+                            <span>Add Row</span>
+                          </button>
+                          <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                            <Columns className="w-4 h-4 text-emerald-500" />
+                            <span>Add Column</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
 
                   <div className="relative">
                     <div className="flex items-stretch h-10">
@@ -1123,7 +1232,7 @@ const BudgetMaster = () => {
                               if (isEdit) {
                                 return (
                                   <td key={col.id} className="px-1 py-1">
-                                    {col.label === 'Status' ? (
+                                    {col.type === 'status' ? (
                                       <select value={val || ''}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
                                         className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
@@ -1131,7 +1240,7 @@ const BudgetMaster = () => {
                                       </select>
                                     ) : (
                                       <input
-                                        type={!ro && (num) ? 'number' : 'text'}
+                                        type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
                                         value={val !== undefined && val !== null ? val : ''}
                                         readOnly={ro}
                                         onChange={e => handleEditChange(col.label, e.target.value)}

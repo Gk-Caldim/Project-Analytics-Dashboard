@@ -18,7 +18,7 @@ Routes:
 import base64
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
@@ -34,6 +34,26 @@ from app.schemas.budget import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def clean_float(value: Any) -> float:
+    """Robust float conversion that handles commas, currency symbols, and None."""
+    if value is None or value == "":
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # Handle string cleaning
+    s = str(value).strip()
+    # Remove currency symbols (common ones)
+    for char in ["$", "₹", "£", "€", ","]:
+        s = s.replace(char, "")
+    
+    try:
+        return float(s)
+    except ValueError:
+        logger.warning(f"[budget] Could not convert '{value}' to float, returning 0.0")
+        return 0.0
 
 
 # ─── 1. GET / — List all budget summaries ─────────────────────────────────────
@@ -439,8 +459,8 @@ async def save_budget_summary(
         
         for row in parsed_budget_data:
             # Match keys from BudgetMaster.jsx initialColumns labels
-            total_utilized += float(row.get('Total utilization') or 0)
-            total_balance += float(row.get('Balance') or 0)
+            total_utilized += clean_float(row.get('Total utilization'))
+            total_balance += clean_float(row.get('Balance'))
 
         proj = db.query(Project).filter(Project.name == project_name).first()
         if proj:
