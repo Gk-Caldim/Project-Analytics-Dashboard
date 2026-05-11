@@ -6,7 +6,8 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
@@ -134,7 +135,6 @@ const BudgetMaster = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [attachmentName, setAttachmentName] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
 
@@ -245,11 +245,6 @@ const BudgetMaster = () => {
     }
   };
 
-  // ─── Notifications ──────────────────────────────────────────────────────────
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
-  };
 
   // ─── Sort / Filter ──────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {
@@ -334,7 +329,7 @@ const BudgetMaster = () => {
     setTableData(prev => prev.map(r => r.id === editingRowId ? { ...editingData } : r));
     setEditingRowId(null);
     setEditingData({});
-    showNotification('Row updated');
+    toast.success('Row updated');
   };
   const cancelEdit = () => { setEditingRowId(null); setEditingData({}); };
 
@@ -342,7 +337,7 @@ const BudgetMaster = () => {
     setTableData(prev => prev.filter(r => r.id !== showDeletePrompt));
     setShowDeletePrompt(null);
     if (editingRowId === showDeletePrompt) { setEditingRowId(null); setEditingData({}); }
-    showNotification('Row removed');
+    toast.success('Row removed');
   };
 
   // ─── Excel Import ────────────────────────────────────────────────────────────
@@ -361,7 +356,7 @@ const BudgetMaster = () => {
           const wb = XLSX.read(evt.target.result, { type: 'binary' });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-          if (raw.length < 2) { showNotification('No data in file', 'error'); return; }
+          if (raw.length < 2) { toast.error('No data in file'); return; }
           const headers = raw[0].map(h => String(h).trim().toLowerCase());
           const rows = [];
           for (let i = 1; i < raw.length; i++) {
@@ -375,10 +370,10 @@ const BudgetMaster = () => {
             rows.push(recalc(row));
           }
           setTableData(rows);
-          showNotification(`Imported ${rows.length} items. Don't forget to Save!`);
+          toast.success(`Imported ${rows.length} items. Don't forget to Save!`);
           setActiveTab('Table');
         } catch (err) {
-          showNotification('Excel parse failed', 'error');
+          toast.error('Excel parse failed');
         } finally {
           setIsParsing(false);
           setTempFile(null);
@@ -424,13 +419,13 @@ const BudgetMaster = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Budget Template");
     XLSX.writeFile(wb, "Budget_Template.xlsx");
 
-    showNotification('Template downloaded successfully');
+    toast.success('Template downloaded successfully');
   };
 
   // ─── Save to DB ──────────────────────────────────────────────────────────────
   // ─── Save to DB ──────────────────────────────────────────────────────────────
   const handleSave = (syncToProject = false) => {
-    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    if (!selectedProject) { toast.error('Please select a project first'); return; }
     setSaveType(syncToProject ? 'sync' : 'save');
     setShowDateModal(true);
   };
@@ -459,10 +454,10 @@ const BudgetMaster = () => {
       });
 
       fetchHistory(); // Refresh history so the next upload check sees this new version
-      showNotification(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
+      toast.success(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
       if (editingRowId) { setEditingRowId(null); setEditingData({}); }
     } catch (err) {
-      showNotification('Save failed — ' + (err.response?.data?.detail || err.message), 'error');
+      toast.error('Save failed — ' + (err.response?.data?.detail || err.message));
     } finally {
       setSaving(false);
     }
@@ -472,7 +467,7 @@ const BudgetMaster = () => {
   const handleRevisionSubmit = async (e) => {
     e.preventDefault();
     if (!selectedProject || !revisionData.revised_budget || !revisionData.reasons) {
-      showNotification('Fill all required fields', 'error'); return;
+      toast.error('Fill all required fields'); return;
     }
     setSubmittingRevision(true);
     try {
@@ -486,12 +481,12 @@ const BudgetMaster = () => {
       fd.append('reasons', revisionData.reasons);
       if (revisionData.attachment) fd.append('file', revisionData.attachment);
       await API.post('/budget/revisions/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showNotification('Revision request submitted');
+      toast.success('Revision request submitted');
       setShowNewRevisionForm(false);
       setRevisionData({ revised_budget: '', reasons: '', attachment: null });
       fetchRevisions();
     } catch (err) {
-      showNotification('Failed to submit revision', 'error');
+      toast.error('Failed to submit revision');
     } finally {
       setSubmittingRevision(false);
     }
@@ -502,11 +497,11 @@ const BudgetMaster = () => {
       await API.patch(`/budget/revisions/${id}`, { status: newStatus, ...extra });
 
       if (newStatus === 'Approved') {
-        showNotification('Budget approved - new budget updated', 'success');
+        toast.success('Budget approved - new budget updated');
       } else if (['Declined', 'Cancelled'].includes(newStatus)) {
-        showNotification('Budget not approved', 'error');
+        toast.error('Budget not approved');
       } else {
-        showNotification(`Revision ${newStatus.toLowerCase()}`);
+        toast.success(`Revision ${newStatus.toLowerCase()}`);
       }
 
       fetchRevisions();
@@ -514,7 +509,7 @@ const BudgetMaster = () => {
         fetchInitialData();
         if (selectedProject) fetchBudgetData(selectedProject);
       }
-    } catch { showNotification('Failed to update revision', 'error'); }
+    } catch { toast.error('Failed to update revision'); }
   };
 
   const fetchHistory = async () => {
@@ -523,7 +518,7 @@ const BudgetMaster = () => {
     try {
       const res = await API.get(`/budget/history/${encodeURIComponent(selectedProject)}`);
       setHistoryData(res.data);
-    } catch { showNotification('Failed to fetch budget history', 'error'); }
+    } catch { toast.error('Failed to fetch budget history'); }
     finally { setFetchingHistory(false); }
   };
 
@@ -536,17 +531,17 @@ const BudgetMaster = () => {
       setBudgetDate(res.data.budget_date || new Date().toISOString().split('T')[0]);
       setAttachmentName(res.data.attachment_name);
       setActiveTab('Table');
-      showNotification('Budget version loaded into table');
-    } catch { showNotification('Failed to load version', 'error'); }
+      toast.success('Budget version loaded into table');
+    } catch { toast.error('Failed to load version'); }
   };
 
   const deleteVersion = async (id) => {
     if (!window.confirm('Are you sure you want to delete this budget version?')) return;
     try {
       await API.delete(`/budget/version/${id}`);
-      showNotification('Budget version deleted');
+      toast.success('Budget version deleted');
       fetchHistory();
-    } catch { showNotification('Failed to delete version', 'error'); }
+    } catch { toast.error('Failed to delete version'); }
   };
 
   const handleDownloadAttachment = async (revId, fileName) => {
@@ -556,11 +551,11 @@ const BudgetMaster = () => {
       const link = document.createElement('a');
       link.href = url; link.setAttribute('download', fileName || 'attachment');
       document.body.appendChild(link); link.click(); link.remove();
-    } catch { showNotification('Download failed', 'error'); }
+    } catch { toast.error('Download failed'); }
   };
 
   const handleExportExcel = () => {
-    if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+    if (tableData.length === 0) { toast.error('No data to export'); return; }
     const exportData = tableData.map(row => {
       const filteredRow = {};
       columns.forEach(col => {
@@ -572,19 +567,19 @@ const BudgetMaster = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Budget");
     XLSX.writeFile(wb, `Budget_${selectedProject || 'Export'}.xlsx`);
-    showNotification('Exported as Excel');
+    toast.success('Exported as Excel');
   };
 
   const handleFetchMarketAnalysis = async () => {
-    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    if (!selectedProject) { toast.success('Please select a project first', 'error'); return; }
     setFetchingMarket(true);
     try {
       const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}`);
       setMarketAnalysis(res.data);
       setShowMarketSuggestion(true);
-      showNotification('Market analysis completed');
+      toast.success('Market analysis completed');
     } catch (err) {
-      showNotification('Failed to fetch market analysis', 'error');
+      toast.error('Failed to fetch market analysis');
     } finally {
       setFetchingMarket(false);
     }
@@ -598,12 +593,12 @@ const BudgetMaster = () => {
       reasons: marketAnalysis.reasoning
     });
     setShowMarketSuggestion(false);
-    showNotification('Suggestion applied with detailed reasoning');
+    toast.success('Suggestion applied with detailed reasoning');
   };
 
   const handleExportPDF = () => {
     try {
-      if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+      if (tableData.length === 0) { toast.error('No data to export'); return; }
       
       // Initialize landscape A4 document
       const doc = new jsPDF({
@@ -681,10 +676,10 @@ const BudgetMaster = () => {
       });
 
       doc.save(`Budget_Report_${selectedProject || 'Export'}_${new Date().getTime()}.pdf`);
-      showNotification('PDF Exported Successfully');
+      toast.success('PDF Exported Successfully');
     } catch (err) {
       console.error('PDF Export Error:', err);
-      showNotification('Failed to generate PDF. Please check table data.', 'error');
+      toast.error('Failed to generate PDF. Please check table data.');
     }
   };
 
@@ -695,7 +690,7 @@ const BudgetMaster = () => {
       const link = document.createElement('a');
       link.href = url; link.setAttribute('download', fileName || 'budget_master.xlsx');
       document.body.appendChild(link); link.click(); link.remove();
-    } catch { showNotification('No file stored or download failed', 'error'); }
+    } catch { toast.error('No file stored or download failed'); }
   };
 
   // ─── Computed summary ────────────────────────────────────────────────────────
@@ -722,19 +717,6 @@ const BudgetMaster = () => {
   return (
     <div className="master-table-container">
 
-      {/* ── Notification ──────────────────────────────────────────────────────── */}
-      {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-4 ${notification.type === 'success'
-          ? 'bg-green-100 text-green-800 border border-green-200'
-          : 'bg-red-100 text-red-800 border border-red-200'
-          }`}>
-          <span className="text-base font-semibold">{notification.message}</span>
-          <button onClick={() => setNotification({ show: false, message: '', type: '' })}
-            className="ml-4 text-current opacity-60 hover:opacity-100 transition-opacity">
-            Close
-          </button>
-        </div>
-      )}
 
       {/* ── Delete Row Prompt ────────────────────────────────────────────────── */}
       {showDeletePrompt && (
@@ -1009,7 +991,7 @@ const BudgetMaster = () => {
                   <div className="relative group">
                     <button
                       onClick={() => {
-                        if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+                        if (!selectedProject) { toast.error('Please select a project first'); return; }
                         setShowUploadModal(true);
                       }}
                       className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
@@ -1470,8 +1452,16 @@ const BudgetMaster = () => {
                         </tr>
                       ) : revisions.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-24 text-center">
-                            <p className="text-sm font-bold text-slate-400">No revision requests found</p>
+                          <td colSpan={8} className="py-24">
+                            <div className="flex flex-col items-center justify-center text-center px-4">
+                              <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
+                                <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                              </div>
+                              <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No revision requests found</p>
+                              <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                                Any budget revisions you submit will appear here in the history log.
+                              </p>
+                            </div>
                           </td>
                         </tr>
                       ) : revisions.map(rev => {
@@ -1724,7 +1714,12 @@ const BudgetMaster = () => {
                       );
                     })}
                     {estimatedBreakdown.length === 0 && (
-                      <div className="py-12 text-center text-slate-400 text-xs italic">No allocation data available</div>
+                      <div className="py-16 flex flex-col items-center justify-center text-center">
+                        <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                          <PieChart className="h-6 w-6 text-slate-300 dark:text-slate-600" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-400 italic">No allocation data available</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1814,7 +1809,16 @@ const BudgetMaster = () => {
                         );
                       })}
                       {estimatedBreakdown.length === 0 && (
-                        <tr><td colSpan={5} className="py-12 text-center text-slate-400 text-xs italic">No category data available</td></tr>
+                        <tr>
+                          <td colSpan={5} className="py-16">
+                            <div className="flex flex-col items-center justify-center text-center">
+                              <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
+                                <ShieldAlert className="h-5 w-5 text-slate-300 dark:text-slate-600" />
+                              </div>
+                              <p className="text-[11px] font-bold text-slate-400 italic">No category data available for risk assessment</p>
+                            </div>
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
@@ -1851,7 +1855,19 @@ const BudgetMaster = () => {
                     {fetchingHistory ? (
                       <tr><td colSpan={5} className="py-12 text-center text-slate-400">Loading history...</td></tr>
                     ) : historyData.length === 0 ? (
-                      <tr><td colSpan={5} className="py-12 text-center text-slate-400">No budget history found for this project.</td></tr>
+                      <tr>
+                        <td colSpan={5} className="py-24">
+                          <div className="flex flex-col items-center justify-center text-center px-4">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
+                              <History className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No budget history found</p>
+                            <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                              Upload an excel snapshot or save a manual revision to start building your budget history.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
                     ) : historyData.map(item => (
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
                         <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
@@ -2061,7 +2077,7 @@ const BudgetMaster = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (!tempFile) { showNotification('Please select a file', 'error'); return; }
+                    if (!tempFile) { toast.error('Please select a file'); return; }
                     const targetDate = String(budgetDate || '').trim();
                     const historyArray = Array.isArray(historyData) ? historyData : [];
                     const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);

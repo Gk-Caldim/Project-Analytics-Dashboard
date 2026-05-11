@@ -6,6 +6,7 @@ import {
   User, UserCheck, ShieldCheck, Briefcase, Users, UserCircle
 } from 'lucide-react';
 import API from '../../../utils/api';
+import { toast } from 'react-hot-toast';
 
 const ROLE_ORDER = {
   'Super Admin': 1,
@@ -35,14 +36,12 @@ const AccessControl = () => {
   
   // Logic States
   const [activeModuleId, setActiveModuleId] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [roleToDelete, setRoleToDelete] = useState(null);
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   const getRoleIcon = (roleName) => {
@@ -373,15 +372,6 @@ const AccessControl = () => {
 
   return (
     <div className="space-y-12 pb-24 font-inter">
-      {/* Notification */}
-      {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[500] flex items-center gap-3 animate-in fade-in slide-in-from-right-8 duration-300 rounded-full shadow-xl ${notification.type === 'success'
-          ? 'bg-[#0004ab] border-white/10 text-white'
-          : 'bg-red-600 border-none text-white'
-          }`}>
-          <p className="text-[10px] font-bold tracking-widest uppercase">{notification.message}</p>
-        </div>
-      )}
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>

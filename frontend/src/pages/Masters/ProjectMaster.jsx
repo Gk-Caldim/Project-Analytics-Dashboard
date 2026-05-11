@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Filter, Download, Eye, EyeOff, Briefcase, DollarSign, Users, TrendingUp, CheckCircle, Clock, AlertTriangle, FileText, Calendar, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, ArrowUp, ArrowDown, Copy, FolderTree } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -16,6 +17,12 @@ import useCurrency from "../../hooks/useCurrency";
 const ProjectMaster = () => {
   const navigate = useNavigate();
   const { format, symbol, code, convert } = useCurrency();
+
+  const showNotification = (message, type = 'success') => {
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
+  };
   // Fixed columns matching backend Project model
   const initialColumns = [
     { id: 'project_id', label: 'Project ID', visible: true, sortable: true, type: 'text', required: true },
@@ -88,7 +95,7 @@ const ProjectMaster = () => {
   const [showExportConfirmPrompt, setShowExportConfirmPrompt] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [dynamicRoles, setDynamicRoles] = useState([]);
 
   // Filter Dropdown state
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -166,13 +173,6 @@ const ProjectMaster = () => {
     return payload;
   };
 
-  // Show notification
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
-  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -189,7 +189,7 @@ const ProjectMaster = () => {
     } catch (err) {
       console.error("Error loading data:", err);
       setError("Failed to load data. Please try again.");
-      showNotification('Failed to load data', 'error');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -272,7 +272,7 @@ const ProjectMaster = () => {
     setTempFrozenColumns([]);
     setCurrentPage(1);
     await fetchData();
-    showNotification('Data refreshed successfully');
+    toast.success('Data refreshed successfully');
   };
 
 
@@ -308,12 +308,12 @@ const ProjectMaster = () => {
   // Bulk edit function - Modified to handle single row only
   const handleBulkEdit = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to edit', 'error');
+      toast.error('Please select at least one project to edit');
       return;
     }
 
     if (selectedProjects.length > 1) {
-      showNotification('Only one row can be edited at a time', 'error');
+      toast.error('Only one row can be edited at a time');
       return;
     }
 
@@ -336,7 +336,7 @@ const ProjectMaster = () => {
   // Bulk delete function
   const handleBulkDelete = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to delete', 'error');
+      toast.error('Please select at least one project to delete');
       return;
     }
 
@@ -358,11 +358,11 @@ const ProjectMaster = () => {
       setSelectAll(false);
       setCurrentPage(1);
       setShowBulkDeletePrompt({ show: false, count: 0 });
-      showNotification(`${count} projects deleted successfully`);
+      toast.success(`${count} projects deleted successfully`);
     } catch (err) {
       console.error(err);
       const errorMsg = err.response?.data?.detail || 'Error during bulk delete process';
-      showNotification(errorMsg, 'error');
+      toast.error(errorMsg);
     }
   };
 
@@ -382,7 +382,7 @@ const ProjectMaster = () => {
         ));
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated locally');
+        toast.success('Column updated locally');
         return;
       }
 
@@ -393,10 +393,10 @@ const ProjectMaster = () => {
         await fetchColumns();
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated successfully');
+        toast.success('Column updated successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error updating column', 'error');
+        toast.error('Error updating column');
       }
     }
   };
@@ -446,15 +446,15 @@ const ProjectMaster = () => {
         await fetchColumns(); // Re-sync with server
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
-        showNotification('Column deleted successfully');
+        toast.success('Column deleted successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error deleting column', 'error');
+        toast.error('Error deleting column');
       }
     } else {
       setShowDeleteColumnPrompt(null);
       if (col && !col.db_id) {
-        showNotification('Cannot delete fixed column', 'warning');
+        toast.error('Cannot delete fixed column');
       }
     }
   };
@@ -644,7 +644,7 @@ const ProjectMaster = () => {
       setShowAddProjectModal(false);
       setValidationErrors({});
       setCurrentPage(1);
-      showNotification(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
+      toast.success(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
     } catch (err) {
       console.error(err);
       let msg = err.response?.data?.detail || err.message;
@@ -658,7 +658,7 @@ const ProjectMaster = () => {
         msg = 'A project with this ID might already exist. Please try a different ID.';
       }
       
-      showNotification('Error saving project: ' + msg, 'error');
+      toast.error('Error saving project: ' + msg);
     }
   };
 
@@ -684,11 +684,11 @@ const ProjectMaster = () => {
         if (paginatedProjects.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
-        showNotification('Project deleted successfully');
+        toast.success('Project deleted successfully');
       } catch (err) {
         console.error(err);
         const msg = err.response?.data?.detail || err.message;
-        showNotification('Error deleting project: ' + msg, 'error');
+        toast.error('Error deleting project: ' + msg);
       }
     }
   };
@@ -734,11 +734,11 @@ const ProjectMaster = () => {
       setValidationErrors({});
       setSelectedProjects([]);
       setSelectAll(false);
-      showNotification('Project updated successfully');
+      toast.success('Project updated successfully');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.detail || err.message;
-      showNotification('Error updating project: ' + msg, 'error');
+      toast.error('Error updating project: ' + msg);
     }
   };
 
@@ -780,7 +780,7 @@ const ProjectMaster = () => {
   // Add new column
   const handleAddColumn = () => {
     if (!newColumnName.trim()) {
-      showNotification('Please enter a column name', 'error');
+      toast.error('Please enter a column name');
       return;
     }
 
@@ -795,7 +795,7 @@ const ProjectMaster = () => {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
       if (columns.find(col => col.id === newColumnId)) {
-        showNotification('Column with this name already exists', 'error');
+        toast.error('Column with this name already exists');
         return;
       }
 
@@ -811,10 +811,10 @@ const ProjectMaster = () => {
         setNewColumnName('');
         setShowColumnAddPrompt({ show: false, columnName: '' });
         setShowColumnModal(false);
-        showNotification('Column added successfully');
+        toast.success('Column added successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error adding column', 'error');
+        toast.error('Error adding column');
       }
     }
   };
@@ -836,7 +836,7 @@ const ProjectMaster = () => {
 
   const handleCopyColumnName = (label) => {
     navigator.clipboard.writeText(label);
-    showNotification('Column name copied');
+    toast.success('Column name copied');
     setActiveDropdownColumn(null);
   };
 
@@ -844,10 +844,10 @@ const ProjectMaster = () => {
     let newFrozen = [...frozenColumns];
     if (newFrozen.includes(colIndex)) {
       newFrozen = newFrozen.filter(idx => idx !== colIndex);
-      showNotification('Column unfrozen');
+      toast.success('Column unfrozen');
     } else {
       newFrozen = [...new Set([...newFrozen, colIndex])].sort((a, b) => a - b);
-      showNotification('Column frozen');
+      toast.success('Column frozen');
     }
     setFrozenColumns(newFrozen);
     setTempFrozenColumns(newFrozen);
@@ -857,7 +857,7 @@ const ProjectMaster = () => {
   // Export functions
   const handleExportClick = (format) => {
     if (sortedProjects.length === 0) {
-      showNotification('No data to export', 'error');
+      toast.error('No data to export');
       return;
     }
 
@@ -890,7 +890,7 @@ const ProjectMaster = () => {
         XLSX.utils.book_append_sheet(wb, ws, "Projects");
         XLSX.writeFile(wb, "projects.xlsx");
         setShowExportDropdown(false);
-        showNotification('Export to Excel completed successfully');
+        toast.success('Export to Excel completed successfully');
         return;
       case 'csv':
         content = convertToCSV(dataToExport);
@@ -905,7 +905,7 @@ const ProjectMaster = () => {
       case 'pdf':
         exportToPDF(dataToExport);
         setShowExportDropdown(false);
-        showNotification('Export to PDF completed successfully');
+        toast.success('Export to PDF completed successfully');
         return;
     }
 
@@ -920,7 +920,7 @@ const ProjectMaster = () => {
     window.URL.revokeObjectURL(url);
 
     setShowExportDropdown(false);
-    showNotification(`Export to ${format.toUpperCase()} completed successfully`);
+    toast.success(`Export to ${format.toUpperCase()} completed successfully`);
     setShowExportConfirmPrompt(null);
   };
 
@@ -996,9 +996,9 @@ const ProjectMaster = () => {
     setShowFreezeRowModal(false);
 
     if (tempFrozenRows.length > 0) {
-      showNotification(`${tempFrozenRows.length} row(s) frozen`);
+      toast.success(`${tempFrozenRows.length} row(s) frozen`);
     } else {
-      showNotification('All rows unfrozen');
+      toast.success('All rows unfrozen');
     }
   };
 
@@ -1007,9 +1007,9 @@ const ProjectMaster = () => {
     setShowFreezeColumnModal(false);
 
     if (tempFrozenColumns.length > 0) {
-      showNotification(`${tempFrozenColumns.length} column(s) frozen`);
+      toast.success(`${tempFrozenColumns.length} column(s) frozen`);
     } else {
-      showNotification('All columns unfrozen');
+      toast.success('All columns unfrozen');
     }
   };
 
@@ -1468,23 +1468,6 @@ const ProjectMaster = () => {
   return (
     <div className="master-table-container">
       <>
-        {/* Notification Banner */}
-        {notification.show && (
-          <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-            notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-              'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">{notification.message}</span>
-              <button
-                onClick={() => setNotification({ show: false, message: '', type: '' })}
-                className="ml-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
@@ -2796,8 +2779,25 @@ const ProjectMaster = () => {
                     {/* Empty state */}
                     {paginatedProjects.length === 0 && (
                       <tr>
-                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                          No projects found
+                        <td colSpan={visibleColumns.length + 2} className="py-24">
+                          <div className="flex flex-col items-center justify-center text-center px-4">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
+                              <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Projects Found</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                              Your project list is currently empty. Start by creating a new project to track its progress and budget.
+                            </p>
+                            {canAddProject && (
+                              <button
+                                onClick={handleAddProjectClick}
+                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                              >
+                                <Plus className="h-5 w-5" />
+                                Launch New Project
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}

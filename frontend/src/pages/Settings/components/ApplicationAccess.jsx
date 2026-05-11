@@ -3,6 +3,7 @@ import {
   Shield, User, Mail, Plus, X, Trash2, Edit, Save, Loader2, Check, Lock, Eye, EyeOff
 } from 'lucide-react';
 import API from '../../../utils/api';
+import { toast } from 'react-hot-toast';
 
 const ApplicationAccess = () => {
   const [users, setUsers] = useState([]);
@@ -13,7 +14,6 @@ const ApplicationAccess = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRequestsDrawer, setShowRequestsDrawer] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -45,10 +45,9 @@ const ApplicationAccess = () => {
   };
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   const handleUpdateUser = async () => {
@@ -125,11 +124,6 @@ const ApplicationAccess = () => {
 
   return (
     <div className="space-y-12">
-      {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 border z-[300] animate-in fade-in slide-in-from-right-8 duration-300 ${notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'}`}>
-          <p className="text-xs font-bold tracking-wider uppercase">{notification.message}</p>
-        </div>
-      )}
 
       <div className="flex items-center justify-between">
         <div>

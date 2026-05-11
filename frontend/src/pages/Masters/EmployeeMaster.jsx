@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter, Users } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import API from '../../utils/api';
 
 const MODULE_LIST = [
@@ -97,7 +98,6 @@ const EmployeeMaster = () => {
   const [showExportConfirmPrompt, setShowExportConfirmPrompt] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [dynamicRoles, setDynamicRoles] = useState([]);
 
   // Filter Dropdown state
@@ -135,13 +135,6 @@ const EmployeeMaster = () => {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
-  // Show notification
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
-  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -160,7 +153,7 @@ const EmployeeMaster = () => {
     } catch (err) {
       console.error("Error loading data:", err);
       setError("Failed to load data. Please try again.");
-      showNotification('Failed to load data', 'error');
+      toast.error();
     } finally {
       setLoading(false);
     }
@@ -225,7 +218,7 @@ const EmployeeMaster = () => {
     setTempFrozenColumns([]);
     setCurrentPage(1);
     await fetchData();
-    showNotification('Data refreshed successfully');
+    toast.success('Data refreshed successfully');
   };
 
   // Checkbox Functions
@@ -260,12 +253,12 @@ const EmployeeMaster = () => {
   // Bulk edit function - Modified to handle single row only
   const handleBulkEdit = () => {
     if (selectedEmployees.length === 0) {
-      showNotification('Please select at least one employee to edit', 'error');
+      toast.success('Please select at least one employee to edit', 'error');
       return;
     }
 
     if (selectedEmployees.length > 1) {
-      showNotification('Only one row can be edited at a time', 'error');
+      toast.success('Only one row can be edited at a time', 'error');
       return;
     }
 
@@ -288,7 +281,7 @@ const EmployeeMaster = () => {
   // Bulk delete function
   const handleBulkDelete = () => {
     if (selectedEmployees.length === 0) {
-      showNotification('Please select at least one employee to delete', 'error');
+      toast.success('Please select at least one employee to delete', 'error');
       return;
     }
 
@@ -311,11 +304,11 @@ const EmployeeMaster = () => {
       setCurrentPage(1);
       setShowBulkDeletePrompt({ show: false, count: 0 });
 
-      showNotification(`${count} employees deleted successfully`);
+      toast.success(`${count} employees deleted successfully`);
     } catch (err) {
       console.error(err);
       const errorMsg = err.response?.data?.detail || 'Error during bulk delete process';
-      showNotification(errorMsg, 'error');
+      toast.error();
     }
   };
 
@@ -336,7 +329,7 @@ const EmployeeMaster = () => {
         ));
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated locally');
+        toast.success('Column updated locally');
         return;
       }
 
@@ -347,10 +340,10 @@ const EmployeeMaster = () => {
         await fetchColumns();
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated successfully');
+        toast.success('Column updated successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error updating column', 'error');
+        toast.error();
       }
     }
   };
@@ -395,10 +388,10 @@ const EmployeeMaster = () => {
         await fetchColumns();
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
-        showNotification('Column deleted successfully');
+        toast.success('Column deleted successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error deleting column', 'error');
+        toast.error();
       }
     } else {
       // Should not happen for fixed columns based on handleDeleteColumn check
@@ -560,12 +553,12 @@ const EmployeeMaster = () => {
   // Save new employee
   const saveNewEmployee = async () => {
     if (!newEmployee.employee_id || !newEmployee.name || !newEmployee.email || !newEmployee.department) {
-      showNotification('Please fill in all required fields marked with *', 'error');
+      toast.error();
       return;
     }
 
     if (!newEmployee.employee_id || !newEmployee.name || !newEmployee.email || !newEmployee.department) {
-      showNotification('Please fill in all required fields marked with *', 'error');
+      toast.error();
       return;
     }
 
@@ -580,11 +573,11 @@ const EmployeeMaster = () => {
       setShowAddEmployeeModal(false);
       setNewEmployee({});
       setCurrentPage(1);
-      showNotification('Employee added successfully');
+      toast.success('Employee added successfully');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.detail || err.message;
-      showNotification('Error saving employee: ' + msg, 'error');
+      toast.error('Error saving employee: ' + msg);
     } finally {
       setLoading(false);
     }
@@ -606,11 +599,11 @@ const EmployeeMaster = () => {
         if (paginatedEmployees.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
-        showNotification('Employee deleted successfully');
+        toast.success('Employee deleted successfully');
       } catch (err) {
         console.error(err);
         const msg = err.response?.data?.detail || err.message;
-        showNotification('Error deleting employee: ' + msg, 'error');
+          toast.error('Error deleting employee: ' + msg);
       }
     }
   };
@@ -636,12 +629,12 @@ const EmployeeMaster = () => {
   // Save employee edit
   const saveEdit = async () => {
     if (!editForm.employee_id || !editForm.name || !editForm.email || !editForm.department) {
-      showNotification('Please fill in all required fields marked with *', 'error');
+      toast.error();
       return;
     }
 
     if (editForm.password && editForm.password !== editForm.confirmPassword) {
-      showNotification('Passwords do not match', 'error');
+      toast.error();
       return;
     }
 
@@ -662,11 +655,11 @@ const EmployeeMaster = () => {
       setEditForm({});
       setSelectedEmployees([]);
       setSelectAll(false);
-      showNotification('Employee updated successfully');
+      toast.success('Employee updated successfully');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.detail || err.message;
-      showNotification('Error updating employee: ' + msg, 'error');
+      toast.error('Error updating employee: ' + msg);
     } finally {
       setLoading(false);
     }
@@ -707,7 +700,7 @@ const EmployeeMaster = () => {
   // Add new column
   const handleAddColumn = () => {
     if (!newColumnName.trim()) {
-      showNotification('Please enter a column name', 'error');
+      toast.error();
       return;
     }
 
@@ -722,7 +715,7 @@ const EmployeeMaster = () => {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
       if (columns.find(col => col.id === newColumnId)) {
-        showNotification('Column with this name already exists', 'error');
+        toast.error();
         return;
       }
 
@@ -738,10 +731,10 @@ const EmployeeMaster = () => {
         setNewColumnName('');
         setShowColumnAddPrompt({ show: false, columnName: '' });
         setShowColumnModal(false);
-        showNotification('Column added successfully');
+        toast.success('Column added successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error adding column', 'error');
+          toast.error('Error adding column');
       }
     }
   };
@@ -763,7 +756,7 @@ const EmployeeMaster = () => {
 
   const handleCopyColumnName = (label) => {
     navigator.clipboard.writeText(label);
-    showNotification('Column name copied');
+    toast.success('Column name copied');
     setActiveDropdownColumn(null);
   };
 
@@ -771,10 +764,10 @@ const EmployeeMaster = () => {
     let newFrozen = [...frozenColumns];
     if (newFrozen.includes(colIndex)) {
       newFrozen = newFrozen.filter(idx => idx !== colIndex);
-      showNotification('Column unfrozen');
+      toast.success('Column unfrozen');
     } else {
       newFrozen = [...new Set([...newFrozen, colIndex])].sort((a, b) => a - b);
-      showNotification('Column frozen');
+      toast.success('Column frozen');
     }
     setFrozenColumns(newFrozen);
     setTempFrozenColumns(newFrozen);
@@ -784,7 +777,7 @@ const EmployeeMaster = () => {
   // Export functions
   const handleExportClick = (format) => {
     if (sortedEmployees.length === 0) {
-      showNotification('No data to export', 'error');
+      toast.success('No data to export', 'error');
       return;
     }
 
@@ -796,7 +789,7 @@ const EmployeeMaster = () => {
   };
 
   const handleExport = (format) => {
-    showNotification(`Export to ${format.toUpperCase()} completed successfully`);
+    toast.success(`Export to ${format.toUpperCase()} completed successfully`);
     setShowExportConfirmPrompt(null);
     setShowExportDropdown(false);
   };
@@ -832,9 +825,9 @@ const EmployeeMaster = () => {
     setShowFreezeRowModal(false);
 
     if (tempFrozenRows.length > 0) {
-      showNotification(`${tempFrozenRows.length} row(s) frozen`);
+      toast.success(`${tempFrozenRows.length} row(s) frozen`);
     } else {
-      showNotification('All rows unfrozen');
+      toast.success('All rows unfrozen');
     }
   };
 
@@ -843,9 +836,9 @@ const EmployeeMaster = () => {
     setShowFreezeColumnModal(false);
 
     if (tempFrozenColumns.length > 0) {
-      showNotification(`${tempFrozenColumns.length} column(s) frozen`);
+      toast.success(`${tempFrozenColumns.length} column(s) frozen`);
     } else {
-      showNotification('All columns unfrozen');
+      toast.success('All columns unfrozen');
     }
   };
 
@@ -965,23 +958,6 @@ const EmployeeMaster = () => {
   return (
     <div className="master-table-container">
       <>
-        {/* Notification Banner */}
-        {notification.show && (
-          <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-            notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-              'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">{notification.message}</span>
-              <button
-                onClick={() => setNotification({ show: false, message: '', type: '' })}
-                className="ml-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Delete Employee Prompt */}
         {showDeletePrompt && (
@@ -2138,8 +2114,25 @@ const EmployeeMaster = () => {
                       {/* Empty state */}
                       {paginatedEmployees.length === 0 && (
                         <tr>
-                          <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                            No employees found
+                          <td colSpan={visibleColumns.length + 2} className="py-24">
+                            <div className="flex flex-col items-center justify-center text-center px-4">
+                              <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-700">
+                                <Users className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                              </div>
+                              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Employees Found</h3>
+                              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                                We couldn't find any staff records matching your search. Try adjusting your filters or add a new team member.
+                              </p>
+                              {hasPermission('Employee Master', 'ADD') && (
+                                <button
+                                  onClick={handleAddEmployeeClick}
+                                  className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                >
+                                  <Plus className="h-5 w-5" />
+                                  Add Your First Employee
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )}

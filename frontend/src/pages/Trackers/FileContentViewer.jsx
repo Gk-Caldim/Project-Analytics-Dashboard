@@ -9,6 +9,7 @@ import {
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { toast } from 'react-hot-toast';
 
 // Delete Confirmation Modal Component (same as before)
 const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, message, type = 'column' }) => {
@@ -65,7 +66,6 @@ const FileContentViewer = ({
   const [tempColumnName, setTempColumnName] = useState('');
   const [editedHeaders, setEditedHeaders] = useState([]);
   const [editedRows, setEditedRows] = useState([]);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showDeleteModal, setShowDeleteModal] = useState({
     isOpen: false,
     type: '',
@@ -355,10 +355,9 @@ const FileContentViewer = ({
   // Show notification
   // ==========================================================================
   const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   // ==========================================================================
@@ -1218,23 +1217,6 @@ const FileContentViewer = ({
     <div className="h-full flex flex-col bg-gray-50 overflow-visible">
       <style>{tooltipStyles}</style>
 
-      {/* Notification */}
-      {notification.show && (
-        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-          notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-blue-100 text-blue-800 border border-blue-200'
-          }`}>
-          <div className="flex items-center">
-            <span className="text-sm font-medium">{notification.message}</span>
-            <button
-              onClick={() => setNotification({ show: false, message: '', type: '' })}
-              className="ml-4 text-gray-500 hover:text-gray-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Delete Modals */}
       {showDeleteModal.isOpen && (

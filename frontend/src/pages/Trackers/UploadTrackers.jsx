@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import API from '../../utils/api';
+import { toast } from 'react-hot-toast';
 import FileContentViewer from './FileContentViewer';
 import { getEmployees } from '../../utils/employeeApi';
 import SearchableDropdown from '../../components/SearchableDropdown';
@@ -217,7 +218,6 @@ const UploadTrackers = () => {
   const [showDeletePrompt, setShowDeletePrompt] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -271,10 +271,9 @@ const UploadTrackers = () => {
 
   // Show notification
   const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   // Handle URL parameters when component mounts or URL changes
@@ -1124,23 +1123,6 @@ const UploadTrackers = () => {
         </div>
       )}
 
-      {/* Notification Banner */}
-      {notification.show && (
-        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-          notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-blue-100 text-blue-800 border border-blue-200'
-          }`}>
-          <div className="flex items-center">
-            <span className="text-sm font-medium">{notification.message}</span>
-            <button
-              onClick={() => setNotification({ show: false, message: '', type: '' })}
-              className="ml-4 text-gray-500 hover:text-gray-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Delete Tracker Modal */}
       {showDeletePrompt && (

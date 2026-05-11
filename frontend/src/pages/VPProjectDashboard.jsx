@@ -162,7 +162,27 @@ const VPProjectDashboard = ({
             </div>
             <div className="vppd-meeting-list" style={{ padding: '0px' }}>
               {momIssues.length === 0 ? (
-                <div className="vppd-empty">No issues synced from meetings yet.</div>
+                <div className="vppd-empty" style={{ padding: '60px 20px', background: 'var(--surface)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)' }}>
+                  <div style={{ marginBottom: '20px', color: 'var(--text-muted)', opacity: 0.5 }}>
+                    <FileText size={48} strokeWidth={1} />
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>No meeting issues synced yet.</div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.5 }}>
+                    Capture meeting minutes and sync your action items to track them here in the unified dashboard.
+                  </div>
+                  <button
+                    onClick={() => navigate('/dashboard/mom/capture')}
+                    style={{
+                      padding: '10px 24px', background: '#0D9488', color: 'white', border: 'none',
+                      borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(13,148,136,0.2)', transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    Capture New Meeting
+                  </button>
+                </div>
               ) : (
                 <div className="vppd-mom-table-container animate-fadeIn">
                   {/* Form Style Header */}
@@ -192,32 +212,7 @@ const VPProjectDashboard = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {momIssues.length === 0 ? (
-                          <tr>
-                            <td colSpan={9} style={{ padding: 0 }}>
-                              <div className="vppd-empty" style={{ padding: '60px 20px', background: '#F8FAFC', borderRadius: '0 0 8px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none' }}>
-                                <div style={{ marginBottom: '20px', color: '#94A3B8' }}>
-                                  <FileText size={48} strokeWidth={1} />
-                                </div>
-                                <div style={{ fontSize: '16px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>No meeting issues synced yet.</div>
-                                <div style={{ fontSize: '14px', color: '#64748B', marginBottom: '24px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.5 }}>
-                                  Capture meeting minutes and sync your action items to track them here in the unified dashboard.
-                                </div>
-                                <button
-                                  onClick={() => navigate('/dashboard/mom/capture')}
-                                  style={{
-                                    padding: '10px 24px', background: '#0D9488', color: 'white', border: 'none',
-                                    borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                                    boxShadow: '0 4px 12px rgba(134,148,136,0.2)'
-                                  }}
-                                >
-                                  Capture New Meeting
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          momIssues.map((issue, idx) => {
+                        {momIssues.map((issue, idx) => {
                             const priority = issue.priority || 'Medium';
                             const critStyles = {
                               'High': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
@@ -294,8 +289,7 @@ const VPProjectDashboard = ({
                                 </td>
                               </tr>
                             );
-                          })
-                        )}
+                          })}
                       </tbody>
                     </table>
                   </div>
@@ -308,7 +302,12 @@ const VPProjectDashboard = ({
               <span style={{ fontSize: '14px', fontWeight: 500, color: '#475569' }}>Sync History</span>
             </div>
             {syncHistory.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#94A3B8', padding: '16px' }}>No sync history yet.</p>
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
+                  <RefreshCw size={32} strokeWidth={1.5} />
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>No sync history yet.</p>
+              </div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
@@ -364,7 +363,15 @@ const VPProjectDashboard = ({
               Milestone Progress Tracker
             </div>
             {milestones.length === 0 ? (
-              <div className="vppd-empty">No explicit milestones mapped for this project yet.</div>
+              <div className="vppd-empty" style={{ margin: '0 20px 20px', padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
+                  <Award size={40} strokeWidth={1} />
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>No Milestones Defined</div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '280px' }}>
+                  No explicit milestones have been mapped for this project yet.
+                </p>
+              </div>
             ) : (
               <div className="vppd-table-wrapper">
                 <table className="vppd-table">

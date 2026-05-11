@@ -8,6 +8,7 @@ import {
   Home, Layout, Calendar, Clock, Users, Activity,
   Mic, Square, Pause, Play, Sparkles
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import './MeetingDetailsPage.css';
 import API from '../../utils/api';
 
@@ -81,7 +82,6 @@ const MeetingDetailsPage = () => {
   const [readiness, setReadiness] = useState({ score: 1, total: 3 });
   const [meetingStatus, setMeetingStatus] = useState('upcoming');
   const [countdown, setCountdown] = useState('');
-  const [toast, setToast] = useState({ show: false, message: '', undo: false });
   const [copiedField, setCopiedField] = useState(null);
 
   // Agenda input
@@ -150,9 +150,17 @@ const MeetingDetailsPage = () => {
   const agendaPanelRef = useRef(null);
 
   const showToast = (message, undo = false) => {
-    if (toastTimeout.current) clearTimeout(toastTimeout.current);
-    setToast({ show: true, message, undo });
-    toastTimeout.current = setTimeout(() => setToast({ show: false, message: '', undo: false }), undo ? 5000 : 2200);
+    if (undo) {
+      toast.success(message, {
+        action: {
+          label: 'Undo',
+          onClick: () => undoCancel()
+        },
+        duration: 5000
+      });
+    } else {
+      toast.success(message);
+    }
   };
 
   const updateReadiness = (ag, att) => {
@@ -290,7 +298,6 @@ const MeetingDetailsPage = () => {
 
   const undoCancel = () => {
     if (cancelUndoTimer) clearTimeout(cancelUndoTimer);
-    setToast({ show: false, message: '', undo: false });
     showToast('Cancellation undone');
   };
 
@@ -952,7 +959,17 @@ const MeetingDetailsPage = () => {
                     </div>
                   </div>
                 )}
-                {micError && <div style={{ padding: '8px 16px', color: '#ef4444', fontSize: '12px', fontWeight: 600 }}>{micError}</div>}
+                {micError && (
+                  <div className="mx-5 my-3 p-4 rounded-xl border-2 border-rose-100 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-900/20 flex items-center gap-3">
+                    <div className="size-8 bg-rose-500 rounded-lg flex items-center justify-center shrink-0">
+                      <AlertCircle className="size-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Microphone Fault</p>
+                      <p className="text-sm font-bold text-rose-900 dark:text-rose-100 leading-tight">{micError}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mdp2-card-body" style={{ padding: 0 }}>
                   <div ref={previewBodyRef} style={{ height: '300px', overflowY: 'auto', padding: '20px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1241,13 +1258,6 @@ const MeetingDetailsPage = () => {
         </div>
       </div>
 
-      {/* ── Toast ── */}
-      <div className={`mdp2-toast${toast.show ? ' show' : ''}`}>
-        {toast.message}
-        {toast.undo && (
-          <button className="mdp2-toast-undo" onClick={undoCancel}>Undo</button>
-        )}
-      </div>
 
       {/* ── Cancel Modal ── */}
       {showCancelModal && (

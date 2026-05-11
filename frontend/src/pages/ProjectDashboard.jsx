@@ -9,8 +9,9 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import ReportDocument from '../components/ReportDocument';
@@ -282,7 +283,7 @@ const ProjectTitleDashboard = () => {
       if (typeof errMsg === 'object') {
         errMsg = JSON.stringify(errMsg);
       }
-      alert(`Deletion Failed:\n${errMsg}`);
+      toast.error(`Deletion Failed: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -1113,7 +1114,7 @@ const ProjectTitleDashboard = () => {
 
     } catch (error) {
       console.error('Error processing submodule data:', error);
-      alert('Failed to optimize data. Please try again.');
+      toast.error('Failed to optimize data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1141,7 +1142,7 @@ const ProjectTitleDashboard = () => {
       console.log('Successfully saved submodule data for tracker:', trackerId);
     } catch (error) {
       console.error('Error saving submodule data:', error);
-      alert('Failed to save changes to the database. Please try again.');
+      toast.error('Failed to save changes to the database. Please try again.');
     }
   };
   // Handle submodule data loading from URL
@@ -1283,7 +1284,7 @@ const ProjectTitleDashboard = () => {
         console.log('Dashboard configuration saved successfully');
       } catch (error) {
         console.error('Error saving dashboard configuration:', error);
-        alert('Failed to save dashboard configuration. Please try again.');
+        toast.error('Failed to save dashboard configuration. Please try again.');
       }
     }
   };
@@ -1665,7 +1666,7 @@ const ProjectTitleDashboard = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('PDF Export Failure:', error);
-      alert('Failed to export PDF.');
+      toast.error('Failed to export PDF.');
     } finally {
       setLoading(false);
     }
@@ -1677,7 +1678,7 @@ const ProjectTitleDashboard = () => {
     const bccEmails = emailData.bccInputs.filter(email => email.trim() !== '');
 
     if (toEmails.length === 0) {
-      alert("At least one recipient (To) is required.");
+      toast.error("At least one recipient (To) is required.");
       return;
     }
 
@@ -1736,12 +1737,12 @@ const ProjectTitleDashboard = () => {
       };
 
       await API.post('/email/send', payload);
-      alert('Strategic Report successfully dispatched!');
+      toast.success('Strategic Report successfully dispatched!');
 
       setShowEmailModal(false);
     } catch (error) {
       console.error('Email Dispatch Failure:', error);
-      alert('Failed to send report.');
+      toast.error('Failed to send report.');
     } finally {
       setLoading(false);
     }
@@ -2722,23 +2723,16 @@ const ProjectTitleDashboard = () => {
     // Check if attributes are configured
     if (!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) {
       return (
-        <div style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--bg)',
-          border: '1px dashed #cbd5e1',
-          borderRadius: '12px',
-          color: 'var(--text-secondary)',
-          padding: '20px'
-        }}>
-          <Settings className="h-8 w-8 mb-3 opacity-20" />
-          <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Attributes Required</p>
-          <p style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Select X and Y axes in the settings to visualize this data.
+        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-10 transition-all group hover:border-slate-300 dark:hover:border-slate-700">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-amber-500/10 rounded-full blur-2xl animate-pulse" />
+            <div className="relative size-16 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+              <Settings className="size-8 text-amber-600 dark:text-amber-400 animate-[spin_4s_linear_infinite]" />
+            </div>
+          </div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">Configuration Required</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center max-w-[200px] leading-relaxed">
+            Please define the <span className="text-amber-600 font-bold">X and Y axes</span> in the settings to generate this visualization.
           </p>
         </div>
       );
@@ -2747,18 +2741,17 @@ const ProjectTitleDashboard = () => {
     // If configured but no data
     if (chartData.length === 0) {
       return (
-        <div style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--bg)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '12px',
-          color: 'var(--text-secondary)'
-        }}>
-          <p style={{ fontSize: '12px', fontWeight: '600' }}>No data found in database</p>
+        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/20 border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-10 group">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-slate-200/50 rounded-full blur-2xl" />
+            <div className="relative size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
+              <AlertCircle className="size-8 text-slate-400" />
+            </div>
+          </div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Data Points</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center max-w-[200px] leading-relaxed">
+            The database returned an <span className="font-bold">empty set</span> for this tracker configuration.
+          </p>
         </div>
       );
     }
@@ -2882,26 +2875,26 @@ const ProjectTitleDashboard = () => {
             optionToContent: function (opt) {
               const series = opt.series;
               if (!series || series.length === 0) return '<div style="padding:20px;">No data available</div>';
-              
+
               const xAxis = opt.xAxis && opt.xAxis[0];
               const yAxis = opt.yAxis && opt.yAxis[0];
-              
+
               let xHeader = 'Category';
               if (xAxis && xAxis.name) xHeader = xAxis.name;
               else if (yAxis && yAxis.type === 'category' && yAxis.name) xHeader = yAxis.name;
-              
+
               let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;background:white;">
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
                   <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
                     <th style="padding:10px;color:#1e293b;font-weight:800;">${xHeader}</th>`;
-              
+
               series.forEach(s => {
                 table += `<th style="padding:10px;color:#1e293b;font-weight:800;">${s.name || 'Value'}</th>`;
               });
-              
+
               table += `</tr></thead><tbody>`;
-              
+
               const dataLen = series[0].data ? series[0].data.length : 0;
               for (let i = 0; i < dataLen; i++) {
                 let name = i;
@@ -2912,19 +2905,19 @@ const ProjectTitleDashboard = () => {
                 } else if (series[0].data[i] && series[0].data[i].name) {
                   name = series[0].data[i].name;
                 }
-                
+
                 table += `<tr style="border-bottom:1px solid #F1F5F9;">
                   <td style="padding:8px 10px;color:#475569;">${name}</td>`;
-                
+
                 series.forEach(s => {
                   const item = s.data[i];
                   const val = typeof item === 'object' ? item.value : item;
                   table += `<td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val !== undefined ? val : '-'}</td>`;
                 });
-                
+
                 table += `</tr>`;
               }
-              
+
               table += '</tbody></table></div>';
               return table;
             }
@@ -3478,14 +3471,14 @@ const ProjectTitleDashboard = () => {
                 {targetCols.map(col => {
                   const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
                   let val = valKey !== undefined ? row[valKey] : '-';
-                  
+
                   // Format monetary values
                   if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
                     if (val !== '-') {
                       val = format(val, false);
                     }
                   }
-                  
+
                   return (
                     <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
                       {val}
@@ -3592,9 +3585,9 @@ const ProjectTitleDashboard = () => {
           <div style={{ marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
               <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
-                <Sparkles size={20} />
+                <SparklesIcon size={20} />
               </div>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1e3a5f', letterSpacing: '-0.025em' }}>AI Analysis Deep Dive</h2>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1e3a5f', letterSpacing: '-0.025em' }}>AI Insights</h2>
             </div>
             <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
           </div>
@@ -3609,10 +3602,10 @@ const ProjectTitleDashboard = () => {
               <motion.span
                 variants={child}
                 key={index}
-                style={{ 
-                  fontSize: '19px', 
-                  lineHeight: '1.6', 
-                  fontWeight: '500', 
+                style={{
+                  fontSize: '19px',
+                  lineHeight: '1.6',
+                  fontWeight: '500',
                   color: '#334155',
                   letterSpacing: '-0.01em'
                 }}
@@ -3887,7 +3880,7 @@ const ProjectTitleDashboard = () => {
               const tracker = getTrackerForPhase(maximizedChart);
               const tid = tracker?.trackerId;
               const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
-              
+
               let config = axisConfigs[activeProject.id]?.[maximizedChart];
               if (!config && tracker) {
                 const cols = tracker.columns || [];
@@ -3896,7 +3889,7 @@ const ProjectTitleDashboard = () => {
                   yAxis: cols[1] || cols[0] || ''
                 };
               }
-              
+
               if (!config || rows.length === 0) return null;
 
               const groupedData = {};
@@ -3937,27 +3930,27 @@ const ProjectTitleDashboard = () => {
               });
 
               return (
-                <div style={{ 
-                  backgroundColor: '#f8fafc', 
-                  padding: '24px', 
-                  borderRadius: '12px', 
-                  border: '1px solid #e2e8f0', 
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
                   marginBottom: '30px',
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: '20px'
                 }}>
-                  <div style={{ 
-                    backgroundColor: 'var(--accent)', 
-                    color: 'white', 
-                    padding: '10px', 
+                  <div style={{
+                    backgroundColor: 'var(--accent)',
+                    color: 'white',
+                    padding: '10px',
                     borderRadius: '10px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}>
-                    <Sparkles size={22} />
+                    <SparklesIcon size={22} />
                   </div>
                   <div style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -4093,7 +4086,7 @@ const ProjectTitleDashboard = () => {
                 )}
               </div>
             </div>
-            
+
             {/* AI Analysis Explanation Overlay */}
             {showExplanation && renderAnalysisExplanation(maximizedChart)}
           </div>
@@ -4454,9 +4447,9 @@ const ProjectTitleDashboard = () => {
                   <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
-                      
+
                       <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
-                        <button 
+                        <button
                           onClick={() => setBudgetViewMode('simplified')}
                           style={{
                             padding: '4px 12px',
@@ -4473,7 +4466,7 @@ const ProjectTitleDashboard = () => {
                         >
                           Simplified
                         </button>
-                        <button 
+                        <button
                           onClick={() => setBudgetViewMode('table')}
                           style={{
                             padding: '4px 12px',

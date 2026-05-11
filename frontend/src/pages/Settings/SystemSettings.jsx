@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setBranding } from '../../store/slices/navSlice';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { toast } from 'react-hot-toast';
 
 // Import all sub-components
 import GeneralInfo from './components/GeneralInfo';
@@ -21,7 +22,6 @@ const SystemSettings = () => {
   const [activeCategory, setActiveCategory] = useState('Organization');
   const [activeSubCategory, setActiveSubCategory] = useState('Identity');
   const [isSaving, setIsSaving] = useState(false);
-  const [notification, setNotification] = useState(null);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
@@ -65,8 +65,9 @@ const SystemSettings = () => {
   };
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   const handleUpdate = (key, value) => {
@@ -263,13 +264,6 @@ const SystemSettings = () => {
 
       <main className="flex-1 overflow-y-auto bg-[#F4F6F9] p-16">
         <div className="max-w-5xl mx-auto pb-24">
-          {notification && (
-            <div className={`fixed bottom-12 left-[calc(280px+50%)] -translate-x-1/2 px-8 py-4 border z-50 text-[10px] font-bold uppercase tracking-[0.2em] animate-in slide-in-from-bottom-10 shadow-2xl ${
-              notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'
-            }`}>
-              {notification.message}
-            </div>
-          )}
           {renderContent()}
         </div>
       </main>

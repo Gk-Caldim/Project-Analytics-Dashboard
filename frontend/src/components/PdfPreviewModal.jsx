@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Settings, GripVertical, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import ReportDocument from './ReportDocument';
@@ -89,7 +90,7 @@ const PdfPreviewModal = ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      toast.error('Error generating PDF. Please try again.');
     }
   };
 

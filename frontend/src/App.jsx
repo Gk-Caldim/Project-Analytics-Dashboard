@@ -40,9 +40,101 @@ import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
+
+const CustomToast = ({ t, toast }) => {
+  const isError = t.type === 'error';
+  const isLoading = t.type === 'loading';
+  const isSuccess = t.type === 'success' || t.type === 'blank';
+
+  let borderColor = 'border-emerald-500 dark:border-emerald-400';
+  let bgColor = 'bg-emerald-50 dark:bg-emerald-900/30';
+  let iconColor = 'text-emerald-700 dark:text-emerald-200';
+  let titleColor = 'text-emerald-800 dark:text-emerald-100';
+  let textColor = 'text-emerald-700 dark:text-emerald-200';
+  let title = 'Success';
+  let Icon = CheckCircle;
+
+  if (isError) {
+    title = 'Action Failed';
+    borderColor = 'border-rose-500 dark:border-rose-400';
+    bgColor = 'bg-rose-50 dark:bg-rose-900/30';
+    iconColor = 'text-rose-700 dark:text-rose-200';
+    titleColor = 'text-rose-800 dark:text-rose-100';
+    textColor = 'text-rose-700 dark:text-rose-200';
+    Icon = AlertCircle;
+  } else if (isLoading) {
+    title = 'Processing';
+    borderColor = 'border-sky-500 dark:border-sky-400';
+    bgColor = 'bg-sky-50 dark:bg-sky-900/30';
+    iconColor = 'text-sky-700 dark:text-sky-200';
+    titleColor = 'text-sky-800 dark:text-sky-100';
+    textColor = 'text-sky-700 dark:text-sky-200';
+    Icon = RefreshCw;
+  } else if (t.type === 'blank') {
+    title = 'Note';
+    borderColor = 'border-amber-500 dark:border-amber-400';
+    bgColor = 'bg-amber-50 dark:bg-amber-900/30';
+    iconColor = 'text-amber-700 dark:text-amber-200';
+    titleColor = 'text-amber-800 dark:text-amber-100';
+    textColor = 'text-amber-700 dark:text-amber-200';
+    Icon = Info;
+  }
+
+  return (
+    <div
+      role="alert"
+      className={`${
+        t.visible ? 'animate-in fade-in slide-in-from-bottom-5' : 'animate-out fade-out slide-out-to-bottom-5'
+      } rounded-xl border-2 ${borderColor} ${bgColor} p-4 shadow-2xl backdrop-blur-md transition-all duration-300 pointer-events-auto min-w-[340px] max-w-md ring-1 ring-black/5`}
+    >
+      <div className="flex items-start gap-4">
+        <div className={`mt-0.5 rounded-full p-1.5 ${bgColor.replace('bg-', 'bg-opacity-20 bg-')}`}>
+          {isLoading ? (
+             <Icon className={`size-5 animate-spin ${iconColor}`} />
+          ) : t.icon ? (
+            <div className="size-5 flex items-center justify-center text-xl">{t.icon}</div>
+          ) : (
+            <Icon className={`size-5 ${iconColor}`} />
+          )}
+        </div>
+
+        <div className="flex-1">
+          <strong className={`block text-sm font-bold tracking-tight ${titleColor}`}>
+            {title}
+          </strong>
+
+          <div className={`mt-1 text-xs font-medium leading-relaxed ${textColor}`}>
+            {t.message}
+          </div>
+        </div>
+        
+        <div className="flex flex-col gap-2">
+          {t.action ? (
+            <button
+              onClick={() => {
+                t.action.onClick();
+                toast.dismiss(t.id);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${titleColor} hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95`}
+            >
+              {t.action.label}
+            </button>
+          ) : (
+            <button 
+              onClick={() => toast.dismiss(t.id)}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+            >
+               <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const dispatch = useDispatch();
@@ -168,13 +260,11 @@ function App() {
       <Toaster
         position="bottom-right"
         toastOptions={{
-          duration: 2500,
-          style: { fontSize: '12px', fontWeight: '600', borderRadius: '10px', boxShadow: '0 4px 24px rgba(0,0,0,0.12)' },
-          success: { iconTheme: { primary: '#059669', secondary: '#fff' }, style: { background: '#f0fdf4', color: '#065f46', border: '1px solid #a7f3d0' } },
-          error: { iconTheme: { primary: '#dc2626', secondary: '#fff' }, style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }, duration: 4000 },
-          loading: { style: { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' } },
+          duration: 3500,
         }}
-      />
+      >
+        {(t) => <CustomToast t={t} toast={toast} />}
+      </Toaster>
 
       <ErrorBoundary>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileSpreadsheet, X, Save, Download, Plus, Trash2, Edit, Eye } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import toast from 'react-hot-toast';
 
 const ExcelViewer = ({ excelViewerData, uploadedFilesData, onClose, onDataChange }) => {
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -50,7 +51,7 @@ const ExcelViewer = ({ excelViewerData, uploadedFilesData, onClose, onDataChange
       
       onDataChange(updatedFileData);
       setExcelEditMode(false);
-      alert('Changes saved successfully!');
+      toast.success('Changes saved successfully!');
     }
   };
 
@@ -99,10 +100,10 @@ const ExcelViewer = ({ excelViewerData, uploadedFilesData, onClose, onDataChange
       const exportName = `${originalName}_modified.${extension}`;
       
       XLSX.writeFile(wb, exportName);
-      alert(`File exported as ${exportName}`);
+      toast.success(`File exported as ${exportName}`);
     } catch (error) {
       console.error('Error exporting file:', error);
-      alert('Error exporting file. Please try again.');
+      toast.error('Error exporting file. Please try again.');
     }
   };
 

@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     borderColor: '#fed7aa',
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 12,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1e293b',
   },
   table: {
-    width: 'auto',
+    width: '100%',
     borderStyle: 'solid',
     borderWidth: 1,
     borderColor: '#e2e8f0',
@@ -149,6 +149,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 10,
+    minHeight: 150,
   },
   chartTitle: {
     backgroundColor: '#1e3a5f',
@@ -160,6 +161,8 @@ const styles = StyleSheet.create({
   chartImage: {
     width: '100%',
     height: 120,
+    objectFit: 'contain',
+    padding: 5,
   },
   budgetGrid: {
     flexDirection: 'row',
@@ -254,6 +257,15 @@ const getLastAction = (issue) => {
   return sorted[0].comment_text;
 };
 
+const chunkArray = (arr, size) => {
+  const chunks = [];
+  if (!arr) return chunks;
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+};
+
 
 const ReportDocument = ({ 
   activeProject, 
@@ -302,7 +314,7 @@ const ReportDocument = ({
           // 1. Milestones
           if (key === 'milestones' && visibleSections?.milestones && milestones?.length > 0) {
             return (
-              <View key={key} style={styles.section} wrap={false}>
+              <View key={key} style={styles.section}>
                 <Text style={[styles.sectionTitle, { borderBottomColor: '#1e3a5f', color: '#1e3a5f' }]}>Milestone Progress Tracker</Text>
 
                 <View style={styles.table}>
@@ -344,7 +356,7 @@ const ReportDocument = ({
             const resolved = criticalIssues.length - pending;
 
             return (
-              <View key={key} style={styles.section} wrap={false}>
+              <View key={key} style={styles.section}>
                 <View style={styles.criticalIssuesHeader}>
                   <View>
                     <Text style={styles.criticalIssuesTitle}>Critical Issues</Text>
@@ -459,23 +471,27 @@ const ReportDocument = ({
 
           // 4. Charts (Metrics Summary)
           if (key === 'charts' && visibleSections?.metricsSummary && visiblePhaseList?.length > 0) {
+            const chartRows = chunkArray(visiblePhaseList, 2);
             return (
               <View key={key} style={styles.section}>
                 <Text style={[styles.sectionTitle, { marginBottom: 10, borderBottomColor: '#1e3a5f', color: '#1e3a5f' }]}>Project Metrics Summary</Text>
-                <View style={styles.chartGrid}>
-                  {visiblePhaseList.map(phase => (
-                    <View key={phase.id} style={styles.chartContainer} wrap={false}>
-                      <Text style={styles.chartTitle}>{phase.label}</Text>
-                      {chartImages?.[phase.id] ? (
-                        <Image src={chartImages[phase.id]} style={styles.chartImage} />
-                      ) : (
-                        <View style={{ height: 120, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-                          <Text style={{ fontSize: 8, color: '#94a3b8' }}>No chart data</Text>
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                </View>
+                {chartRows.map((row, rowIdx) => (
+                  <View key={rowIdx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                    {row.map(phase => (
+                      <View key={phase.id} style={styles.chartContainer} wrap={false}>
+                        <Text style={styles.chartTitle}>{phase.label}</Text>
+                        {chartImages?.[phase.id] ? (
+                          <Image src={chartImages[phase.id]} style={styles.chartImage} />
+                        ) : (
+                          <View style={{ height: 120, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
+                            <Text style={{ fontSize: 8, color: '#94a3b8' }}>No chart data</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                    {row.length === 1 && <View style={{ width: '48%' }} />}
+                  </View>
+                ))}
               </View>
             );
           }

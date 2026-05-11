@@ -724,43 +724,6 @@
 
 .mdp2-btn-cancel:hover { background: #fef2f2; }
 
-/* ─── Toast ───────────────────────────────────── */
-.mdp2-toast {
-  position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  background: #111827;
-  color: white;
-  padding: 9px 20px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-  z-index: 1000;
-  opacity: 0;
-  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.4, 1);
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.mdp2-toast.show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.mdp2-toast-undo {
-  background: none;
-  border: none;
-  color: #818cf8;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-}
-
 /* ─── Cancel Modal ────────────────────────────── */
 .mdp2-modal-overlay {
   position: fixed;
