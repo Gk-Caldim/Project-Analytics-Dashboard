@@ -62,7 +62,7 @@ def get_employee_by_employee_id(db: Session, employee_id: str) -> Optional[Emplo
     """Get employee by custom employee_id"""
     return db.query(Employee).filter(Employee.employee_id == employee_id).first()
 
-from app.models.application_access import ApplicationAccess
+from app.utils.validators import validate_custom_fields
 
 def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
     """Create a new employee and synchronized application access"""
@@ -72,6 +72,11 @@ def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
         if existing:
             raise ValueError(f"Employee with ID {employee.employee_id} already exists")
             
+    # Validate custom fields
+    validation_errors = validate_custom_fields(db, 'employee', employee.custom_fields)
+    if validation_errors:
+        raise ValueError("; ".join(validation_errors))
+
     data = employee.model_dump(exclude={"id"})
     password = data.pop("password", None)
     
@@ -105,6 +110,12 @@ def update_employee(db: Session, employee_id: int, employee: EmployeeUpdate) -> 
     
     update_data = employee.model_dump(exclude_unset=True)
     
+    # Validate custom fields if they are being updated
+    if "custom_fields" in update_data:
+        validation_errors = validate_custom_fields(db, 'employee', update_data["custom_fields"])
+        if validation_errors:
+            raise ValueError("; ".join(validation_errors))
+
     # Check if email is being updated
     old_email = db_employee.email
     new_email = update_data.get('email')

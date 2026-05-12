@@ -11,8 +11,14 @@ from app.crud import employee as employee_crud
 from app.crud import employee_column as column_crud
 from app.core.security import get_current_user
 from app.utils.audit import log_activity, generate_diff_summary
+from app.utils.suggestions import suggest_data_type
 
 router = APIRouter(prefix="/employees", tags=["Employees"])
+
+@router.get("/columns/suggest")
+def get_column_suggestion(name: str):
+    """Suggest a data type for a column name"""
+    return {"suggested_type": suggest_data_type(name)}
 
 @router.get("/version_check")
 def version_check():
