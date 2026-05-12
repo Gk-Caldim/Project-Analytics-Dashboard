@@ -56,6 +56,8 @@ class Issue(Base):
 
     due_date       = Column(Date, nullable=True, index=True)
     meeting_id     = Column(String(100), nullable=True)  # links to meetings table if MOM-derived
+    sync_id        = Column(String(100), nullable=True, index=True) # trace back to exact sync event
+    action_taken   = Column(Text, nullable=True)  # MOM: notes/follow-up text entered during meeting
     milestone_name = Column(String(200), nullable=True)  # links issue to a specific strategic milestone
 
     # Timestamps

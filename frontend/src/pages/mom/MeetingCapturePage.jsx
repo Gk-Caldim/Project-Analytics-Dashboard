@@ -18,6 +18,7 @@ import API from '../../utils/api';
 import {
   setMeetingContext, saveMOM, addMomRows, fetchMOM, setMomData
 } from '../../store/slices/momSlice';
+import { setActiveModule } from '../../store/slices/navSlice';
 import './tokens.css';
 import './MeetingCapturePage.css';
 import FillerDetector, { normalise as fdNormalise } from '../../utils/fillerDetector';
@@ -134,12 +135,30 @@ function isNoiseLine(text) {
 }
 
 
-const ACTION_VERBS = /\b(will|need|must|assign|action|decide|agree|approve|plan|schedule|review|update|fix|resolve|create|build|share|send|follow|investigate|check|verify|test|deploy|start|finish|complete|work on|look into|align|discuss|roadmap|revamp|feature)\b/i;
+const ACTION_VERBS = /\b(will|need|must|assign|action|decide|agree|approve|plan|schedule|review|update|fix|resolve|create|build|share|send|follow|investigate|check|verify|test|deploy|start|finish|complete|work on|look into|align|discuss|roadmap|revamp|feature|prepare|confirm|coordinate|ensure|implement|migrate|refactor|optimize|document|track|monitor|escalate|present|submit|evaluate|define|establish)\b/i;
+
+// Patterns that look like genuine tasks even without an explicit verb
+const TASK_PATTERN = /\b(by (monday|tuesday|wednesday|thursday|friday|saturday|sunday|eod|end of|next week|tomorrow)|deadline|due|assigned to|owned by|responsible for|action item|to-do|todo|blocker|dependency)\b/i;
+
+// Hard-exclude patterns — these are filler even if they contain an action verb
+const FILLER_PATTERNS = [
+  /^(alright|okay|ok|sure|yeah|yep|nope|sounds good|got it|absolutely|perfect|great|cool|nice|makes sense|i see|i think|i believe|actually|honestly|basically|so|right|let me|let's|we need to talk|can you|could you|anyone|everyone|by the way|anyway|moving on|quick|just|simply|maybe|probably|i guess)\b/i,
+  /^[A-Z][a-z]+,?\s+(can you|could you|will you|please|just|quickly|should we|should i)/i,
+  /thank(s| you)/i,
+];
 
 function isActionable(text) {
-  if (ACTION_VERBS.test(text)) return true;
-  if (text.length > 45) return true; // Long sentences are usually discussion points
-  return false;
+  // Hard exclude filler patterns first
+  for (const re of FILLER_PATTERNS) {
+    if (re.test(text.trim())) return false;
+  }
+  // Must have a verb OR a task pattern
+  return ACTION_VERBS.test(text) || TASK_PATTERN.test(text);
+}
+
+// Returns true if the text passes actionable but without strong verb confidence (flag as needs review)
+function isLowConfidence(text) {
+  return !ACTION_VERBS.test(text) && TASK_PATTERN.test(text);
 }
 
 // ── Generate MOM rows from entries ────────────────────────────────────────
@@ -183,6 +202,7 @@ function makeRowsFromEntries(entries, meta) {
     rawSentences.forEach(raw => {
       const text = raw.trim();
       if (isNoiseLine(text) || !isActionable(text)) return;
+      if (text.length < 15) return;
 
       let speaker = entry.speaker;
       let point = text;
@@ -195,12 +215,14 @@ function makeRowsFromEntries(entries, meta) {
 
       const tl = point.toLowerCase();
       let targetDate = '';
-      if (tl.includes('tomorrow')) { const d = new Date(); d.setDate(d.getDate() + 1); targetDate = d.toLocaleDateString('en-GB'); }
-      else if (tl.includes('today')) targetDate = new Date().toLocaleDateString('en-GB');
+      if (tl.includes('tomorrow')) { const d = new Date(); d.setDate(d.getDate() + 1); targetDate = d.toISOString().split('T')[0]; }
+      else if (tl.includes('today')) targetDate = new Date().toISOString().split('T')[0];
 
       let funcStr = 'General';
       if (/api|backend|database|db|sql|server|latency|endpoint|python|fastapi/i.test(tl)) funcStr = 'Backend';
       else if (/ui|frontend|react|dashboard|button|page|screen|component|css/i.test(tl)) funcStr = 'Frontend';
+
+      const lowConf = isLowConfidence(point);
 
       generatedRows.push({
         id: Date.now() + Math.random(),
@@ -210,11 +232,12 @@ function makeRowsFromEntries(entries, meta) {
         criticality: tl.includes('urgent') || tl.includes('critical') ? 'High' : 'Medium',
         discussion_point: point,
         responsibility: speaker || currentUserName,
-        target: targetDate,
+        target: targetDate || null,
         project_id: projectId ? Number(projectId) : undefined,
-        status: /(completed|done|finished|resolved)/i.test(tl) ? 'Done' : 'Pending',
+        status: lowConf ? 'Needs Review' : (/(completed|done|finished|resolved)/i.test(tl) ? 'Done' : 'Pending'),
         action_taken: 'None',
-        isHeuristic: true
+        isHeuristic: true,
+        needsReview: lowConf,
       });
     });
   });
@@ -313,14 +336,45 @@ const MeetingCapturePage = () => {
   }, []);
 
   useEffect(() => {
-    if (reduxProjects.length > 0) setProjects(reduxProjects);
-    else API.get('/projects/').then(r => setProjects(r.data?.projects || r.data || [])).catch(() => { });
-    
-    if (meetingId !== 'unscheduled') {
-      setMeetingTitle(`Meeting #${meetingId}`);
-      API.get(`/transcript/${meetingId}`).then(r => { if (r.data?.transcript_data) setEntries(r.data.transcript_data); }).catch(() => { });
+    if (reduxProjects && reduxProjects.length > 0) {
+      setProjects(reduxProjects);
+    } else {
+      API.get('/projects/')
+        .then(r => setProjects(r.data?.projects || r.data || []))
+        .catch(() => { });
     }
-  }, [meetingId, reduxProjects]);
+    
+    if (meetingId && meetingId !== 'unscheduled') {
+      setMeetingTitle(`Meeting #${meetingId}`);
+      API.get(`/transcript/${meetingId}`)
+        .then(r => { 
+          if (r.data?.transcript_data) {
+            const existingEntries = r.data.transcript_data.map((e, i) => ({
+              ...e,
+              id: e.id || `ext-${Date.now()}-${i}`,
+              ...getSpeakerColor(e.speaker || 'Transcript')
+            }));
+            const doc = {
+              id: `tdoc-existing-${meetingId}`,
+              fileName: `Transcript #${meetingId}`,
+              fileSize: 0,
+              uploadedAt: nowTime(),
+              status: 'confirmed',
+              entries: existingEntries,
+              lineCount: existingEntries.length,
+              signature: `existing_${meetingId}`,
+              isExisting: true
+            };
+            setTranscripts(prev => {
+              if (prev.some(t => t.id === doc.id)) return prev;
+              return [...prev, doc];
+            });
+            setActiveTranscriptId(doc.id);
+          }
+        })
+        .catch(() => { });
+    }
+  }, [meetingId, reduxProjects, getSpeakerColor]);
 
   useEffect(() => {
     if (projectId && projects.length > 0) {
@@ -560,10 +614,15 @@ const MeetingCapturePage = () => {
   const handleGenerate = async () => {
     if (!projectId) { toast.error('Select a project first'); return; }
     if (!hasConfirmed) { toast.error('Confirm at least one transcript first'); return; }
+    const dialogueEntries = mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual');
+    if (dialogueEntries.length === 0) {
+      toast.error('Transcript is empty. Capture some dialogue first.');
+      return;
+    }
     setGenerating(true);
     try {
       const payload = {
-        transcript: mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').map(e => ({
+        transcript: dialogueEntries.map(e => ({
           speaker: e.speaker, text: e.text, time: e.time, isManual: e.type === 'manual'
         })),
         title: meetingTitle, projectId
@@ -581,11 +640,20 @@ const MeetingCapturePage = () => {
         dispatch(setMomData(aiRows));
         if (aiRows.length === 0) {
           const fallback = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
-          if (fallback.length > 0) { dispatch(setMomData(fallback)); navigate('/dashboard/mom/view'); return; }
-          setGenError('Generation produced no content. Check transcript format.'); setGenerating(false); return;
+          if (fallback.length > 0) {
+            dispatch(setMomData(fallback));
+            dispatch(setActiveModule('mom-module'));
+            navigate('/dashboard/mom/view');
+            return;
+          }
+          setGenError('Generation produced no content. Check transcript format.');
+          setGenerating(false);
+          return;
         }
         setGenError(null);
-        navigate(`/dashboard/mom/view/${resp.data.meeting_id || meetingId}`);
+        const destId = resp.data.sync_id || resp.data.meeting_id || meetingId;
+        dispatch(setActiveModule('mom-module'));
+        navigate(`/dashboard/mom/view/${destId}`);
       }
     } catch (_) {
       const rows = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
@@ -593,7 +661,9 @@ const MeetingCapturePage = () => {
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
       dispatch(setMomData(rows));
       if (rows.length === 0) { setGenError('Generation produced no content.'); setGenerating(false); return; }
-      setGenError(null); navigate('/dashboard/mom/view');
+      setGenError(null);
+      dispatch(setActiveModule('mom-module'));
+      navigate('/dashboard/mom/view');
     } finally { setGenerating(false); }
   };
 

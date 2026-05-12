@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.schemas.audit_log import AuditLogCreate, AuditLogResponse
 from app.models.audit_log import AuditLog
@@ -17,8 +17,8 @@ router = APIRouter(
 
 @router.get("/", response_model=List[AuditLogResponse])
 def get_audit_logs(
-    module: str = None,
-    entity_id: str = None,
+    module: Optional[str] = None,
+    entity_id: Optional[str] = None,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)

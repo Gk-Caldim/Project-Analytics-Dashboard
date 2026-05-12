@@ -37,11 +37,11 @@ async def save_mom(payload: MOMSave, db: Session = Depends(get_db)):
         ).first()
 
         if session:
-            session.mom_data     = payload.mom_data
-            session.meeting_name = payload.meeting_name or session.meeting_name
-            session.project_id   = payload.project_id   or session.project_id
-            session.project_name = payload.project_name or session.project_name
-            session.updated_at   = datetime.now(timezone.utc)
+            session.mom_data     = payload.mom_data  # type: ignore
+            session.meeting_name = payload.meeting_name or session.meeting_name  # type: ignore
+            session.project_id   = payload.project_id   or session.project_id  # type: ignore
+            session.project_name = payload.project_name or session.project_name  # type: ignore
+            session.updated_at   = datetime.now(timezone.utc)  # type: ignore
         else:
             session = MOMSession(
                 meeting_id   = payload.meeting_id,
@@ -55,8 +55,8 @@ async def save_mom(payload: MOMSave, db: Session = Depends(get_db)):
         # Sync with Meeting Model
         meeting = db.query(Meeting).filter(Meeting.id == payload.meeting_id).first()
         if meeting:
-            meeting.mom_generated = True
-            meeting.action_item_count = len(payload.mom_data)
+            meeting.mom_generated = True  # type: ignore
+            meeting.action_item_count = len(payload.mom_data)  # type: ignore
 
         db.commit()
         db.refresh(session)
@@ -94,8 +94,8 @@ async def delete_mom(meeting_id: str, db: Session = Depends(get_db)):
         # Reset Meeting flag
         meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
         if meeting:
-            meeting.mom_generated = False
-            meeting.action_item_count = 0
+            meeting.mom_generated = False  # type: ignore
+            meeting.action_item_count = 0  # type: ignore
 
         db.delete(session)
         db.commit()
@@ -159,30 +159,40 @@ async def list_all_moms(
             })
 
         # 2. Fetch drafted meetings (mom_generated = True)
-        meeting_query = db.query(Meeting, Project.name.label("p_name"))\
-            .outerjoin(Project, Meeting.project_id == Project.id)\
-            .filter(Meeting.mom_generated == True)
-        
-        if project_id is not None:
-            meeting_query = meeting_query.filter(Meeting.project_id == project_id)
-        
-        drafts = meeting_query.all()
+        # Use explicit column selection — avoids pulling unmigrated columns
+        # (e.g. transcript, intelligence_data) that may not exist in the DB yet.
+        from sqlalchemy import select as sa_select, true
+        draft_cols = sa_select(
+            Meeting.id,
+            Meeting.title,
+            Meeting.project_id,
+            Meeting.action_item_count,
+            Meeting.created_at,
+            Meeting.updated_at,
+            Project.name.label("p_name"),
+        ).outerjoin(Project, Meeting.project_id == Project.id)\
+         .where(Meeting.mom_generated == true())
 
-        for m, p_name in drafts:
-            if m.id in seen_meeting_ids:
+        if project_id is not None:
+            draft_cols = draft_cols.where(Meeting.project_id == project_id)
+
+        drafts = db.execute(draft_cols).fetchall()
+
+        for row in drafts:
+            if row.id in seen_meeting_ids:
                 continue
-            
             results.append({
-                "id": f"draft-{m.id}",
-                "meeting_id": m.id,
-                "meeting_name": m.title or "Untitled Draft",
-                "project_id": m.project_id,
-                "project_name": p_name or "No Project",
-                "action_item_count": m.action_item_count or 0,
-                "created_at": m.created_at,
-                "updated_at": m.updated_at,
-                "is_draft": True
+                "id":               f"draft-{row.id}",
+                "meeting_id":       row.id,
+                "meeting_name":     row.title or "Untitled Draft",
+                "project_id":       row.project_id,
+                "project_name":     row.p_name or "No Project",
+                "action_item_count": row.action_item_count or 0,
+                "created_at":       row.created_at,
+                "updated_at":       row.updated_at,
+                "is_draft":         True,
             })
+
 
         # 3. Apply Search Filter
         if search:
@@ -225,6 +235,15 @@ async def list_all_moms(
 @router.get("/{meeting_id}", response_model=MOMOut)
 async def get_mom(meeting_id: str, db: Session = Depends(get_db)):
     """Fetch the MOMSession for a specific meeting_id."""
+    if meeting_id in ("unscheduled", "unscheduled-session"):
+        return {
+            "meeting_id": meeting_id,
+            "meeting_name": "Unscheduled Session",
+            "mom_data": [],
+            "project_id": None,
+            "project_name": "No Project"
+        }
+
     session = db.query(MOMSession).filter(
         MOMSession.meeting_id == meeting_id
     ).first()

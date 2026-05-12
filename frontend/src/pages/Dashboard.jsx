@@ -71,7 +71,6 @@ const Dashboard = () => {
 
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
-  const isOnMOMView = location.pathname.includes('/mom/view');
 
   // Fetch settings on mount
   useEffect(() => {
@@ -841,8 +840,8 @@ const Dashboard = () => {
     if (!hasPermission('MOM')) return null;
 
     const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'saved-moms' || isOnMOMView;
-    const isAllMeetingsActive = activeModule === 'meetings' || isOnMOMView;
+    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'saved-moms';
+    const isAllMeetingsActive = activeModule === 'meetings';
     const isSavedMomsActive = activeModule === 'saved-moms';
 
     return (
@@ -874,14 +873,12 @@ const Dashboard = () => {
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
             >
-              <span className="text-[18px]">
-                {isOnMOMView ? 'MOM Output' : 'All Meetings'}
-              </span>
+              <span className="text-[18px]">All Meetings</span>
             </button>
-
+ 
             <button
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module' && !isOnMOMView
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module'
                   ? 'border-l-[#0D9488] text-white font-medium'
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
@@ -890,6 +887,8 @@ const Dashboard = () => {
                 Create MOM
               </span>
             </button>
+
+
 
             <button
               onClick={() => handleModuleClick('saved-moms')}

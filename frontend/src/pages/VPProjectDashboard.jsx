@@ -308,56 +308,63 @@ const VPProjectDashboard = ({
               )}
             </div>
 
-            {/* ── SECTION 2: Sync History ── */}
-            <div style={{ padding: '20px 20px 12px', borderTop: '1px solid #E2E8F0', marginTop: '24px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: '#475569' }}>Sync History</span>
-            </div>
-            {syncHistory.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#94A3B8', padding: '16px' }}>No sync history yet.</p>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>#</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Meeting Name</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Date</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Synced At</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Issues</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {syncHistory.map((h, idx) => {
-                    const parsedDate = h.date ? new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-                    let parsedSyncedAt = '—';
-                    if (h.synced_at) {
-                      const sd = new Date(h.synced_at);
-                      const sDateStr = sd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                      const sTimeStr = sd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-                      parsedSyncedAt = `${sDateStr} · ${sTimeStr}`;
-                    }
+            {/* ── Recent MOMs summary (replaces Sync History) ── */}
+            {syncHistory.length > 0 && (
+              <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #E2E8F0', marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Recent MOMs</span>
+                  <button
+                    onClick={() => navigate('/dashboard/saved-moms')}
+                    style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {syncHistory.slice(0, 3).map((h, idx) => {
+                    const parsedDate = h.date
+                      ? new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      : '—';
                     return (
-                      <tr key={h.history_id || idx}>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#1E293B', verticalAlign: 'middle' }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#1E293B', verticalAlign: 'middle', fontSize: '13px' }}>{h.meeting_name || 'Untitled Meeting'}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#64748B', verticalAlign: 'middle', fontSize: '13px' }}>{parsedDate}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#64748B', verticalAlign: 'middle', fontSize: '13px' }}>{parsedSyncedAt}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#0D9488', verticalAlign: 'middle', fontSize: '13px' }}>{h.row_count} issues</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', verticalAlign: 'middle', fontSize: '13px' }}>
-                          {h.mom_output_url ? (
-                            <a href={h.mom_output_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0D9488', textDecoration: 'none' }}>
-                              View Transcript →
-                            </a>
-                          ) : (
-                            <span style={{ color: '#94A3B8' }}>—</span>
+                      <div
+                        key={h.history_id || idx}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 12px', background: idx === 0 ? '#F0FDF4' : '#F8FAFC',
+                          borderRadius: '8px', border: idx === 0 ? '1px solid #BBF7D0' : '1px solid #F1F5F9',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <span style={{
+                            width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+                            background: idx === 0 ? '#22c55e' : '#cbd5e1'
+                          }} />
+                          <span style={{ fontSize: '13px', fontWeight: idx === 0 ? 600 : 400, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {h.meeting_name || 'Untitled Meeting'}
+                          </span>
+                          {idx === 0 && (
+                            <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '99px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                              latest
+                            </span>
                           )}
-                        </td>
-                      </tr>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '12px', color: '#0D9488', fontWeight: 500 }}>{h.row_count} issues</span>
+                          <span style={{ fontSize: '12px', color: '#94A3B8' }}>{parsedDate}</span>
+                          <button
+                            onClick={() => h.session_id && navigate(`/dashboard/mom/view/${h.session_id}`)}
+                            style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
             )}
+
           </div>
         )}
 

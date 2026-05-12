@@ -88,15 +88,35 @@ const PillDropdown = ({ value, options, onChange, colors }) => {
 };
 
 
+// ── Safe date normalizer ─────────────────────────────────────────────────
+// Accepts: YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY, ISO strings, 'TBD', '', null
+// Returns: YYYY-MM-DD string or null
+function normalizeDate(raw) {
+  if (!raw || raw === 'TBD' || raw === '—' || raw === 'None') return null;
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  // DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  // Try native parse as last resort (handles ISO strings)
+  const ts = Date.parse(raw);
+  if (!isNaN(ts)) return new Date(ts).toISOString().split('T')[0];
+  return null;
+}
+
 const TargetDateCell = ({ value, onChange }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const isOverdue = value && new Date(value) < new Date(new Date().setHours(0,0,0,0));
+  const normalized = normalizeDate(value);
+  const isOverdue = normalized && new Date(normalized) < new Date(new Date().setHours(0,0,0,0));
 
   if (isEditing) {
     return (
       <input
         type="date"
-        value={value || ''}
+        value={normalized || ''}
         autoFocus
         className="w-full bg-white border border-[#E2E8F0] rounded-[6px] px-2 py-1 text-[13px] focus:outline-none focus:ring-2 focus:ring-[#0D9488] h-[36px]"
         onChange={(e) => {
@@ -108,7 +128,7 @@ const TargetDateCell = ({ value, onChange }) => {
     );
   }
 
-  if (!value || value === '—') {
+  if (!normalized) {
     return (
       <span 
         onClick={() => setIsEditing(true)}
@@ -119,7 +139,7 @@ const TargetDateCell = ({ value, onChange }) => {
     );
   }
 
-  const dateObj = new Date(value);
+  const dateObj = new Date(normalized + 'T00:00:00');
   const formatted = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 
   return (
@@ -178,7 +198,15 @@ const ActionTakenCell = ({ value, onChange }) => {
 };
 
 const ProjectCell = ({ projectName, defaultProjectName }) => {
-  const displayValue = projectName || defaultProjectName || '—';
+  const displayValue = projectName || defaultProjectName || null;
+  if (!displayValue) {
+    return (
+      <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic', whiteSpace: 'nowrap' }}
+        title="No project linked">
+        Unassigned
+      </div>
+    );
+  }
   const truncatedValue = displayValue.length > 16 ? displayValue.slice(0, 16) + '...' : displayValue;
 
   return (
@@ -346,6 +374,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         actions,
       });
       
+      const { sync_id } = resp.data;
       const elapsed = Date.now() - startTime;
       if (elapsed < 1500) await new Promise(r => setTimeout(r, 1500 - elapsed));
 
@@ -355,6 +384,14 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       setSyncedBadgeCount(resp.data.issues_created || rowsToSync.length);
       setShowSyncPanel(true);
       
+      toast.success('MOM synced to Saved Library!');
+      
+      // Part 3 — Redirect to Saved MOMs with high-fidelity highlight
+      setTimeout(() => {
+        const sid = resp.data.sync_id;
+        navigate(`/dashboard/saved-moms${sid ? `?highlight=${sid}` : ''}`);
+      }, 1500);
+
       setTimeout(() => setSyncFlowState('idle'), 3000);
     } catch (err) {
       setSyncFlowState('error');
@@ -760,12 +797,18 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     ))}
                   </div>
                 </div>
-                <div style={{ padding: '24px', borderTop: '1px solid #E2E8F0', background: '#fff' }}>
+                <div style={{ padding: '24px', borderTop: '1px solid #E2E8F0', background: '#fff', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <button
-                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/projects?projectId=${effectiveProjectId}`); }}
+                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/mom/view/${sync_id}`); }}
                     className="w-full flex items-center justify-center gap-2 bg-[#0D9488] text-white py-3 rounded-lg font-bold hover:bg-[#0F766E] transition-all shadow-lg"
                   >
-                    View in Dashboard <ArrowRight size={16} />
+                    View Saved MOM <ArrowRight size={16} />
+                  </button>
+                  <button
+                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/projects?projectId=${effectiveProjectId}`); }}
+                    style={{ background: 'transparent', border: 'none', color: '#64748B', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Go to Project Dashboard
                   </button>
                 </div>
               </motion.div>
@@ -819,7 +862,14 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               {meetings.map((m, idx) => {
                 const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
                 return (
-                  <tr key={m.id || idx} className="hover:bg-[#FAFCFF] transition-none group" style={{ height: '52px' }}>
+                  <tr
+                    key={m.id || idx}
+                    className="hover:bg-[#FAFCFF] transition-none group"
+                    style={{
+                      height: '52px',
+                      borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
+                    }}
+                  >
                     <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || idx + 1}</td>
                     <td className="px-4 py-2 text-center" style={cellBorder}>
                        <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
@@ -868,14 +918,15 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                      <td className="px-4 py-2 text-center" style={cellBorder}>
                         <PillDropdown
                           value={m.status || 'Pending'}
-                          options={['Open', 'Pending', 'In Progress', 'Done', 'Closed']}
-                          onChange={(val) => onUpdateMeeting(m.id, { status: val })}
+                          options={['Open', 'Pending', 'In Progress', 'Needs Review', 'Done', 'Closed']}
+                          onChange={(val) => onUpdateMeeting(m.id, { status: val, needsReview: val === 'Needs Review' })}
                           colors={{
                             'Done': { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
                             'Closed': { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' },
                             'Pending': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
                             'Open': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
-                            'In Progress': { bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' }
+                            'In Progress': { bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' },
+                             'Needs Review': { bg: '#FEF3C7', color: '#92400E', border: '#F59E0B' }
                           }}
                         />
                      </td>
