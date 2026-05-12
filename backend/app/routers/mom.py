@@ -14,13 +14,17 @@ router = APIRouter()
 
 def normalize_status(status: str) -> str:
     if not status:
-        return "Pending"
+        return "Open"
     s = status.strip().lower()
-    if s in ("open", "pending", "in progress"):
-        return "Pending"
+    if s in ("open", "pending", "new", "in progress", "started"):
+        # For the Issue Engine, we primarily use 'Open' or 'In Progress'
+        # However, for the dashboard 'Open' is the primary filter.
+        if s == "in progress":
+            return "In Progress"
+        return "Open"
     if s in ("closed", "done", "resolved", "complete", "completed"):
-        return "Resolved"
-    return "Pending"
+        return "Closed"
+    return "Open"
 
 class MOMAction(BaseModel):
     title: str
@@ -58,7 +62,24 @@ async def sync_mom_issues(
         project = db.query(Project).filter(Project.id == req.project_id).first()
         project_name = project.name if project else "Unknown Project"
 
-        # Initial history record with 'processing' status
+        # Step 1: Cleanup existing MOM issues and history for this project+meeting
+        if req.meeting_id:
+            # Delete old history
+            db.query(MomSyncHistory).filter(
+                MomSyncHistory.project_id == req.project_id,
+                MomSyncHistory.meeting_id == req.meeting_id
+            ).delete(synchronize_session=False)
+            
+            # Delete old issues
+            db.query(Issue).filter(
+                Issue.project_id == req.project_id,
+                Issue.source == "MOM",
+                Issue.meeting_id == req.meeting_id
+            ).delete(synchronize_session=False)
+
+        db.flush()
+
+        # Step 2: Initial history record with 'processing' status
         history = MomSyncHistory(
             sync_id=sync_id,
             status="processing",
@@ -74,21 +95,11 @@ async def sync_mom_issues(
         db.add(history)
         db.flush()
 
-        # Step 1: Cleanup existing MOM issues for this project+meeting
-        if req.meeting_id:
-            db.query(Issue).filter(
-                Issue.project_id == req.project_id,
-                Issue.source == "MOM",
-                Issue.meeting_id == req.meeting_id
-            ).delete(synchronize_session=False)
-
-        db.flush()
-
-        # Step 2: Insert fresh rows
+        # Step 3: Insert fresh rows
         created = []
         for action in req.actions:
             # Parse date safely
-            d_date = None
+            parsed_due_date = None
             if action.due_date:
                 try:
                     # Try common formats

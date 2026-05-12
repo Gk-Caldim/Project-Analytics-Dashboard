@@ -16,8 +16,11 @@ const CRITICALITY_COLORS = {
 };
 
 const STATUS_STYLES = {
+  'Open': 'text-amber-600 font-bold',
   'Pending': 'text-amber-600 font-bold',
+  'In Progress': 'text-blue-600 font-bold',
   'Done': 'text-emerald-600 font-bold',
+  'Resolved': 'text-emerald-600 font-bold',
   'Closed': 'text-gray-400 font-medium line-through',
 };
 

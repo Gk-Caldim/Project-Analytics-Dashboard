@@ -3,7 +3,7 @@ import sys
 from sqlalchemy import text
 
 # Add parent directory to sys.path to allow importing app modules
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from app.core.database import engine
 from app.core.config import DB_TYPE
@@ -74,6 +74,40 @@ def migrate():
             print("  mom_sessions updated.")
         except Exception as e:
             print(f"  Error updating mom_sessions: {e}")
+            conn.rollback()
+
+        # 4. Update meetings
+        print("Updating meetings...")
+        try:
+            # List of columns to ensure exist in the meetings table
+            # Format: (column_name, column_type)
+            columns_to_add = [
+                ("agenda_text", "TEXT"),
+                ("transcript", "TEXT"),
+                ("intelligence_data", "TEXT"),
+                ("actual_duration_minutes", "INTEGER"),
+                ("attendance_rate", "INTEGER"),
+                ("mom_generated", "BOOLEAN DEFAULT FALSE"),
+                ("action_item_count", "INTEGER DEFAULT 0"),
+                ("cancellation_reason", "VARCHAR(100)"),
+                ("cancellation_note", "TEXT"),
+                ("cancelled_by", "VARCHAR(100)"),
+                ("cancelled_at", "TIMESTAMP WITH TIME ZONE"),
+                ("attendees_notified", "BOOLEAN DEFAULT FALSE"),
+                ("organizer_email", "VARCHAR"),
+                ("google_calendar_event_id", "VARCHAR(100)"),
+                ("invites_sent", "BOOLEAN DEFAULT FALSE"),
+                ("project_id", "INTEGER"),
+                ("user_id", "VARCHAR")
+            ]
+            
+            for col_name, col_type in columns_to_add:
+                conn.execute(text(f"ALTER TABLE meetings ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+            
+            conn.commit()
+            print("  meetings updated.")
+        except Exception as e:
+            print(f"  Error updating meetings: {e}")
             conn.rollback()
 
     print("Migration finished.")

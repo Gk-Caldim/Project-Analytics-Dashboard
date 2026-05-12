@@ -46,10 +46,12 @@ const CRITICALITY_COLORS = {
   'Critical': { bg: '#DC2626', color: '#FFFFFF', border: '#B91C1C' },
 };
 
-const STATUS_OPTIONS = ['Pending', 'In Progress', 'Resolved'];
+const STATUS_OPTIONS = ['Open', 'In Progress', 'Closed', 'Pending', 'Resolved'];
 const STATUS_COLORS = {
+  'Open':        { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' }, // Same as Pending
   'Pending':     { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' },
   'In Progress': { bg: '#EFF6FF', color: '#1D4ED8', border: '#DBEAFE' },
+  'Closed':      { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' }, // Same as Resolved
   'Resolved':    { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' },
 };
 

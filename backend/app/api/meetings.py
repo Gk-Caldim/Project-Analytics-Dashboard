@@ -18,7 +18,7 @@ DELETE /api/meetings/auth/google/clear  — clear stored tokens (force re-auth)
 GET  /api/meetings/{meeting_id}   — get one meeting
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional, List, Any, cast
@@ -95,19 +95,26 @@ def send_invites_background(meeting_data: dict, join_url: str):
 
 def get_teams_token() -> str:
     import requests as _req
-    tenant = os.environ.get("AZURE_TENANT_ID")
-    if not tenant:
-        raise Exception("Azure Tenant ID not set")
+    # Extract tenant ID from MS_AUTHORITY (e.g. https://login.microsoftonline.com/TENANT_ID)
+    authority = os.environ.get("MS_AUTHORITY") or ""
+    tenant = authority.split("/")[-1] if "/" in authority else os.environ.get("AZURE_TENANT_ID")
+    
+    client_id = os.environ.get("MS_CLIENT_ID") or os.environ.get("AZURE_CLIENT_ID")
+    client_secret = os.environ.get("MS_CLIENT_SECRET") or os.environ.get("AZURE_CLIENT_SECRET")
+
+    if not tenant or not client_id or not client_secret:
+        raise Exception("Microsoft Teams credentials (Tenant/Client ID/Secret) not fully set in .env")
+
     token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
     data = {
-        "client_id":     os.environ.get("AZURE_CLIENT_ID"),
-        "client_secret": os.environ.get("AZURE_CLIENT_SECRET"),
+        "client_id":     client_id,
+        "client_secret": client_secret,
         "scope":         "https://graph.microsoft.com/.default",
         "grant_type":    "client_credentials",
     }
     resp = _req.post(token_url, data=data)
     if resp.status_code != 200:
-        raise Exception("Failed to get Teams token")
+        raise Exception(f"Failed to get Teams token: {resp.text}")
     return resp.json()["access_token"]
 
 # ---------------------------------------------------------------------------
@@ -337,55 +344,62 @@ async def publish_meeting(
             join_url     = result.get("join_url")
             meeting_code = result.get("meeting_code")
 
-
-
         else:
             raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
 
-    except HTTPException:
-        raise
+        # ── Database Persistence ──────────────────────────────────────────
+        meeting = Meeting(
+            title=req.title,
+            description=req.description,
+            date=req.date,
+            time=req.time,
+            duration_minutes=req.duration_minutes,
+            platform=platform,
+            join_url=join_url,
+            meeting_code=meeting_code,
+            organizer_email=req.organizer_email,
+            attendees=json.dumps(req.attendees),
+            agenda_text=req.agenda_text,
+            status="scheduled",
+            invites_sent=True,
+            project_id=req.project_id,
+        )
+        db.add(meeting)
+        db.commit()
+        db.refresh(meeting)
+
+        background_tasks.add_task(send_invites_background, meeting_data, cast(str, join_url))
+
+        return {
+            "success": True,
+            "meeting": {
+                "id":           meeting.id,
+                "title":        meeting.title,
+                "platform":     platform,
+                "duration":     meeting.duration_minutes,
+                "join_url":     join_url,
+                "joinUrl":      join_url,
+                "meeting_code": meeting_code,
+                "meetingCode":  meeting_code,
+                "attendees":    req.attendees,
+                "invites_sent": meeting.invites_sent,
+                "project_id":   meeting.project_id,
+            },
+        }
+
     except Exception as e:
-        logger.error(f"Failed to create meeting on platform {platform}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-    meeting = Meeting(
-        title=req.title,
-        description=req.description,
-        date=req.date,
-        time=req.time,
-        duration_minutes=req.duration_minutes,
-        platform=platform,
-        join_url=join_url,
-        meeting_code=meeting_code,
-        organizer_email=req.organizer_email,
-        attendees=json.dumps(req.attendees),
-        agenda_text=req.agenda_text,
-        status="scheduled",
-        invites_sent=True,
-        project_id=req.project_id,
-    )
-    db.add(meeting)
-    db.commit()
-    db.refresh(meeting)
-
-    background_tasks.add_task(send_invites_background, meeting_data, cast(str, join_url))
-
-    return {
-        "success": True,
-        "meeting": {
-            "id":           meeting.id,
-            "title":        meeting.title,
-            "platform":     platform,
-            "duration":     meeting.duration_minutes,
-            "join_url":     join_url,
-            "joinUrl":      join_url,
-            "meeting_code": meeting_code,
-            "meetingCode":  meeting_code,
-            "attendees":    req.attendees,
-            "invites_sent": meeting.invites_sent,
-            "project_id":   meeting.project_id,
-        },
-    }
+        import traceback
+        error_detail = str(e)
+        
+        logger.error(f"Meeting creation failed: {error_detail}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": error_detail,
+                "trace": traceback.format_exc()
+            }
+        )
 
 
 @router.get("/{meeting_id}")
