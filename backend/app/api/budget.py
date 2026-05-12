@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.budget import BudgetRevision, BudgetSummary
+from app.models.audit_log import AuditLog
 from app.schemas.budget import (
     BudgetRevisionResponse,
     BudgetRevisionUpdate,
@@ -310,6 +311,33 @@ def get_budget_version(budget_id: int, db: Session = Depends(get_db)):
     return budget
 
 
+@router.get("/audits/{project_name}")
+def get_budget_audits(project_name: str, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all budget audit logs for a specific project."""
+    from sqlalchemy import desc
+    from app.models.employee import Employee
+    logs = db.query(
+        AuditLog.id,
+        AuditLog.user_id,
+        AuditLog.action,
+        AuditLog.module,
+        AuditLog.entity_id,
+        AuditLog.details,
+        AuditLog.timestamp,
+        Employee.name.label("user_name"),
+        Employee.role.label("user_role")
+    ).outerjoin(
+        Employee, AuditLog.user_id == Employee.employee_id
+    ).filter(
+        AuditLog.module == "BudgetMaster",
+        AuditLog.details["project_name"].astext == project_name
+    ).order_by(desc(AuditLog.timestamp)).limit(limit).all()
+    return [{"id": r.id, "user_id": r.user_id, "action": r.action, "module": r.module,
+             "entity_id": r.entity_id, "details": r.details,
+             "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+             "user_name": r.user_name, "user_role": r.user_role} for r in logs]
+
+
 @router.delete("/version/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_budget_version(budget_id: int, db: Session = Depends(get_db)):
     """Delete a specific budget version."""
@@ -390,6 +418,7 @@ async def save_budget_summary(
     department: Optional[str] = Form(None),
     budget_data: str = Form("[]"),
     sync_to_project: bool = Form(False),
+    user_id: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -455,6 +484,30 @@ async def save_budget_summary(
             logger.warning(f"[budget] Could not find project '{project_name}' in Project Master to sync budget.")
 
     logger.info(f"[budget] Saved budget for '{project_name}' — rows: {len(parsed_budget_data)}, budget: {overall_budget}")
+
+    # Write audit log
+    action = "UPLOAD" if attachment_name else "SAVE"
+    try:
+        audit = AuditLog(
+            user_id=user_id,
+            action=action,
+            module="BudgetMaster",
+            entity_id=str(budget.id),
+            details={
+                "project_name": project_name,
+                "overall_budget": overall_budget,
+                "rows": len(parsed_budget_data),
+                "budget_date": budget_date,
+                "uploaded_by": uploaded_by,
+                "attachment_name": attachment_name,
+                "sync_to_project": sync_to_project,
+            }
+        )
+        db.add(audit)
+        db.commit()
+    except Exception as e:
+        logger.warning(f"[budget] Failed to write audit log: {e}")
+
     return budget
 
 
@@ -469,3 +522,29 @@ def delete_budget_summary(project_name: str, db: Session = Depends(get_db)):
     db.delete(budget)
     db.commit()
     return None
+
+
+@router.get("/audits/{project_name}")
+def get_budget_audits(project_name: str, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all budget audit logs for a specific project."""
+    from sqlalchemy import desc
+    from app.models.employee import Employee
+    logs = db.query(
+        AuditLog.id,
+        AuditLog.user_id,
+        AuditLog.action,
+        AuditLog.module,
+        AuditLog.entity_id,
+        AuditLog.details,
+        AuditLog.timestamp,
+        Employee.name.label("user_name"),
+        Employee.role.label("user_role")
+    ).outerjoin(
+        Employee, AuditLog.user_id == Employee.employee_id
+    ).filter(
+        AuditLog.module == "BudgetMaster",
+        AuditLog.details["project_name"].astext == project_name
+    ).order_by(desc(AuditLog.timestamp)).limit(limit).all()
+    return [{"id": r.id, "user_id": r.user_id, "action": r.action, "module": r.module,
+             "entity_id": r.entity_id, "details": r.details, "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+             "user_name": r.user_name, "user_role": r.user_role} for r in logs]

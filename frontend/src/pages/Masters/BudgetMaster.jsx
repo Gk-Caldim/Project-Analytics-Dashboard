@@ -6,7 +6,7 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
@@ -143,6 +143,10 @@ const BudgetMaster = () => {
   const [latestBudgetsMap, setLatestBudgetsMap] = useState({});
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
+  const [historyFilter, setHistoryFilter] = useState('All');
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [fetchingAudit, setFetchingAudit] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
@@ -178,6 +182,18 @@ const BudgetMaster = () => {
   const isHead = ['Head', 'Admin', 'Super Admin'].includes(userRole);
   const isFinance = ['Finance', 'Admin', 'Super Admin'].includes(userRole);
   const { format } = useCurrency();
+
+  // ─── Permission helper ─────────────────────────────────────────────────────
+  // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
+  const userPerms = user?.permissions || [];
+  const hasBudgetModule = userPerms.includes('Budget Master');
+  const hasBudgetPerm = (sub) => {
+    // Admins and Super Admins bypass all checks
+    if (['Admin', 'Super Admin'].includes(userRole)) return true;
+    // Must have the parent module enabled first
+    if (!hasBudgetModule) return false;
+    return userPerms.includes(`Budget Master:${sub}`);
+  };
 
   // ─── Fetch helpers ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -312,11 +328,18 @@ const BudgetMaster = () => {
   };
 
   // ─── Pagination for History ───────────────────────────────────────────────────
-  const totalHistoryPages = Math.max(1, Math.ceil(historyData.length / historyItemsPerPage));
+  const filteredHistoryData = useMemo(() => {
+    if (historyFilter === 'All') return historyData;
+    if (historyFilter === 'Upload') return historyData.filter(item => item.attachment_name);
+    if (historyFilter === 'Save') return historyData.filter(item => !item.attachment_name);
+    return historyData;
+  }, [historyData, historyFilter]);
+
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistoryData.length / historyItemsPerPage));
   const paginatedHistoryData = useMemo(() => {
     const start = (historyCurrentPage - 1) * historyItemsPerPage;
-    return historyData.slice(start, start + historyItemsPerPage);
-  }, [historyData, historyCurrentPage, historyItemsPerPage]);
+    return filteredHistoryData.slice(start, start + historyItemsPerPage);
+  }, [filteredHistoryData, historyCurrentPage, historyItemsPerPage]);
 
   const getHistoryPageNumbers = () => {
     const pages = [];
@@ -512,7 +535,8 @@ const BudgetMaster = () => {
       fd.append('project_name', selectedProject);
       fd.append('budget_date', budgetDate);
       fd.append('overall_budget', parseFloat(overallBudget) || 0);
-      fd.append('uploaded_by', user?.name || 'Admin');
+      fd.append('uploaded_by', user?.role || user?.full_name || 'Unknown');
+      fd.append('user_id', user?.employee_id || String(user?.id || ''));
       fd.append('budget_data', JSON.stringify(dataToSave));
       fd.append('sync_to_project', saveType === 'sync');
       if (uploadedFile) fd.append('file', uploadedFile);
@@ -543,7 +567,7 @@ const BudgetMaster = () => {
       const fd = new FormData();
       fd.append('project_id', proj?.project_id || '');
       fd.append('project_name', selectedProject);
-      fd.append('pm_name', user?.name || 'Unknown');
+      fd.append('pm_name', user?.full_name || managerName || 'Unknown');
       fd.append('previous_budget', parseFloat(overallBudget) || 0);
       fd.append('revised_budget', (parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0));
       fd.append('reasons', revisionData.reasons);
@@ -588,6 +612,16 @@ const BudgetMaster = () => {
       setHistoryData(res.data);
     } catch { toast.error('Failed to fetch budget history'); }
     finally { setFetchingHistory(false); }
+  };
+
+  const fetchAuditLogs = async () => {
+    if (!selectedProject) return;
+    setFetchingAudit(true);
+    try {
+      const res = await API.get(`/budget/audits/${encodeURIComponent(selectedProject)}`);
+      setAuditLogs(res.data || []);
+    } catch { toast.error('Failed to fetch audit logs'); }
+    finally { setFetchingAudit(false); }
   };
 
   const loadVersion = async (id) => {
@@ -1068,6 +1102,8 @@ const BudgetMaster = () => {
               {/* Table Toolbar */}
               <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
+                  {/* Add Item — needs add_row OR add_column permission */}
+                  {(hasBudgetPerm('add_row') || hasBudgetPerm('add_column')) && (
                   <div className="relative">
                     <button onClick={() => setShowAddDropdown(!showAddDropdown)}
                       className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
@@ -1079,21 +1115,28 @@ const BudgetMaster = () => {
                       <>
                         <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
                         <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                          {hasBudgetPerm('add_row') && (
                           <button onClick={() => { addRow(); setShowAddDropdown(false); }}
                             className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
                             <Plus className="w-4 h-4 text-blue-500" />
                             <span>Add Row</span>
                           </button>
+                          )}
+                          {hasBudgetPerm('add_column') && (
                           <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
                             className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
                             <Columns className="w-4 h-4 text-emerald-500" />
                             <span>Add Column</span>
                           </button>
+                          )}
                         </div>
                       </>
                     )}
                   </div>
+                  )}
 
+                  {/* Save — needs save_budget permission */}
+                  {hasBudgetPerm('save_budget') && (
                   <div className="relative">
                     <div className="flex items-stretch h-10">
                       <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
@@ -1134,10 +1177,12 @@ const BudgetMaster = () => {
                       </>
                     )}
                   </div>
+                  )}
 
                   <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
 
-                  {/* File actions */}
+                  {/* Upload Budget — needs upload_budget permission */}
+                  {hasBudgetPerm('upload_budget') && (
                   <div className="relative group">
                     <button
                       onClick={() => {
@@ -1149,6 +1194,7 @@ const BudgetMaster = () => {
                       {isParsing ? 'Parsing...' : 'Upload Budget'}
                     </button>
                   </div>
+                  )}
 
                   <div className="relative">
                     <button
@@ -1332,15 +1378,19 @@ const BudgetMaster = () => {
                                     </button>
                                   </>
                                 ) : (
+                                  hasBudgetPerm('edit_row') && (
                                   <button onClick={() => startEdit(row)}
                                     className="px-4 py-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-xs font-bold transition-all" title="Edit">
                                     Edit
                                   </button>
+                                  )
                                 )}
+                                {hasBudgetPerm('delete_row') && (
                                 <button onClick={() => setShowDeletePrompt(row.id)}
                                   className="px-4 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-xs font-bold transition-all" title="Delete">
                                   Delete
                                 </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1984,17 +2034,35 @@ const BudgetMaster = () => {
                 <div className="flex items-center gap-4">
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Budget History & Snapshots</h2>
                 </div>
-                <button onClick={fetchHistory} disabled={fetchingHistory}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 transition-all">
-                  {fetchingHistory ? 'Refreshing...' : 'Refresh'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <select 
+                    value={historyFilter} 
+                    onChange={e => { setHistoryFilter(e.target.value); setHistoryCurrentPage(1); }}
+                    className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none cursor-pointer">
+                    <option value="All">All Types</option>
+                    <option value="Upload">Uploads</option>
+                    <option value="Save">Manual Saves</option>
+                  </select>
+                  {(hasBudgetPerm('budget_audits')) && (
+                    <button onClick={() => { setShowAuditModal(true); fetchAuditLogs(); }}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Budget Audits
+                    </button>
+                  )}
+                  <button onClick={fetchHistory} disabled={fetchingHistory}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-slate-700 hover:bg-slate-50 transition-all">
+                    <RefreshCw className={`w-3.5 h-3.5 ${fetchingHistory ? 'animate-spin' : ''}`} />
+                    {fetchingHistory ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Effective Date</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project Manager</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Budget</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded By</th>
@@ -2022,7 +2090,7 @@ const BudgetMaster = () => {
                     ) : paginatedHistoryData.map(item => (
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
                         <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
-                          {item.budget_date || 'Initial'}
+                          {managerName || 'Unassigned'}
                         </td>
                         <td className="py-4 px-6">
                           <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
@@ -2037,12 +2105,14 @@ const BudgetMaster = () => {
                         <td className="py-4 px-6">
                           <div className="flex items-center justify-center gap-4">
                             <button onClick={() => loadVersion(item.id)}
-                              className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-all">
-                              View
+                              title="View Snapshot"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-all">
+                              <Eye className="w-4 h-4" />
                             </button>
                             <button onClick={() => deleteVersion(item.id)}
-                              className="text-xs font-bold text-red-600 hover:text-red-700 transition-all">
-                              Delete
+                              title="Delete Snapshot"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -2090,6 +2160,109 @@ const BudgetMaster = () => {
           )}
         </div>
       </div>
+
+      {/* ── Budget Audit Modal ────────────────────────────────────────────────── */}
+      {showAuditModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Audit Trail</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAuditModal(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400">
+                <span className="text-lg font-bold">✕</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {fetchingAudit ? (
+                <div className="flex items-center justify-center py-24">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+                  <span className="ml-3 text-sm font-bold text-slate-400">Loading audit logs...</span>
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <ClipboardList className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-400">No audit records found</p>
+                  <p className="text-xs text-slate-400 mt-1">Audit entries will appear after any budget save or upload action.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">#</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Timestamp</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Action</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Performed By</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Role</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Budget</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Attachment</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Synced</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {auditLogs.map((log, idx) => (
+                      <tr key={log.id} className="hover:bg-indigo-50/40 dark:hover:bg-slate-700/20 transition-colors">
+                        <td className="py-3 px-5 text-xs font-bold text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-600 whitespace-nowrap">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                        </td>
+                        <td className="py-3 px-5">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                            log.action === 'UPLOAD'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : log.action === 'SAVE'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>{log.action}</span>
+                        </td>
+                        <td className="py-3 px-5 text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {log.user_name || log.details?.uploaded_by || '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                          {log.user_role || '—'}
+                        </td>
+                        <td className="py-3 px-5 text-sm font-bold text-blue-600">
+                          {log.details?.overall_budget != null ? format(log.details.overall_budget, false) : '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-600">
+                          {log.details?.rows ?? '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                          {log.details?.attachment_name || <span className="text-slate-300">None</span>}
+                        </td>
+                        <td className="py-3 px-5">
+                          {log.details?.sync_to_project
+                            ? <span className="text-emerald-600 font-bold text-[10px] uppercase">✓ Synced</span>
+                            : <span className="text-slate-300 text-[10px]">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-xs font-bold text-slate-400">{auditLogs.length} total entries</span>
+              <button onClick={() => { setShowAuditModal(false); }}
+                className="px-6 py-2 text-xs font-black text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all uppercase tracking-widest">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (

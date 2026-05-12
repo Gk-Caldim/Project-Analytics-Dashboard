@@ -93,6 +93,23 @@ const AccessControl = () => {
             { id: 'DELETE-SUBCATEGORY', label: 'Remove Sub-Ops' }
           ]
         },
+        {
+          id: 'budget_master',
+          name: 'Budget Master',
+          description: 'Budget planning, allocation, upload, and expenditure tracking for projects.',
+          tags: ['FINANCE'],
+          subPermissions: [
+            { id: 'upload_budget', label: 'Upload Budget' },
+            { id: 'view_budget', label: 'View Budget' },
+            { id: 'edit_row', label: 'Edit Row' },
+            { id: 'delete_row', label: 'Delete Row' },
+            { id: 'add_row', label: 'Add Row' },
+            { id: 'add_column', label: 'Add Column' },
+            { id: 'edit_column', label: 'Edit Column' },
+            { id: 'save_budget', label: 'Save Budget' },
+            { id: 'budget_audits', label: 'Budget Audits' },
+          ]
+        },
       ]
     },
     {
@@ -108,17 +125,6 @@ const AccessControl = () => {
             { id: 'upload_tracker', label: 'Upload' },
             { id: 'view_tracker', label: 'View' },
             { id: 'delete_tracker', label: 'Delete' }
-          ]
-        },
-        {
-          id: 'budget_upload',
-          name: 'Budget Upload',
-          description: 'Budget allocation and expenditure tracking.',
-          tags: ['FINANCE'],
-          subPermissions: [
-            { id: 'upload_budget', label: 'Upload' },
-            { id: 'view_budget', label: 'View' },
-            { id: 'delete_budget', label: 'Delete' }
           ]
         },
         { id: 'settings', name: 'Settings', description: 'System configurations and security guardrails.', tags: ['ADMIN'], special: true },

@@ -19,6 +19,7 @@ import PdfPreviewModal from '../components/PdfPreviewModal';
 import useCurrency from "../hooks/useCurrency";
 import PremiumProjectCard from '../components/project/PremiumProjectCard';
 import { motion } from 'framer-motion';
+import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { staggerContainer } from '../utils/animations';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import VPProjectDashboard from './VPProjectDashboard';
@@ -316,14 +317,23 @@ const ProjectTitleDashboard = () => {
         (p.code && p.code.toLowerCase().includes(q))
       );
     }
-    // Sort logic: pinned first
+    // Sort logic: pinned first, then within pinned group sort by priority level (high priority pins float to top)
+    const PRIORITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1, None: 0 };
     result.sort((a, b) => {
-      const aPinned = pinnedProjects.includes(a.id) ? 1 : 0;
-      const bPinned = pinnedProjects.includes(b.id) ? 1 : 0;
-      return bPinned - aPinned; // 1 goes before 0
+      const aPinned = pinnedProjects.includes(a.id);
+      const bPinned = pinnedProjects.includes(b.id);
+      // Pinned always before unpinned
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      // Both pinned: sort by priority rank descending (Critical > High > Medium > Low > None)
+      if (aPinned && bPinned) {
+        const aRank = PRIORITY_RANK[projectUrgency[a.id]] ?? 0;
+        const bRank = PRIORITY_RANK[projectUrgency[b.id]] ?? 0;
+        return bRank - aRank;
+      }
+      return 0;
     });
     return result;
-  }, [projects, searchQuery, pinnedProjects]);
+  }, [projects, searchQuery, pinnedProjects, projectUrgency]);
 
   // Bulk Handlers
   const handleBulkPin = (pin) => {
@@ -3508,36 +3518,6 @@ const ProjectTitleDashboard = () => {
     });
 
     const text = `Analyzing ${humanizeLabel(chartId)} for ${activeProject.name}. This visualization explores the distribution of ${humanizeLabel(config.yAxis)} across different ${humanizeLabel(config.xAxis)} categories. By aggregating ${rows.length} records using a ${isNumeric ? 'Summation' : 'Frequency Count'} logic, we can clearly identify how ${humanizeLabel(config.yAxis)} varies across the project scope. This breakdown highlights primary drivers and helps focus management attention where it matters most.`;
-
-    const container = {
-      hidden: { opacity: 0 },
-      visible: (i = 1) => ({
-        opacity: 1,
-        transition: { staggerChildren: 0.03, delayChildren: 0.1 * i },
-      }),
-    };
-
-    const child = {
-      visible: {
-        opacity: 1,
-        y: 0,
-        transition: {
-          type: "spring",
-          damping: 12,
-          stiffness: 100,
-        },
-      },
-      hidden: {
-        opacity: 0,
-        y: 20,
-        transition: {
-          type: "spring",
-          damping: 12,
-          stiffness: 100,
-        },
-      },
-    };
-
     return (
       <div style={{
         position: 'fixed',
@@ -3595,28 +3575,10 @@ const ProjectTitleDashboard = () => {
             <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
           </div>
 
-          <motion.div
-            style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}
-            variants={container}
-            initial="hidden"
-            animate="visible"
-          >
-            {text.split(" ").map((word, index) => (
-              <motion.span
-                variants={child}
-                key={index}
-                style={{
-                  fontSize: '19px',
-                  lineHeight: '1.6',
-                  fontWeight: '500',
-                  color: '#334155',
-                  letterSpacing: '-0.01em'
-                }}
-              >
-                {word}
-              </motion.span>
-            ))}
-          </motion.div>
+          <TextGenerateEffect
+            words={text}
+            className="text-[19px] leading-[1.6] font-medium text-slate-700 tracking-tight"
+          />
 
           <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'flex-end' }}>
             <button

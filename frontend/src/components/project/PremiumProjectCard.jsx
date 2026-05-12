@@ -32,19 +32,47 @@ const PremiumProjectCard = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const getUrgencyColor = () => {
-    switch(urgency) {
+  const URGENCY_LEVELS = ['Normal', 'Low', 'Medium', 'High', 'Critical'];
+
+  const getUrgencyColor = (level = urgency) => {
+    switch(level) {
       case 'Critical': return '#F04438';
       case 'High': return '#F79009';
       case 'Medium': return '#F59E0B';
-      default: return 'transparent'; // Low/None
+      case 'Low':    return '#64748B';
+      default:       return null; // Normal / None — no badge
     }
   };
 
+  const urgencyColor = getUrgencyColor();
+
+  // Render urgency menu items (shared between grid + list)
+  const renderUrgencyOptions = () => URGENCY_LEVELS.map(level => {
+    const lColor = getUrgencyColor(level);
+    return (
+      <button
+        key={level}
+        className={`dropdown-item urgency-btn ${urgency === level || (level === 'Normal' && (!urgency || urgency === 'None')) ? 'active' : ''}`}
+        style={{ color: urgency === level && lColor ? lColor : 'inherit' }}
+        onClick={() => {
+          // "Normal" resets priority to 'None'
+          onUrgencyChange(level === 'Normal' ? 'None' : level);
+          setMenuOpen(false);
+        }}
+      >
+        <div
+          className="urgency-dot-small"
+          style={{ background: lColor || '#94a3b8', opacity: lColor ? 1 : 0.4 }}
+        />
+        {level}
+      </button>
+    );
+  });
+
   return (
     <div 
-      className={`executive-project-card ${isFeatured ? 'featured' : ''} ${viewMode === 'list' ? 'list-view' : ''}`}
-      style={urgency !== 'None' && urgency !== 'Low' ? { borderTop: `3px solid ${getUrgencyColor()}` } : {}}
+      className={`executive-project-card ${isFeatured ? 'featured' : ''} ${isPinned ? 'pinned' : ''} ${urgencyColor ? 'has-priority' : ''} ${viewMode === 'list' ? 'list-view' : ''}`}
+      style={urgencyColor || isPinned ? { '--glow-color': urgencyColor || 'var(--accent)' } : {}}
       onClick={(e) => {
         if (selectionMode) {
           onSelect(!isSelected);
@@ -68,9 +96,9 @@ const PremiumProjectCard = ({
               </div>
             )}
           </div>
-          {urgency !== 'None' && (
-            <span className="urgency-pill" style={{ background: `${getUrgencyColor()}15`, color: getUrgencyColor() }}>
-              <div className="urgency-dot" style={{ background: getUrgencyColor() }} />
+          {urgencyColor && (
+            <span className="urgency-pill" style={{ background: `${urgencyColor}18`, color: urgencyColor, border: `1px solid ${urgencyColor}30` }}>
+              <div className="urgency-dot" style={{ background: urgencyColor }} />
               {urgency}
             </span>
           )}
@@ -96,20 +124,7 @@ const PremiumProjectCard = ({
                 <div className="dropdown-label">Priority Level</div>
                 
                 <div className="urgency-options">
-                  {['Low', 'Medium', 'High', 'Critical'].map(level => {
-                    let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
-                    return (
-                      <button 
-                        key={level}
-                        className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
-                        style={{ color: urgency === level ? lColor : 'inherit' }}
-                        onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
-                      >
-                        <div className="urgency-dot-small" style={{ background: lColor }} />
-                        {level}
-                      </button>
-                    );
-                  })}
+                  {renderUrgencyOptions()}
                 </div>
 
                 <div className="dropdown-divider" />
@@ -170,20 +185,7 @@ const PremiumProjectCard = ({
                   <div className="dropdown-label">Priority Level</div>
                   
                   <div className="urgency-options">
-                    {['Low', 'Medium', 'High', 'Critical'].map(level => {
-                      let lColor = level === 'Critical' ? '#F04438' : level === 'High' ? '#F79009' : level === 'Medium' ? '#F59E0B' : 'var(--text-secondary)';
-                      return (
-                        <button 
-                          key={level}
-                          className={`dropdown-item urgency-btn ${urgency === level ? 'active' : ''}`}
-                          style={{ color: urgency === level ? lColor : 'inherit' }}
-                          onClick={() => { onUrgencyChange(level); setMenuOpen(false); }}
-                        >
-                          <div className="urgency-dot-small" style={{ background: lColor }} />
-                          {level}
-                        </button>
-                      );
-                    })}
+                    {renderUrgencyOptions()}
                   </div>
 
                   <div className="dropdown-divider" />

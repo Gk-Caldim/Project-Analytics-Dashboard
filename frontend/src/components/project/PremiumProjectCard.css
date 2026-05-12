@@ -21,16 +21,19 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.executive-project-card.featured::before {
+.executive-project-card.pinned::before,
+.executive-project-card.has-priority::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: var(--accent);
+  height: 3px;
+  background: var(--glow-color, var(--accent));
+  opacity: 1;
   border-top-left-radius: 2px;
   border-top-right-radius: 2px;
+  z-index: 10;
 }
 
 .project-name {
