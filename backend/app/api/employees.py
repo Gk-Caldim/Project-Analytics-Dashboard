@@ -32,6 +32,18 @@ def get_all_employees(
     employees = employee_crud.get_employees(db, skip=skip, limit=limit)
     return employees
 
+@router.get("/statistics")
+def get_employee_statistics(db: Session = Depends(get_db)):
+    """Get employee count statistics grouped by role"""
+    try:
+        stats = employee_crud.get_employee_statistics(db)
+        return {"statistics": stats}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching statistics: {str(e)}"
+        )
+
 @router.get("/{employee_id}", response_model=EmployeeOut)
 def get_employee(employee_id: int, db: Session = Depends(get_db)):
     """Get a single employee by ID"""
@@ -254,6 +266,21 @@ def bulk_delete_employees(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error bulk deleting employees: {error_msg}"
             )
+
+@router.get("/by-role/{role}", response_model=List[EmployeeOut])
+def get_employees_by_role(
+    role: str,
+    db: Session = Depends(get_db)
+):
+    """Get all employees with a specific role"""
+    try:
+        employees = employee_crud.get_employees_by_role(db, role)
+        return employees
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching employees by role: {str(e)}"
+        )
 
 # ============================================================================
 # CUSTOM COLUMN ENDPOINTS
