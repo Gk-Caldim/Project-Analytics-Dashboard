@@ -135,7 +135,7 @@ def update_revision_status(
     if payload.status == "Approved":
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == revision.project_name
-        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
         
         if budget:
             budget.overall_budget = revision.revised_budget
@@ -219,7 +219,7 @@ def generate_budget_proposal(
     # 1. Get latest budget
     budget = db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
-    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+    ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
 
     if not budget:
         return {
@@ -298,7 +298,7 @@ def list_budget_history(project_name: str, db: Session = Depends(get_db)):
     """List all budget snapshots/versions for a project."""
     return db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
-    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).all()
+    ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).all()
 
 
 @router.get("/version/{budget_id}", response_model=BudgetSummaryResponse)
@@ -359,7 +359,7 @@ def get_budget_summary(project_name: str, db: Session = Depends(get_db)):
     try:
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == project_name
-        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
         
         if not budget:
             logger.info(f"[budget] No budget found for project: {project_name}. Returning default.")
@@ -402,6 +402,9 @@ async def save_budget_summary(
     except Exception:
         parsed_budget_data = []
 
+    if not parsed_budget_data or len(parsed_budget_data) == 0:
+        raise HTTPException(status_code=400, detail="Cannot save empty budget data. Please add valid budget entries.")
+
     attachment_name = None
     attachment_data_b64 = None
 
@@ -413,41 +416,19 @@ async def save_budget_summary(
         except Exception as e:
             logger.error(f"[budget] Failed to read uploaded file: {e}")
 
-    # Find if a budget for this project AND this specific date already exists
-    # If no date is provided, we treat it as a "Default/Current" record for now
-    query = db.query(BudgetSummary).filter(BudgetSummary.project_name == project_name)
-    if budget_date:
-        query = query.filter(BudgetSummary.budget_date == budget_date)
-    else:
-        # If no date, we check for a record with NULL date
-        query = query.filter(BudgetSummary.budget_date == None)
-    
-    budget = query.first()
-
-    if budget:
-        budget.overall_budget = overall_budget
-        budget.budget_data = parsed_budget_data
-        if uploaded_by:
-            budget.uploaded_by = uploaded_by
-        if attachment_name:
-            budget.attachment_name = attachment_name
-            budget.attachment_data = attachment_data_b64
-        db.commit()
-        db.refresh(budget)
-    else:
-        budget = BudgetSummary(
-            project_name=project_name,
-            budget_date=budget_date,
-            uploaded_by=uploaded_by,
-            department=department,
-            overall_budget=overall_budget,
-            budget_data=parsed_budget_data,
-            attachment_name=attachment_name,
-            attachment_data=attachment_data_b64,
-        )
-        db.add(budget)
-        db.commit()
-        db.refresh(budget)
+    budget = BudgetSummary(
+        project_name=project_name,
+        budget_date=budget_date,
+        uploaded_by=uploaded_by,
+        department=department,
+        overall_budget=overall_budget,
+        budget_data=parsed_budget_data,
+        attachment_name=attachment_name,
+        attachment_data=attachment_data_b64,
+    )
+    db.add(budget)
+    db.commit()
+    db.refresh(budget)
 
     # Sync to Project Master if requested
     if sync_to_project:

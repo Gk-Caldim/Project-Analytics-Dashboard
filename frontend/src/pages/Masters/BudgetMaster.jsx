@@ -140,6 +140,9 @@ const BudgetMaster = () => {
 
   const [historyData, setHistoryData] = useState([]);
   const [fetchingHistory, setFetchingHistory] = useState(false);
+  const [latestBudgetsMap, setLatestBudgetsMap] = useState({});
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
   const [showDateModal, setShowDateModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
@@ -212,9 +215,21 @@ const BudgetMaster = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [projRes, empRes] = await Promise.all([API.get('/projects/'), API.get('/employees/')]);
+      const [projRes, empRes, budgetRes] = await Promise.all([
+        API.get('/projects/'),
+        API.get('/employees/'),
+        API.get('/budget/').catch(() => ({ data: [] }))
+      ]);
       setProjects(projRes.data || []);
       setEmployees(empRes.data || []);
+      
+      const latestBudgets = {};
+      (budgetRes?.data || []).forEach(b => {
+        if (!latestBudgets[b.project_name] || new Date(b.updated_at) > new Date(latestBudgets[b.project_name].updated_at)) {
+          latestBudgets[b.project_name] = b;
+        }
+      });
+      setLatestBudgetsMap(latestBudgets);
     } catch (err) {
       console.error('Init error', err);
     } finally {
@@ -291,6 +306,23 @@ const BudgetMaster = () => {
     const max = 5;
     let start = Math.max(1, currentPage - 2);
     let end = Math.min(totalPages, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
+  // ─── Pagination for History ───────────────────────────────────────────────────
+  const totalHistoryPages = Math.max(1, Math.ceil(historyData.length / historyItemsPerPage));
+  const paginatedHistoryData = useMemo(() => {
+    const start = (historyCurrentPage - 1) * historyItemsPerPage;
+    return historyData.slice(start, start + historyItemsPerPage);
+  }, [historyData, historyCurrentPage, historyItemsPerPage]);
+
+  const getHistoryPageNumbers = () => {
+    const pages = [];
+    const max = 5;
+    let start = Math.max(1, historyCurrentPage - 2);
+    let end = Math.min(totalHistoryPages, start + max - 1);
     if (end - start < max - 1) start = Math.max(1, end - max + 1);
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
@@ -944,7 +976,16 @@ const BudgetMaster = () => {
                       Active Project
                     </label>
                     <SearchableDropdown
-                      options={projects.map(p => p.name)}
+                      options={projects.map(p => {
+                        const latest = latestBudgetsMap[p.name];
+                        let label = p.name;
+                        if (latest && latest.updated_at) {
+                          const hours = Math.floor((new Date() - new Date(latest.updated_at)) / (1000 * 60 * 60));
+                          const timeStr = hours < 1 ? 'Just now' : `${hours} hours ago`;
+                          label = `${p.name} (updated ${timeStr})`;
+                        }
+                        return { value: p.name, label };
+                      })}
                       value={selectedProject}
                       onChange={setSelectedProject}
                       placeholder="Select a project..."
@@ -1954,6 +1995,7 @@ const BudgetMaster = () => {
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Effective Date</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Budget</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded By</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
@@ -1962,10 +2004,10 @@ const BudgetMaster = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                     {fetchingHistory ? (
-                      <tr><td colSpan={5} className="py-12 text-center text-slate-400">Loading history...</td></tr>
-                    ) : historyData.length === 0 ? (
+                      <tr><td colSpan={6} className="py-12 text-center text-slate-400">Loading history...</td></tr>
+                    ) : paginatedHistoryData.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-24">
+                        <td colSpan={6} className="py-24">
                           <div className="flex flex-col items-center justify-center text-center px-4">
                             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
                               <History className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -1977,10 +2019,15 @@ const BudgetMaster = () => {
                           </div>
                         </td>
                       </tr>
-                    ) : historyData.map(item => (
+                    ) : paginatedHistoryData.map(item => (
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
                         <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
                           {item.budget_date || 'Initial'}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                            {item.attachment_name ? 'Upload' : 'Save'}
+                          </span>
                         </td>
                         <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget, false)}</td>
                         <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
@@ -2004,6 +2051,41 @@ const BudgetMaster = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* History Pagination */}
+              {historyData.length > 0 && (
+                <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <span className="text-xs font-bold text-slate-500">Rows per page:</span>
+                    <select value={historyItemsPerPage} onChange={e => { setHistoryItemsPerPage(Number(e.target.value)); setHistoryCurrentPage(1); }}
+                      className="px-4 py-1.5 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none transition-all focus:ring-4 focus:ring-slate-500/10">
+                      {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
+                    </select>
+                    <span className="text-xs font-bold text-slate-500">
+                      {(historyCurrentPage - 1) * historyItemsPerPage + 1}–{Math.min(historyCurrentPage * historyItemsPerPage, historyData.length)} of {historyData.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setHistoryCurrentPage(1)} disabled={historyCurrentPage === 1}
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      First
+                    </button>
+                    {getHistoryPageNumbers().map(p => (
+                      <button key={p} onClick={() => setHistoryCurrentPage(p)}
+                        className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === historyCurrentPage
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                          }`}>
+                        {p}
+                      </button>
+                    ))}
+                    <button onClick={() => setHistoryCurrentPage(totalHistoryPages)} disabled={historyCurrentPage === totalHistoryPages}
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
