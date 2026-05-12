@@ -14,8 +14,12 @@ Strict rules:
 
 import datetime
 import logging
+import re
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
+from app.core.limiter import limiter
+
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -67,8 +71,11 @@ def _resolve_project_id(db: Session, project_name: str | None) -> int | None:
 # ---------------------------------------------------------------------------
 
 @router.post("/upload-tracker")
+@limiter.limit("10/minute")
 async def upload_tracker(
+    request: Request,
     file: UploadFile = File(...),
+
     project: Optional[str] = Form(None),
     department: Optional[str] = Form(None),
     employeeName: Optional[str] = Form(None),
@@ -304,7 +311,12 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
         if dataset:
             db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
             if dataset.table_name:
+                # Strictly validate table_name to prevent SQL injection
+                if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                    logger.error(f"Invalid table name detected: {dataset.table_name}")
+                    raise HTTPException(status_code=400, detail="Invalid table name")
                 db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
+
             db.delete(dataset)
             db.commit()
             return {"message": "Standalone dataset deleted"}
@@ -318,9 +330,14 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
             db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
             if dataset.table_name:
                 try:
+                    # Strictly validate table_name to prevent SQL injection
+                    if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                        logger.error(f"Invalid table name detected: {dataset.table_name}")
+                        raise HTTPException(status_code=400, detail="Invalid table name")
                     db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
                 except Exception as e:
                     logger.error(f"Error dropping table {dataset.table_name}: {e}")
+
             db.delete(dataset)
 
     # 3. Cleanup TrackerIngestion system
@@ -381,9 +398,14 @@ async def bulk_delete_uploads(request: BulkDeleteRequest, db: Session = Depends(
         # Drop physical table if it exists
         if ds.table_name:
             try:
+                # Strictly validate table_name to prevent SQL injection
+                if not re.match(r'^[a-zA-Z0-9_]+$', ds.table_name):
+                    logger.error(f"Invalid table name detected: {ds.table_name}")
+                    continue
                 db.execute(text(f'DROP TABLE IF EXISTS "{ds.table_name}"'))
             except Exception as e:
                 logger.error(f"Error dropping table {ds.table_name} during bulk delete: {e}")
+
         
         # Delete Dataset record
         db.delete(ds)

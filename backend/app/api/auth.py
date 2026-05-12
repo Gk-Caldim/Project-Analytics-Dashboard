@@ -2,6 +2,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
+from fastapi import Request
+
 from app.core.security import (
     verify_password,
     create_access_token,
@@ -102,7 +105,11 @@ def safe_verify_password(password: str, hashed_password: str) -> bool:
 
 #login
 @router.post("/login")
-def login(data: dict, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, data: dict, db: Session = Depends(get_db)):
+
+
+
     identifier = data.get("email") # This could be email OR employee_id
     password = data.get("password")
 
@@ -237,7 +244,11 @@ def check_admin_access(current_user: dict, db: Session):
          raise HTTPException(status_code=403, detail="Only Admins and Super Admins can access this section")
 
 @router.post("/request-access")
-def create_access_request(data: AccessRequestCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def create_access_request(request: Request, data: AccessRequestCreate, db: Session = Depends(get_db)):
+
+
+
     if data.password != data.confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
     

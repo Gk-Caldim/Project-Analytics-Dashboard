@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import { setBranding } from '../../store/slices/navSlice';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -16,40 +17,49 @@ import Maintenance from './components/Maintenance';
 
 const SystemSettings = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { themeSettings, updateThemeLocally, refreshTheme } = useTheme();
   const [settings, setSettings] = useState([]);
   const [modifiedSettings, setModifiedSettings] = useState({});
-  const [activeCategory, setActiveCategory] = useState('Organization');
-  const [activeSubCategory, setActiveSubCategory] = useState('Identity');
   const [isSaving, setIsSaving] = useState(false);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
 
+  // Get current path from location - more robustly
+  const currentPath = location.pathname.split('/settings/')[1]?.split('/')[0] || 'general';
+
+
   const sidebarCategories = [
     {
       group: 'ORGANIZATION',
       items: [
-        { id: 'Organization', label: 'System' },
-        { id: 'Branding', label: 'Visual Branding' },
+        { id: 'Organization', label: 'System', path: 'general' },
+        { id: 'Branding', label: 'Visual Branding', path: 'branding' },
       ]
     },
     {
         group: 'SECURE CONTROLS',
         items: [
-          { id: 'Access Control', label: 'Role Management' },
-          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory' }] : []),
+          { id: 'Access Control', label: 'Role Management', path: 'access' },
+          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory', path: 'applications' }] : []),
         ]
     },
     {
       group: 'INFRASTRUCTURE',
       items: [
-        { id: 'Connections', label: 'External Bridges' },
-        ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger' }] : []),
-        { id: 'Maintenance', label: 'System Health' },
+        { id: 'Connections', label: 'External Bridges', path: 'connections' },
+        ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger', path: 'audit' }] : []),
+        { id: 'Maintenance', label: 'System Health', path: 'maintenance' },
       ]
     }
   ];
+
+  // Helper to find active category based on path
+  const activeCategory = sidebarCategories
+    .flatMap(g => g.items)
+    .find(item => item.path === currentPath)?.id || 'Organization';
 
   useEffect(() => {
     fetchSettings();
@@ -138,18 +148,7 @@ const SystemSettings = () => {
     }
   };
 
-  const renderContent = () => {
-    switch (activeCategory) {
-      case 'Organization': return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
-      case 'Branding': return <BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />;
-      case 'Access Control': return <AccessControl />;
-      case 'Application Access': return <ApplicationAccess />;
-      case 'Connections': return <Connections settings={settings} onUpdate={handleUpdate} />;
-      case 'Audit Logs': return <AuditHistory />;
-      case 'Maintenance': return <Maintenance />;
-      default: return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
-    }
-  };
+  // Routes are handled in the return JSX now
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
@@ -204,7 +203,7 @@ const SystemSettings = () => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveCategory(item.id)}
+                    onClick={() => navigate(`/dashboard/settings/${item.path}`)}
                     style={{
                       width: 'calc(100% - 16px)',
                       margin: '0 8px 4px 8px',
@@ -264,7 +263,18 @@ const SystemSettings = () => {
 
       <main className="flex-1 overflow-y-auto bg-[#F4F6F9] p-16">
         <div className="max-w-5xl mx-auto pb-24">
-          {renderContent()}
+          <Routes>
+            <Route index element={<Navigate to="general" replace />} />
+            <Route path="general" element={<GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />} />
+            <Route path="branding" element={<BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />} />
+            <Route path="access" element={<AccessControl />} />
+            <Route path="applications" element={<ApplicationAccess />} />
+            <Route path="connections" element={<Connections settings={settings} onUpdate={handleUpdate} />} />
+            <Route path="audit" element={<AuditHistory />} />
+            <Route path="maintenance" element={<Maintenance />} />
+            {/* Fallback to general */}
+            <Route path="*" element={<Navigate to="general" replace />} />
+          </Routes>
         </div>
       </main>
     </div>

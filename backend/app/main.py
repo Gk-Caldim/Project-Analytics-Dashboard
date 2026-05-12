@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 from app.core.database import engine, Base, get_db
 from app.core.config import FRONTEND_URL, API_PREFIX
 from app.middleware.logging_middleware import ForbiddenLoggingMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+import secure
+from app.core.limiter import limiter
+
+
 
 # Import models for table creation
 from app.models import user  # noqa: F401
@@ -67,9 +74,34 @@ from app.api.enterprise import router as enterprise_router
 from app.crud.role import seed_default_roles
 
 app = FastAPI(
-    title="MyFastAPIApp",
+    title="Industrial Analytics Platform",
     version="1.0.0",
 )
+
+# Add Rate Limiting state and handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+
+# Security Headers using 'secure' library
+secure_headers = secure.Secure()
+
+@app.middleware("http")
+async def set_secure_headers(request: Request, call_next):
+    response = await call_next(request)
+    secure_headers.framework.fastapi(response)
+    # Additional manual headers for industrial security
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' ws: wss:;"
+    return response
+
+
+# Production Check for JWT_SECRET
+from app.core.config import JWT_SECRET
+if JWT_SECRET == "supersecret":
+    logger.warning("⚠️ SECURITY WARNING: JWT_SECRET is using the default 'supersecret' value. Please change this in production .env file.")
+
 
 @app.websocket("/ws/test/{client_id}")
 async def test_websocket_endpoint(websocket: WebSocket, client_id: str):
@@ -124,10 +156,16 @@ async def global_exception_handler(request: Request, exc: Exception):
     return response
 
 # CORS
-origins = ["*"]
+# CORS - Restrict origins in production
+if FRONTEND_URL and FRONTEND_URL != "*":
+    origins = [FRONTEND_URL]
+    # Also allow common dev origins if local
+    if "localhost" in FRONTEND_URL:
+        origins.append("http://127.0.0.1:5173")
+else:
+    origins = ["http://localhost:5173"] # Strict default for safety
 
-if FRONTEND_URL and FRONTEND_URL not in origins:
-    origins.append(FRONTEND_URL)
+
 
 app.add_middleware(
     CORSMiddleware,

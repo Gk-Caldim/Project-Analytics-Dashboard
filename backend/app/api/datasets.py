@@ -1,4 +1,6 @@
 from fastapi import APIRouter, UploadFile, Form, HTTPException, File, Depends
+import logging
+
 from sqlalchemy.orm import Session
 from typing import Annotated
 from app.core.permissions import check_permissions
@@ -22,6 +24,9 @@ from collections import OrderedDict
 import threading
 import os
 from app.utils.ingestion import IngestionEngine
+
+logger = logging.getLogger(__name__)
+
 
 # 🔹 SIMPLE LRU CACHE FOR DASHBOARD DATA
 class DatasetCache:
@@ -200,11 +205,16 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
     headers = [c.column_name for c in columns]
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return pd.DataFrame()
             with engine.begin() as conn:
                 df = pd.read_sql_query(text(f'SELECT * FROM "{dataset.table_name}" LIMIT 1000'), conn)
         except Exception as e:
             print(f"Error reading table {dataset.table_name}: {e}")
             df = pd.DataFrame()
+
     else:
         rows = db.query(DatasetRow).filter_by(dataset_id=dataset_id).limit(1000).all()
         if rows:
@@ -311,6 +321,16 @@ def get_chart_data(
     
     if dataset.table_name:
         try:
+            # Strictly validate table_name and column names to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return {"x": [], "y": [], "count": 0}
+            
+            # Column names might have spaces but should be validated against alphanumeric/underscore/space
+            if not all(re.match(r'^[a-zA-Z0-9_\s]+$', col) for col in [x, y]):
+                 logger.error(f"Invalid column names detected: {x}, {y}")
+                 return {"x": [], "y": [], "count": 0}
+
             with engine.begin() as conn:
                 # Need to quote the column names in case they have spaces
                 query = text(f'SELECT "{x}", "{y}" FROM "{dataset.table_name}"')
@@ -318,6 +338,7 @@ def get_chart_data(
         except Exception as e:
             print(f"Error fetching chart data: {e}")
             df = pd.DataFrame()
+
     else:
         df = get_dataset_df(dataset, db)
 
@@ -711,6 +732,10 @@ def get_data(dataset_id: int, db: Session = Depends(get_db)):
     # For dynamic tables, query only the first 1000 rows from the database directly
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return []
             with engine.begin() as conn:
                 query = text(f'SELECT * FROM "{dataset.table_name}" LIMIT 1000')
                 df = pd.read_sql_query(query, conn)
@@ -718,6 +743,7 @@ def get_data(dataset_id: int, db: Session = Depends(get_db)):
         except Exception as e:
             print(f"Error fetching data: {e}")
             return []
+
 
     # Fallback for legacy datasets
     rows = db.query(DatasetRow).filter_by(dataset_id=dataset_id).limit(1000).all()
@@ -766,10 +792,15 @@ def delete_dataset(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
     # Drop dynamic table if exists
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                raise HTTPException(status_code=400, detail="Invalid table name")
             # Use text() for raw SQL to drop table
             db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
         except Exception as e:
             print(f"Error dropping table {dataset.table_name}: {e}")
+
 
     # Delete child rows first (FK safety) - for legacy data
     db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset_id).delete()

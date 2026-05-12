@@ -36,6 +36,7 @@ import PricingPage from './pages/PricingPage';
 import CheckoutPage from './pages/CheckoutPage';
 import LoginPage from './pages/LoginPage';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
+import NotFound from './pages/NotFound';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
@@ -298,7 +299,7 @@ function App() {
             <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
-            <Route path="settings" element={<SystemSettings />} />
+            <Route path="settings/*" element={<SystemSettings />} />
           </Route>
 
 
@@ -313,7 +314,7 @@ function App() {
           <Route path="/governance" element={<GovernancePage />} />
 
           <Route path="/" element={<LandingPage />} />
-          <Route path="*" element={<LandingPage />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
     </ErrorBoundary>
