@@ -37,12 +37,15 @@ export const ThemeProvider = ({ children }) => {
 
     const applyTheme = (theme) => {
         const root = document.documentElement;
+        root.setAttribute('data-theme', theme.displayMode);
+        root.classList.toggle('dark', theme.displayMode === 'dark');
+        
+        // Keep primary/secondary color properties if they are still needed for dynamic JS styling
+        // but the main theme switching is now handled via [data-theme] in CSS
         root.style.setProperty('--primary-color', theme.primaryColor);
         root.style.setProperty('--secondary-color', theme.secondaryColor);
         
-        // Update other colors based on primary
-        // For example, generating a lighter version for backgrounds
-        if (theme.primaryColor.startsWith('#')) {
+        if (theme.primaryColor && theme.primaryColor.startsWith('#')) {
             const hex = theme.primaryColor.replace('#', '');
             const r = parseInt(hex.substring(0, 2), 16);
             const g = parseInt(hex.substring(2, 4), 16);

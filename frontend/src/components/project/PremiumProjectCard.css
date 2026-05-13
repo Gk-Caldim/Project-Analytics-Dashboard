@@ -17,7 +17,7 @@
 }
 
 .executive-project-card:hover {
-  border-color: rgba(46, 124, 246, 0.3);
+  border-color: var(--border-strong);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
@@ -301,7 +301,7 @@
   border: none;
   box-shadow: none;
   height: auto;
-  background: white;
+  background: var(--surface);
   transition: background-color 0.2s ease;
 }
 
@@ -310,7 +310,7 @@
 }
 
 .executive-project-card.list-view:hover {
-  background-color: #f8fafc;
+  background-color: var(--bg);
   transform: none;
   box-shadow: none;
 }
