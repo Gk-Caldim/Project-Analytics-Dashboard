@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import PermissionGuard from '../../components/PermissionGuard';
+import { toast } from 'react-hot-toast';
 
 const BudgetUpload = () => {
   // State for data
@@ -25,7 +26,6 @@ const BudgetUpload = () => {
   // State for UI
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDeletePrompt, setShowDeletePrompt] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [sortConfig, setSortConfig] = useState({ key: 'updated_at', direction: 'descending' });
 
   // State for Upload Form
@@ -114,10 +114,9 @@ const BudgetUpload = () => {
   };
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   // Handle File Change for Upload
@@ -644,30 +643,6 @@ const BudgetUpload = () => {
         </div>
       )}
 
-      {/* Notifications */}
-      {notification.show && (
-        <div className="fixed bottom-8 right-8 z-[100] animate-in slide-in-from-right-10 duration-500">
-          <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl border ${notification.type === 'success'
-            ? 'bg-green-50 border-green-100 text-green-800'
-            : 'bg-red-50 border-red-100 text-red-800'
-            }`}>
-            <div className={`p-2 rounded-full ${notification.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
-              {notification.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-600" />
-              )}
-            </div>
-            <span className="text-sm font-bold">{notification.message}</span>
-            <button
-              onClick={() => setNotification({ ...notification, show: false })}
-              className="ml-4 p-1 hover:bg-black/5 rounded-full"
-            >
-              <X className="h-4 w-4 opacity-50" />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

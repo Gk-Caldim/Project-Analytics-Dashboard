@@ -1,5 +1,6 @@
 # app/models/employee_column.py
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
 from app.core.database import Base
 
@@ -11,4 +12,5 @@ class EmployeeColumn(Base):
     column_label = Column(String, nullable=False)
     data_type = Column(String, nullable=False, default="text")  # text, number, email, select, date
     is_required = Column(Boolean, default=False)
+    validation_rules = Column(JSONB, nullable=True, default={})
     created_at = Column(DateTime, default=datetime.utcnow)

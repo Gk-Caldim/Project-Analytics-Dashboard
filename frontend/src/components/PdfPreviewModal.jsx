@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Download, Settings, GripVertical, Mail } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import ReportDocument from './ReportDocument';
@@ -22,9 +23,8 @@ const PdfPreviewModal = ({
   chartImages
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
-  const [sectionOrder, setSectionOrder] = useState([
-    'milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts'
-  ]);
+  const [sectionOrder, setSectionOrder] = useState([]);
+
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
@@ -37,29 +37,65 @@ const PdfPreviewModal = ({
   const budgetStatus = masterProjects?.find(p => p.name === selectedBudgetProject)?.status || activeProject?.status || 'Active';
 
   // Gather all visible phases/trackers that have data
-  const visiblePhaseList = [
-    { id: 'design', label: 'Design' },
-    { id: 'partDevelopment', label: 'Part Development' },
-    { id: 'build', label: 'Build' },
-    { id: 'gateway', label: 'Gateway' },
-    { id: 'validation', label: 'Validation' },
-    { id: 'qualityIssues', label: 'Quality Issues' },
-    ...(activeProject?.submodules || []).map(sub => ({ id: sub.id, label: sub.displayName || sub.name, isDynamic: true }))
-  ].filter((phase, index, self) => {
-    const isDuplicate = self.findIndex(p => p.id === phase.id) !== index;
-    if (isDuplicate) return false;
+  const visiblePhaseList = useMemo(() => {
+    return [
+      { id: 'design', label: 'Design' },
+      { id: 'partDevelopment', label: 'Part Development' },
+      { id: 'build', label: 'Build' },
+      { id: 'gateway', label: 'Gateway' },
+      { id: 'validation', label: 'Validation' },
+      { id: 'qualityIssues', label: 'Quality Issues' },
+      ...(activeProject?.submodules || []).map(sub => ({ id: sub.id, label: sub.displayName || sub.name, isDynamic: true }))
+    ].filter((phase, index, self) => {
+      // Deduplicate by ID
+      const isDuplicate = self.findIndex(p => p.id === phase.id) !== index;
+      if (isDuplicate) return false;
 
-    if (phase.isDynamic) {
-        const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-        const isAlreadyMapped = defaultIds.some(id => {
-            const tracker = getTrackerForPhase(id);
-            return tracker && tracker.id === phase.id;
-        });
-        if (isAlreadyMapped) return false;
+      // Filter out dynamic submodules that are already covered by default phases
+      if (phase.isDynamic) {
+          const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+          const isAlreadyMapped = defaultIds.some(id => {
+              const tracker = getTrackerForPhase(id);
+              return tracker && tracker.id === phase.id;
+          });
+          if (isAlreadyMapped) return false;
+      }
+
+      // Final visibility check - must be in visibleSections AND available for this project
+      return visibleSections?.[phase.id] && availablePhases?.[phase.id];
+    });
+  }, [activeProject, visibleSections, availablePhases, getTrackerForPhase]);
+
+  // Sync section order with visible selections only when modal opens
+  useEffect(() => {
+    if (show) {
+      const allPossibleSections = ['charts', 'criticalIssues', 'budget', 'milestones', 'resource', 'quality'];
+      const currentVisible = allPossibleSections.filter(key => {
+        if (key === 'charts') {
+          // Charts section is visible if explicitly enabled OR if any individual phase chart is selected
+          return visibleSections?.metricsSummary || visiblePhaseList.length > 0;
+        }
+        return !!visibleSections?.[key];
+      });
+      
+      setSectionOrder(prev => {
+        // Use a Set to ensure uniqueness
+        const uniqueCurrent = Array.from(new Set(currentVisible));
+
+        // Only initialize if prev is empty to avoid resetting user reordering
+        if (prev.length === 0) return uniqueCurrent;
+        
+        // If we already have an order, just ensure it's up to date with visibility
+        // but keep the existing relative order as much as possible
+        const filteredPrev = prev.filter(k => uniqueCurrent.includes(k));
+        const newOrder = Array.from(new Set([...filteredPrev, ...uniqueCurrent]));
+        return newOrder;
+      });
+    } else {
+      // Clear order when modal closes so it re-initializes next time
+      setSectionOrder([]);
     }
-
-    return visibleSections?.[phase.id] && availablePhases?.[phase.id];
-  });
+  }, [show, visibleSections, visiblePhaseList.length]);
 
   const downloadPdf = async () => {
     try {
@@ -88,7 +124,7 @@ const PdfPreviewModal = ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      toast.error('Error generating PDF. Please try again.');
     }
   };
 
@@ -218,9 +254,6 @@ const PdfPreviewModal = ({
                       style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
                     >
                       {sectionOrder.map((key, index) => {
-                        const isCharts = key === 'charts';
-                        const isVisible = isCharts ? (visibleSections?.metricsSummary && visiblePhaseList.length > 0) : visibleSections?.[key];
-                        
                         const labels = {
                           milestones: 'Milestones',
                           criticalIssues: 'Critical Issues',
@@ -241,8 +274,7 @@ const PdfPreviewModal = ({
                                   ...provided.draggableProps.style,
                                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
                                   padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px',
-                                  backgroundColor: snapshot.isDragging ? '#f0f7ff' : (isVisible ? '#f8fafc' : '#f1f5f9'),
-                                  opacity: isVisible ? 1 : 0.5,
+                                  backgroundColor: snapshot.isDragging ? '#f0f7ff' : '#f8fafc',
                                   zIndex: snapshot.isDragging ? 1000 : 1
                                 }}
                               >

@@ -9,8 +9,9 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
 import ReportDocument from '../components/ReportDocument';
@@ -18,6 +19,7 @@ import PdfPreviewModal from '../components/PdfPreviewModal';
 import useCurrency from "../hooks/useCurrency";
 import PremiumProjectCard from '../components/project/PremiumProjectCard';
 import { motion } from 'framer-motion';
+import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { staggerContainer } from '../utils/animations';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import VPProjectDashboard from './VPProjectDashboard';
@@ -176,7 +178,9 @@ const ProjectTitleDashboard = () => {
   const [chartTypes, setChartTypes] = useState({});
   const [axisConfigs, setAxisConfigs] = useState({});
   const [maximizedChart, setMaximizedChart] = useState(null);
+  const [budgetViewMode, setBudgetViewMode] = useState('simplified'); // 'simplified' | 'table'
   const [showAxisSelector, setShowAxisSelector] = useState(null);
+  const [showExplanation, setShowExplanation] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -280,7 +284,7 @@ const ProjectTitleDashboard = () => {
       if (typeof errMsg === 'object') {
         errMsg = JSON.stringify(errMsg);
       }
-      alert(`Deletion Failed:\n${errMsg}`);
+      toast.error(`Deletion Failed: ${errMsg}`);
     } finally {
       setLoading(false);
     }
@@ -313,14 +317,23 @@ const ProjectTitleDashboard = () => {
         (p.code && p.code.toLowerCase().includes(q))
       );
     }
-    // Sort logic: pinned first
+    // Sort logic: pinned first, then within pinned group sort by priority level (high priority pins float to top)
+    const PRIORITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1, None: 0 };
     result.sort((a, b) => {
-      const aPinned = pinnedProjects.includes(a.id) ? 1 : 0;
-      const bPinned = pinnedProjects.includes(b.id) ? 1 : 0;
-      return bPinned - aPinned; // 1 goes before 0
+      const aPinned = pinnedProjects.includes(a.id);
+      const bPinned = pinnedProjects.includes(b.id);
+      // Pinned always before unpinned
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      // Both pinned: sort by priority rank descending (Critical > High > Medium > Low > None)
+      if (aPinned && bPinned) {
+        const aRank = PRIORITY_RANK[projectUrgency[a.id]] ?? 0;
+        const bRank = PRIORITY_RANK[projectUrgency[b.id]] ?? 0;
+        return bRank - aRank;
+      }
+      return 0;
     });
     return result;
-  }, [projects, searchQuery, pinnedProjects]);
+  }, [projects, searchQuery, pinnedProjects, projectUrgency]);
 
   // Bulk Handlers
   const handleBulkPin = (pin) => {
@@ -684,10 +697,31 @@ const ProjectTitleDashboard = () => {
       getDashboard(resolvedProjectId, resolvedModule)
         .then(res => {
           setDashboardData(res);
+          if (res?.milestones) {
+            setMilestones(res.milestones);
+          }
         })
         .catch(console.error);
     });
   }, [selectedFileId, submoduleId, projectId]);
+
+  useEffect(() => {
+    if (!activeProject?.dbProjectId) return;
+
+    import('../api/issues').then(({ listIssues }) => {
+      listIssues({ project_id: activeProject.dbProjectId })
+        .then(issues => {
+          const momSpecific = Array.isArray(issues)
+            ? issues
+              .filter(i => (i.source || '').toUpperCase() === 'MOM')
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            : [];
+          setCriticalIssues(momSpecific);
+        })
+        .catch(console.error);
+    });
+  }, [activeProject?.dbProjectId]);
+
 
 
   // BUFFER STATE for Dashboard Configuration Modal
@@ -1093,7 +1127,7 @@ const ProjectTitleDashboard = () => {
 
     } catch (error) {
       console.error('Error processing submodule data:', error);
-      alert('Failed to optimize data. Please try again.');
+      toast.error('Failed to optimize data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -1121,7 +1155,7 @@ const ProjectTitleDashboard = () => {
       console.log('Successfully saved submodule data for tracker:', trackerId);
     } catch (error) {
       console.error('Error saving submodule data:', error);
-      alert('Failed to save changes to the database. Please try again.');
+      toast.error('Failed to save changes to the database. Please try again.');
     }
   };
   // Handle submodule data loading from URL
@@ -1263,7 +1297,7 @@ const ProjectTitleDashboard = () => {
         console.log('Dashboard configuration saved successfully');
       } catch (error) {
         console.error('Error saving dashboard configuration:', error);
-        alert('Failed to save dashboard configuration. Please try again.');
+        toast.error('Failed to save dashboard configuration. Please try again.');
       }
     }
   };
@@ -1434,6 +1468,9 @@ const ProjectTitleDashboard = () => {
       if (['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(key)) {
         return availablePhases[key];
       }
+      if (key === 'milestones') return !!(dashboardData?.milestones?.length > 0);
+      if (key === 'criticalIssues') return !!(criticalIssues?.length > 0);
+      if (key === 'budget') return budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
       return true;
     });
 
@@ -1642,7 +1679,7 @@ const ProjectTitleDashboard = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('PDF Export Failure:', error);
-      alert('Failed to export PDF.');
+      toast.error('Failed to export PDF.');
     } finally {
       setLoading(false);
     }
@@ -1654,7 +1691,7 @@ const ProjectTitleDashboard = () => {
     const bccEmails = emailData.bccInputs.filter(email => email.trim() !== '');
 
     if (toEmails.length === 0) {
-      alert("At least one recipient (To) is required.");
+      toast.error("At least one recipient (To) is required.");
       return;
     }
 
@@ -1713,12 +1750,12 @@ const ProjectTitleDashboard = () => {
       };
 
       await API.post('/email/send', payload);
-      alert('Strategic Report successfully dispatched!');
+      toast.success('Strategic Report successfully dispatched!');
 
       setShowEmailModal(false);
     } catch (error) {
       console.error('Email Dispatch Failure:', error);
-      alert('Failed to send report.');
+      toast.error('Failed to send report.');
     } finally {
       setLoading(false);
     }
@@ -1787,7 +1824,16 @@ const ProjectTitleDashboard = () => {
   const renderSimulateModal = () => {
     if (!showSimulateModal) return null;
 
-    const availableSectionKeys = ['milestones', 'criticalIssues', 'budget', 'metricsSummary'];
+    const hasMilestones = !!(dashboardData?.milestones?.length > 0);
+    const hasCriticalIssues = !!(criticalIssues?.length > 0);
+    const hasBudgetData = budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
+
+    const availableSectionKeys = [
+      hasMilestones && 'milestones',
+      hasCriticalIssues && 'criticalIssues',
+      hasBudgetData && 'budget',
+      'metricsSummary'
+    ].filter(Boolean);
 
     const allSelected = availableSectionKeys.every(key => tempVisibleSections[key]);
 
@@ -1870,18 +1916,24 @@ const ProjectTitleDashboard = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
-                <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
-                <span style={{ fontWeight: '600' }}>MOM Issues</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
-                <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
-                <span style={{ fontWeight: '600' }}>Budget Summary</span>
-              </label>
+              {hasMilestones && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
+                  <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
+                </label>
+              )}
+              {hasCriticalIssues && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
+                  <span style={{ fontWeight: '600' }}>Critical Issues</span>
+                </label>
+              )}
+              {hasBudgetData && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
+                  <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
+                  <span style={{ fontWeight: '600' }}>Budget Summary</span>
+                </label>
+              )}
 
               <div style={{
                 border: '1px solid var(--border-subtle)',
@@ -1937,7 +1989,7 @@ const ProjectTitleDashboard = () => {
               <div style={{ fontSize: '13px', color: '#4b5563' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
-                    .filter(([section, selected]) => selected && ['milestones', 'criticalIssues', 'budget', 'metricsSummary'].includes(section))
+                    .filter(([section, selected]) => selected && availableSectionKeys.includes(section))
                     .map(([section]) => {
                       const labels = {
                         milestones: 'Milestone Progress Tracker',
@@ -2369,8 +2421,30 @@ const ProjectTitleDashboard = () => {
             // Update Dashboard UI context to the explicitly saved project
             setSelectedBudgetProject(targetProject);
             setBudgetTableData(calculatedForm);
+
+            // Extract grand totals for summaryData to ensure PDF is updated
+            let totalApproved = 0;
+            let totalUtilized = 0;
+            calculatedForm.forEach(row => {
+              if (row[0] && String(row[0]).startsWith('Total')) {
+                totalApproved += parseNum(row[3]);
+                totalUtilized += parseNum(row[4]);
+              }
+            });
+            const totalBalance = totalApproved - totalUtilized;
+            const totalOutlook = totalApproved > 0 ? Math.round((totalUtilized / totalApproved) * 100) : 0;
+
+            setSummaryData(prev => ({
+              ...prev,
+              budgetApproved: totalApproved,
+              budgetUtilized: totalUtilized,
+              budgetBalance: totalBalance,
+              budgetOutlook: totalOutlook
+            }));
+
             setShowSaveNotification(true);
             setTimeout(() => setShowSaveNotification(false), 3000);
+
           } catch (error) {
             console.error('Error saving budget/project data to backend:', error);
           }
@@ -2662,23 +2736,16 @@ const ProjectTitleDashboard = () => {
     // Check if attributes are configured
     if (!axisConfig || !axisConfig.xAxis || !axisConfig.yAxis) {
       return (
-        <div style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--bg)',
-          border: '1px dashed #cbd5e1',
-          borderRadius: '12px',
-          color: 'var(--text-secondary)',
-          padding: '20px'
-        }}>
-          <Settings className="h-8 w-8 mb-3 opacity-20" />
-          <p style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent)' }}>Attributes Required</p>
-          <p style={{ fontSize: '11px', marginTop: '4px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Select X and Y axes in the settings to visualize this data.
+        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/20 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl p-10 transition-all group hover:border-slate-300 dark:hover:border-slate-700">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-amber-500/10 rounded-full blur-2xl animate-pulse" />
+            <div className="relative size-16 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center rotate-3 group-hover:rotate-0 transition-transform">
+              <Settings className="size-8 text-amber-600 dark:text-amber-400 animate-[spin_4s_linear_infinite]" />
+            </div>
+          </div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">Configuration Required</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center max-w-[200px] leading-relaxed">
+            Please define the <span className="text-amber-600 font-bold">X and Y axes</span> in the settings to generate this visualization.
           </p>
         </div>
       );
@@ -2687,18 +2754,17 @@ const ProjectTitleDashboard = () => {
     // If configured but no data
     if (chartData.length === 0) {
       return (
-        <div style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'var(--bg)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '12px',
-          color: 'var(--text-secondary)'
-        }}>
-          <p style={{ fontSize: '12px', fontWeight: '600' }}>No data found in database</p>
+        <div className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 dark:bg-slate-900/20 border-2 border-slate-100 dark:border-slate-800 rounded-3xl p-10 group">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 bg-slate-200/50 rounded-full blur-2xl" />
+            <div className="relative size-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700">
+              <AlertCircle className="size-8 text-slate-400" />
+            </div>
+          </div>
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Data Points</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center max-w-[200px] leading-relaxed">
+            The database returned an <span className="font-bold">empty set</span> for this tracker configuration.
+          </p>
         </div>
       );
     }
@@ -2785,11 +2851,11 @@ const ProjectTitleDashboard = () => {
         backgroundColor: 'rgba(255, 255, 255, 0.96)',
         borderColor: '#CBD5E1',
         borderWidth: 1,
-        textStyle: { color: '#2563EB', fontSize: 12 },
+        textStyle: { color: '#1e293b', fontSize: 12 },
         extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
         formatter: (params) => {
           if (!params || params.length === 0) return '';
-          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #2563EB;">${formatXAxisValue(params[0].axisValue)}</div>`;
+          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #1e293b;">${formatXAxisValue(params[0].axisValue)}</div>`;
           params.forEach(p => {
             const val = typeof p.value === 'number' ? Math.round(p.value * 100) / 100 : p.value;
             html += `<div style="display: flex; justify-content: space-between; gap: 24px; align-items: center; margin-bottom: 3px;">
@@ -2797,7 +2863,7 @@ const ProjectTitleDashboard = () => {
                 <span style="display:inline-block;margin-right:8px;border-radius:2px;width:10px;height:10px;background-color:${p.color};"></span>
                 <span style="color: #475569; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
               </span>
-              <span style="font-weight: 800; color: #2563EB;">${val} ${derivedConfig ? 'Days' : ''}</span>
+              <span style="font-weight: 800; color: #1e293b;">${val} ${derivedConfig ? 'Days' : ''}</span>
             </div>`;
           });
           return html;
@@ -2816,31 +2882,55 @@ const ProjectTitleDashboard = () => {
             backgroundColor: '#fff',
             textareaColor: '#fff',
             textareaBorderColor: '#CBD5E1',
-            textColor: '#2563EB',
-            buttonColor: '#2563EB',
+            textColor: '#1e293b',
+            buttonColor: '#1e293b',
             buttonTextColor: '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
-              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;">
+              if (!series || series.length === 0) return '<div style="padding:20px;">No data available</div>';
+
+              const xAxis = opt.xAxis && opt.xAxis[0];
+              const yAxis = opt.yAxis && opt.yAxis[0];
+
+              let xHeader = 'Category';
+              if (xAxis && xAxis.name) xHeader = xAxis.name;
+              else if (yAxis && yAxis.type === 'category' && yAxis.name) xHeader = yAxis.name;
+
+              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;background:white;">
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
                   <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
-                    <th style="padding:10px;color:#2563EB;font-weight:800;">${opt.xAxis[0].data ? 'Category' : 'Index'}</th>
-                    <th style="padding:10px;color:#2563EB;font-weight:800;">Value</th>
-                  </tr>
-                </thead>
-                <tbody>`;
+                    <th style="padding:10px;color:#1e293b;font-weight:800;">${xHeader}</th>`;
 
-              if (series[0].data) {
-                series[0].data.forEach((item, idx) => {
-                  const name = opt.xAxis[0].data ? opt.xAxis[0].data[idx] : idx;
+              series.forEach(s => {
+                table += `<th style="padding:10px;color:#1e293b;font-weight:800;">${s.name || 'Value'}</th>`;
+              });
+
+              table += `</tr></thead><tbody>`;
+
+              const dataLen = series[0].data ? series[0].data.length : 0;
+              for (let i = 0; i < dataLen; i++) {
+                let name = i;
+                if (xAxis && xAxis.data && xAxis.data[i]) {
+                  name = typeof xAxis.data[i] === 'object' ? xAxis.data[i].value : xAxis.data[i];
+                } else if (yAxis && yAxis.data && yAxis.data[i]) {
+                  name = typeof yAxis.data[i] === 'object' ? yAxis.data[i].value : yAxis.data[i];
+                } else if (series[0].data[i] && series[0].data[i].name) {
+                  name = series[0].data[i].name;
+                }
+
+                table += `<tr style="border-bottom:1px solid #F1F5F9;">
+                  <td style="padding:8px 10px;color:#475569;">${name}</td>`;
+
+                series.forEach(s => {
+                  const item = s.data[i];
                   const val = typeof item === 'object' ? item.value : item;
-                  table += `<tr style="border-bottom:1px solid #F1F5F9;">
-                    <td style="padding:8px 10px;color:#475569;">${name}</td>
-                    <td style="padding:8px 10px;color:#2563EB;font-weight:700;">${val}</td>
-                  </tr>`;
+                  table += `<td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val !== undefined ? val : '-'}</td>`;
                 });
+
+                table += `</tr>`;
               }
+
               table += '</tbody></table></div>';
               return table;
             }
@@ -2849,11 +2939,11 @@ const ProjectTitleDashboard = () => {
             show: true,
             title: 'Download',
             pixelRatio: 3,
-            iconStyle: { borderColor: '#2563EB' }
+            iconStyle: { borderColor: '#1e293b' }
           }
         },
         iconStyle: { borderColor: 'var(--text-muted)' },
-        emphasis: { iconStyle: { borderColor: '#2563EB' } }
+        emphasis: { iconStyle: { borderColor: '#1e293b' } }
       },
       dataZoom: xLabels.length > 10 ? [
         { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
@@ -2930,7 +3020,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -2963,7 +3053,7 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold'
               }
@@ -3000,7 +3090,7 @@ const ProjectTitleDashboard = () => {
             backgroundColor: 'rgba(255, 255, 255, 0.96)',
             borderColor: '#CBD5E1',
             borderWidth: 1,
-            textStyle: { color: '#2563EB' },
+            textStyle: { color: '#1e293b' },
             formatter: (p) => `<div style="padding: 4px;"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:#475569">Value:</span> <b>${p.value}</b><br/><span style="color:#475569">Share:</span> <b>${p.percent}%</b></div>`
           },
           toolbox: baseOption.toolbox, // retain toolbox from base option
@@ -3025,7 +3115,7 @@ const ProjectTitleDashboard = () => {
                 edgeDistance: 10,
                 lineHeight: 15,
                 rich: {
-                  name: { fontSize: 9, fontWeight: '700', color: '#2563EB', padding: [0, 0, 2, 0] },
+                  name: { fontSize: 9, fontWeight: '700', color: '#1e293b', padding: [0, 0, 2, 0] },
                   value: { fontSize: 9, fontWeight: '800', color: '#3b82f6' },
                   percent: { fontSize: 9, color: '#475569' }
                 }
@@ -3066,7 +3156,7 @@ const ProjectTitleDashboard = () => {
             axisLabel: {
               interval: 0,
               fontSize: 10,
-              color: '#2563EB',
+              color: '#1e293b',
               fontWeight: '600'
             }
           },
@@ -3092,7 +3182,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3138,7 +3228,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#2563EB',
+                color: '#1e293b',
                 fontSize: 9,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3345,6 +3435,176 @@ const ProjectTitleDashboard = () => {
     </div>
   );
 
+  const renderBudgetTable = () => {
+    // Columns the user wants: Sno, Category, Item name, unity type, Estimated, Utilized, commitment, total utilization, balance
+    const targetCols = [
+      { id: 'sno', label: 'Sno', keys: ['sno', 'Sno', 'S.No', '#', 'SNo'] },
+      { id: 'category', label: 'Category', keys: ['category', 'Category'] },
+      { id: 'item_name', label: 'Item name', keys: ['item_name', 'Item Name', 'Item name', 'Item'] },
+      { id: 'unit_type', label: 'unity type', keys: ['unit_type', 'Unit Type', 'unity type', 'Unit', 'unit_type'] },
+      { id: 'estimated', label: 'Estimated', keys: ['estimated', 'Estimated', 'Estimation'] },
+      { id: 'utilized', label: 'Utilized', keys: ['utilized', 'Utilized'] },
+      { id: 'commitment', label: 'commitment', keys: ['commitment', 'Commitment', 'commitment'] },
+      { id: 'total_utilization', label: 'total utilization', keys: ['total_utilization', 'Total utilization', 'Total Utilization', 'total utilization'] },
+      { id: 'balance', label: 'balance', keys: ['balance', 'Balance', 'balance'] }
+    ];
+
+    // Handle array of arrays (convert to objects)
+    let rows = [];
+    if (budgetTableData && budgetTableData.length > 0) {
+      if (Array.isArray(budgetTableData[0])) {
+        const headers = budgetTableData[0];
+        rows = budgetTableData.slice(1).map(r => {
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = r[i]; });
+          return obj;
+        });
+      } else {
+        rows = budgetTableData;
+      }
+    }
+
+    return (
+      <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              {targetCols.map(col => (
+                <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No detailed budget records found.</td></tr>
+            ) : rows.map((row, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fcfdfe' }}>
+                {targetCols.map(col => {
+                  const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
+                  let val = valKey !== undefined ? row[valKey] : '-';
+
+                  // Format monetary values
+                  if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
+                    if (val !== '-') {
+                      val = format(val, false);
+                    }
+                  }
+
+                  return (
+                    <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
+                      {val}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderAnalysisExplanation = (chartId) => {
+    const config = axisConfigs[activeProject.id]?.[chartId];
+    const tid = getTrackerForPhase(chartId)?.trackerId;
+    const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
+    if (!config || rows.length === 0) return null;
+
+    const isNumeric = rows.some(row => {
+      const val = row[config.yAxis];
+      return val !== null && val !== undefined && val !== '' && !isNaN(parseFloat(val));
+    });
+
+    const text = `Analyzing ${humanizeLabel(chartId)} for ${activeProject.name}. This visualization explores the distribution of ${humanizeLabel(config.yAxis)} across different ${humanizeLabel(config.xAxis)} categories. By aggregating ${rows.length} records using a ${isNumeric ? 'Summation' : 'Frequency Count'} logic, we can clearly identify how ${humanizeLabel(config.yAxis)} varies across the project scope. This breakdown highlights primary drivers and helps focus management attention where it matters most.`;
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        backdropFilter: 'blur(12px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          style={{
+            maxWidth: '750px',
+            width: '100%',
+            backgroundColor: 'white',
+            borderRadius: '24px',
+            padding: '50px',
+            position: 'relative',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}
+        >
+          <button
+            onClick={() => setShowExplanation(false)}
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '24px',
+              border: 'none',
+              background: '#f1f5f9',
+              cursor: 'pointer',
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b'
+            }}
+          >
+            <X size={18} />
+          </button>
+
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
+                <SparklesIcon size={20} />
+              </div>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1e3a5f', letterSpacing: '-0.025em' }}>AI Insights</h2>
+            </div>
+            <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
+          </div>
+
+          <TextGenerateEffect
+            words={text}
+            className="text-[19px] leading-[1.6] font-medium text-slate-700 tracking-tight"
+          />
+
+          <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setShowExplanation(false)}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: 'var(--accent)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Close Insights
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   const renderMetricsSummary = () => {
     if (allMetricCharts.length === 0) return null;
 
@@ -3496,22 +3756,36 @@ const ProjectTitleDashboard = () => {
               <span>{humanizeLabel(phaseLabel)} Analysis</span>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button
-                onClick={() => toggleAxisSelector(maximizedChart)}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
-                  color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
-                  cursor: 'pointer',
-                  fontWeight: '800',
-                  transition: 'none'
-                }}
-              >
-                AXES CONFIG
-              </button>
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => toggleAxisSelector(maximizedChart)}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    borderRadius: '4px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
+                    color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
+                    cursor: 'pointer',
+                    fontWeight: '800',
+                    transition: 'none'
+                  }}
+                >
+                  AXES CONFIG
+                </button>
+                {showAxisSelector === maximizedChart && (
+                  <AxisSelectorModal
+                    chartId={maximizedChart}
+                    onClose={() => setShowAxisSelector(null)}
+                    activeProject={activeProject}
+                    axisConfigs={axisConfigs}
+                    submoduleData={submoduleData}
+                    tracker={getTrackerForPhase(maximizedChart)}
+                    availableColumns={availableColumns}
+                    handleAxesUpdate={handleAxesUpdate}
+                  />
+                )}
+              </div>
 
               <select
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
@@ -3560,44 +3834,151 @@ const ProjectTitleDashboard = () => {
             </div>
           </div>
           <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg)' }}>
-            {/* Stats Overview Bar */}
-            {(() => {
-              const tid = getTrackerForPhase(maximizedChart)?.trackerId;
-              const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
-              const config = axisConfigs[activeProject.id]?.[maximizedChart];
-              const xAxis = config?.xAxis;
-              const yAxis = config?.yAxis;
-
-              if (rows.length === 0) return null;
-
-              const uniqueX = xAxis ? new Set(rows.map(r => r[xAxis]).filter(Boolean)).size : 0;
-              const numericY = yAxis ? rows.map(r => parseFloat(String(r[yAxis]).replace(/[^0-9.]/g, ''))).filter(v => !isNaN(v)) : [];
-              const totalY = numericY.reduce((a, b) => a + b, 0);
-              const avgY = numericY.length > 0 ? (totalY / numericY.length).toFixed(1) : 0;
-              const maxY = numericY.length > 0 ? Math.max(...numericY) : 0;
-
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '25px' }}>
-                  {[
-                    { label: 'Total Records', value: rows.length, color: 'var(--accent)' },
-                    { label: `Unique ${xAxis || 'X-Axis'}`, value: uniqueX, color: 'var(--accent)' },
-                    { label: `Average ${yAxis || 'Y-Axis'}`, value: avgY, color: 'var(--accent)' },
-                    { label: `Maximum ${yAxis || 'Y-Axis'}`, value: maxY, color: 'var(--accent)' }
-                  ].map((stat, i) => (
-                    <div key={i} style={{ backgroundColor: 'white', padding: '16px 20px', borderRadius: '4px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${stat.color}` }}>
-                      <div style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</div>
-                      <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--accent)' }}>{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-
             <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
               <div style={{ height: '550px' }}>
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
             </div>
+
+            {/* Analysis Logic Summary Table */}
+            {(() => {
+              const tracker = getTrackerForPhase(maximizedChart);
+              const tid = tracker?.trackerId;
+              const rows = tid && submoduleData[tid] ? submoduleData[tid].rows : [];
+
+              let config = axisConfigs[activeProject.id]?.[maximizedChart];
+              if (!config && tracker) {
+                const cols = tracker.columns || [];
+                config = {
+                  xAxis: cols[0] || '',
+                  yAxis: cols[1] || cols[0] || ''
+                };
+              }
+
+              if (!config || rows.length === 0) return null;
+
+              const groupedData = {};
+              const isNumeric = rows.some(row => {
+                const val = row[config.yAxis];
+                return val !== null && val !== undefined && val !== '' && !isNaN(parseFloat(val));
+              });
+
+              rows.forEach(row => {
+                let xVal = row[config.xAxis];
+                if (xVal === null || xVal === undefined || String(xVal).trim() === '') {
+                  xVal = 'Uncategorized';
+                } else {
+                  xVal = String(xVal).trim();
+                }
+
+                let yVal = row[config.yAxis];
+                if (!groupedData[xVal]) groupedData[xVal] = 0;
+
+                if (isNumeric) {
+                  if (yVal !== null && yVal !== undefined && yVal !== '') {
+                    groupedData[xVal] += parseFloat(yVal) || 0;
+                  }
+                } else {
+                  if (yVal !== null && yVal !== undefined && String(yVal).trim() !== '') {
+                    groupedData[xVal] += 1;
+                  }
+                }
+              });
+
+              const sortedEntries = Object.entries(groupedData).sort((a, b) => {
+                if (a[0] === 'Uncategorized') return 1;
+                if (b[0] === 'Uncategorized') return -1;
+                const numA = parseFloat(a[0]);
+                const numB = parseFloat(b[0]);
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a[0].localeCompare(b[0]);
+              });
+
+              return (
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  marginBottom: '30px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '20px'
+                }}>
+                  <div style={{
+                    backgroundColor: 'var(--accent)',
+                    color: 'white',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <SparklesIcon size={22} />
+                  </div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Analysis Summary</h5>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                          {isNumeric ? 'SUMMATION' : 'COUNT'} LOGIC
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setShowExplanation(true)}
+                        style={{
+                          backgroundColor: 'var(--accent)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em'
+                        }}
+                      >
+                        <MessageSquare size={14} />
+                        Explain Analysis
+                      </button>
+                    </div>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{humanizeLabel(config.xAxis)}</th>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sortedEntries.slice(0, 10).map(([x, y]) => (
+                            <tr key={x} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                              <td style={{ padding: '10px 16px', color: '#1e293b', fontWeight: '600' }}>{x}</td>
+                              <td style={{ padding: '10px 16px', color: 'var(--accent)', fontWeight: '900', fontSize: '13px' }}>
+                                {isNumeric ? (Math.round(y * 100) / 100).toLocaleString() : y}
+                              </td>
+                            </tr>
+                          ))}
+                          {sortedEntries.length > 10 && (
+                            <tr style={{ backgroundColor: '#f8fafc' }}>
+                              <td colSpan="2" style={{ padding: '10px 16px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', fontSize: '11px' }}>
+                                Showing top 10 categories. Total {sortedEntries.length} categories analyzed.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Detailed Data View Table */}
             <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
@@ -3648,14 +4029,6 @@ const ProjectTitleDashboard = () => {
                       <th style={{ padding: '12px 20px', color: '#475569', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
                       <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
                       <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
-                      {/* Show other relevant columns if available */}
-                      {Object.keys(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows[0] || {})
-                        .filter(k => k !== axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis && k !== axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis && !k.startsWith('_'))
-                        .slice(0, 3)
-                        .map(key => (
-                          <th key={key} style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '600', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(key)}</th>
-                        ))
-                      }
                     </tr>
                   </thead>
                   <tbody>
@@ -3666,13 +4039,6 @@ const ProjectTitleDashboard = () => {
                           <td style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: '600' }}>{idx + 1}</td>
                           <td style={{ padding: '10px 20px', color: '#1e293b', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
                           <td style={{ padding: '10px 20px', color: '#3b82f6', fontWeight: '800' }}>{row[config?.yAxis]}</td>
-                          {Object.keys(row)
-                            .filter(k => k !== config?.xAxis && k !== config?.yAxis && !k.startsWith('_'))
-                            .slice(0, 3)
-                            .map(key => (
-                              <td key={key} style={{ padding: '10px 20px', color: 'var(--text-secondary)' }}>{row[key]}</td>
-                            ))
-                          }
                         </tr>
                       );
                     })}
@@ -3685,6 +4051,9 @@ const ProjectTitleDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* AI Analysis Explanation Overlay */}
+            {showExplanation && renderAnalysisExplanation(maximizedChart)}
           </div>
         </div>
       </div>
@@ -3713,7 +4082,9 @@ const ProjectTitleDashboard = () => {
         show={showEmailModal}
         onClose={() => setShowEmailModal(false)}
         activeProject={activeProject}
+        visibleSections={visibleSections}
         emailData={emailData}
+
         setEmailData={setEmailData}
         allEmployees={allEmployees}
         employeeSearchTerm={employeeSearchTerm}
@@ -3878,163 +4249,141 @@ const ProjectTitleDashboard = () => {
             <div style={{ padding: '28px' }}>
               {/* Dashboard Content removed title and stats here */}
 
-              {/* Action Menu Bar */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', background: 'white', padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                {/* Left: Search Bar */}
-                <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '300px' }}>
-                  <Search size={16} style={{ position: 'absolute', left: '12px', color: 'var(--text-tertiary)' }} />
-                  <input
-                    type="text"
-                    placeholder="Search projects..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px 8px 36px', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '14px', outline: 'none' }}
-                  />
-                </div>
+              {/* Unified Project Overview Container */}
+              <div style={{ backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-navy)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
 
-                {/* Center: Bulk Actions Menu */}
-                {selectionMode && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 'bold', marginRight: '8px', color: 'var(--text-secondary)' }}>
-                      {selectedProjects.length} selected
-                    </span>
-
-                    <button
-                      onClick={() => setStagedBulkPin(stagedBulkPin === true ? null : true)}
-                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === true ? 'var(--blue-50)' : 'white', color: stagedBulkPin === true ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === true ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === true ? '600' : 'normal' }}>
-                      Pin
-                    </button>
-                    <button
-                      onClick={() => setStagedBulkPin(stagedBulkPin === false ? null : false)}
-                      style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkPin === false ? 'var(--blue-50)' : 'white', color: stagedBulkPin === false ? 'var(--accent)' : 'inherit', border: '1px solid', borderColor: stagedBulkPin === false ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', fontWeight: stagedBulkPin === false ? '600' : 'normal' }}>
-                      Unpin
-                    </button>
-
-                    <div style={{ position: 'relative', marginLeft: '4px' }}>
-                      <button
-                        onClick={() => setIsBulkMenuOpen(!isBulkMenuOpen)}
-                        style={{ padding: '6px 12px', fontSize: '12px', background: stagedBulkUrgency ? 'var(--blue-50)' : 'white', color: stagedBulkUrgency ? 'var(--accent)' : 'var(--text-primary)', border: '1px solid', borderColor: stagedBulkUrgency ? 'var(--accent)' : 'var(--border)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: stagedBulkUrgency ? '600' : 'normal' }}>
-                        {stagedBulkUrgency ? `Urgency: ${stagedBulkUrgency}` : 'Set Urgency'} <ChevronDown size={12} />
-                      </button>
-                      {isBulkMenuOpen && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '4px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10, width: '120px' }}>
-                          <div onClick={() => { setStagedBulkUrgency(null); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', color: 'var(--text-secondary)' }}>Clear</div>
-                          {['Low', 'Medium', 'High', 'Critical'].map(level => (
-                            <div key={level} onClick={() => { setStagedBulkUrgency(level); setIsBulkMenuOpen(false); }} style={{ padding: '6px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: '1px solid var(--elevated-card)', fontWeight: stagedBulkUrgency === level ? '600' : 'normal', background: stagedBulkUrgency === level ? 'var(--bg)' : 'transparent' }}>{level}</div>
-                          ))}
-                        </div>
-                      )}
+                    {/* Search Bar Integrated into Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'white' }}
+                      />
                     </div>
+                  </div>
 
-                    {(stagedBulkPin !== null || stagedBulkUrgency !== null) && selectedProjects.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {/* Bulk Actions Menu (Visible when selecting) */}
+                    {selectionMode && selectedProjects.length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginRight: '4px' }}>
+                          {selectedProjects.length} selected
+                        </span>
+                        <button onClick={() => handleBulkPin(true)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Pin</button>
+                        <button onClick={() => handleBulkPin(false)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Unpin</button>
+                        {/* More bulk actions could go here */}
+                        <button
+                          onClick={() => {
+                            setSelectionMode(false);
+                            setSelectedProjects([]);
+                          }}
+                          style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
                         onClick={() => {
-                          if (stagedBulkPin !== null) handleBulkPin(stagedBulkPin);
-                          if (stagedBulkUrgency !== null) handleBulkUrgency(stagedBulkUrgency);
-                          setStagedBulkPin(null);
-                          setStagedBulkUrgency(null);
-                          setSelectionMode(false);
-                          setSelectedProjects([]);
+                          setSelectionMode(!selectionMode);
+                          if (selectionMode) setSelectedProjects([]);
                         }}
-                        style={{ padding: '6px 12px', fontSize: '12px', background: 'var(--green)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Check size={14} /> Apply
+                        style={{ background: selectionMode ? 'var(--brand-navy)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
+                      >
+                        {selectionMode ? 'Cancel' : 'Select'}
                       </button>
-                    )}
+
+                      <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }}></div>
+
+                      <div style={{ display: 'flex', background: 'white', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px' }}>
+                        <button
+                          onClick={() => setViewMode('grid')}
+                          style={{ background: viewMode === 'grid' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'grid' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
+                          <Layout size={14} />
+                        </button>
+                        <button
+                          onClick={() => setViewMode('list')}
+                          style={{ background: viewMode === 'list' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'list' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: viewMode === 'grid' ? '24px' : '0',
+                  display: 'grid',
+                  gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
+                  gap: viewMode === 'grid' ? '20px' : '0',
+                  flex: 1,
+                  position: 'relative'
+                }}>
+                  {filteredAndSortedProjects.length === 0 ? (
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                      <div style={{ marginBottom: '12px', opacity: 0.5 }}><Search size={40} style={{ margin: '0 auto' }} /></div>
+                      No projects match your current filters or search query.
+                    </div>
+                  ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
+                    <PremiumProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={handleProjectSelect}
+                      isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
+                      viewMode={viewMode}
+                      selectionMode={selectionMode}
+                      isSelected={selectedProjects.includes(project.id)}
+                      onSelect={(selected) => {
+                        if (selected) setSelectedProjects(prev => [...prev, project.id]);
+                        else setSelectedProjects(prev => prev.filter(id => id !== project.id));
+                      }}
+                      isPinned={pinnedProjects.includes(project.id)}
+                      onPinToggle={(pin) => {
+                        if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
+                        else setPinnedProjects(prev => prev.filter(id => id !== project.id));
+                      }}
+                      urgency={projectUrgency[project.id] || 'None'}
+                      onUrgencyChange={(level) => {
+                        setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
+                      }}
+                      onDeleteRequest={(p) => setProjectToDelete(p)}
+                    />
+                  ))}
+                </div>
+
+                {/* Integrated Pagination at Footer */}
+                {filteredAndSortedProjects.length > itemsPerPage && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#f8fafc', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length} projects
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
+                        disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
                 )}
-
-                {/* Right: View Toggles & Select Mode */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <button
-                    onClick={() => {
-                      setSelectionMode(!selectionMode);
-                      if (selectionMode) setSelectedProjects([]);
-                    }}
-                    style={{ background: selectionMode ? 'var(--accent)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: '4px', fontSize: '13px', cursor: 'pointer', fontWeight: 500 }}
-                  >
-                    {selectionMode ? 'Cancel' : 'Select'}
-                  </button>
-                  <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      style={{ background: viewMode === 'grid' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'grid' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
-                      <Layout size={16} />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      style={{ background: viewMode === 'list' ? 'var(--elevated-card)' : 'none', border: 'none', color: viewMode === 'list' ? 'var(--accent)' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '6px', borderRadius: '4px' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                    </button>
-                  </div>
-                </div>
               </div>
-
-              {/* Section Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
-              </div>
-
-              {/* Grid/List Content */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
-                gap: '16px'
-              }}>
-                {filteredAndSortedProjects.length === 0 ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    No projects found. Please add a project module to get started.
-                  </div>
-                ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
-                  <PremiumProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={handleProjectSelect}
-                    isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
-                    viewMode={viewMode}
-                    selectionMode={selectionMode}
-                    isSelected={selectedProjects.includes(project.id)}
-                    onSelect={(selected) => {
-                      if (selected) setSelectedProjects(prev => [...prev, project.id]);
-                      else setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                    }}
-                    isPinned={pinnedProjects.includes(project.id)}
-                    onPinToggle={(pin) => {
-                      if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
-                      else setPinnedProjects(prev => prev.filter(id => id !== project.id));
-                    }}
-                    urgency={projectUrgency[project.id] || 'None'}
-                    onUrgencyChange={(level) => {
-                      setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
-                    }}
-                    onDeleteRequest={(p) => setProjectToDelete(p)}
-                  />
-                ))}
-              </div>
-
-              {filteredAndSortedProjects.length > itemsPerPage && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '32px' }}>
-                  <button
-                    aria-label="Go to previous page"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
-                  >
-                    Previous
-                  </button>
-                  <span style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    Page {currentPage} of {Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                  </span>
-                  <button
-                    aria-label="Go to next page"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
-                    disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                    style={{ padding: '6px 12px', border: '1px solid var(--border)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--text-primary)', fontSize: '13px' }}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         ) : selectedSubmodule ? (
@@ -4061,27 +4410,70 @@ const ProjectTitleDashboard = () => {
               {visibleSections.budget && (
                 <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                   <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
+
+                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                        <button
+                          onClick={() => setBudgetViewMode('simplified')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: budgetViewMode === 'simplified' ? 'white' : 'transparent',
+                            color: budgetViewMode === 'simplified' ? 'var(--accent)' : '#64748b',
+                            boxShadow: budgetViewMode === 'simplified' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Simplified
+                        </button>
+                        <button
+                          onClick={() => setBudgetViewMode('table')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            borderRadius: '6px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: budgetViewMode === 'table' ? 'white' : 'transparent',
+                            color: budgetViewMode === 'table' ? 'var(--accent)' : '#64748b',
+                            boxShadow: budgetViewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          Table View
+                        </button>
+                      </div>
+                    </div>
                     <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
                   </header>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                  {budgetViewMode === 'simplified' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
+                      </div>
+                      <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
+                      </div>
                     </div>
-                    <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
-                    </div>
-                    <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
-                    </div>
-                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
-                      <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
-                      <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
-                    </div>
-                  </div>
+                  ) : (
+                    renderBudgetTable()
+                  )}
                 </section>
               )}
             </section>
@@ -4371,7 +4763,9 @@ const EmailModal = ({
   show,
   onClose,
   activeProject,
+  visibleSections,
   emailData,
+
   setEmailData,
   allEmployees,
   employeeSearchTerm,
@@ -4617,6 +5011,9 @@ const EmailModal = ({
                 { id: 'qualityIssues', label: 'Quality Issues' },
 
               ].filter(section => {
+                // Only show if visible on the dashboard
+                if (!visibleSections[section.id]) return false;
+
                 const metricKeys = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
                 if (metricKeys.includes(section.id)) return availablePhases[section.id];
                 return true;
@@ -4633,6 +5030,13 @@ const EmailModal = ({
 
               {/* Dynamic Trackers */}
               {(activeProject?.submodules || []).filter(sub => {
+                // Filter out unnamed or unwanted submodules
+                const name = sub.displayName || sub.name || '';
+                if (!name.trim()) return false;
+
+                // Only show if visible on the dashboard
+                if (!visibleSections[sub.id]) return false;
+
                 const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
                 const coveredByDefault = defaultIds.some(id => {
                   const tracker = getTrackerForPhase(id);

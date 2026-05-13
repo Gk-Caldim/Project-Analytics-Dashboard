@@ -18,7 +18,7 @@ Routes:
 import base64
 import json
 import logging
-from typing import List, Optional, Any, cast
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.budget import BudgetRevision, BudgetSummary
+from app.models.audit_log import AuditLog
 from app.schemas.budget import (
     BudgetRevisionResponse,
     BudgetRevisionUpdate,
@@ -34,6 +35,26 @@ from app.schemas.budget import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def clean_float(value: Any) -> float:
+    """Robust float conversion that handles commas, currency symbols, and None."""
+    if value is None or value == "":
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # Handle string cleaning
+    s = str(value).strip()
+    # Remove currency symbols (common ones)
+    for char in ["$", "₹", "£", "€", ","]:
+        s = s.replace(char, "")
+    
+    try:
+        return float(s)
+    except ValueError:
+        logger.warning(f"[budget] Could not convert '{value}' to float, returning 0.0")
+        return 0.0
 
 
 # ─── 1. GET / — List all budget summaries ─────────────────────────────────────
@@ -115,7 +136,7 @@ def update_revision_status(
     if payload.status == "Approved":
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == revision.project_name
-        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
         
         if budget:
             budget.overall_budget = revision.revised_budget
@@ -199,7 +220,7 @@ def generate_budget_proposal(
     # 1. Get latest budget
     budget = db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
-    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+    ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
 
     if not budget:
         return {
@@ -278,7 +299,7 @@ def list_budget_history(project_name: str, db: Session = Depends(get_db)):
     """List all budget snapshots/versions for a project."""
     return db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
-    ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).all()
+    ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).all()
 
 
 @router.get("/version/{budget_id}", response_model=BudgetSummaryResponse)
@@ -288,6 +309,33 @@ def get_budget_version(budget_id: int, db: Session = Depends(get_db)):
     if not budget:
         raise HTTPException(status_code=404, detail="Budget version not found")
     return budget
+
+
+@router.get("/audits/{project_name}")
+def get_budget_audits(project_name: str, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all budget audit logs for a specific project."""
+    from sqlalchemy import desc
+    from app.models.employee import Employee
+    logs = db.query(
+        AuditLog.id,
+        AuditLog.user_id,
+        AuditLog.action,
+        AuditLog.module,
+        AuditLog.entity_id,
+        AuditLog.details,
+        AuditLog.timestamp,
+        Employee.name.label("user_name"),
+        Employee.role.label("user_role")
+    ).outerjoin(
+        Employee, AuditLog.user_id == Employee.employee_id
+    ).filter(
+        AuditLog.module == "BudgetMaster",
+        AuditLog.details["project_name"].astext == project_name
+    ).order_by(desc(AuditLog.timestamp)).limit(limit).all()
+    return [{"id": r.id, "user_id": r.user_id, "action": r.action, "module": r.module,
+             "entity_id": r.entity_id, "details": r.details,
+             "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+             "user_name": r.user_name, "user_role": r.user_role} for r in logs]
 
 
 @router.delete("/version/{budget_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -339,7 +387,7 @@ def get_budget_summary(project_name: str, db: Session = Depends(get_db)):
     try:
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == project_name
-        ).order_by(BudgetSummary.budget_date.desc(), BudgetSummary.updated_at.desc()).first()
+        ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
         
         if not budget:
             logger.info(f"[budget] No budget found for project: {project_name}. Returning default.")
@@ -370,6 +418,7 @@ async def save_budget_summary(
     department: Optional[str] = Form(None),
     budget_data: str = Form("[]"),
     sync_to_project: bool = Form(False),
+    user_id: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
@@ -382,6 +431,9 @@ async def save_budget_summary(
     except Exception:
         parsed_budget_data = []
 
+    if not parsed_budget_data or len(parsed_budget_data) == 0:
+        raise HTTPException(status_code=400, detail="Cannot save empty budget data. Please add valid budget entries.")
+
     attachment_name = None
     attachment_data_b64 = None
 
@@ -393,41 +445,19 @@ async def save_budget_summary(
         except Exception as e:
             logger.error(f"[budget] Failed to read uploaded file: {e}")
 
-    # Find if a budget for this project AND this specific date already exists
-    # If no date is provided, we treat it as a "Default/Current" record for now
-    query = db.query(BudgetSummary).filter(BudgetSummary.project_name == project_name)
-    if budget_date:
-        query = query.filter(BudgetSummary.budget_date == budget_date)
-    else:
-        # If no date, we check for a record with NULL date
-        query = query.filter(BudgetSummary.budget_date == None)
-    
-    budget = query.first()
-
-    if budget:
-        budget.overall_budget = overall_budget  # type: ignore
-        budget.budget_data = parsed_budget_data  # type: ignore
-        if uploaded_by:
-            budget.uploaded_by = uploaded_by  # type: ignore
-        if attachment_name:
-            budget.attachment_name = attachment_name  # type: ignore
-            budget.attachment_data = attachment_data_b64  # type: ignore
-        db.commit()
-        db.refresh(budget)
-    else:
-        budget = BudgetSummary(
-            project_name=project_name,
-            budget_date=budget_date,
-            uploaded_by=uploaded_by,
-            department=department,
-            overall_budget=overall_budget,
-            budget_data=parsed_budget_data,
-            attachment_name=attachment_name,
-            attachment_data=attachment_data_b64,
-        )
-        db.add(budget)
-        db.commit()
-        db.refresh(budget)
+    budget = BudgetSummary(
+        project_name=project_name,
+        budget_date=budget_date,
+        uploaded_by=uploaded_by,
+        department=department,
+        overall_budget=overall_budget,
+        budget_data=parsed_budget_data,
+        attachment_name=attachment_name,
+        attachment_data=attachment_data_b64,
+    )
+    db.add(budget)
+    db.commit()
+    db.refresh(budget)
 
     # Sync to Project Master if requested
     if sync_to_project:
@@ -439,8 +469,8 @@ async def save_budget_summary(
         
         for row in parsed_budget_data:
             # Match keys from BudgetMaster.jsx initialColumns labels
-            total_utilized += float(row.get('Total utilization') or 0)
-            total_balance += float(row.get('Balance') or 0)
+            total_utilized += clean_float(row.get('Total utilization'))
+            total_balance += clean_float(row.get('Balance'))
 
         proj = db.query(Project).filter(Project.name == project_name).first()
         if proj:
@@ -454,6 +484,30 @@ async def save_budget_summary(
             logger.warning(f"[budget] Could not find project '{project_name}' in Project Master to sync budget.")
 
     logger.info(f"[budget] Saved budget for '{project_name}' — rows: {len(parsed_budget_data)}, budget: {overall_budget}")
+
+    # Write audit log
+    action = "UPLOAD" if attachment_name else "SAVE"
+    try:
+        audit = AuditLog(
+            user_id=user_id,
+            action=action,
+            module="BudgetMaster",
+            entity_id=str(budget.id),
+            details={
+                "project_name": project_name,
+                "overall_budget": overall_budget,
+                "rows": len(parsed_budget_data),
+                "budget_date": budget_date,
+                "uploaded_by": uploaded_by,
+                "attachment_name": attachment_name,
+                "sync_to_project": sync_to_project,
+            }
+        )
+        db.add(audit)
+        db.commit()
+    except Exception as e:
+        logger.warning(f"[budget] Failed to write audit log: {e}")
+
     return budget
 
 
@@ -468,3 +522,29 @@ def delete_budget_summary(project_name: str, db: Session = Depends(get_db)):
     db.delete(budget)
     db.commit()
     return None
+
+
+@router.get("/audits/{project_name}")
+def get_budget_audits(project_name: str, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all budget audit logs for a specific project."""
+    from sqlalchemy import desc
+    from app.models.employee import Employee
+    logs = db.query(
+        AuditLog.id,
+        AuditLog.user_id,
+        AuditLog.action,
+        AuditLog.module,
+        AuditLog.entity_id,
+        AuditLog.details,
+        AuditLog.timestamp,
+        Employee.name.label("user_name"),
+        Employee.role.label("user_role")
+    ).outerjoin(
+        Employee, AuditLog.user_id == Employee.employee_id
+    ).filter(
+        AuditLog.module == "BudgetMaster",
+        AuditLog.details["project_name"].astext == project_name
+    ).order_by(desc(AuditLog.timestamp)).limit(limit).all()
+    return [{"id": r.id, "user_id": r.user_id, "action": r.action, "module": r.module,
+             "entity_id": r.entity_id, "details": r.details, "timestamp": r.timestamp.isoformat() if r.timestamp else None,
+             "user_name": r.user_name, "user_role": r.user_role} for r in logs]

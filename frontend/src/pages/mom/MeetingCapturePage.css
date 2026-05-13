@@ -1601,7 +1601,7 @@
   opacity: 0.6;
   font-style: italic;
   animation: mcpInterimPulse 2s infinite ease-in-out;
-  border-left: 3px solid #2563EB;
+  border-left: 3px solid #1e293b;
 }
 
 @keyframes mcpInterimPulse {
@@ -1746,7 +1746,7 @@
 .mcp-generate-btn:hover:not(:disabled) {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 12px 24px rgba(30, 64, 175, 0.3);
-  background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+  background: linear-gradient(135deg, #1E3A8A 0%, #1e293b 100%);
 }
 
 .mcp-generate-btn::before {
@@ -1825,13 +1825,13 @@
 
 /* --- Transcription Enhancements --- */
 .entry-bubble.whisper-precision {
-  border-left: 3px solid #2563EB;
+  border-left: 3px solid #1e293b;
   background: linear-gradient(to right, rgba(99, 102, 241, 0.05), transparent);
 }
 
 .whisper-badge {
   font-size: 10px;
-  background: #2563EB;
+  background: #1e293b;
   color: white;
   padding: 1px 6px;
   border-radius: 10px;
@@ -1966,7 +1966,7 @@
 }
 
 .mcp-generate-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+  background: linear-gradient(135deg, #1E3A8A 0%, #1e293b 100%);
   box-shadow: 0 6px 16px rgba(30, 64, 175, 0.3);
 }
 

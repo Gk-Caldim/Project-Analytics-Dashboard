@@ -28,7 +28,7 @@ const VPProjectDashboard = ({
 
   const fetchMomIssues = useCallback(() => {
     if (!activeProject?.dbProjectId) return;
-    
+
     // Guard: skip if already fetching
     if (fetchingRef.current) {
       console.log('[VPPD] Fetch already in progress, skipping duplicate call');
@@ -37,7 +37,7 @@ const VPProjectDashboard = ({
 
     fetchingRef.current = true;
     setLoadingMom(true);
-    console.log('[VPPD] Fetching issues for project:', 
+    console.log('[VPPD] Fetching issues for project:',
       activeProject.dbProjectId, activeProject.name);
 
     const issuesPromise = listIssues({ project_id: activeProject.dbProjectId });
@@ -49,13 +49,8 @@ const VPProjectDashboard = ({
       .then(([issues, historyRes]) => {
         const momSpecific = Array.isArray(issues)
           ? issues
-              .filter(i => (i.source || '').toUpperCase() === 'MOM')
-              .sort((a, b) => {
-                const timeDiff = new Date(b.created_at) - new Date(a.created_at);
-                // If they were synced in the same batch, keep insertion order (top-to-bottom of table)
-                if (timeDiff === 0) return a.id - b.id;
-                return timeDiff;
-              })
+            .filter(i => (i.source || '').toUpperCase() === 'MOM')
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           : [];
         setMomIssues(momSpecific);
 
@@ -78,7 +73,7 @@ const VPProjectDashboard = ({
     const newId = activeProject?.dbProjectId;
     if (!newId || newId === projectIdRef.current) return;
     projectIdRef.current = newId;
-    
+
     fetchMomIssues();
 
     API.get('/meetings')
@@ -91,7 +86,7 @@ const VPProjectDashboard = ({
           setRecentMeetings(projectMeetings);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const refreshTimeoutRef = { current: null };
     const handleRemoteUpdate = () => {
@@ -143,7 +138,7 @@ const VPProjectDashboard = ({
         {(visibleSections.criticalIssues ?? true) && (
           <div className="vppd-section full">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 500, color: '#0D9488' }}>MOM Issues</span>
+              <span style={{ fontSize: '16px', fontWeight: 500, color: '#0D9488' }}>Critical Issues</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <span style={{ fontSize: '13px', color: '#94A3B8' }}>TOTAL: {momIssues.length}</span>
                 <span style={{ fontSize: '13px', color: '#F59E0B', fontWeight: 500 }}>
@@ -167,7 +162,27 @@ const VPProjectDashboard = ({
             </div>
             <div className="vppd-meeting-list" style={{ padding: '0px' }}>
               {momIssues.length === 0 ? (
-                <div className="vppd-empty">No issues synced from meetings yet.</div>
+                <div className="vppd-empty" style={{ padding: '60px 20px', background: 'var(--surface)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border)' }}>
+                  <div style={{ marginBottom: '20px', color: 'var(--text-muted)', opacity: 0.5 }}>
+                    <FileText size={48} strokeWidth={1} />
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>No meeting issues synced yet.</div>
+                  <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.5 }}>
+                    Capture meeting minutes and sync your action items to track them here in the unified dashboard.
+                  </div>
+                  <button
+                    onClick={() => navigate('/dashboard/mom/capture')}
+                    style={{
+                      padding: '10px 24px', background: '#0D9488', color: 'white', border: 'none',
+                      borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(13,148,136,0.2)', transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    Capture New Meeting
+                  </button>
+                </div>
               ) : (
                 <div className="vppd-mom-table-container animate-fadeIn">
                   {/* Form Style Header */}
@@ -197,32 +212,7 @@ const VPProjectDashboard = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {momIssues.length === 0 ? (
-                          <tr>
-                            <td colSpan={9} style={{ padding: 0 }}>
-                              <div className="vppd-empty" style={{ padding: '60px 20px', background: '#F8FAFC', borderRadius: '0 0 8px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: 'none' }}>
-                                <div style={{ marginBottom: '20px', color: '#94A3B8' }}>
-                                  <FileText size={48} strokeWidth={1} />
-                                </div>
-                                <div style={{ fontSize: '16px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>No meeting issues synced yet.</div>
-                                <div style={{ fontSize: '14px', color: '#64748B', marginBottom: '24px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.5 }}>
-                                  Capture meeting minutes and sync your action items to track them here in the unified dashboard.
-                                </div>
-                                <button
-                                  onClick={() => navigate('/dashboard/mom/capture')}
-                                  style={{
-                                    padding: '10px 24px', background: '#0D9488', color: 'white', border: 'none',
-                                    borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                                    boxShadow: '0 4px 12px rgba(134,148,136,0.2)'
-                                  }}
-                                >
-                                  Capture New Meeting
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          momIssues.map((issue, idx) => {
+                        {momIssues.map((issue, idx) => {
                             const priority = issue.priority || 'Medium';
                             const critStyles = {
                               'High': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
@@ -299,8 +289,7 @@ const VPProjectDashboard = ({
                                 </td>
                               </tr>
                             );
-                          })
-                        )}
+                          })}
                       </tbody>
                     </table>
                   </div>
@@ -308,23 +297,39 @@ const VPProjectDashboard = ({
               )}
             </div>
 
-            {/* ── Recent MOMs summary (replaces Sync History) ── */}
-            {syncHistory.length > 0 && (
-              <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #E2E8F0', marginTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>Recent MOMs</span>
-                  <button
-                    onClick={() => navigate('/dashboard/saved-moms')}
-                    style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}
-                  >
-                    View all →
-                  </button>
+            {/* ── SECTION 2: Sync History ── */}
+            <div style={{ padding: '20px 20px 12px', borderTop: '1px solid #E2E8F0', marginTop: '24px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 500, color: '#475569' }}>Sync History</span>
+            </div>
+            {syncHistory.length === 0 ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
+                  <RefreshCw size={32} strokeWidth={1.5} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {syncHistory.slice(0, 3).map((h, idx) => {
-                    const parsedDate = h.date
-                      ? new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-                      : '—';
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>No sync history yet.</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>#</th>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Meeting Name</th>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Date</th>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Synced At</th>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Issues</th>
+                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94A3B8', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid #E2E8F0', textAlign: 'left' }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncHistory.map((h, idx) => {
+                    const parsedDate = h.date ? new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                    let parsedSyncedAt = '—';
+                    if (h.synced_at) {
+                      const sd = new Date(h.synced_at);
+                      const sDateStr = sd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                      const sTimeStr = sd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                      parsedSyncedAt = `${sDateStr} · ${sTimeStr}`;
+                    }
                     return (
                       <div
                         key={h.history_id || idx}
@@ -376,7 +381,15 @@ const VPProjectDashboard = ({
               Milestone Progress Tracker
             </div>
             {milestones.length === 0 ? (
-              <div className="vppd-empty">No explicit milestones mapped for this project yet.</div>
+              <div className="vppd-empty" style={{ margin: '0 20px 20px', padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
+                  <Award size={40} strokeWidth={1} />
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>No Milestones Defined</div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '280px' }}>
+                  No explicit milestones have been mapped for this project yet.
+                </p>
+              </div>
             ) : (
               <div className="vppd-table-wrapper">
                 <table className="vppd-table">

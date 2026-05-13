@@ -29,6 +29,7 @@ import { trackerSidebarManager } from '../utils/trackerSidebarManager';
 import { getEmployees } from '../utils/employeeApi';
 import { getCurrentUser } from '../utils/userUtils';
 import useCurrency from '../hooks/useCurrency';
+import toast from 'react-hot-toast';
 
 const AgentView = () => {
   const navigate = useNavigate();
@@ -248,7 +249,7 @@ const AgentView = () => {
       setTrackerForm({ project: '', department: 'Design Release', employeeName: '', file: null });
     } catch (err) {
       console.error('Tracker upload failed:', err);
-      alert('Upload failed: ' + (err.response?.data?.detail || err.message));
+      toast.error('Upload failed: ' + (err.response?.data?.detail || err.message));
     } finally {
       setUploadingTracker(false);
     }
@@ -294,7 +295,7 @@ const AgentView = () => {
       setBudgetErrors({});
     } catch (err) {
       console.error('Budget upload failed:', err);
-      alert('Upload failed: ' + (err.response?.data?.detail || err.message));
+      toast.error('Upload failed: ' + (err.response?.data?.detail || err.message));
     } finally {
       setUploadingBudget(false);
     }

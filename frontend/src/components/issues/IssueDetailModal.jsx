@@ -17,6 +17,7 @@ import {
   getIssue, updateIssue, addAction, addComment,
   STATUS_COLORS, PRIORITY_COLORS
 } from '../../api/issues';
+import toast from 'react-hot-toast';
 
 // ─── Escalation level label ───────────────────────────────────────────────────
 const ESCALATION_LABEL = { 1: 'Project Manager', 2: 'Department Head', 3: 'VP / Admin' };
@@ -100,7 +101,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditStatus(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update status');
+      toast.error(e?.response?.data?.detail || 'Failed to update status');
     } finally {
       setSaving(false);
     }
@@ -116,7 +117,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditOwner(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update owner');
+      toast.error(e?.response?.data?.detail || 'Failed to update owner');
     } finally {
       setSaving(false);
     }
@@ -132,7 +133,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditDue(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update due date');
+      toast.error(e?.response?.data?.detail || 'Failed to update due date');
     } finally {
       setSaving(false);
     }
@@ -146,7 +147,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setIssue(prev => ({ ...prev, comments: [...(prev.comments || []), comment] }));
       setNewComment('');
     } catch (e) {
-      alert('Failed to add comment');
+      toast.error('Failed to add comment');
     } finally {
       setCommentSending(false);
     }
@@ -166,7 +167,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setNewAction({ action_text: '', responsible_person: '', target_date: '' });
       setShowAddAction(false);
     } catch (e) {
-      alert('Failed to add action');
+      toast.error('Failed to add action');
     } finally {
       setSaving(false);
     }
@@ -591,7 +592,7 @@ const styles = {
   ghostBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '6px 12px', borderRadius: '8px',
-    backgroundColor: '#eff6ff', color: '#2563eb',
+    backgroundColor: '#eff6ff', color: '#1e293b',
     fontSize: '11px', fontWeight: 700, border: '1px solid #dbeafe', cursor: 'pointer',
   },
   statusEditBox: {

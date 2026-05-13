@@ -392,7 +392,7 @@
 .mock-mt-act-meta { display: flex; align-items: center; gap: 8px; }
 .mock-mt-avatar { width: 20px; height: 20px; background: var(--navy); color: #fff; border-radius: 50%; font-size: 8px; display: flex; align-items: center; justify-content: center;}
 .mock-mt-pill { font-size: 9px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
-.mock-mt-pill.open { background: #eff6ff; color: #2563eb; }
+.mock-mt-pill.open { background: #eff6ff; color: #1e293b; }
 .mock-mt-pill.overdue { background: #fef2f2; color: #dc2626; }
 .mock-mt-pill.done { background: #f0fdf4; color: #16a34a; }
 

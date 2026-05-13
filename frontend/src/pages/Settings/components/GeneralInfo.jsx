@@ -35,131 +35,91 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Organization Profile</h2>
+        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">System Configuration</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Identity Form */}
-        <div className="lg:col-span-12">
-          <div className="bg-white border border-gray-200 p-8 rounded-none">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-8">Corporate Identity</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-              <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Company Name
-                </label>
-                <input
-                  type="text"
-                  value={getValue('company_name')}
-                  onChange={(e) => onUpdate('company_name', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
-                  placeholder="e.g. CALTIMS INDUSTRIAL"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Operational Country
-                </label>
-                <input
-                  type="text"
-                  value={getValue('operational_country') || 'India'}
-                  onChange={(e) => onUpdate('operational_country', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Headquarters Address
-                </label>
-                <textarea
-                  rows={3}
-                  value={getValue('hq_address')}
-                  onChange={(e) => onUpdate('hq_address', e.target.value)}
-                  className="w-full p-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium resize-none"
-                  placeholder="123 Enterprise Way, Tech City..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                  Base Currency
-                </label>
-                <select 
-                  value={getValue('base_currency') || 'USD ($)'}
-                  onChange={(e) => onUpdate('base_currency', e.target.value)}
-                  className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
-                >
-                  <option>USD ($)</option>
-                  <option>INR (₹)</option>
-                  <option>EUR (€)</option>
-                </select>
-              </div>
+      <div className="bg-white border border-gray-200 p-8 rounded-none">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-10">System Preferences</h3>
+        
+        <div className="space-y-12">
+          {/* Base Currency Section */}
+          <div className="space-y-4">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Base Currency
+            </label>
+            <div className="max-w-xs">
+              <select 
+                value={getValue('base_currency') || 'USD ($)'}
+                onChange={(e) => onUpdate('base_currency', e.target.value)}
+                className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
+              >
+                <option>USD ($)</option>
+                <option>INR (₹)</option>
+                <option>EUR (€)</option>
+              </select>
+              <p className="text-[11px] text-gray-400 mt-2 italic">Sets the default currency for all financial analytics.</p>
             </div>
           </div>
-        </div>
 
-        {/* Assets Section */}
-        <div className="lg:col-span-12">
-          <div className="bg-white border border-gray-200 p-8 rounded-none">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-8">Branding Assets</h3>
+          <div className="h-px bg-gray-100 w-full" />
+
+          {/* Sidebar Management Section */}
+          <div className="space-y-8">
+            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Sidebar Management</h4>
             
-            <div className="flex flex-col md:flex-row gap-12 items-center md:items-start">
-              <div className="w-56 h-56 bg-gray-50 border border-gray-200 flex items-center justify-center relative group">
-                {getValue('company_logo') ? (
-                  <img 
-                    src={getValue('company_logo')} 
-                    alt="Logo" 
-                    className="max-h-full max-w-full object-contain p-4"
-                  />
-                ) : (
-                  <div className="text-[10px] font-bold text-gray-300 uppercase tracking-widest text-center">
-                    No Logo<br/>Uploaded
-                  </div>
-                )}
-                <input 
-                  id="logo-upload-input"
-                  type="file" 
-                  onChange={handleFileChange}
-                  className="absolute inset-0 opacity-0 cursor-pointer" 
-                  accept="image/*"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              {/* Dashboard Sub-modules Mode */}
+              <div className="space-y-4">
+                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                  Dashboard Display Mode
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="radio" 
+                      name="dashboard_mode"
+                      checked={getValue('sidebar_dashboard_mode') !== 'recent'}
+                      onChange={() => onUpdate('sidebar_dashboard_mode', 'custom')}
+                      className="w-4 h-4 text-[#0004ab] border-gray-300 focus:ring-[#0004ab]"
+                    />
+                    <span className="text-sm text-gray-700 font-medium group-hover:text-[#0004ab] transition-colors">Custom Display Count</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input 
+                      type="radio" 
+                      name="dashboard_mode"
+                      checked={getValue('sidebar_dashboard_mode') === 'recent'}
+                      onChange={() => onUpdate('sidebar_dashboard_mode', 'recent')}
+                      className="w-4 h-4 text-[#0004ab] border-gray-300 focus:ring-[#0004ab]"
+                    />
+                    <span className="text-sm text-gray-700 font-medium group-hover:text-[#0004ab] transition-colors">Recent Dashboard Activity (Latest 2)</span>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex-1 space-y-6 w-full max-w-sm">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[#000000]">Company Logo</h4>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    Upload your institution's logo. This will be used in the navigation sidebar, reports, and system-wide branding. Recommended size: 512x512px.
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-3">
-                  <button 
-                    onClick={() => document.getElementById('logo-upload-input').click()}
-                    className="h-10 bg-[#0004ab] text-white rounded-full font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity"
-                  >
-                    Upload New
-                  </button>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button 
-                      onClick={handleEditExistingLogo}
-                      disabled={!getValue('company_logo')}
-                      className="h-10 border border-gray-200 text-[#0004ab] rounded-full font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 disabled:opacity-30 transition-colors"
-                    >
-                      Edit Logo
-                    </button>
-                    <button 
-                      onClick={() => onUpdate('company_logo', '')}
-                      className="h-10 border border-red-100 text-red-600 rounded-full font-bold text-[10px] tracking-widest uppercase hover:bg-red-50 transition-colors"
-                    >
-                      Remove
-                    </button>
+              {/* Limits Section */}
+              <div className="space-y-6">
+                {getValue('sidebar_dashboard_mode') !== 'recent' && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                      Dashboard Module Limit
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={getValue('sidebar_dashboard_limit') || '10'}
+                        onChange={(e) => onUpdate('sidebar_dashboard_limit', e.target.value)}
+                        className="w-24 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
+                      />
+                      <p className="text-[11px] text-gray-400 italic">Max projects visible.</p>
+                    </div>
                   </div>
-                </div>
+                )}
+
               </div>
             </div>
           </div>

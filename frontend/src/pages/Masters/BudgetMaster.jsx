@@ -6,7 +6,8 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
@@ -14,19 +15,19 @@ const READONLY_COLS = ['Estimated', 'Total utilization', 'Balance'];
 const NUMERIC_COLS = ['Unit count', 'Per unit cost', 'Utilized', 'Commitment'];
 
 const initialColumns = [
-  { id: 'sno', label: 'Sno', visible: true },
-  { id: 'category', label: 'Category', visible: true },
-  { id: 'item_name', label: 'Item Name', visible: true },
-  { id: 'unit_type', label: 'Unit Type', visible: true },
-  { id: 'unit_count', label: 'Unit count', visible: true },
-  { id: 'per_unit_cost', label: 'Per unit cost', visible: true },
-  { id: 'estimated', label: 'Estimated', visible: true },
-  { id: 'utilized', label: 'Utilized', visible: true },
-  { id: 'commitment', label: 'Commitment', visible: true },
-  { id: 'total_utilization', label: 'Total utilization', visible: true },
-  { id: 'balance', label: 'Balance', visible: true },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'comments', label: 'Comments', visible: true },
+  { id: 'sno', label: 'Sno', visible: true, type: 'text' },
+  { id: 'category', label: 'Category', visible: true, type: 'text' },
+  { id: 'item_name', label: 'Item Name', visible: true, type: 'text' },
+  { id: 'unit_type', label: 'Unit Type', visible: true, type: 'text' },
+  { id: 'unit_count', label: 'Unit count', visible: true, type: 'number' },
+  { id: 'per_unit_cost', label: 'Per unit cost', visible: true, type: 'currency' },
+  { id: 'estimated', label: 'Estimated', visible: true, type: 'currency' },
+  { id: 'utilized', label: 'Utilized', visible: true, type: 'currency' },
+  { id: 'commitment', label: 'Commitment', visible: true, type: 'currency' },
+  { id: 'total_utilization', label: 'Total utilization', visible: true, type: 'currency' },
+  { id: 'balance', label: 'Balance', visible: true, type: 'currency' },
+  { id: 'status', label: 'Status', visible: true, type: 'status' },
+  { id: 'comments', label: 'Comments', visible: true, type: 'text' },
 ];
 
 const isMonetary = (label) => MONETARY_COLS.includes(label);
@@ -134,12 +135,18 @@ const BudgetMaster = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [attachmentName, setAttachmentName] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   const [historyData, setHistoryData] = useState([]);
   const [fetchingHistory, setFetchingHistory] = useState(false);
+  const [latestBudgetsMap, setLatestBudgetsMap] = useState({});
+  const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
+  const [historyItemsPerPage, setHistoryItemsPerPage] = useState(10);
+  const [historyFilter, setHistoryFilter] = useState('All');
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [fetchingAudit, setFetchingAudit] = useState(false);
   const [showDateModal, setShowDateModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showOverwriteWarning, setShowOverwriteWarning] = useState(false);
@@ -164,12 +171,29 @@ const BudgetMaster = () => {
   const [fetchingMarket, setFetchingMarket] = useState(false);
   const [showMarketSuggestion, setShowMarketSuggestion] = useState(false);
 
+  // Custom Column State
+  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
+  const [newColumnData, setNewColumnData] = useState({ label: '', type: 'text' });
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
+
   const user = useSelector(state => state.auth.user);
   const userRole = user?.role || 'Employee';
   const isPM = userRole === 'Project Manager';
   const isHead = ['Head', 'Admin', 'Super Admin'].includes(userRole);
   const isFinance = ['Finance', 'Admin', 'Super Admin'].includes(userRole);
   const { format } = useCurrency();
+
+  // ─── Permission helper ─────────────────────────────────────────────────────
+  // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
+  const userPerms = user?.permissions || [];
+  const hasBudgetModule = userPerms.includes('Budget Master');
+  const hasBudgetPerm = (sub) => {
+    // Admins and Super Admins bypass all checks
+    if (['Admin', 'Super Admin'].includes(userRole)) return true;
+    // Must have the parent module enabled first
+    if (!hasBudgetModule) return false;
+    return userPerms.includes(`Budget Master:${sub}`);
+  };
 
   // ─── Fetch helpers ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -207,9 +231,21 @@ const BudgetMaster = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [projRes, empRes] = await Promise.all([API.get('/projects/'), API.get('/employees/')]);
+      const [projRes, empRes, budgetRes] = await Promise.all([
+        API.get('/projects/'),
+        API.get('/employees/'),
+        API.get('/budget/').catch(() => ({ data: [] }))
+      ]);
       setProjects(projRes.data || []);
       setEmployees(empRes.data || []);
+      
+      const latestBudgets = {};
+      (budgetRes?.data || []).forEach(b => {
+        if (!latestBudgets[b.project_name] || new Date(b.updated_at) > new Date(latestBudgets[b.project_name].updated_at)) {
+          latestBudgets[b.project_name] = b;
+        }
+      });
+      setLatestBudgetsMap(latestBudgets);
     } catch (err) {
       console.error('Init error', err);
     } finally {
@@ -245,11 +281,6 @@ const BudgetMaster = () => {
     }
   };
 
-  // ─── Notifications ──────────────────────────────────────────────────────────
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
-  };
 
   // ─── Sort / Filter ──────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {
@@ -296,6 +327,30 @@ const BudgetMaster = () => {
     return pages;
   };
 
+  // ─── Pagination for History ───────────────────────────────────────────────────
+  const filteredHistoryData = useMemo(() => {
+    if (historyFilter === 'All') return historyData;
+    if (historyFilter === 'Upload') return historyData.filter(item => item.attachment_name);
+    if (historyFilter === 'Save') return historyData.filter(item => !item.attachment_name);
+    return historyData;
+  }, [historyData, historyFilter]);
+
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistoryData.length / historyItemsPerPage));
+  const paginatedHistoryData = useMemo(() => {
+    const start = (historyCurrentPage - 1) * historyItemsPerPage;
+    return filteredHistoryData.slice(start, start + historyItemsPerPage);
+  }, [filteredHistoryData, historyCurrentPage, historyItemsPerPage]);
+
+  const getHistoryPageNumbers = () => {
+    const pages = [];
+    const max = 5;
+    let start = Math.max(1, historyCurrentPage - 2);
+    let end = Math.min(totalHistoryPages, start + max - 1);
+    if (end - start < max - 1) start = Math.max(1, end - max + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
   // ─── Row Editing ────────────────────────────────────────────────────────────
   const recalc = (data) => ({
     ...data,
@@ -305,8 +360,17 @@ const BudgetMaster = () => {
   });
 
   const handleEditChange = (label, value) => {
+    const col = columns.find(c => c.label === label);
+    let val = value;
+
+    // Preserve data types
+    if (col?.type === 'number' || col?.type === 'currency') {
+      const parsed = parseFloat(value);
+      val = isNaN(parsed) ? (value === '' ? '' : value) : parsed;
+    }
+
     setEditingData(prev => {
-      const next = { ...prev, [label]: value };
+      const next = { ...prev, [label]: val };
       if ([...NUMERIC_COLS, 'Utilized', 'Commitment'].includes(label)) {
         const uc = parseFloat(next['Unit count']) || 0;
         const puc = parseFloat(next['Per unit cost']) || 0;
@@ -318,6 +382,28 @@ const BudgetMaster = () => {
       }
       return next;
     });
+  };
+
+  const addColumn = () => {
+    if (!newColumnData.label) { toast.error('Column label is required'); return; }
+    if (columns.some(c => c.label.toLowerCase() === newColumnData.label.toLowerCase())) {
+      toast.error('Column already exists');
+      return;
+    }
+
+    const newCol = {
+      id: `custom_${Date.now()}`,
+      label: newColumnData.label,
+      visible: true,
+      type: newColumnData.type,
+      custom: true
+    };
+
+    setColumns(prev => [...prev, newCol]);
+    setTableData(prev => prev.map(row => ({ ...row, [newCol.label]: '' })));
+    setShowAddColumnModal(false);
+    setNewColumnData({ label: '', type: 'text' });
+    toast.success(`Column "${newCol.label}" added`);
   };
 
   const addRow = () => {
@@ -334,7 +420,7 @@ const BudgetMaster = () => {
     setTableData(prev => prev.map(r => r.id === editingRowId ? { ...editingData } : r));
     setEditingRowId(null);
     setEditingData({});
-    showNotification('Row updated');
+    toast.success('Row updated');
   };
   const cancelEdit = () => { setEditingRowId(null); setEditingData({}); };
 
@@ -342,7 +428,7 @@ const BudgetMaster = () => {
     setTableData(prev => prev.filter(r => r.id !== showDeletePrompt));
     setShowDeletePrompt(null);
     if (editingRowId === showDeletePrompt) { setEditingRowId(null); setEditingData({}); }
-    showNotification('Row removed');
+    toast.success('Row removed');
   };
 
   // ─── Excel Import ────────────────────────────────────────────────────────────
@@ -361,7 +447,7 @@ const BudgetMaster = () => {
           const wb = XLSX.read(evt.target.result, { type: 'binary' });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
-          if (raw.length < 2) { showNotification('No data in file', 'error'); return; }
+          if (raw.length < 2) { toast.error('No data in file'); return; }
           const headers = raw[0].map(h => String(h).trim().toLowerCase());
           const rows = [];
           for (let i = 1; i < raw.length; i++) {
@@ -375,10 +461,10 @@ const BudgetMaster = () => {
             rows.push(recalc(row));
           }
           setTableData(rows);
-          showNotification(`Imported ${rows.length} items. Don't forget to Save!`);
+          toast.success(`Imported ${rows.length} items. Don't forget to Save!`);
           setActiveTab('Table');
         } catch (err) {
-          showNotification('Excel parse failed', 'error');
+          toast.error('Excel parse failed');
         } finally {
           setIsParsing(false);
           setTempFile(null);
@@ -424,13 +510,13 @@ const BudgetMaster = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Budget Template");
     XLSX.writeFile(wb, "Budget_Template.xlsx");
 
-    showNotification('Template downloaded successfully');
+    toast.success('Template downloaded successfully');
   };
 
   // ─── Save to DB ──────────────────────────────────────────────────────────────
   // ─── Save to DB ──────────────────────────────────────────────────────────────
   const handleSave = (syncToProject = false) => {
-    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    if (!selectedProject) { toast.error('Please select a project first'); return; }
     setSaveType(syncToProject ? 'sync' : 'save');
     setShowDateModal(true);
   };
@@ -449,7 +535,8 @@ const BudgetMaster = () => {
       fd.append('project_name', selectedProject);
       fd.append('budget_date', budgetDate);
       fd.append('overall_budget', parseFloat(overallBudget) || 0);
-      fd.append('uploaded_by', user?.name || 'Admin');
+      fd.append('uploaded_by', user?.role || user?.full_name || 'Unknown');
+      fd.append('user_id', user?.employee_id || String(user?.id || ''));
       fd.append('budget_data', JSON.stringify(dataToSave));
       fd.append('sync_to_project', saveType === 'sync');
       if (uploadedFile) fd.append('file', uploadedFile);
@@ -459,10 +546,10 @@ const BudgetMaster = () => {
       });
 
       fetchHistory(); // Refresh history so the next upload check sees this new version
-      showNotification(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
+      toast.success(saveType === 'sync' ? 'Budget saved and synced to Project Master' : 'Budget version saved');
       if (editingRowId) { setEditingRowId(null); setEditingData({}); }
     } catch (err) {
-      showNotification('Save failed — ' + (err.response?.data?.detail || err.message), 'error');
+      toast.error('Save failed — ' + (err.response?.data?.detail || err.message));
     } finally {
       setSaving(false);
     }
@@ -472,7 +559,7 @@ const BudgetMaster = () => {
   const handleRevisionSubmit = async (e) => {
     e.preventDefault();
     if (!selectedProject || !revisionData.revised_budget || !revisionData.reasons) {
-      showNotification('Fill all required fields', 'error'); return;
+      toast.error('Fill all required fields'); return;
     }
     setSubmittingRevision(true);
     try {
@@ -480,18 +567,18 @@ const BudgetMaster = () => {
       const fd = new FormData();
       fd.append('project_id', proj?.project_id || '');
       fd.append('project_name', selectedProject);
-      fd.append('pm_name', user?.name || 'Unknown');
+      fd.append('pm_name', user?.full_name || managerName || 'Unknown');
       fd.append('previous_budget', parseFloat(overallBudget) || 0);
       fd.append('revised_budget', (parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0));
       fd.append('reasons', revisionData.reasons);
       if (revisionData.attachment) fd.append('file', revisionData.attachment);
       await API.post('/budget/revisions/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showNotification('Revision request submitted');
+      toast.success('Revision request submitted');
       setShowNewRevisionForm(false);
       setRevisionData({ revised_budget: '', reasons: '', attachment: null });
       fetchRevisions();
     } catch (err) {
-      showNotification('Failed to submit revision', 'error');
+      toast.error('Failed to submit revision');
     } finally {
       setSubmittingRevision(false);
     }
@@ -502,11 +589,11 @@ const BudgetMaster = () => {
       await API.patch(`/budget/revisions/${id}`, { status: newStatus, ...extra });
 
       if (newStatus === 'Approved') {
-        showNotification('Budget approved - new budget updated', 'success');
+        toast.success('Budget approved - new budget updated');
       } else if (['Declined', 'Cancelled'].includes(newStatus)) {
-        showNotification('Budget not approved', 'error');
+        toast.error('Budget not approved');
       } else {
-        showNotification(`Revision ${newStatus.toLowerCase()}`);
+        toast.success(`Revision ${newStatus.toLowerCase()}`);
       }
 
       fetchRevisions();
@@ -514,7 +601,7 @@ const BudgetMaster = () => {
         fetchInitialData();
         if (selectedProject) fetchBudgetData(selectedProject);
       }
-    } catch { showNotification('Failed to update revision', 'error'); }
+    } catch { toast.error('Failed to update revision'); }
   };
 
   const fetchHistory = async () => {
@@ -523,8 +610,18 @@ const BudgetMaster = () => {
     try {
       const res = await API.get(`/budget/history/${encodeURIComponent(selectedProject)}`);
       setHistoryData(res.data);
-    } catch { showNotification('Failed to fetch budget history', 'error'); }
+    } catch { toast.error('Failed to fetch budget history'); }
     finally { setFetchingHistory(false); }
+  };
+
+  const fetchAuditLogs = async () => {
+    if (!selectedProject) return;
+    setFetchingAudit(true);
+    try {
+      const res = await API.get(`/budget/audits/${encodeURIComponent(selectedProject)}`);
+      setAuditLogs(res.data || []);
+    } catch { toast.error('Failed to fetch audit logs'); }
+    finally { setFetchingAudit(false); }
   };
 
   const loadVersion = async (id) => {
@@ -536,17 +633,17 @@ const BudgetMaster = () => {
       setBudgetDate(res.data.budget_date || new Date().toISOString().split('T')[0]);
       setAttachmentName(res.data.attachment_name);
       setActiveTab('Table');
-      showNotification('Budget version loaded into table');
-    } catch { showNotification('Failed to load version', 'error'); }
+      toast.success('Budget version loaded into table');
+    } catch { toast.error('Failed to load version'); }
   };
 
   const deleteVersion = async (id) => {
     if (!window.confirm('Are you sure you want to delete this budget version?')) return;
     try {
       await API.delete(`/budget/version/${id}`);
-      showNotification('Budget version deleted');
+      toast.success('Budget version deleted');
       fetchHistory();
-    } catch { showNotification('Failed to delete version', 'error'); }
+    } catch { toast.error('Failed to delete version'); }
   };
 
   const handleDownloadAttachment = async (revId, fileName) => {
@@ -556,11 +653,11 @@ const BudgetMaster = () => {
       const link = document.createElement('a');
       link.href = url; link.setAttribute('download', fileName || 'attachment');
       document.body.appendChild(link); link.click(); link.remove();
-    } catch { showNotification('Download failed', 'error'); }
+    } catch { toast.error('Download failed'); }
   };
 
   const handleExportExcel = () => {
-    if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+    if (tableData.length === 0) { toast.error('No data to export'); return; }
     const exportData = tableData.map(row => {
       const filteredRow = {};
       columns.forEach(col => {
@@ -572,19 +669,19 @@ const BudgetMaster = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Budget");
     XLSX.writeFile(wb, `Budget_${selectedProject || 'Export'}.xlsx`);
-    showNotification('Exported as Excel');
+    toast.success('Exported as Excel');
   };
 
   const handleFetchMarketAnalysis = async () => {
-    if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+    if (!selectedProject) { toast.success('Please select a project first', 'error'); return; }
     setFetchingMarket(true);
     try {
       const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}`);
       setMarketAnalysis(res.data);
       setShowMarketSuggestion(true);
-      showNotification('Market analysis completed');
+      toast.success('Market analysis completed');
     } catch (err) {
-      showNotification('Failed to fetch market analysis', 'error');
+      toast.error('Failed to fetch market analysis');
     } finally {
       setFetchingMarket(false);
     }
@@ -598,12 +695,12 @@ const BudgetMaster = () => {
       reasons: marketAnalysis.reasoning
     });
     setShowMarketSuggestion(false);
-    showNotification('Suggestion applied with detailed reasoning');
+    toast.success('Suggestion applied with detailed reasoning');
   };
 
   const handleExportPDF = () => {
     try {
-      if (tableData.length === 0) { showNotification('No data to export', 'error'); return; }
+      if (tableData.length === 0) { toast.error('No data to export'); return; }
       
       // Initialize landscape A4 document
       const doc = new jsPDF({
@@ -681,10 +778,10 @@ const BudgetMaster = () => {
       });
 
       doc.save(`Budget_Report_${selectedProject || 'Export'}_${new Date().getTime()}.pdf`);
-      showNotification('PDF Exported Successfully');
+      toast.success('PDF Exported Successfully');
     } catch (err) {
       console.error('PDF Export Error:', err);
-      showNotification('Failed to generate PDF. Please check table data.', 'error');
+      toast.error('Failed to generate PDF. Please check table data.');
     }
   };
 
@@ -695,7 +792,7 @@ const BudgetMaster = () => {
       const link = document.createElement('a');
       link.href = url; link.setAttribute('download', fileName || 'budget_master.xlsx');
       document.body.appendChild(link); link.click(); link.remove();
-    } catch { showNotification('No file stored or download failed', 'error'); }
+    } catch { toast.error('No file stored or download failed'); }
   };
 
   // ─── Computed summary ────────────────────────────────────────────────────────
@@ -722,19 +819,6 @@ const BudgetMaster = () => {
   return (
     <div className="master-table-container">
 
-      {/* ── Notification ──────────────────────────────────────────────────────── */}
-      {notification.show && (
-        <div className={`fixed bottom-8 right-8 px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-4 ${notification.type === 'success'
-          ? 'bg-green-100 text-green-800 border border-green-200'
-          : 'bg-red-100 text-red-800 border border-red-200'
-          }`}>
-          <span className="text-base font-semibold">{notification.message}</span>
-          <button onClick={() => setNotification({ show: false, message: '', type: '' })}
-            className="ml-4 text-current opacity-60 hover:opacity-100 transition-opacity">
-            Close
-          </button>
-        </div>
-      )}
 
       {/* ── Delete Row Prompt ────────────────────────────────────────────────── */}
       {showDeletePrompt && (
@@ -763,6 +847,58 @@ const BudgetMaster = () => {
       )}
 
 
+
+      {/* ── Add Column Modal ────────────────────────────────────────────────── */}
+      {showAddColumnModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add New Column</h3>
+              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <ChevronDown className="w-5 h-5 rotate-180" />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Column Label</label>
+                <input 
+                  type="text" 
+                  value={newColumnData.label}
+                  onChange={e => setNewColumnData({ ...newColumnData, label: e.target.value })}
+                  placeholder="e.g., Tax Rate"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Data Type</label>
+                <select 
+                  value={newColumnData.type}
+                  onChange={e => setNewColumnData({ ...newColumnData, type: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                >
+                  <option value="text">Text</option>
+                  <option value="number">Number</option>
+                  <option value="currency">Currency</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-4 mt-8">
+                <button onClick={() => setShowAddColumnModal(false)}
+                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:bg-slate-800/80 transition-all">
+                  Cancel
+                </button>
+                <button onClick={addColumn}
+                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+                  Add Column
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Waiting Period Modal ─────────────────────────────────────────────── */}
       {showWaitingModal && (
@@ -874,7 +1010,16 @@ const BudgetMaster = () => {
                       Active Project
                     </label>
                     <SearchableDropdown
-                      options={projects.map(p => p.name)}
+                      options={projects.map(p => {
+                        const latest = latestBudgetsMap[p.name];
+                        let label = p.name;
+                        if (latest && latest.updated_at) {
+                          const hours = Math.floor((new Date() - new Date(latest.updated_at)) / (1000 * 60 * 60));
+                          const timeStr = hours < 1 ? 'Just now' : `${hours} hours ago`;
+                          label = `${p.name} (updated ${timeStr})`;
+                        }
+                        return { value: p.name, label };
+                      })}
                       value={selectedProject}
                       onChange={setSelectedProject}
                       placeholder="Select a project..."
@@ -957,11 +1102,41 @@ const BudgetMaster = () => {
               {/* Table Toolbar */}
               <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
                 <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
-                  <button onClick={addRow}
-                    className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm">
-                    Add Item
-                  </button>
+                  {/* Add Item — needs add_row OR add_column permission */}
+                  {(hasBudgetPerm('add_row') || hasBudgetPerm('add_column')) && (
+                  <div className="relative">
+                    <button onClick={() => setShowAddDropdown(!showAddDropdown)}
+                      className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
+                      Add Item
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
+                    </button>
 
+                    {showAddDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                          {hasBudgetPerm('add_row') && (
+                          <button onClick={() => { addRow(); setShowAddDropdown(false); }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
+                            <Plus className="w-4 h-4 text-blue-500" />
+                            <span>Add Row</span>
+                          </button>
+                          )}
+                          {hasBudgetPerm('add_column') && (
+                          <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                            <Columns className="w-4 h-4 text-emerald-500" />
+                            <span>Add Column</span>
+                          </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Save — needs save_budget permission */}
+                  {hasBudgetPerm('save_budget') && (
                   <div className="relative">
                     <div className="flex items-stretch h-10">
                       <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
@@ -1002,14 +1177,16 @@ const BudgetMaster = () => {
                       </>
                     )}
                   </div>
+                  )}
 
                   <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
 
-                  {/* File actions */}
+                  {/* Upload Budget — needs upload_budget permission */}
+                  {hasBudgetPerm('upload_budget') && (
                   <div className="relative group">
                     <button
                       onClick={() => {
-                        if (!selectedProject) { showNotification('Please select a project first', 'error'); return; }
+                        if (!selectedProject) { toast.error('Please select a project first'); return; }
                         setShowUploadModal(true);
                       }}
                       className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
@@ -1017,6 +1194,7 @@ const BudgetMaster = () => {
                       {isParsing ? 'Parsing...' : 'Upload Budget'}
                     </button>
                   </div>
+                  )}
 
                   <div className="relative">
                     <button
@@ -1141,7 +1319,7 @@ const BudgetMaster = () => {
                               if (isEdit) {
                                 return (
                                   <td key={col.id} className="px-1 py-1">
-                                    {col.label === 'Status' ? (
+                                    {col.type === 'status' ? (
                                       <select value={val || ''}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
                                         className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
@@ -1149,7 +1327,7 @@ const BudgetMaster = () => {
                                       </select>
                                     ) : (
                                       <input
-                                        type={!ro && (num) ? 'number' : 'text'}
+                                        type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
                                         value={val !== undefined && val !== null ? val : ''}
                                         readOnly={ro}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
@@ -1200,15 +1378,19 @@ const BudgetMaster = () => {
                                     </button>
                                   </>
                                 ) : (
+                                  hasBudgetPerm('edit_row') && (
                                   <button onClick={() => startEdit(row)}
                                     className="px-4 py-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-xs font-bold transition-all" title="Edit">
                                     Edit
                                   </button>
+                                  )
                                 )}
+                                {hasBudgetPerm('delete_row') && (
                                 <button onClick={() => setShowDeletePrompt(row.id)}
                                   className="px-4 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-xs font-bold transition-all" title="Delete">
                                   Delete
                                 </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1470,8 +1652,16 @@ const BudgetMaster = () => {
                         </tr>
                       ) : revisions.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-24 text-center">
-                            <p className="text-sm font-bold text-slate-400">No revision requests found</p>
+                          <td colSpan={8} className="py-24">
+                            <div className="flex flex-col items-center justify-center text-center px-4">
+                              <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
+                                <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                              </div>
+                              <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No revision requests found</p>
+                              <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                                Any budget revisions you submit will appear here in the history log.
+                              </p>
+                            </div>
                           </td>
                         </tr>
                       ) : revisions.map(rev => {
@@ -1724,7 +1914,12 @@ const BudgetMaster = () => {
                       );
                     })}
                     {estimatedBreakdown.length === 0 && (
-                      <div className="py-12 text-center text-slate-400 text-xs italic">No allocation data available</div>
+                      <div className="py-16 flex flex-col items-center justify-center text-center">
+                        <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                          <PieChart className="h-6 w-6 text-slate-300 dark:text-slate-600" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-400 italic">No allocation data available</p>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1814,7 +2009,16 @@ const BudgetMaster = () => {
                         );
                       })}
                       {estimatedBreakdown.length === 0 && (
-                        <tr><td colSpan={5} className="py-12 text-center text-slate-400 text-xs italic">No category data available</td></tr>
+                        <tr>
+                          <td colSpan={5} className="py-16">
+                            <div className="flex flex-col items-center justify-center text-center">
+                              <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
+                                <ShieldAlert className="h-5 w-5 text-slate-300 dark:text-slate-600" />
+                              </div>
+                              <p className="text-[11px] font-bold text-slate-400 italic">No category data available for risk assessment</p>
+                            </div>
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
@@ -1830,17 +2034,36 @@ const BudgetMaster = () => {
                 <div className="flex items-center gap-4">
                   <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Budget History & Snapshots</h2>
                 </div>
-                <button onClick={fetchHistory} disabled={fetchingHistory}
-                  className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 transition-all">
-                  {fetchingHistory ? 'Refreshing...' : 'Refresh'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <select 
+                    value={historyFilter} 
+                    onChange={e => { setHistoryFilter(e.target.value); setHistoryCurrentPage(1); }}
+                    className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none cursor-pointer">
+                    <option value="All">All Types</option>
+                    <option value="Upload">Uploads</option>
+                    <option value="Save">Manual Saves</option>
+                  </select>
+                  {(hasBudgetPerm('budget_audits')) && (
+                    <button onClick={() => { setShowAuditModal(true); fetchAuditLogs(); }}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Budget Audits
+                    </button>
+                  )}
+                  <button onClick={fetchHistory} disabled={fetchingHistory}
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-slate-700 hover:bg-slate-50 transition-all">
+                    <RefreshCw className={`w-3.5 h-3.5 ${fetchingHistory ? 'animate-spin' : ''}`} />
+                    {fetchingHistory ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Effective Date</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project Manager</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Budget</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded By</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
@@ -1849,13 +2072,30 @@ const BudgetMaster = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                     {fetchingHistory ? (
-                      <tr><td colSpan={5} className="py-12 text-center text-slate-400">Loading history...</td></tr>
-                    ) : historyData.length === 0 ? (
-                      <tr><td colSpan={5} className="py-12 text-center text-slate-400">No budget history found for this project.</td></tr>
-                    ) : historyData.map(item => (
+                      <tr><td colSpan={6} className="py-12 text-center text-slate-400">Loading history...</td></tr>
+                    ) : paginatedHistoryData.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-24">
+                          <div className="flex flex-col items-center justify-center text-center px-4">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
+                              <History className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No budget history found</p>
+                            <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                              Upload an excel snapshot or save a manual revision to start building your budget history.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : paginatedHistoryData.map(item => (
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
                         <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
-                          {item.budget_date || 'Initial'}
+                          {managerName || 'Unassigned'}
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                            {item.attachment_name ? 'Upload' : 'Save'}
+                          </span>
                         </td>
                         <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget, false)}</td>
                         <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
@@ -1865,12 +2105,14 @@ const BudgetMaster = () => {
                         <td className="py-4 px-6">
                           <div className="flex items-center justify-center gap-4">
                             <button onClick={() => loadVersion(item.id)}
-                              className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-all">
-                              View
+                              title="View Snapshot"
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-all">
+                              <Eye className="w-4 h-4" />
                             </button>
                             <button onClick={() => deleteVersion(item.id)}
-                              className="text-xs font-bold text-red-600 hover:text-red-700 transition-all">
-                              Delete
+                              title="Delete Snapshot"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -1879,10 +2121,148 @@ const BudgetMaster = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* History Pagination */}
+              {historyData.length > 0 && (
+                <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <span className="text-xs font-bold text-slate-500">Rows per page:</span>
+                    <select value={historyItemsPerPage} onChange={e => { setHistoryItemsPerPage(Number(e.target.value)); setHistoryCurrentPage(1); }}
+                      className="px-4 py-1.5 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none transition-all focus:ring-4 focus:ring-slate-500/10">
+                      {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
+                    </select>
+                    <span className="text-xs font-bold text-slate-500">
+                      {(historyCurrentPage - 1) * historyItemsPerPage + 1}–{Math.min(historyCurrentPage * historyItemsPerPage, historyData.length)} of {historyData.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setHistoryCurrentPage(1)} disabled={historyCurrentPage === 1}
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      First
+                    </button>
+                    {getHistoryPageNumbers().map(p => (
+                      <button key={p} onClick={() => setHistoryCurrentPage(p)}
+                        className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === historyCurrentPage
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                          }`}>
+                        {p}
+                      </button>
+                    ))}
+                    <button onClick={() => setHistoryCurrentPage(totalHistoryPages)} disabled={historyCurrentPage === totalHistoryPages}
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Budget Audit Modal ────────────────────────────────────────────────── */}
+      {showAuditModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Audit Trail</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAuditModal(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400">
+                <span className="text-lg font-bold">✕</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {fetchingAudit ? (
+                <div className="flex items-center justify-center py-24">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+                  <span className="ml-3 text-sm font-bold text-slate-400">Loading audit logs...</span>
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                    <ClipboardList className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-400">No audit records found</p>
+                  <p className="text-xs text-slate-400 mt-1">Audit entries will appear after any budget save or upload action.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">#</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Timestamp</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Action</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Performed By</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Role</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Budget</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Attachment</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Synced</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {auditLogs.map((log, idx) => (
+                      <tr key={log.id} className="hover:bg-indigo-50/40 dark:hover:bg-slate-700/20 transition-colors">
+                        <td className="py-3 px-5 text-xs font-bold text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-600 whitespace-nowrap">
+                          {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                        </td>
+                        <td className="py-3 px-5">
+                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                            log.action === 'UPLOAD'
+                              ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                              : log.action === 'SAVE'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}>{log.action}</span>
+                        </td>
+                        <td className="py-3 px-5 text-sm font-bold text-slate-800 dark:text-slate-200">
+                          {log.user_name || log.details?.uploaded_by || '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                          {log.user_role || '—'}
+                        </td>
+                        <td className="py-3 px-5 text-sm font-bold text-blue-600">
+                          {log.details?.overall_budget != null ? format(log.details.overall_budget, false) : '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-600">
+                          {log.details?.rows ?? '—'}
+                        </td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                          {log.details?.attachment_name || <span className="text-slate-300">None</span>}
+                        </td>
+                        <td className="py-3 px-5">
+                          {log.details?.sync_to_project
+                            ? <span className="text-emerald-600 font-bold text-[10px] uppercase">✓ Synced</span>
+                            : <span className="text-slate-300 text-[10px]">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+              <span className="text-xs font-bold text-slate-400">{auditLogs.length} total entries</span>
+              <button onClick={() => { setShowAuditModal(false); }}
+                className="px-6 py-2 text-xs font-black text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all uppercase tracking-widest">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
@@ -2061,7 +2441,7 @@ const BudgetMaster = () => {
                 </button>
                 <button
                   onClick={() => {
-                    if (!tempFile) { showNotification('Please select a file', 'error'); return; }
+                    if (!tempFile) { toast.error('Please select a file'); return; }
                     const targetDate = String(budgetDate || '').trim();
                     const historyArray = Array.isArray(historyData) ? historyData : [];
                     const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);

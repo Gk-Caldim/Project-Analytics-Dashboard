@@ -5,8 +5,15 @@ from app.schemas.project import ProjectCreate
 def get_projects(db: Session):
     return db.query(Project).all()
 
+from app.utils.validators import validate_custom_fields
+
 def create_project(db: Session, project: ProjectCreate):
-    db_project = Project(**project.dict())
+    # Validate custom fields
+    validation_errors = validate_custom_fields(db, 'project', project.custom_fields)
+    if validation_errors:
+        raise ValueError("; ".join(validation_errors))
+
+    db_project = Project(**project.model_dump())
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
@@ -21,7 +28,15 @@ def get_project(db: Session, project_id: int):
 def update_project(db: Session, project_id: int, project_data: ProjectCreate):
     db_project = db.query(Project).filter(Project.id == project_id).first()
     if db_project:
-        for key, value in project_data.dict().items():
+        update_data = project_data.model_dump()
+        
+        # Validate custom fields if they are being updated
+        if "custom_fields" in update_data:
+            validation_errors = validate_custom_fields(db, 'project', update_data["custom_fields"])
+            if validation_errors:
+                raise ValueError("; ".join(validation_errors))
+
+        for key, value in update_data.items():
             setattr(db_project, key, value)
         db.commit()
         db.refresh(db_project)

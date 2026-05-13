@@ -1,75 +1,28 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSelector } from 'react-redux';
 import { slideInLeft } from '../utils/animations';
+import { 
+    Layout as LayoutIcon, 
+    Calendar, 
+    Database, 
+    FileUp, 
+    Settings,
+    ChevronDown,
+    ChevronRight
+} from 'lucide-react';
 
-// ─── Inline SVGs ────────────────────────────────────────────────────────────
-const IconProjects = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-        <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-        <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-        <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-    </svg>
-);
-
-const IconMOM = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-    </svg>
-);
-
-const IconMasters = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 7h-9"></path>
-        <path d="M14 17H5"></path>
-        <circle cx="17" cy="17" r="3"></circle>
-        <circle cx="7" cy="7" r="3"></circle>
-    </svg>
-);
-
-const IconUpload = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
-    </svg>
-);
-
-const IconSettings = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-    </svg>
-);
-
-const IconFile = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-        <line x1="16" y1="13" x2="8" y2="13"></line>
-        <line x1="16" y1="17" x2="8" y2="17"></line>
-        <polyline points="10 9 9 9 8 9"></polyline>
-    </svg>
-);
-
-const IconChevron = ({ expanded }) => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-        <polyline points="6 9 12 15 18 9"></polyline>
-    </svg>
-);
-
+// ─── Logo Block ─────────────────────────────────────────────────────────────
 const LogoBlock = () => (
-    <div style={{ display: 'flex', alignItems: 'center', height: '72px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingLeft: '16px' }}>
-        <div style={{ color: '#fff', fontSize: '24px', fontWeight: '700', letterSpacing: '0.1em' }}>CALDIM</div>
+    <div className="h-[72px] flex items-center px-6 border-b border-white/5">
+        <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>
     </div>
 );
 
-// ─── Main Sidebar ────────────────────────────────────────────────────────────
+// ─── Main Sidebar Component ─────────────────────────────────────────────────
 const Sidebar = ({
     activeModule,
     expandedModules,
-    sidebarCollapsed,
-    sidebarRef,
     handleModuleClick,
     toggleModuleExpansion,
     projectDashboardModules,
@@ -81,6 +34,11 @@ const Sidebar = ({
     handleProjectFileClick,
     hasAccess
 }) => {
+    const { 
+        sidebarDashboardLimit = 10, 
+        sidebarDashboardMode = 'custom',
+        navigationHistory = []
+    } = useSelector(state => state.nav);
 
     const renderProjectDashboardModule = () => {
         const isActive = activeModule === 'project-dashboard';
@@ -88,53 +46,105 @@ const Sidebar = ({
         const hasDynamicModules = projectDashboardModules && projectDashboardModules.length > 0;
 
         return (
-            <div>
+            <div key="project-dashboard">
                 <div
                     onClick={() => handleModuleClick('project-dashboard')}
                     className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                        <IconProjects />
-                        {!sidebarCollapsed && <span style={{ fontSize: '19px' }}>Projects</span>}
+                    <div className="flex items-center gap-3 flex-1">
+                        <LayoutIcon size={20} />
+                        <span className="text-[16px] font-medium tracking-tight">Dashboard</span>
                     </div>
-                    {!sidebarCollapsed && hasDynamicModules && (
+                    {hasDynamicModules && (
                         <div onClick={(e) => { e.stopPropagation(); toggleModuleExpansion('project-dashboard', e); }}>
-                            <IconChevron expanded={isExpanded} />
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
                     )}
                 </div>
-                {/* Embedded files drop-down (keeping exact original logic) */}
+                
                 <AnimatePresence>
-                    {isExpanded && (!sidebarCollapsed) && (
+                    {isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            style={{ paddingLeft: '32px', overflow: 'hidden' }}
+                            className="overflow-hidden"
                         >
-                            {projectDashboardModules.map((pm, idx) => (
-                                <div key={pm.id || idx} style={{ marginBottom: '4px' }}>
-                                    <div style={{ fontSize: '17px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '4px', marginTop: '6px' }}>{pm.name}</div>
-                                    {pm.submodules && pm.submodules.map(fileModule => {
-                                        const isSelected = isFileSelected(fileModule, 'project-dashboard');
-                                        return (
-                                            <div
-                                                key={fileModule.id}
-                                                onClick={() => handleProjectFileClick({ ...fileModule, projectName: pm.name })}
-                                                className={`sidebar-nav-item ${isSelected ? 'sidebar-nav-item-active' : ''}`}
-                                                style={{ marginLeft: '-8px', padding: '6px 12px', fontSize: '18px' }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <IconFile />
-                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
-                                                    </span>
+                            <div className="sidebar-tree-container">
+                                {(() => {
+                                    let displayedModules = projectDashboardModules || [];
+                                    if (sidebarDashboardMode === 'recent') {
+                                        const recentProjectIds = navigationHistory
+                                            .filter(h => h.type === 'project' || h.context === 'project-dashboard')
+                                            .map(h => h.dbProjectId || h.id)
+                                            .filter(id => id);
+                                        const uniqueRecentIds = [...new Set(recentProjectIds)].slice(0, 2);
+                                        
+                                        if (uniqueRecentIds.length > 0) {
+                                            displayedModules = projectDashboardModules.filter(pm => 
+                                                uniqueRecentIds.includes(pm.id || pm.projectId)
+                                            );
+                                        } else {
+                                            displayedModules = projectDashboardModules.slice(0, 2);
+                                        }
+                                    } else {
+                                        displayedModules = projectDashboardModules.slice(0, sidebarDashboardLimit);
+                                    }
+                                    
+                                    return (
+                                        <>
+                                            {displayedModules.map((pm, idx) => {
+                                                const projectKey = pm.id || pm.projectId || pm.name;
+                                                const uniqueId = `project-dashboard-${projectKey}`;
+                                                const isProjExpanded = expandedModules[uniqueId];
+
+                                                return (
+                                                    <div key={pm.id || idx} className="py-1">
+                                                        <div 
+                                                            className="flex items-center justify-between px-6 py-2 cursor-pointer group"
+                                                            onClick={(e) => toggleModuleExpansion(uniqueId, e)}
+                                                        >
+                                                            <span className="text-[13px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
+                                                            {pm.submodules?.length > 0 && (
+                                                                <div className="opacity-100 group-hover:opacity-100 transition-opacity">
+                                                                    {isProjExpanded ? <ChevronDown size={12} className="text-white/70" /> : <ChevronRight size={12} className="text-white/70" />}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        {isProjExpanded && pm.submodules && (
+                                                            <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                                                {pm.submodules.map(fileModule => {
+                                                                    const isSelected = isFileSelected(fileModule, 'project-dashboard');
+                                                                    return (
+                                                                        <div
+                                                                            key={fileModule.id}
+                                                                            onClick={() => handleProjectFileClick({ ...fileModule, projectName: pm.name })}
+                                                                            className={`sidebar-sub-item ${isSelected ? 'sidebar-sub-item-active' : ''}`}
+                                                                        >
+                                                                            <span className="truncate">
+                                                                                {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                            {sidebarDashboardMode === 'recent' && projectDashboardModules.length > 2 && (
+                                                <div 
+                                                    className="sidebar-sub-item text-[11px] text-white/30 italic hover:text-white/60 mt-2 px-10"
+                                                    onClick={() => handleModuleClick('project-dashboard')}
+                                                >
+                                                    View all projects in Dashboard...
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ))}
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -143,62 +153,94 @@ const Sidebar = ({
     };
 
     const renderMOMModule = () => {
-        const isActive = activeModule === 'mom-module';
+        const isActive = activeModule === 'mom-module' || activeModule === 'meetings';
+        const isExpanded = expandedModules['mom'];
+
         return (
-            <div
-                onClick={() => handleModuleClick('mom-module')}
-                className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
-            >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <IconMOM />
-                    {!sidebarCollapsed && <span style={{ fontSize: '19px' }}>MOM</span>}
+            <div key="mom">
+                <div
+                    onClick={() => toggleModuleExpansion('mom')}
+                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
+                >
+                    <div className="flex items-center gap-3 flex-1">
+                        <Calendar size={20} />
+                        <span className="text-[16px] font-medium tracking-tight">Meetings</span>
+                    </div>
+                    <div>
+                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
+                    </div>
                 </div>
+                
+                <AnimatePresence>
+                    {isExpanded && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="sidebar-tree-container">
+                                <div
+                                    onClick={() => handleModuleClick('meetings')}
+                                    className={`sidebar-sub-item ${activeModule === 'meetings' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    All Meetings
+                                </div>
+                                <div
+                                    onClick={() => handleModuleClick('mom-module')}
+                                    className={`sidebar-sub-item ${activeModule === 'mom-module' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Create MOM
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         );
     };
 
     const renderMastersModule = () => {
         const isExpanded = expandedModules['masters'];
-        const hasSubmodules = mastersSubmodules && mastersSubmodules.length > 0;
         const isAnyMasterActive = activeModule === 'masters' || mastersSubmodules?.some(s => activeModule === s.id);
 
         return (
-            <div>
+            <div key="masters">
                 <div
-                    onClick={() => handleModuleClick('masters')}
-                    className={`sidebar-nav-item ${isAnyMasterActive && !activeModule.startsWith('masters-') ? 'sidebar-nav-item-active' : ''}`}
+                    onClick={() => toggleModuleExpansion('masters')}
+                    className={`sidebar-nav-item ${isAnyMasterActive ? 'sidebar-nav-item-active' : ''}`}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                        <IconMasters />
-                        {!sidebarCollapsed && <span style={{ fontSize: '19px' }}>Masters</span>}
+                    <div className="flex items-center gap-3 flex-1">
+                        <Database size={20} />
+                        <span className="text-[16px] font-medium tracking-tight">Master</span>
                     </div>
-                    {!sidebarCollapsed && hasSubmodules && (
-                        <div onClick={(e) => { e.stopPropagation(); toggleModuleExpansion('masters', e); }}>
-                            <IconChevron expanded={isExpanded} />
-                        </div>
-                    )}
+                    <div>
+                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
+                    </div>
                 </div>
+                
                 <AnimatePresence>
-                    {isExpanded && (!sidebarCollapsed) && (
+                    {isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            style={{ paddingLeft: '24px', overflow: 'hidden' }}
+                            className="overflow-hidden"
                         >
-                            {mastersSubmodules.map(module => {
-                                const isActive = activeModule === module.id;
-                                return (
-                                    <div
-                                        key={module.id}
-                                        onClick={() => handleModuleClick(module.id)}
-                                        className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
-                                        style={{ padding: '6px 12px', fontSize: '18px' }}
-                                    >
-                                        {module.name}
-                                    </div>
-                                );
-                            })}
+                            <div className="sidebar-tree-container">
+                                {mastersSubmodules.map(module => {
+                                    const isActive = activeModule === module.id;
+                                    return (
+                                        <div
+                                            key={module.id}
+                                            onClick={() => handleModuleClick(module.id)}
+                                            className={`sidebar-sub-item ${isActive ? 'sidebar-sub-item-active' : ''}`}
+                                        >
+                                            {module.name}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -212,51 +254,38 @@ const Sidebar = ({
         const hasDynamicModules = uploadTrackerModules && uploadTrackerModules.length > 0;
 
         return (
-            <div>
+            <div key="upload-trackers">
                 <div
-                    onClick={() => handleModuleClick('upload-trackers')}
+                    onClick={() => toggleModuleExpansion('upload-trackers')}
                     className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                        <IconUpload />
-                        {!sidebarCollapsed && <span style={{ fontSize: '19px' }}>Uploads</span>}
+                    <div className="flex items-center gap-3 flex-1">
+                        <FileUp size={20} />
+                        <span className="text-[16px] font-medium tracking-tight">Uploads</span>
                     </div>
-                    {!sidebarCollapsed && hasDynamicModules && (
-                        <div onClick={(e) => { e.stopPropagation(); toggleModuleExpansion('upload-trackers', e); }}>
-                            <IconChevron expanded={isExpanded} />
+                    {hasDynamicModules && (
+                        <div>
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
                     )}
                 </div>
+                
                 <AnimatePresence>
-                    {isExpanded && (!sidebarCollapsed) && (
+                    {isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            style={{ paddingLeft: '32px', overflow: 'hidden' }}
+                            className="overflow-hidden"
                         >
-                            {uploadTrackerModules.map(pm => (
-                                <div key={pm.id} style={{ marginBottom: '4px' }}>
-                                    {pm.submodules && pm.submodules.map(fileModule => {
-                                        const isSelected = isFileSelected(fileModule, 'upload-trackers');
-                                        return (
-                                            <div
-                                                key={fileModule.id}
-                                                onClick={() => handleFileModuleClick(fileModule)}
-                                                className={`sidebar-nav-item ${isSelected ? 'sidebar-nav-item-active' : ''}`}
-                                                style={{ marginLeft: '-8px', padding: '6px 12px', fontSize: '18px' }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <IconFile />
-                                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                            <div className="sidebar-tree-container">
+                                <div
+                                    onClick={() => handleModuleClick('upload-trackers')}
+                                    className={`sidebar-sub-item ${activeModule === 'upload-trackers' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Trackers
                                 </div>
-                            ))}
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -274,9 +303,9 @@ const Sidebar = ({
                     onClick={() => handleModuleClick(module.id)}
                     className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
                 >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <IconSettings />
-                        {!sidebarCollapsed && <span style={{ fontSize: '19px' }}>{module.name}</span>}
+                    <div className="flex items-center gap-3 flex-1">
+                        <Settings size={20} />
+                        <span className="text-[16px] font-medium tracking-tight">{module.name}</span>
                     </div>
                 </div>
             );
@@ -285,25 +314,23 @@ const Sidebar = ({
 
     return (
         <motion.div
-            ref={sidebarRef}
-            className={`app-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
+            className="app-sidebar h-screen sticky top-0"
             variants={slideInLeft}
             initial="hidden"
             animate="visible"
         >
             <LogoBlock />
 
-            <div className="sidebar-scroll scrollbar-hide">
-                {!sidebarCollapsed && <div className="sidebar-section-label">WORKSPACE</div>}
+            <div className="sidebar-scroll scrollbar-hide py-4">
+                <div className="sidebar-section-label">WORKSPACE</div>
                 {(!hasAccess || hasAccess('Dashboard')) && renderProjectDashboardModule()}
                 {(!hasAccess || hasAccess('MOM')) && renderMOMModule()}
 
-                {!sidebarCollapsed && <div className="sidebar-section-label" style={{ marginTop: '12px' }}>CONFIGURATION</div>}
+                <div className="sidebar-section-label" style={{ marginTop: '16px' }}>CONFIGURATION</div>
                 {renderMastersModule()}
                 {(!hasAccess || hasAccess('Upload Trackers')) && renderUploadTrackersModule()}
                 {renderOtherModules()}
             </div>
-            {/* sidebar-footer removed as per request */}
         </motion.div>
     );
 };

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import { setBranding } from '../../store/slices/navSlice';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { toast } from 'react-hot-toast';
 
 // Import all sub-components
 import GeneralInfo from './components/GeneralInfo';
@@ -15,41 +17,49 @@ import Maintenance from './components/Maintenance';
 
 const SystemSettings = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { themeSettings, updateThemeLocally, refreshTheme } = useTheme();
   const [settings, setSettings] = useState([]);
   const [modifiedSettings, setModifiedSettings] = useState({});
-  const [activeCategory, setActiveCategory] = useState('Organization');
-  const [activeSubCategory, setActiveSubCategory] = useState('Identity');
   const [isSaving, setIsSaving] = useState(false);
-  const [notification, setNotification] = useState(null);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
+
+  // Get current path from location - more robustly
+  const currentPath = location.pathname.split('/settings/')[1]?.split('/')[0] || 'general';
+
 
   const sidebarCategories = [
     {
       group: 'ORGANIZATION',
       items: [
-        { id: 'Organization', label: 'Identity' },
-        { id: 'Branding', label: 'Visual Branding' },
+        { id: 'Organization', label: 'System', path: 'general' },
+        { id: 'Branding', label: 'Visual Branding', path: 'branding' },
       ]
     },
     {
         group: 'SECURE CONTROLS',
         items: [
-          { id: 'Access Control', label: 'Role Management' },
-          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory' }] : []),
+          { id: 'Access Control', label: 'Role Management', path: 'access' },
+          ...(isAdmin ? [{ id: 'Application Access', label: 'Account Directory', path: 'applications' }] : []),
         ]
     },
     {
       group: 'INFRASTRUCTURE',
       items: [
-        { id: 'Connections', label: 'External Bridges' },
-        ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger' }] : []),
-        { id: 'Maintenance', label: 'System Health' },
+        { id: 'Connections', label: 'External Bridges', path: 'connections' },
+        ...(isAdmin ? [{ id: 'Audit Logs', label: 'System Ledger', path: 'audit' }] : []),
+        { id: 'Maintenance', label: 'System Health', path: 'maintenance' },
       ]
     }
   ];
+
+  // Helper to find active category based on path
+  const activeCategory = sidebarCategories
+    .flatMap(g => g.items)
+    .find(item => item.path === currentPath)?.id || 'Organization';
 
   useEffect(() => {
     fetchSettings();
@@ -65,8 +75,9 @@ const SystemSettings = () => {
   };
 
   const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
   };
 
   const handleUpdate = (key, value) => {
@@ -116,10 +127,12 @@ const SystemSettings = () => {
         return { key, value, category: original?.category || 'General', type: original?.type || 'text' };
       });
       await API.patch('/settings/bulk', { settings: settingsToUpdate });
-      if (modifiedSettings.company_name || modifiedSettings.base_currency) {
+      if (modifiedSettings.company_name || modifiedSettings.base_currency || modifiedSettings.sidebar_dashboard_limit || modifiedSettings.sidebar_dashboard_mode) {
         dispatch(setBranding({ 
           companyName: modifiedSettings.company_name,
-          baseCurrency: modifiedSettings.base_currency
+          baseCurrency: modifiedSettings.base_currency,
+          sidebarDashboardLimit: modifiedSettings.sidebar_dashboard_limit,
+          sidebarDashboardMode: modifiedSettings.sidebar_dashboard_mode
         }));
       }
       if (modifiedSettings.primary_color || modifiedSettings.secondary_color || modifiedSettings.display_mode) {
@@ -135,18 +148,7 @@ const SystemSettings = () => {
     }
   };
 
-  const renderContent = () => {
-    switch (activeCategory) {
-      case 'Organization': return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
-      case 'Branding': return <BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />;
-      case 'Access Control': return <AccessControl />;
-      case 'Application Access': return <ApplicationAccess />;
-      case 'Connections': return <Connections settings={settings} onUpdate={handleUpdate} />;
-      case 'Audit Logs': return <AuditHistory />;
-      case 'Maintenance': return <Maintenance />;
-      default: return <GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />;
-    }
-  };
+  // Routes are handled in the return JSX now
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
@@ -201,7 +203,7 @@ const SystemSettings = () => {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveCategory(item.id)}
+                    onClick={() => navigate(`/dashboard/settings/${item.path}`)}
                     style={{
                       width: 'calc(100% - 16px)',
                       margin: '0 8px 4px 8px',
@@ -261,14 +263,18 @@ const SystemSettings = () => {
 
       <main className="flex-1 overflow-y-auto bg-[#F4F6F9] p-16">
         <div className="max-w-5xl mx-auto pb-24">
-          {notification && (
-            <div className={`fixed bottom-12 left-[calc(280px+50%)] -translate-x-1/2 px-8 py-4 border z-50 text-[10px] font-bold uppercase tracking-[0.2em] animate-in slide-in-from-bottom-10 shadow-2xl ${
-              notification.type === 'success' ? 'bg-[#0004ab] text-white border-white/10' : 'bg-red-600 text-white border-none'
-            }`}>
-              {notification.message}
-            </div>
-          )}
-          {renderContent()}
+          <Routes>
+            <Route index element={<Navigate to="general" replace />} />
+            <Route path="general" element={<GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />} />
+            <Route path="branding" element={<BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />} />
+            <Route path="access" element={<AccessControl />} />
+            <Route path="applications" element={<ApplicationAccess />} />
+            <Route path="connections" element={<Connections settings={settings} onUpdate={handleUpdate} />} />
+            <Route path="audit" element={<AuditHistory />} />
+            <Route path="maintenance" element={<Maintenance />} />
+            {/* Fallback to general */}
+            <Route path="*" element={<Navigate to="general" replace />} />
+          </Routes>
         </div>
       </main>
     </div>

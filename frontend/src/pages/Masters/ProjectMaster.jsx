@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Filter, Download, Eye, EyeOff, Briefcase, DollarSign, Users, TrendingUp, CheckCircle, Clock, AlertTriangle, FileText, Calendar, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, ArrowUp, ArrowDown, Copy, FolderTree } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -16,6 +17,12 @@ import useCurrency from "../../hooks/useCurrency";
 const ProjectMaster = () => {
   const navigate = useNavigate();
   const { format, symbol, code, convert } = useCurrency();
+
+  const showNotification = (message, type = 'success') => {
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
+  };
   // Fixed columns matching backend Project model
   const initialColumns = [
     { id: 'project_id', label: 'Project ID', visible: true, sortable: true, type: 'text', required: true },
@@ -58,6 +65,8 @@ const ProjectMaster = () => {
   const [showDeletePrompt, setShowDeletePrompt] = useState(null);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+  const [newColumnType, setNewColumnType] = useState('text');
+  const [suggestedType, setSuggestedType] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,7 +97,7 @@ const ProjectMaster = () => {
   const [showExportConfirmPrompt, setShowExportConfirmPrompt] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [dynamicRoles, setDynamicRoles] = useState([]);
 
   // Filter Dropdown state
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -166,13 +175,6 @@ const ProjectMaster = () => {
     return payload;
   };
 
-  // Show notification
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
-  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -189,7 +191,7 @@ const ProjectMaster = () => {
     } catch (err) {
       console.error("Error loading data:", err);
       setError("Failed to load data. Please try again.");
-      showNotification('Failed to load data', 'error');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -206,6 +208,7 @@ const ProjectMaster = () => {
           visible: true,
           sortable: true,
           type: col.data_type || 'text',
+          data_type: col.data_type || 'text',
           required: col.is_required
         }));
         setCustomColumns(formattedCustomCols);
@@ -272,7 +275,7 @@ const ProjectMaster = () => {
     setTempFrozenColumns([]);
     setCurrentPage(1);
     await fetchData();
-    showNotification('Data refreshed successfully');
+    toast.success('Data refreshed successfully');
   };
 
 
@@ -308,12 +311,12 @@ const ProjectMaster = () => {
   // Bulk edit function - Modified to handle single row only
   const handleBulkEdit = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to edit', 'error');
+      toast.error('Please select at least one project to edit');
       return;
     }
 
     if (selectedProjects.length > 1) {
-      showNotification('Only one row can be edited at a time', 'error');
+      toast.error('Only one row can be edited at a time');
       return;
     }
 
@@ -336,7 +339,7 @@ const ProjectMaster = () => {
   // Bulk delete function
   const handleBulkDelete = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to delete', 'error');
+      toast.error('Please select at least one project to delete');
       return;
     }
 
@@ -358,11 +361,11 @@ const ProjectMaster = () => {
       setSelectAll(false);
       setCurrentPage(1);
       setShowBulkDeletePrompt({ show: false, count: 0 });
-      showNotification(`${count} projects deleted successfully`);
+      toast.success(`${count} projects deleted successfully`);
     } catch (err) {
       console.error(err);
       const errorMsg = err.response?.data?.detail || 'Error during bulk delete process';
-      showNotification(errorMsg, 'error');
+      toast.error(errorMsg);
     }
   };
 
@@ -382,7 +385,7 @@ const ProjectMaster = () => {
         ));
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated locally');
+        toast.success('Column updated locally');
         return;
       }
 
@@ -393,10 +396,10 @@ const ProjectMaster = () => {
         await fetchColumns();
         setEditingColumn(null);
         setTempColumnName('');
-        showNotification('Column updated successfully');
+        toast.success('Column updated successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error updating column', 'error');
+        toast.error('Error updating column');
       }
     }
   };
@@ -446,15 +449,15 @@ const ProjectMaster = () => {
         await fetchColumns(); // Re-sync with server
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
-        showNotification('Column deleted successfully');
+        toast.success('Column deleted successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error deleting column', 'error');
+        toast.error('Error deleting column');
       }
     } else {
       setShowDeleteColumnPrompt(null);
       if (col && !col.db_id) {
-        showNotification('Cannot delete fixed column', 'warning');
+        toast.error('Cannot delete fixed column');
       }
     }
   };
@@ -475,22 +478,41 @@ const ProjectMaster = () => {
   // Validation
   const validateProjectForm = (project) => {
     const errors = {};
-    // Only validate the fields shown in the form modal
-    // Get all custom column IDs that are also in the form
-    const customColIds = customColumns.map(c => c.id);
-    const formFieldIds = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', ...customColIds];
-    for (const col of columns) {
-      if (!formFieldIds.includes(col.id) || !col.required) continue;
-      if (!project[col.id]?.toString().trim()) {
+    const requiredFixedFields = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date'];
+
+    requiredFixedFields.forEach(field => {
+      if (!project[field] || (typeof project[field] === 'string' && !project[field].trim())) {
+        errors[field] = `${field.replace('_', ' ').charAt(0).toUpperCase() + field.replace('_', ' ').slice(1)} is required`;
+      }
+    });
+
+    // Validate custom fields
+    customColumns.forEach(col => {
+      const value = project[col.id];
+      
+      // Required check
+      if (col.required && (value === undefined || value === null || value === '')) {
         errors[col.id] = `${col.label} is required`;
       }
-      if (col.type === 'number') {
-        const numValue = parseFloat(project[col.id]);
-        if (isNaN(numValue) || numValue < 0) {
-          errors[col.id] = `${col.label} must be a valid positive number`;
+
+      // Type checks
+      if (value) {
+        if (['integer', 'decimal', 'currency', 'number'].includes(col.type)) {
+          if (isNaN(parseFloat(value))) {
+            errors[col.id] = `${col.label} must be a number`;
+          }
+        } else if (col.type === 'email') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            errors[col.id] = `Invalid email format for ${col.label}`;
+          }
+        } else if (col.type === 'phone') {
+          if (!/^\d{10}$/.test(value.toString())) {
+            errors[col.id] = `${col.label} must be exactly 10 digits`;
+          }
         }
       }
-    }
+    });
+
     return errors;
   };
 
@@ -644,7 +666,7 @@ const ProjectMaster = () => {
       setShowAddProjectModal(false);
       setValidationErrors({});
       setCurrentPage(1);
-      showNotification(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
+      toast.success(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
     } catch (err) {
       console.error(err);
       let msg = err.response?.data?.detail || err.message;
@@ -658,7 +680,7 @@ const ProjectMaster = () => {
         msg = 'A project with this ID might already exist. Please try a different ID.';
       }
       
-      showNotification('Error saving project: ' + msg, 'error');
+      toast.error('Error saving project: ' + msg);
     }
   };
 
@@ -684,11 +706,11 @@ const ProjectMaster = () => {
         if (paginatedProjects.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
-        showNotification('Project deleted successfully');
+        toast.success('Project deleted successfully');
       } catch (err) {
         console.error(err);
         const msg = err.response?.data?.detail || err.message;
-        showNotification('Error deleting project: ' + msg, 'error');
+        toast.error('Error deleting project: ' + msg);
       }
     }
   };
@@ -734,11 +756,11 @@ const ProjectMaster = () => {
       setValidationErrors({});
       setSelectedProjects([]);
       setSelectAll(false);
-      showNotification('Project updated successfully');
+      toast.success('Project updated successfully');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.detail || err.message;
-      showNotification('Error updating project: ' + msg, 'error');
+      toast.error('Error updating project: ' + msg);
     }
   };
 
@@ -778,10 +800,20 @@ const ProjectMaster = () => {
   }, [editForm.budget, editForm.utilized_budget]);
 
   // Add new column
-  const handleAddColumn = () => {
+  const handleAddColumn = async () => {
     if (!newColumnName.trim()) {
-      showNotification('Please enter a column name', 'error');
+      toast.error('Please enter a column name');
       return;
+    }
+
+    try {
+      const res = await API.get(`/projects/columns/suggest?name=${encodeURIComponent(newColumnName)}`);
+      if (res.data && res.data.suggested_type) {
+        setSuggestedType(res.data.suggested_type);
+        setNewColumnType(res.data.suggested_type);
+      }
+    } catch (err) {
+      console.error("Error fetching suggestion", err);
     }
 
     setShowColumnAddPrompt({
@@ -795,7 +827,7 @@ const ProjectMaster = () => {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
       if (columns.find(col => col.id === newColumnId)) {
-        showNotification('Column with this name already exists', 'error');
+        toast.error('Column with this name already exists');
         return;
       }
 
@@ -803,18 +835,21 @@ const ProjectMaster = () => {
         await API.post('/projects/columns/create', {
           column_name: newColumnId,
           column_label: newColumnName,
-          data_type: 'text',
-          is_required: false
+          data_type: newColumnType,
+          is_required: false,
+          validation_rules: {}
         });
 
         await fetchColumns();
         setNewColumnName('');
+        setNewColumnType('text');
+        setSuggestedType('');
         setShowColumnAddPrompt({ show: false, columnName: '' });
         setShowColumnModal(false);
-        showNotification('Column added successfully');
+        toast.success('Column added successfully');
       } catch (err) {
         console.error(err);
-        showNotification('Error adding column', 'error');
+        toast.error('Error adding column');
       }
     }
   };
@@ -836,7 +871,7 @@ const ProjectMaster = () => {
 
   const handleCopyColumnName = (label) => {
     navigator.clipboard.writeText(label);
-    showNotification('Column name copied');
+    toast.success('Column name copied');
     setActiveDropdownColumn(null);
   };
 
@@ -844,10 +879,10 @@ const ProjectMaster = () => {
     let newFrozen = [...frozenColumns];
     if (newFrozen.includes(colIndex)) {
       newFrozen = newFrozen.filter(idx => idx !== colIndex);
-      showNotification('Column unfrozen');
+      toast.success('Column unfrozen');
     } else {
       newFrozen = [...new Set([...newFrozen, colIndex])].sort((a, b) => a - b);
-      showNotification('Column frozen');
+      toast.success('Column frozen');
     }
     setFrozenColumns(newFrozen);
     setTempFrozenColumns(newFrozen);
@@ -857,7 +892,7 @@ const ProjectMaster = () => {
   // Export functions
   const handleExportClick = (format) => {
     if (sortedProjects.length === 0) {
-      showNotification('No data to export', 'error');
+      toast.error('No data to export');
       return;
     }
 
@@ -890,7 +925,7 @@ const ProjectMaster = () => {
         XLSX.utils.book_append_sheet(wb, ws, "Projects");
         XLSX.writeFile(wb, "projects.xlsx");
         setShowExportDropdown(false);
-        showNotification('Export to Excel completed successfully');
+        toast.success('Export to Excel completed successfully');
         return;
       case 'csv':
         content = convertToCSV(dataToExport);
@@ -905,7 +940,7 @@ const ProjectMaster = () => {
       case 'pdf':
         exportToPDF(dataToExport);
         setShowExportDropdown(false);
-        showNotification('Export to PDF completed successfully');
+        toast.success('Export to PDF completed successfully');
         return;
     }
 
@@ -920,7 +955,7 @@ const ProjectMaster = () => {
     window.URL.revokeObjectURL(url);
 
     setShowExportDropdown(false);
-    showNotification(`Export to ${format.toUpperCase()} completed successfully`);
+    toast.success(`Export to ${format.toUpperCase()} completed successfully`);
     setShowExportConfirmPrompt(null);
   };
 
@@ -996,9 +1031,9 @@ const ProjectMaster = () => {
     setShowFreezeRowModal(false);
 
     if (tempFrozenRows.length > 0) {
-      showNotification(`${tempFrozenRows.length} row(s) frozen`);
+      toast.success(`${tempFrozenRows.length} row(s) frozen`);
     } else {
-      showNotification('All rows unfrozen');
+      toast.success('All rows unfrozen');
     }
   };
 
@@ -1007,9 +1042,9 @@ const ProjectMaster = () => {
     setShowFreezeColumnModal(false);
 
     if (tempFrozenColumns.length > 0) {
-      showNotification(`${tempFrozenColumns.length} column(s) frozen`);
+      toast.success(`${tempFrozenColumns.length} column(s) frozen`);
     } else {
-      showNotification('All columns unfrozen');
+      toast.success('All columns unfrozen');
     }
   };
 
@@ -1468,23 +1503,6 @@ const ProjectMaster = () => {
   return (
     <div className="master-table-container">
       <>
-        {/* Notification Banner */}
-        {notification.show && (
-          <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-            notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-              'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">{notification.message}</span>
-              <button
-                onClick={() => setNotification({ show: false, message: '', type: '' })}
-                className="ml-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
@@ -1662,21 +1680,55 @@ const ProjectMaster = () => {
         {/* Add Column Prompt */}
         {showColumnAddPrompt.show && (
           <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4 shadow-xl">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Add New Column</h3>
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="mb-4 space-y-4">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Select Data Type</label>
+                  <select 
+                    value={newColumnType}
+                    onChange={(e) => setNewColumnType(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none"
+                  >
+                    <option value="text">Text</option>
+                    <option value="long_text">Long Text</option>
+                    <option value="integer">Integer</option>
+                    <option value="decimal">Decimal</option>
+                    <option value="currency">Currency</option>
+                    <option value="percentage">Percentage</option>
+                    <option value="boolean">Boolean</option>
+                    <option value="date">Date</option>
+                    <option value="datetime">DateTime</option>
+                    <option value="phone">Phone</option>
+                    <option value="email">Email</option>
+                    <option value="url">URL</option>
+                    <option value="dropdown">Dropdown</option>
+                    <option value="multi_select">Multi Select</option>
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="user">User</option>
+                    <option value="file">File</option>
+                    <option value="json">JSON</option>
+                  </select>
+                  {suggestedType && (
+                    <p className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Smart suggestion: {suggestedType}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Add Column</button>
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
+                <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Add Column</button>
               </div>
             </div>
           </div>
@@ -1987,7 +2039,7 @@ const ProjectMaster = () => {
                       placeholder="e.g. PRJ001"
                       className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.project_id}</p>}
+                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>&#9888;</span>{validationErrors.project_id}</p>}
                   </div>
                   {/* Project Name */}
                   <div>
@@ -2096,32 +2148,77 @@ const ProjectMaster = () => {
                   </div>
 
                   {/* Dynamic Custom Columns */}
-                  {customColumns.map(col => (
-                    <div key={col.id}>
-                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                        {col.label} {col.required && <span className="text-red-500">*</span>}
-                      </label>
-                      {col.type === 'select' ? (
-                        <select
-                          value={newProject[col.id] || ''}
-                          onChange={e => handleNewProjectChange(col.id, e.target.value)}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                        >
-                          <option value="">Select {col.label}</option>
-                          {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                      ) : (
+                  {customColumns.map(col => {
+                    const inputType = {
+                      'integer': 'number',
+                      'decimal': 'number',
+                      'currency': 'number',
+                      'percentage': 'number',
+                      'date': 'date',
+                      'datetime': 'datetime-local',
+                      'email': 'email',
+                      'phone': 'tel',
+                      'url': 'url',
+                      'boolean': 'checkbox'
+                    }[col.data_type || col.type] || 'text';
+
+                    if (col.data_type === 'boolean' || col.type === 'boolean') {
+                      return (
+                        <div key={col.id} className="flex items-center gap-3 mt-6">
+                          <input
+                            type="checkbox"
+                            id={`new-${col.id}`}
+                            checked={newProject[col.id] === true}
+                            onChange={(e) => handleNewProjectChange(col.id, e.target.checked)}
+                            className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                          />
+                          <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">
+                            {col.label} {col.required && <span className="text-red-500">*</span>}
+                          </label>
+                        </div>
+                      );
+                    }
+
+                    if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                      const options = col.validation_rules?.options || [];
+                      return (
+                        <div key={col.id}>
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                            {col.label} {col.required && <span className="text-red-500">*</span>}
+                          </label>
+                          <select
+                            value={newProject[col.id] || ''}
+                            onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                          >
+                            <option value="">Select {col.label}</option>
+                            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                          {validationErrors[col.id] && (
+                            <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={col.id}>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+                          {col.label} {col.required && <span className="text-red-500">*</span>}
+                        </label>
                         <input
-                          type={col.type === 'number' ? 'number' : (col.type === 'date' ? 'date' : 'text')}
+                          type={inputType}
                           value={newProject[col.id] || ''}
                           onChange={e => handleNewProjectChange(col.id, e.target.value)}
                           placeholder={`Enter ${col.label.toLowerCase()}`}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                         />
-                      )}
-                      {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
-                    </div>
-                  ))}
+                        {validationErrors[col.id] && (
+                          <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                        )}
+                      </div>
+                    );
+                  })}
 
                   {/* Budget Upload (Excel) */}
                   <div className="sm:col-span-2">
@@ -2314,32 +2411,73 @@ const ProjectMaster = () => {
                   </div>
 
                   {/* Dynamic Custom Columns */}
-                  {customColumns.map(col => (
-                    <div key={col.id}>
-                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">
-                        {col.label} {col.required && <span className="text-red-500">*</span>}
-                      </label>
-                      {col.type === 'select' ? (
-                        <select
-                          value={editForm[col.id] || ''}
-                          onChange={e => handleEditFormChange(col.id, e.target.value)}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                        >
-                          <option value="">Select {col.label}</option>
-                          {col.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                      ) : (
+                  {customColumns.map(col => {
+                    const inputType = {
+                      'integer': 'number',
+                      'decimal': 'number',
+                      'currency': 'number',
+                      'percentage': 'number',
+                      'date': 'date',
+                      'datetime': 'datetime-local',
+                      'email': 'email',
+                      'phone': 'tel',
+                      'url': 'url',
+                      'boolean': 'checkbox'
+                    }[col.data_type || col.type] || 'text';
+
+                    if (col.data_type === 'boolean') {
+                      return (
+                        <div key={col.id} className="flex items-center gap-3 mt-6">
+                          <input
+                            type="checkbox"
+                            id={`edit-${col.id}`}
+                            checked={editForm[col.id] === true}
+                            onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
+                            className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                          />
+                          <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer uppercase tracking-wide">
+                            {col.label} {col.required && <span className="text-red-500">*</span>}
+                          </label>
+                        </div>
+                      );
+                    }
+
+                    if (col.data_type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                      const options = col.validation_rules?.options || [];
+                      return (
+                        <div key={col.id}>
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">
+                            {col.label} {col.required && <span className="text-red-500">*</span>}
+                          </label>
+                          <select
+                            value={editForm[col.id] || ''}
+                            onChange={e => handleEditFormChange(col.id, e.target.value)}
+                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                          >
+                            <option value="">Select {col.label}</option>
+                            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={col.id}>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">
+                          {col.label} {col.is_required && <span className="text-red-500">*</span>}
+                        </label>
                         <input
-                          type={col.type === 'number' ? 'number' : (col.type === 'date' ? 'date' : 'text')}
+                          type={inputType}
                           value={editForm[col.id] || ''}
                           onChange={e => handleEditFormChange(col.id, e.target.value)}
                           placeholder={`Enter ${col.label.toLowerCase()}`}
                           className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                          required={col.is_required}
                         />
-                      )}
-                      {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
-                    </div>
-                  ))}
+                        {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
+                      </div>
+                    );
+                  })}
 
                 </div>
               </div>
@@ -2796,8 +2934,25 @@ const ProjectMaster = () => {
                     {/* Empty state */}
                     {paginatedProjects.length === 0 && (
                       <tr>
-                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                          No projects found
+                        <td colSpan={visibleColumns.length + 2} className="py-24">
+                          <div className="flex flex-col items-center justify-center text-center px-4">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
+                              <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Projects Found</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                              Your project list is currently empty. Start by creating a new project to track its progress and budget.
+                            </p>
+                            {canAddProject && (
+                              <button
+                                onClick={handleAddProjectClick}
+                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                              >
+                                <Plus className="h-5 w-5" />
+                                Launch New Project
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}

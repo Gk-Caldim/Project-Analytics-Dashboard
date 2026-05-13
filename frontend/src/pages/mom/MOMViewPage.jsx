@@ -25,7 +25,7 @@ import './MOMViewPage.css';
 // ── Speaker colour palette ───────────────────────────────────────────────
 const SPEAKER_COLORS = [
   { bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED' },
-  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' },
+  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#1e293b' },
   { bg: '#D1FAE5', text: '#065F46', dot: '#059669' },
   { bg: '#FEE2E2', text: '#991B1B', dot: '#DC2626' },
   { bg: '#FEF3C7', text: '#92400E', dot: '#D97706' },
