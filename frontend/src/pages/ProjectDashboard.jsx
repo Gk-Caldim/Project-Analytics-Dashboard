@@ -8,7 +8,7 @@ import '../utils/echarts-theme-v5'; // Register the v5 theme
 import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
-  ChevronUp, ChevronDown, Check, Save, Settings, Download, GripVertical,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
   TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -459,7 +459,8 @@ const ProjectTitleDashboard = () => {
                 budget: struct.budget || 0,
                 utilized_budget: struct.utilized_budget || 0,
                 balance_budget: struct.balance_budget || 0,
-                project_manager: struct.project_manager || null
+                project_manager: struct.project_manager || null,
+                originalName: struct.project_name || 'Uncategorized'
               });
             }
 
@@ -973,6 +974,7 @@ const ProjectTitleDashboard = () => {
 
   useEffect(() => {
     setMetricsPage(1);
+    setBudgetPage(1);
   }, [activeProject?.id]);
 
   // Budget Table Data (Array of Arrays to support Handsontable Excel-like editing natively)
@@ -983,6 +985,8 @@ const ProjectTitleDashboard = () => {
     ['Revenue', '', '', '', '', '', '', ''],
     ['Total Revenue', '', '', '', '', '', '', '']
   ]);
+  const [budgetPage, setBudgetPage] = useState(1);
+  const [budgetItemsPerPage, setBudgetItemsPerPage] = useState(10);
 
   // Modal States
   const [showEditMilestones, setShowEditMilestones] = useState(false);
@@ -1025,8 +1029,8 @@ const ProjectTitleDashboard = () => {
 
   // Sync selected budget project with activeProject initially
   useEffect(() => {
-    if (activeProject && activeProject.name) {
-      setSelectedBudgetProject(activeProject.name);
+    if (activeProject && (activeProject.originalName || activeProject.name)) {
+      setSelectedBudgetProject(activeProject.originalName || activeProject.name);
     }
   }, [activeProject]);
 
@@ -1038,7 +1042,7 @@ const ProjectTitleDashboard = () => {
       try {
         const { default: API } = await import('../utils/api');
         const response = await API.get(`/budget/${encodeURIComponent(targetProject)}`);
-        if (response.data && Array.isArray(response.data.budget_data) && response.data.budget_data.length > 0 && Array.isArray(response.data.budget_data[0])) {
+        if (response.data && Array.isArray(response.data.budget_data) && response.data.budget_data.length > 0) {
           setBudgetTableData(response.data.budget_data);
           setBudgetCurrency(response.data.currency || '$');
         } else {
@@ -1459,6 +1463,7 @@ const ProjectTitleDashboard = () => {
       ...(activeProject?.submodules || []).map(sub => sub.id),
       ...(activeProject?.uploads || []).map(u => `upload-${u.file_name}`)
     ];
+
     const availableSectionKeys = [
       'milestones', 'criticalIssues', 'metricsSummary',
       'budget', 'resource', 'quality',
@@ -1479,27 +1484,20 @@ const ProjectTitleDashboard = () => {
 
     // Create new object, taking care to not turn on unavailable ones
     const newVisibleSections = { ...tempVisibleSections };
-    Object.keys(tempVisibleSections).forEach(key => {
-      if (availableSectionKeys.includes(key)) {
-        newVisibleSections[key] = setTarget;
-      } else {
-        // If it's a dynamic tracker that's available, it should be in availableSectionKeys
-        // If it's not in availableSectionKeys, it might be an old tracker from another project
-        // We should probably preserve it or only clear if it's explicitly not available for THIS project
-        if (dynamicTrackerKeys.includes(key)) {
-          newVisibleSections[key] = setTarget;
-        } else {
-          // Fixed keys that are not available should be false
-          const fixedKeys = ['milestones', 'criticalIssues', 'sopTables', 'budget', 'resource', 'quality', 'design', 'build', 'gateway', 'validation', 'qualityIssues'];
-          if (fixedKeys.includes(key) && !availableSectionKeys.includes(key)) {
-            newVisibleSections[key] = false;
-          }
-        }
-      }
+
+    // Apply target to all available keys
+    availableSectionKeys.forEach(key => {
+      newVisibleSections[key] = setTarget;
     });
+
+    // Also handle keys that might be in tempVisibleSections but not in current availableSectionKeys
+    // (e.g. dynamic trackers from other projects). If we are deselecting all, we should probably
+    // clear everything to be safe, or just stick to available ones.
+    // Let's stick to available ones to avoid accidentally clearing hidden config.
 
     setTempVisibleSections(newVisibleSections);
   };
+
 
   // Handle section selection for email
   const handleSectionToggle = (section) => {
@@ -1828,14 +1826,22 @@ const ProjectTitleDashboard = () => {
     const hasCriticalIssues = !!(criticalIssues?.length > 0);
     const hasBudgetData = budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
 
+    const dynamicTrackerKeys = [
+      ...(activeProject?.submodules || []).map(sub => sub.id),
+      ...(activeProject?.uploads || []).map(u => `upload-${u.file_name}`)
+    ];
+
     const availableSectionKeys = [
       hasMilestones && 'milestones',
       hasCriticalIssues && 'criticalIssues',
       hasBudgetData && 'budget',
-      'metricsSummary'
+      'metricsSummary',
+      ...['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].filter(id => availablePhases[id]),
+      ...dynamicTrackerKeys
     ].filter(Boolean);
 
     const allSelected = availableSectionKeys.every(key => tempVisibleSections[key]);
+
 
     return (
       <div style={{
@@ -1989,21 +1995,24 @@ const ProjectTitleDashboard = () => {
               <div style={{ fontSize: '13px', color: '#4b5563' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
-                    .filter(([section, selected]) => selected && availableSectionKeys.includes(section))
+                    .filter(([section, selected]) => {
+                      const topLevelSections = ['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                      return selected && topLevelSections.includes(section);
+                    })
                     .map(([section]) => {
                       const labels = {
                         milestones: 'Milestone Progress Tracker',
                         criticalIssues: 'MOM Issues',
                         budget: 'Budget Summary',
+                        resource: 'Resource Summary',
+                        quality: 'Quality Summary',
                         metricsSummary: 'Project Metrics Summary'
                       };
 
                       let displayLabel = labels[section] || section;
 
                       if (section === 'metricsSummary') {
-                        const chartCount = Object.entries(tempVisibleSections)
-                          .filter(([k, v]) => v && (k.startsWith('upload-') || ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'].includes(k)))
-                          .length;
+                        const chartCount = allPossibleCharts.filter(c => tempVisibleSections[c.id]).length;
                         displayLabel = `Project Metrics Summary (${chartCount} charts)`;
                       }
 
@@ -2020,6 +2029,7 @@ const ProjectTitleDashboard = () => {
                         </span>
                       );
                     })}
+
                 </div>
                 {Object.values(tempVisibleSections).filter(v => v).length === 0 && (
                   <div style={{ color: '#9ca3af', textAlign: 'center', padding: '10px' }}>
@@ -2771,7 +2781,10 @@ const ProjectTitleDashboard = () => {
 
     // Process data based on selected axes
     // We group by xAxis, and aggregate yAxis (sum if numeric, count otherwise)
-    const groupedData = {};
+    const isGrouped = chartType === 'grouped-bar';
+    const groupedData = {}; // { xVal: value } OR { xVal: { groupVal: value } }
+    const allGroupValues = new Set();
+
     const yAxisIsNumeric = chartData.some(row => {
       const val = row[axisConfig.yAxis];
       return val !== null && val !== undefined && val !== '' && !isNaN(parseFloat(val));
@@ -2788,6 +2801,12 @@ const ProjectTitleDashboard = () => {
       }
 
       let yVal = row[axisConfig.yAxis];
+      let groupVal = null;
+
+      if (isGrouped) {
+        groupVal = String(yVal || 'Unspecified').trim();
+        allGroupValues.add(groupVal);
+      }
 
       // Handle derived date metrics
       if (derivedConfig && ['delay', 'duration', 'cycleTime'].includes(derivedConfig.type)) {
@@ -2802,47 +2821,61 @@ const ProjectTitleDashboard = () => {
         }
       }
 
-      if (!groupedData[xVal]) {
-        groupedData[xVal] = 0;
-      }
-
-      if (derivedConfig || yAxisIsNumeric) {
-        if (yVal !== null && yVal !== undefined && yVal !== '') {
-          groupedData[xVal] += parseFloat(yVal) || 0;
+      if (isGrouped) {
+        if (!groupedData[xVal]) groupedData[xVal] = {};
+        if (!groupedData[xVal][groupVal]) groupedData[xVal][groupVal] = 0;
+        
+        // If Y is numeric and we are grouping, we sum the Y values for that group
+        // If Y is string, we just count occurrences of (X, Y) pair
+        if (yAxisIsNumeric && !derivedConfig) {
+          groupedData[xVal][groupVal] += parseFloat(yVal) || 0;
+        } else {
+          groupedData[xVal][groupVal] += 1;
         }
       } else {
-        if (yVal !== null && yVal !== undefined && String(yVal).trim() !== '') {
-          groupedData[xVal] += 1; // Count valid non-empty values
+        if (!groupedData[xVal]) {
+          groupedData[xVal] = 0;
+        }
+
+        if (derivedConfig || yAxisIsNumeric) {
+          if (yVal !== null && yVal !== undefined && yVal !== '') {
+            groupedData[xVal] += parseFloat(yVal) || 0;
+          }
+        } else {
+          if (yVal !== null && yVal !== undefined && String(yVal).trim() !== '') {
+            groupedData[xVal] += 1; // Count valid non-empty values
+          }
         }
       }
     });
 
     // Sort labels to make charts readable (e.g. chronological or alphabetical)
-    const sortedEntries = Object.entries(groupedData).sort((a, b) => {
-      // Always put Uncategorized at the very end
+    const sortedXEntries = Object.entries(groupedData).sort((a, b) => {
       if (a[0] === 'Uncategorized') return 1;
       if (b[0] === 'Uncategorized') return -1;
-
-      // Try numeric sort first
       const numA = parseFloat(a[0]);
       const numB = parseFloat(b[0]);
       if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-
-      // Fallback to string local compare
       return a[0].localeCompare(b[0]);
     });
 
-    const xLabels = sortedEntries.map(e => e[0]);
-    const yValues = sortedEntries.map(e => {
-      // Round to 2 decimals if numeric to avoid floating point issues
+    const xLabels = sortedXEntries.map(e => e[0]);
+    const sortedGroups = Array.from(allGroupValues).sort();
+
+    const yValues = sortedXEntries.map(e => {
+      if (isGrouped) return 0; // Handled in series construction
       return yAxisIsNumeric ? Math.round(e[1] * 100) / 100 : e[1];
     });
+
 
     // Label for Y-axis
     let yAxisLabel = humanizeLabel(axisConfig.yAxis);
     if (derivedConfig && derivedConfig.label) {
       yAxisLabel = `${derivedConfig.label} (Days)`;
+    } else if (!yAxisIsNumeric) {
+      yAxisLabel = `Count of ${humanizeLabel(axisConfig.yAxis)}`;
     }
+
 
     const baseOption = {
       tooltip: {
@@ -2952,23 +2985,29 @@ const ProjectTitleDashboard = () => {
       legend: {
         show: true,
         type: 'scroll',
-        orient: 'horizontal',
-        bottom: 0,
-        left: 'center',
-        itemWidth: 10,
-        itemHeight: 10,
+        orient: isMaximized ? 'vertical' : 'horizontal',
+        right: isMaximized ? '2%' : 'auto',
+        bottom: isMaximized ? 'auto' : 0,
+        left: isMaximized ? 'auto' : 'center',
+        top: isMaximized ? 'middle' : 'auto',
+        itemWidth: 12,
+        itemHeight: 12,
         textStyle: { fontSize: 10, color: '#475569', fontWeight: '600' },
         pageButtonPosition: 'end',
         pageIconSize: 10,
         padding: [5, 10]
       },
       grid: {
-        left: '5%',
-        right: '5%',
-        bottom: xLabels.length > 12 ? '20%' : (chartType === 'bar-rotated' ? '18%' : '12%'),
-        top: '12%',
+        left: isMaximized ? '3%' : '8%',
+        right: isMaximized ? '15%' : '5%',
+        bottom: xLabels.length > 12 ? '20%' : (chartType === 'bar-rotated' ? '18%' : '15%'),
+        top: '15%',
         containLabel: true
       },
+
+
+
+
       xAxis: {
         type: 'category',
         data: xLabels,
@@ -2985,10 +3024,17 @@ const ProjectTitleDashboard = () => {
         type: 'value',
         name: yAxisLabel,
         boundaryGap: ['15%', '15%'],
-        nameTextStyle: { color: '#475569', fontSize: 11, fontWeight: 'bold' },
+        nameTextStyle: {
+          color: '#475569',
+          fontSize: 11,
+          fontWeight: 'bold',
+          align: 'left',
+          padding: [0, 0, 0, 20] // Shift only the label to the right into the chart area
+        },
         axisLabel: { color: '#475569', fontSize: 10 },
         splitLine: { lineStyle: { type: 'dashed', color: '#F1F5F9' } }
       }
+
     };
 
     let option = {};
@@ -3312,6 +3358,44 @@ const ProjectTitleDashboard = () => {
         };
         break;
 
+      case 'grouped-bar':
+        const palette = getDiversePalette();
+        option = {
+          ...baseOption,
+          yAxis: {
+            ...baseOption.yAxis,
+            splitLine: { show: true, lineStyle: { type: 'solid', color: '#E2E8F0' } }
+          },
+          series: sortedGroups.map((group, gIdx) => ({
+            name: group,
+            type: 'bar',
+            barGap: 0,
+            barMaxWidth: 40,
+            emphasis: { focus: 'series' },
+            itemStyle: {
+              borderRadius: [2, 2, 0, 0],
+              color: palette[gIdx % palette.length]
+            },
+            data: xLabels.map(x => {
+              const val = (groupedData[x] && groupedData[x][group]) || 0;
+              return yAxisIsNumeric ? Math.round(val * 100) / 100 : val;
+            }),
+            label: {
+              show: isMaximized,
+              position: 'top',
+              fontSize: 9,
+              color: '#475569',
+              fontWeight: 'bold',
+              formatter: (p) => p.value > 0 ? p.value : ''
+            }
+          }))
+        };
+        break;
+
+
+
+
+
       default:
         return null;
     }
@@ -3349,76 +3433,68 @@ const ProjectTitleDashboard = () => {
   };
 
   // Chart options render function
-  const renderChartOptions = (chartId, currentType) => (
-    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', position: 'relative', justifyContent: 'flex-end', zIndex: 10 }}>
-      <select
-        value={currentType}
-        onChange={(e) => handleChartTypeChange(chartId, e.target.value)}
-        style={{
-          padding: '2px 6px',
-          fontSize: '10px',
-          borderRadius: '4px',
-          border: '1px solid #cbd5e1',
-          backgroundColor: 'var(--bg)',
-          color: 'var(--accent)',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          outline: 'none',
-          maxWidth: '85px',
-          fontFamily: 'Inter, sans-serif'
-        }}
-      >
-        <option value="bar">Bar</option>
-        <option value="line">Line</option>
-        <option value="pie">Pie</option>
-        <option value="area">Area</option>
-        <option value="histogram">Hist</option>
-      </select>
+  const renderChartOptions = (chartId, currentType) => {
+    const commonStyle = {
+      height: '26px',
+      padding: '0 8px',
+      fontSize: '10px',
+      borderRadius: '4px',
+      border: '1px solid #cbd5e1',
+      backgroundColor: 'var(--bg)',
+      color: 'var(--accent)',
+      cursor: 'pointer',
+      fontWeight: 'bold',
+      fontFamily: 'Inter, sans-serif',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      outline: 'none'
+    };
 
-      <button
-        onClick={() => toggleAxisSelector(chartId)}
-        title="Axes"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2px 6px',
-          height: '24px',
-          borderRadius: '4px',
-          border: '1px solid #cbd5e1',
-          backgroundColor: showAxisSelector === chartId ? 'var(--accent)' : 'var(--bg)',
-          color: showAxisSelector === chartId ? 'white' : 'var(--accent)',
-          cursor: 'pointer',
-          fontSize: '10px',
-          fontWeight: 'bold',
-          fontFamily: 'Inter, sans-serif'
-        }}
-      >
-        Axes
-      </button>
+    return (
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', position: 'relative', justifyContent: 'flex-end', zIndex: 10 }}>
+        <select
+          value={currentType}
+          onChange={(e) => handleChartTypeChange(chartId, e.target.value)}
+          style={{
+            ...commonStyle,
+            maxWidth: '90px'
+          }}
+        >
+          <option value="bar">Bar</option>
+          <option value="grouped-bar">Grouped</option>
+          <option value="line">Line</option>
+          <option value="pie">Pie</option>
+          <option value="area">Area</option>
+          <option value="histogram">Hist</option>
+        </select>
 
+        <button
+          onClick={() => toggleAxisSelector(chartId)}
+          title="Axes"
+          style={{
+            ...commonStyle,
+            backgroundColor: showAxisSelector === chartId ? 'var(--accent)' : 'var(--bg)',
+            color: showAxisSelector === chartId ? 'white' : 'var(--accent)',
+            minWidth: '55px'
+          }}
+        >
+          Axes
+        </button>
 
-
-      <button
-        onClick={() => handleMaximize(chartId)}
-        title="Analyze"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2px 6px',
-          height: '24px',
-          borderRadius: '4px',
-          border: '1px solid #cbd5e1',
-          backgroundColor: 'var(--accent)',
-          color: 'white',
-          cursor: 'pointer',
-          fontSize: '10px',
-          fontWeight: 'bold'
-        }}
-      >
-        Analyze
-      </button>
+        <button
+          onClick={() => handleMaximize(chartId)}
+          title="Analyze"
+          style={{
+            ...commonStyle,
+            backgroundColor: 'var(--accent)',
+            color: 'white',
+            border: '1px solid var(--accent)',
+            minWidth: '65px'
+          }}
+        >
+          Analyze
+        </button>
 
       {showAxisSelector === chartId && (
         <AxisSelectorModal
@@ -3434,6 +3510,7 @@ const ProjectTitleDashboard = () => {
       )}
     </div>
   );
+};
 
   const renderBudgetTable = () => {
     // Columns the user wants: Sno, Category, Item name, unity type, Estimated, Utilized, commitment, total utilization, balance
@@ -3450,58 +3527,191 @@ const ProjectTitleDashboard = () => {
     ];
 
     // Handle array of arrays (convert to objects)
-    let rows = [];
+    let allRows = [];
     if (budgetTableData && budgetTableData.length > 0) {
       if (Array.isArray(budgetTableData[0])) {
         const headers = budgetTableData[0];
-        rows = budgetTableData.slice(1).map(r => {
+        allRows = budgetTableData.slice(1).map(r => {
           const obj = {};
           headers.forEach((h, i) => { obj[h] = r[i]; });
           return obj;
         });
       } else {
-        rows = budgetTableData;
+        allRows = budgetTableData;
       }
     }
 
+    // Pagination logic
+    const totalBudgetPages = Math.ceil(allRows.length / budgetItemsPerPage);
+    const startIndex = (budgetPage - 1) * budgetItemsPerPage;
+    const paginatedRows = allRows.slice(startIndex, startIndex + budgetItemsPerPage);
+
     return (
-      <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              {targetCols.map(col => (
-                <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No detailed budget records found.</td></tr>
-            ) : rows.map((row, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fcfdfe' }}>
-                {targetCols.map(col => {
-                  const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
-                  let val = valKey !== undefined ? row[valKey] : '-';
-
-                  // Format monetary values
-                  if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
-                    if (val !== '-') {
-                      val = format(val, false);
-                    }
-                  }
-
-                  return (
-                    <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
-                      {val}
-                    </td>
-                  );
-                })}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                {targetCols.map(col => (
+                  <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                    {col.label}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedRows.length === 0 ? (
+                <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No detailed budget records found.</td></tr>
+              ) : paginatedRows.map((row, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fcfdfe' }}>
+                  {targetCols.map(col => {
+                    const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
+                    let val = valKey !== undefined ? row[valKey] : '-';
+
+                    // Format monetary values
+                    if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
+                      if (val !== '-') {
+                        val = format(val, false);
+                      }
+                    }
+
+                    return (
+                      <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
+                        {val}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {allRows.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '8px' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+              Showing <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{Math.min(allRows.length, startIndex + 1)}</span> to <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{Math.min(allRows.length, startIndex + budgetItemsPerPage)}</span> of <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{allRows.length}</span> results
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Rows per page:</span>
+                <select 
+                  value={budgetItemsPerPage}
+                  onChange={(e) => {
+                    setBudgetItemsPerPage(Number(e.target.value));
+                    setBudgetPage(1);
+                  }}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: 'var(--accent)',
+                    backgroundColor: 'white',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {[10, 25, 50, 100].map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => setBudgetPage(p => Math.max(1, p - 1))}
+                  disabled={budgetPage === 1}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #cbd5e1',
+                    background: 'white',
+                    borderRadius: '6px',
+                    cursor: budgetPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: budgetPage === 1 ? '#94a3b8' : 'var(--accent)',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <ChevronLeft size={14} /> Prev
+                </button>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {(() => {
+                    const pages = [];
+                    const showMax = 5;
+                    if (totalBudgetPages <= showMax) {
+                      for (let i = 1; i <= totalBudgetPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      if (budgetPage > 3) pages.push('...');
+                      const start = Math.max(2, budgetPage - 1);
+                      const end = Math.min(totalBudgetPages - 1, budgetPage + 1);
+                      for (let i = start; i <= end; i++) {
+                        if (!pages.includes(i)) pages.push(i);
+                      }
+                      if (budgetPage < totalBudgetPages - 2) pages.push('...');
+                      if (!pages.includes(totalBudgetPages)) pages.push(totalBudgetPages);
+                    }
+                    
+                    return pages.map((p, i) => (
+                      <button
+                        key={i}
+                        onClick={() => typeof p === 'number' && setBudgetPage(p)}
+                        disabled={typeof p !== 'number'}
+                        style={{
+                          minWidth: '32px',
+                          height: '32px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '800',
+                          border: '1px solid',
+                          borderColor: budgetPage === p ? 'var(--accent)' : '#cbd5e1',
+                          backgroundColor: budgetPage === p ? 'var(--accent)' : 'white',
+                          color: budgetPage === p ? 'white' : (typeof p === 'number' ? '#475569' : '#94a3b8'),
+                          cursor: typeof p === 'number' ? 'pointer' : 'default',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ));
+                  })()}
+                </div>
+
+                <button
+                  onClick={() => setBudgetPage(p => Math.min(totalBudgetPages, p + 1))}
+                  disabled={budgetPage === totalBudgetPages || totalBudgetPages === 0}
+                  style={{
+                    padding: '6px 12px',
+                    border: '1px solid #cbd5e1',
+                    background: 'white',
+                    borderRadius: '6px',
+                    cursor: (budgetPage === totalBudgetPages || totalBudgetPages === 0) ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: (budgetPage === totalBudgetPages || totalBudgetPages === 0) ? '#94a3b8' : 'var(--accent)',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

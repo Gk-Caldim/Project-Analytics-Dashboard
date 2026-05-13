@@ -466,9 +466,11 @@ const UploadTrackers = () => {
 
     try {
       // Single bulk delete API call
-      await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
+      const response = await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
+      console.log('Bulk delete response:', response.data);
 
       // After successful deletion, update local state
+      // Filter out deleted trackers from the current list
       setTrackers(prev => prev.filter(tracker => !selectedTrackers.includes(tracker.id)));
 
       // Remove from sidebar contexts
@@ -498,8 +500,21 @@ const UploadTrackers = () => {
       showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
       setShowBulkDeletePrompt({ show: false, count: 0 });
     } catch (error) {
-      console.error('Error in bulk delete process:', error);
-      showNotification('An error occurred during deletion', 'error');
+      console.error('Detailed error in bulk delete process:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Even if an error occurs, if the user reports it was deleted in backend, 
+      // they might want to refresh the page to see current state.
+      showNotification(
+        error.response?.data?.detail || 'An error occurred during deletion. Please refresh the page.', 
+        'error'
+      );
+      
+      // Close the prompt anyway to avoid stuck UI
+      setShowBulkDeletePrompt({ show: false, count: 0 });
     }
   };
 

@@ -135,7 +135,7 @@ const VPProjectDashboard = ({
         )}
 
         {/* ── MOM ISSUES ── */}
-        {(visibleSections.criticalIssues ?? true) && (
+        {visibleSections.criticalIssues && (
           <div className="vppd-section full">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px' }}>
               <span style={{ fontSize: '16px', fontWeight: 500, color: '#0D9488' }}>Critical Issues</span>
