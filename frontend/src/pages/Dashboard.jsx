@@ -72,7 +72,6 @@ const Dashboard = () => {
 
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
-  const isOnMOMView = location.pathname.includes('/mom/view');
 
   // Fetch settings on mount
   useEffect(() => {
@@ -331,6 +330,7 @@ const Dashboard = () => {
     else if (path.includes('/dashboard/mom/view')) dispatch(setActiveModule('meetings'));
     else if (path.includes('/dashboard/mom')) dispatch(setActiveModule('mom-module'));
     else if (path.includes('/dashboard/meetings')) dispatch(setActiveModule('meetings'));
+    else if (path.includes('/dashboard/saved-moms')) dispatch(setActiveModule('saved-moms'));
     else if (path.includes('/dashboard/schedule-meeting')) dispatch(setActiveModule('schedule-meeting'));
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
   }, [location.pathname, dispatch, mastersSubmodules, otherModules]);
@@ -528,6 +528,7 @@ const Dashboard = () => {
     if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
+    if (activeModule === 'saved-moms') return 'Saved MOMs';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
 
     const allModules = [...mastersModules, ...mastersSubmodules, ...uploadsModules, ...uploadsSubmodules, ...otherModules];
@@ -577,6 +578,7 @@ const Dashboard = () => {
     if (module) path = module.path;
     else if (moduleId === 'mom-module') path = 'mom';
     else if (moduleId === 'meetings') path = 'meetings';
+    else if (moduleId === 'saved-moms') path = 'saved-moms';
     else if (moduleId === 'schedule-meeting') path = 'schedule-meeting';
 
     navigate(`/dashboard/${path}`);
@@ -737,10 +739,10 @@ const Dashboard = () => {
         )}
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#171717]' : 'bg-app-bg'}`}>
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-black' : 'bg-app-bg'}`}>
           {/* Header */}
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
-            ? 'bg-[#171717] border-b border-white/5'
+            ? 'bg-black border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Title */}
             <div className="flex items-center gap-4 flex-1">

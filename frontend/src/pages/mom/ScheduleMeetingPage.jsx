@@ -662,14 +662,17 @@ const ScheduleMeetingPage = () => {
         });
 
         if (resp.data.success) {
-          // POST-SCHEDULE REDIRECT (Correct Flow Architecture)
-          // No window.open to external URL here.
+          // Open the Teams meeting link in a new tab
+          if (resp.data.join_url) {
+            window.open(resp.data.join_url, '_blank');
+          }
+          // Redirect to the internal meeting details page
           navigate(`/dashboard/meeting/${resp.data.meeting_id}`);
         } else {
           setError(resp.data.error || 'Failed to schedule Teams meeting.');
         }
       } catch (err) {
-        const detail = err.response?.data?.detail || 'Teams meeting creation failed.';
+        const detail = err.response?.data?.detail || err.response?.data?.error || 'Teams meeting creation failed.';
         setError(detail);
       } finally {
         setLoading(false);
@@ -697,14 +700,21 @@ const ScheduleMeetingPage = () => {
     try {
       const resp = await API.post('/meetings/publish', payload);
       if (resp.data.success) {
-        // POST-SCHEDULE REDIRECT (Correct Flow Architecture)
-        // No window.open to external URL here.
+        // Open the Google Meet link in a new tab
+        if (resp.data.meeting.join_url) {
+          window.open(resp.data.meeting.join_url, '_blank');
+        }
+        // Redirect to the internal meeting details page
         navigate(`/dashboard/meeting/${resp.data.meeting.id}`);
       } else {
         setError(resp.data.error || 'Failed to schedule meeting.');
       }
     } catch (err) {
-      setError('An error occurred. Make sure backend is running properly.');
+      if (err.response?.status === 401) {
+        setError(err.response.data?.detail || err.response.data?.error || 'Authentication required. Please reconnect your account.');
+      } else {
+        setError(err.response?.data?.error || err.response?.data?.detail || 'An error occurred. Make sure backend is running properly.');
+      }
     } finally {
       setLoading(false);
     }

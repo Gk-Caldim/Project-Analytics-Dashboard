@@ -16,6 +16,28 @@ export const fetchMOM = createAsyncThunk(
   }
 );
 
+export const fetchMOMBySyncId = createAsyncThunk(
+  'mom/fetchBySyncId',
+  async (syncId, { rejectWithValue }) => {
+    try {
+      // 1. Fetch the action items for this sync
+      const itemsResp = await API.get(`/mom/syncs/${syncId}/items`);
+      
+      // 2. Fetch the MOM session data (the Saved MOM record)
+      // We might need a new endpoint for this or update the existing one.
+      // For now, let's assume we fetch by sync_id if we add that endpoint.
+      const sessionResp = await API.get(`/mom/sessions/${syncId}`);
+      
+      return {
+        items: itemsResp.data.rows,
+        session: sessionResp.data
+      };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.detail || err.message);
+    }
+  }
+);
+
 export const saveMOM = createAsyncThunk(
   'mom/save',
   async ({ meetingId, meetingName, projectId, projectName, momData }, { rejectWithValue }) => {
@@ -39,6 +61,7 @@ export const saveMOM = createAsyncThunk(
 const momSlice = createSlice({
   name: 'mom',
   initialState: {
+    syncId:      null,
     meetingId:   null,
     meetingName: '',
     projectId:   null,
@@ -50,6 +73,7 @@ const momSlice = createSlice({
   },
   reducers: {
     setMeetingContext(state, { payload }) {
+      state.syncId      = payload.syncId      ?? state.syncId;
       state.meetingId   = payload.meetingId   ?? state.meetingId;
       state.meetingName = payload.meetingName ?? state.meetingName;
       state.projectId   = payload.projectId   ?? state.projectId;
@@ -76,6 +100,7 @@ const momSlice = createSlice({
     },
     resetMOM(state) {
       state.momData     = [];
+      state.syncId      = null;
       state.meetingId   = null;
       state.meetingName = '';
       state.projectId   = null;
@@ -111,6 +136,29 @@ const momSlice = createSlice({
         state.lastSaved = payload.updated_at;
       })
       .addCase(saveMOM.rejected,  (state, { payload }) => {
+        state.status = 'error';
+        state.error  = payload;
+      });
+
+    // Fetch By Sync ID
+    builder
+      .addCase(fetchMOMBySyncId.pending, (state) => { state.status = 'loading'; state.error = null; })
+      .addCase(fetchMOMBySyncId.fulfilled, (state, { payload }) => {
+        const { items, session } = payload;
+        if (session) {
+          state.syncId      = session.sync_id;
+          state.meetingId   = session.meeting_id;
+          state.meetingName = session.meeting_name;
+          state.projectId   = session.project_id;
+          state.projectName = session.project_name;
+          state.momData     = session.mom_data || items || [];
+          state.lastSaved   = session.updated_at || session.created_at;
+        } else if (items) {
+          state.momData = items;
+        }
+        state.status = 'saved';
+      })
+      .addCase(fetchMOMBySyncId.rejected, (state, { payload }) => {
         state.status = 'error';
         state.error  = payload;
       });

@@ -317,12 +317,12 @@ async def save_transcript(
         db_transcript = db.query(Transcript).filter(Transcript.meeting_id == payload.meeting_id).first()
         
         if db_transcript:
-            db_transcript.transcript_data = payload.transcript_data
-            db_transcript.updated_at = datetime.now(timezone.utc)
+            db_transcript.transcript_data = payload.transcript_data  # type: ignore
+            db_transcript.updated_at = datetime.now(timezone.utc)  # type: ignore
         else:
             db_transcript = Transcript(
                 meeting_id=payload.meeting_id,
-                transcript_data=payload.transcript_data
+                transcript_data=payload.transcript_data  # type: ignore
             )
             db.add(db_transcript)
         
@@ -344,6 +344,9 @@ async def get_transcript(
     """
     Fetch a persisted transcript by its meeting ID.
     """
+    if meeting_id in ("unscheduled", "unscheduled-session"):
+        raise HTTPException(status_code=404, detail="No transcript for unscheduled session.")
+
     db_transcript = db.query(Transcript).filter(Transcript.meeting_id == meeting_id).first()
     if not db_transcript:
         raise HTTPException(status_code=404, detail="Transcript not found for this meeting.")

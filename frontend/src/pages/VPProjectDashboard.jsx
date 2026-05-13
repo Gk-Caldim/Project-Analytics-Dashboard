@@ -331,27 +331,45 @@ const VPProjectDashboard = ({
                       parsedSyncedAt = `${sDateStr} · ${sTimeStr}`;
                     }
                     return (
-                      <tr key={h.history_id || idx}>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#1E293B', verticalAlign: 'middle' }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#1E293B', verticalAlign: 'middle', fontSize: '13px' }}>{h.meeting_name || 'Untitled Meeting'}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#64748B', verticalAlign: 'middle', fontSize: '13px' }}>{parsedDate}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#64748B', verticalAlign: 'middle', fontSize: '13px' }}>{parsedSyncedAt}</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', color: '#0D9488', verticalAlign: 'middle', fontSize: '13px' }}>{h.row_count} issues</td>
-                        <td style={{ padding: '12px 16px', borderBottom: '0.5px solid #F1F5F9', verticalAlign: 'middle', fontSize: '13px' }}>
-                          {h.mom_output_url ? (
-                            <a href={h.mom_output_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0D9488', textDecoration: 'none' }}>
-                              View Transcript →
-                            </a>
-                          ) : (
-                            <span style={{ color: '#94A3B8' }}>—</span>
+                      <div
+                        key={h.history_id || idx}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '8px 12px', background: idx === 0 ? '#F0FDF4' : '#F8FAFC',
+                          borderRadius: '8px', border: idx === 0 ? '1px solid #BBF7D0' : '1px solid #F1F5F9',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <span style={{
+                            width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+                            background: idx === 0 ? '#22c55e' : '#cbd5e1'
+                          }} />
+                          <span style={{ fontSize: '13px', fontWeight: idx === 0 ? 600 : 400, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {h.meeting_name || 'Untitled Meeting'}
+                          </span>
+                          {idx === 0 && (
+                            <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '99px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                              latest
+                            </span>
                           )}
-                        </td>
-                      </tr>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '12px', color: '#0D9488', fontWeight: 500 }}>{h.row_count} issues</span>
+                          <span style={{ fontSize: '12px', color: '#94A3B8' }}>{parsedDate}</span>
+                          <button
+                            onClick={() => h.session_id && navigate(`/dashboard/mom/view/${h.session_id}`)}
+                            style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
             )}
+
           </div>
         )}
 

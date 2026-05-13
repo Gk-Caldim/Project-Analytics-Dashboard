@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional
 import json
 import logging
 
@@ -14,7 +14,7 @@ class ConnectionManager:
         # Global active connections for system-wide broadcasts (like Dashboard notifications)
         self.active_connections: Set[WebSocket] = set()
 
-    async def connect(self, websocket: WebSocket, meeting_id: str = None):
+    async def connect(self, websocket: WebSocket, meeting_id: Optional[str] = None):
         await websocket.accept()
         if meeting_id:
             if meeting_id not in self.rooms:
@@ -23,7 +23,7 @@ class ConnectionManager:
         else:
             self.active_connections.add(websocket)
 
-    def disconnect(self, websocket: WebSocket, meeting_id: str = None):
+    def disconnect(self, websocket: WebSocket, meeting_id: Optional[str] = None):
         if meeting_id:
             if meeting_id in self.rooms and websocket in self.rooms[meeting_id]:
                 self.rooms[meeting_id].remove(websocket)
@@ -33,7 +33,7 @@ class ConnectionManager:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
 
-    async def broadcast_to_room(self, meeting_id: str, message: dict, sender: WebSocket = None):
+    async def broadcast_to_room(self, meeting_id: str, message: dict, sender: Optional[WebSocket] = None):
         if meeting_id in self.rooms:
             # Convert to list to avoid runtime errors if connections disconnect mid-loop
             for connection in list(self.rooms[meeting_id]):

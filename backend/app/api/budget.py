@@ -128,9 +128,9 @@ def update_revision_status(
         raise HTTPException(status_code=404, detail="Revision not found")
 
     if payload.status:
-        revision.status = payload.status
+        revision.status = payload.status  # type: ignore
     if payload.waiting_until is not None:
-        revision.waiting_until = payload.waiting_until
+        revision.waiting_until = payload.waiting_until  # type: ignore
 
     # Auto-update project budget when approved
     if payload.status == "Approved":
@@ -148,8 +148,8 @@ def update_revision_status(
         from app.models.project import Project
         proj = db.query(Project).filter(Project.name == revision.project_name).first()
         if proj:
-            proj.budget = revision.revised_budget
-            proj.balance_budget = proj.budget - (proj.utilized_budget or 0.0)
+            proj.budget = revision.revised_budget  # type: ignore
+            proj.balance_budget = cast(Any, proj.budget) - (proj.utilized_budget or 0.0)  # type: ignore
             logger.info(
                 f"[budget revision] Approved — synced '{revision.project_name}' to Project Master. New Budget: {proj.budget}, Balance: {proj.balance_budget}"
             )
@@ -167,7 +167,7 @@ def get_revision_attachment(revision_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No attachment found for this revision.")
 
     try:
-        file_bytes = base64.b64decode(revision.attachment_data)
+        file_bytes = base64.b64decode(cast(str, revision.attachment_data))
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to decode stored attachment.")
 
@@ -237,7 +237,7 @@ def generate_budget_proposal(
         currency_factor = 1.0  # Default to no change if not specified
 
     # 2. Extract Metrics
-    total_estimated = budget.overall_budget or 0.0
+    total_estimated = float(budget.overall_budget or 0.0)
     total_utilized = 0.0
     
     for row in (budget.budget_data or []):
@@ -362,7 +362,7 @@ def get_budget_attachment(project_name: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No attachment found for this project budget.")
 
     try:
-        file_bytes = base64.b64decode(budget.attachment_data)
+        file_bytes = base64.b64decode(cast(str, budget.attachment_data))
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to decode stored attachment.")
 
@@ -475,9 +475,9 @@ async def save_budget_summary(
         proj = db.query(Project).filter(Project.name == project_name).first()
         if proj:
             # Sync as requested: overall_budget -> budget, total_utilized -> utilized_budget, total_balance -> balance_budget
-            proj.budget = overall_budget
-            proj.utilized_budget = total_utilized
-            proj.balance_budget = total_balance
+            proj.budget = overall_budget  # type: ignore
+            proj.utilized_budget = total_utilized  # type: ignore
+            proj.balance_budget = total_balance  # type: ignore
             db.commit()
             logger.info(f"[budget] Synced budget to Project Master for '{project_name}': Budget={overall_budget}, Utilized={total_utilized}, Balance={total_balance}")
         else:

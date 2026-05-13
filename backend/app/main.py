@@ -200,12 +200,8 @@ app.include_router(enterprise_router, prefix=API_PREFIX)
 from app.api.transcript import router as transcript_router
 app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])
 
-from app.api.mom import router as mom_router
-app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
-
 from app.api.transcribe import router as transcribe_router
 app.include_router(transcribe_router, prefix=f"{API_PREFIX}/transcribe", tags=["Transcribe"])
-
 
 from app.api.tracker_api import router as tracker_router
 app.include_router(tracker_router, prefix=API_PREFIX, tags=["Tracker"])
@@ -213,12 +209,11 @@ app.include_router(tracker_router, prefix=API_PREFIX, tags=["Tracker"])
 from app.api.dashboard_api import router as dashboard_router
 app.include_router(dashboard_router, prefix=API_PREFIX)
 
-from app.api.issues import router as issues_router, mom_router as history_mom_router
+from app.api.issues import router as issues_router
 app.include_router(issues_router, prefix=API_PREFIX, tags=["Issues"])
-app.include_router(history_mom_router, prefix=API_PREFIX, tags=["MOM Issues"])
 
-from app.routers.mom import router as new_mom_router
-app.include_router(new_mom_router, prefix="/api/mom", tags=["mom"])
+from app.routers.mom import router as mom_router
+app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
 
 from app.api.websockets import router as websockets_router
 app.include_router(websockets_router, prefix=API_PREFIX)

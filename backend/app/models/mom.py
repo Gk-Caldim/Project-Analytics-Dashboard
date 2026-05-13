@@ -10,6 +10,7 @@ class MOMSession(Base):
 
     id           = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     meeting_id   = Column(String, nullable=False, index=True, unique=True)
+    sync_id      = Column(String, nullable=True, index=True) # trace to sync event
     meeting_name = Column(String, nullable=True)
     project_id   = Column(Integer, nullable=True)
     project_name = Column(String, nullable=True)
