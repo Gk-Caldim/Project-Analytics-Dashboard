@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Calendar, Clock, Plus, Search, Mic,
   Play, RefreshCw, Users, ChevronRight,
-  BarChart2, CheckCircle2, AlertCircle, Eye, FileText, ArrowRight, Trash2
+  BarChart2, CheckCircle2, AlertCircle, Eye, FileText, ArrowRight, Trash2, BookMarked
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MeetingsDashboardPage.css';
 import API from '../../utils/api';
 import { setMomData, setMeetingContext } from '../../store/slices/momSlice';
-import { useRef } from 'react';
 
 const MeetingsDashboardPage = () => {
   const navigate = useNavigate();
@@ -33,6 +32,9 @@ const MeetingsDashboardPage = () => {
   // State for expand/collapse saved MOMs
   const [expandMoms, setExpandMoms] = useState(false);
   const [expandHistory, setExpandHistory] = useState(false);
+  // Inline delete confirmation
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Fetch
   const fetchMeetings = async () => {
@@ -47,17 +49,19 @@ const MeetingsDashboardPage = () => {
   };
 
   const handleDeleteMom = async (meetingId) => {
-    if (!window.confirm('Are you sure you want to delete this MOM?')) return;
-
+    setDeleteLoading(true);
     try {
       const res = await API.delete(`/mom/${meetingId}`);
       if (res.data?.success) {
         toast.success('MOM deleted successfully');
-        fetchMeetings(); // Refresh list to update flags and history
+        setDeleteConfirmId(null);
+        fetchMeetings();
       }
     } catch (err) {
       toast.error('Failed to delete MOM');
       console.error(err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -347,6 +351,22 @@ const MeetingsDashboardPage = () => {
                 <FileText style={{ width: 13, height: 13 }} />
                 Saved MOMs
               </span>
+              <button
+                onClick={() => navigate('/dashboard/saved-moms')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '5px 12px', borderRadius: 7,
+                  border: '1px solid #e2e8f0', background: '#f8fafc',
+                  color: '#4f46e5', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all 0.18s'
+                }}
+                onMouseOver={e => { e.currentTarget.style.background='#eef2ff'; e.currentTarget.style.borderColor='#a5b4fc'; }}
+                onMouseOut={e => { e.currentTarget.style.background='#f8fafc'; e.currentTarget.style.borderColor='#e2e8f0'; }}
+              >
+                <BookMarked style={{ width: 12, height: 12 }} />
+                View All
+                <ChevronRight style={{ width: 12, height: 12 }} />
+              </button>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -390,13 +410,24 @@ const MeetingsDashboardPage = () => {
                     >
                       View MOM <ArrowRight style={{ width: 13, height: 13 }} />
                     </button>
-                    <button
-                      onClick={() => handleDeleteMom(savedMomId)}
-                      className="p-2 hover:bg-sky-200 text-sky-700 rounded-lg transition-colors"
-                      title="Delete MOM"
-                    >
-                      <Trash2 style={{ width: 14, height: 14 }} />
-                    </button>
+                    {deleteConfirmId === savedMomId ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <button
+                          onClick={() => handleDeleteMom(savedMomId)}
+                          disabled={deleteLoading}
+                          style={{ padding:'5px 10px', borderRadius:6, border:'none', background:'#dc2626', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer' }}
+                        >{deleteLoading ? '…' : 'Confirm'}</button>
+                        <button onClick={() => setDeleteConfirmId(null)} style={{ padding:'5px 8px', borderRadius:6, border:'1px solid #e2e8f0', background:'#fff', fontSize:11, fontWeight:600, cursor:'pointer', color:'#475569' }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(savedMomId)}
+                        className="p-2 hover:bg-sky-200 text-sky-700 rounded-lg transition-colors"
+                        title="Delete MOM"
+                      >
+                        <Trash2 style={{ width: 14, height: 14 }} />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -445,13 +476,24 @@ const MeetingsDashboardPage = () => {
                     >
                       View MOM <ArrowRight style={{ width: 13, height: 13 }} />
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteMom(momInst.id); }}
-                      className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
-                      title="Delete MOM"
-                    >
-                      <Trash2 style={{ width: 14, height: 14 }} />
-                    </button>
+                    {deleteConfirmId === momInst.id ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }} onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => { e.stopPropagation(); handleDeleteMom(momInst.id); }}
+                          disabled={deleteLoading}
+                          style={{ padding:'5px 10px', borderRadius:6, border:'none', background:'#dc2626', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer' }}
+                        >{deleteLoading ? '…' : 'Confirm'}</button>
+                        <button onClick={e => { e.stopPropagation(); setDeleteConfirmId(null); }} style={{ padding:'5px 8px', borderRadius:6, border:'1px solid #e2e8f0', background:'#fff', fontSize:11, fontWeight:600, cursor:'pointer', color:'#475569' }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(momInst.id); }}
+                        className="p-2 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                        title="Delete MOM"
+                      >
+                        <Trash2 style={{ width: 14, height: 14 }} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

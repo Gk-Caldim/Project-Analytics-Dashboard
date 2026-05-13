@@ -13,12 +13,13 @@ import ProjectMaster from './pages/Masters/ProjectMaster';
 
 import BudgetMaster from './pages/Masters/BudgetMaster';
 import MOMModule from './pages/mom/MOMModule';
-import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import TranscriptViewer from './pages/mom/TranscriptViewer';
+import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
 import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
+import SavedMOMsPage from './pages/mom/SavedMOMsPage';
 import SystemSettings from './pages/Settings/SystemSettings';
 import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
 import ProjectDetail from './pages/ProjectDetail';
@@ -198,10 +199,12 @@ function App() {
             <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
             
             <Route path="mom" element={<MeetingCapturePage />} />
-            <Route path="mom/view/:meetingId?" element={<MOMViewPage />} />
+            <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
             <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
             <Route path="mom/legacy" element={<MOMModule />} />
             <Route path="meetings" element={<MeetingsDashboardPage />} />
+            <Route path="saved-moms" element={<SavedMOMsPage />} />
             <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
             <Route path="settings" element={<SystemSettings />} />

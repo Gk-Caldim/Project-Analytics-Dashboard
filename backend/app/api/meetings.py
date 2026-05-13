@@ -18,10 +18,10 @@ DELETE /api/meetings/auth/google/clear  — clear stored tokens (force re-auth)
 GET  /api/meetings/{meeting_id}   — get one meeting
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
-from typing import Optional, List, Any
+from typing import Optional, List, Any, cast
 import uuid
 import os
 import json
@@ -34,6 +34,7 @@ from app.models.meeting import Meeting
 from app.models.project import Project
 from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator
 from app.services.google_token_service import GoogleTokenService
+from app.core.security import get_current_user
 from app.services.email_service import email_service
 from app.services.llm_service import llm_service
 
@@ -94,19 +95,26 @@ def send_invites_background(meeting_data: dict, join_url: str):
 
 def get_teams_token() -> str:
     import requests as _req
-    tenant = os.environ.get("AZURE_TENANT_ID")
-    if not tenant:
-        raise Exception("Azure Tenant ID not set")
+    # Extract tenant ID from MS_AUTHORITY (e.g. https://login.microsoftonline.com/TENANT_ID)
+    authority = os.environ.get("MS_AUTHORITY") or ""
+    tenant = authority.split("/")[-1] if "/" in authority else os.environ.get("AZURE_TENANT_ID")
+    
+    client_id = os.environ.get("MS_CLIENT_ID") or os.environ.get("AZURE_CLIENT_ID")
+    client_secret = os.environ.get("MS_CLIENT_SECRET") or os.environ.get("AZURE_CLIENT_SECRET")
+
+    if not tenant or not client_id or not client_secret:
+        raise Exception("Microsoft Teams credentials (Tenant/Client ID/Secret) not fully set in .env")
+
     token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
     data = {
-        "client_id":     os.environ.get("AZURE_CLIENT_ID"),
-        "client_secret": os.environ.get("AZURE_CLIENT_SECRET"),
+        "client_id":     client_id,
+        "client_secret": client_secret,
         "scope":         "https://graph.microsoft.com/.default",
         "grant_type":    "client_credentials",
     }
     resp = _req.post(token_url, data=data)
     if resp.status_code != 200:
-        raise Exception("Failed to get Teams token")
+        raise Exception(f"Failed to get Teams token: {resp.text}")
     return resp.json()["access_token"]
 
 # ---------------------------------------------------------------------------
@@ -185,8 +193,8 @@ async def google_auth_callback(code: str, db: Session = Depends(get_db)):
         db,
         access_token=access_token,
         refresh_token=refresh_token,
-        client_id=client_id,
-        client_secret=client_secret,
+        client_id=cast(str, client_id),
+        client_secret=cast(str, client_secret),
     )
 
     logger.info("Google OAuth tokens saved to DB.")
@@ -255,7 +263,7 @@ async def list_meetings(db: Session = Depends(get_db)):
             # parse attendees
             attendees_list = []
             try:
-                attendees_list = json.loads(m.attendees) if m.attendees else []
+                attendees_list = json.loads(cast(str, m.attendees)) if m.attendees else []
             except Exception:
                 attendees_list = []
                 
@@ -336,70 +344,103 @@ async def publish_meeting(
             join_url     = result.get("join_url")
             meeting_code = result.get("meeting_code")
 
-
-
         else:
             raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
 
-    except HTTPException:
-        raise
+        # ── Database Persistence ──────────────────────────────────────────
+        meeting = Meeting(
+            title=req.title,
+            description=req.description,
+            date=req.date,
+            time=req.time,
+            duration_minutes=req.duration_minutes,
+            platform=platform,
+            join_url=join_url,
+            meeting_code=meeting_code,
+            organizer_email=req.organizer_email,
+            attendees=json.dumps(req.attendees),
+            agenda_text=req.agenda_text,
+            status="scheduled",
+            invites_sent=True,
+            project_id=req.project_id,
+        )
+        db.add(meeting)
+        db.commit()
+        db.refresh(meeting)
+
+        background_tasks.add_task(send_invites_background, meeting_data, cast(str, join_url))
+
+        return {
+            "success": True,
+            "meeting": {
+                "id":           meeting.id,
+                "title":        meeting.title,
+                "platform":     platform,
+                "duration":     meeting.duration_minutes,
+                "join_url":     join_url,
+                "joinUrl":      join_url,
+                "meeting_code": meeting_code,
+                "meetingCode":  meeting_code,
+                "attendees":    req.attendees,
+                "invites_sent": meeting.invites_sent,
+                "project_id":   meeting.project_id,
+            },
+        }
+
     except Exception as e:
-        logger.error(f"Failed to create meeting on platform {platform}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-    meeting = Meeting(
-        title=req.title,
-        description=req.description,
-        date=req.date,
-        time=req.time,
-        duration_minutes=req.duration_minutes,
-        platform=platform,
-        join_url=join_url,
-        meeting_code=meeting_code,
-        organizer_email=req.organizer_email,
-        attendees=json.dumps(req.attendees),
-        agenda_text=req.agenda_text,
-        status="scheduled",
-        invites_sent=True,
-        project_id=req.project_id,
-    )
-    db.add(meeting)
-    db.commit()
-    db.refresh(meeting)
-
-    background_tasks.add_task(send_invites_background, meeting_data, join_url)
-
-    return {
-        "success": True,
-        "meeting": {
-            "id":           meeting.id,
-            "title":        meeting.title,
-            "platform":     platform,
-            "duration":     meeting.duration_minutes,
-            "join_url":     join_url,
-            "joinUrl":      join_url,
-            "meeting_code": meeting_code,
-            "meetingCode":  meeting_code,
-            "attendees":    req.attendees,
-            "invites_sent": meeting.invites_sent,
-            "project_id":   meeting.project_id,
-        },
-    }
+        import traceback
+        error_detail = str(e)
+        
+        logger.error(f"Meeting creation failed: {error_detail}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": error_detail,
+                "trace": traceback.format_exc()
+            }
+        )
 
 
 @router.get("/{meeting_id}")
 async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
+    # Handle placeholder IDs from frontend to prevent DB errors and 404 logs
+    if meeting_id in ("unscheduled", "unscheduled-session"):
+        return {
+            "success": True,
+            "meeting": {
+                "id": meeting_id,
+                "title": "Unscheduled Session",
+                "description": "This meeting was captured without a schedule.",
+                "date": str(datetime.now().date()),
+                "time": datetime.now().strftime("%I:%M %p"),
+                "duration": 0,
+                "platform": "manual",
+                "join_url": None,
+                "joinUrl": None,
+                "meeting_code": None,
+                "meetingCode": None,
+                "attendees": [],
+                "agenda": [],
+                "agenda_text": "",
+                "status": "completed",
+                "project_id": None,
+                "transcript": [],
+                "intelligence_data": None,
+            }
+        }
+
     meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
     attendees_list = []
     try:
-        attendees_list = json.loads(meeting.attendees) if meeting.attendees else []
+        attendees_list = json.loads(cast(str, meeting.attendees)) if meeting.attendees else []
     except Exception:
         import ast
         try:
-            attendees_list = ast.literal_eval(meeting.attendees) if meeting.attendees else []
+            attendees_list = ast.literal_eval(cast(str, meeting.attendees)) if meeting.attendees else []
         except:
              attendees_list = [meeting.attendees] if meeting.attendees else []
 
@@ -429,8 +470,8 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "cancellation_note": meeting.cancellation_note,
             "cancelled_by": meeting.cancelled_by,
             "project_id":   meeting.project_id,
-            "transcript":   json.loads(meeting.transcript) if meeting.transcript else [],
-            "intelligence_data": json.loads(meeting.intelligence_data) if meeting.intelligence_data else None,
+            "transcript":   json.loads(cast(str, meeting.transcript)) if meeting.transcript else [],
+            "intelligence_data": json.loads(cast(str, meeting.intelligence_data)) if meeting.intelligence_data else None,
         },
     }
 
@@ -440,24 +481,24 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    if req.date is not None: meeting.date = req.date
-    if req.time is not None: meeting.time = req.time
-    if req.platform is not None: meeting.platform = req.platform
-    if req.duration is not None: meeting.duration_minutes = req.duration
-    if req.attendees is not None: meeting.attendees = json.dumps(req.attendees)
-    if req.description is not None: meeting.description = req.description
+    if req.date is not None: meeting.date = req.date  # type: ignore
+    if req.time is not None: meeting.time = req.time  # type: ignore
+    if req.platform is not None: meeting.platform = req.platform  # type: ignore
+    if req.duration is not None: meeting.duration_minutes = req.duration  # type: ignore
+    if req.attendees is not None: meeting.attendees = json.dumps(req.attendees)  # type: ignore
+    if req.description is not None: meeting.description = req.description  # type: ignore
     
     if req.agenda_text is not None:
-        meeting.agenda_text = req.agenda_text
+        meeting.agenda_text = req.agenda_text  # type: ignore
     elif req.agenda is not None:
         # backward compat loop
-        meeting.agenda_text = '\n'.join(req.agenda)
+        meeting.agenda_text = '\n'.join(req.agenda)  # type: ignore
         
     db.commit()
     db.refresh(meeting)
     
     # re-fetch wrapper
-    return await get_meeting(meeting.id, db=db)
+    return await get_meeting(cast(str, meeting.id), db=db)
 
 @router.post("/{meeting_id}/cancel")
 async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depends(get_db)):
@@ -465,12 +506,12 @@ async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depe
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    meeting.status = "cancelled"
-    meeting.cancellation_reason = req.reason
-    meeting.cancellation_note = req.note
-    meeting.cancelled_by = req.cancelled_by
-    meeting.cancelled_at = datetime.now(timezone.utc)
-    meeting.attendees_notified = req.notify_attendees
+    meeting.status = "cancelled"  # type: ignore
+    meeting.cancellation_reason = req.reason  # type: ignore
+    meeting.cancellation_note = req.note  # type: ignore
+    meeting.cancelled_by = req.cancelled_by  # type: ignore
+    meeting.cancelled_at = datetime.now(timezone.utc)  # type: ignore
+    meeting.attendees_notified = req.notify_attendees  # type: ignore
     
     db.commit()
     db.refresh(meeting)
@@ -512,12 +553,21 @@ async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(ge
     return {"success": True, "message": f"Invite resent to {email}"}
 
 @router.post("/{meeting_id}/generate-mom")
-async def generate_mom(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
+async def generate_mom(
+    meeting_id: str, 
+    payload: dict, 
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
     """
     Generate a high-fidelity MOM using AI (OpenAI GPT-4o).
     Falls back to heuristics if AI fails or key is missing.
     """
-    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if meeting_id in ("unscheduled", "unscheduled-session"):
+        # For unscheduled meetings, we just generate the intelligence without a database record
+        meeting = None
+    else:
+        meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
     
     transcript = payload.get("transcript", [])
     title = meeting.title if meeting else payload.get("title", "Untitled Meeting")
@@ -530,13 +580,13 @@ async def generate_mom(meeting_id: str, payload: dict, db: Session = Depends(get
             project_name = proj.name
 
     # Call LLM Service
-    intelligence = llm_service.generate_mom_intelligence(transcript, title, project_name)
+    intelligence = llm_service.generate_mom_intelligence(transcript, cast(str, title), cast(str, project_name))
     
     if meeting:
-        meeting.mom_generated = True
-        meeting.action_item_count = len(intelligence.get("action_items", []))
-        meeting.transcript = json.dumps(transcript)
-        meeting.intelligence_data = json.dumps(intelligence)
+        meeting.mom_generated = True  # type: ignore
+        meeting.action_item_count = len(intelligence.get("action_items", []))  # type: ignore
+        meeting.transcript = json.dumps(transcript)  # type: ignore
+        meeting.intelligence_data = json.dumps(intelligence)  # type: ignore
         db.commit()
     
     return {

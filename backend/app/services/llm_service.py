@@ -9,7 +9,13 @@ logger = logging.getLogger(__name__)
 class LLMService:
     def __init__(self):
         self.api_key = os.environ.get("OPENAI_API_KEY")
-        self.client = OpenAI(api_key=self.api_key) if self.api_key else None
+        # Support for OpenRouter if key is sk-or-...
+        base_url = None
+        if self.api_key and self.api_key.startswith("sk-or-"):
+            base_url = "https://openrouter.ai/api/v1"
+            logger.info("LLMService: OpenRouter key detected, setting base_url")
+            
+        self.client = OpenAI(api_key=self.api_key, base_url=base_url) if self.api_key else None
         self.model = "gpt-4o-mini" # Fast, cheap, and very capable for MOM tasks
 
     def generate_mom_intelligence(self, transcript_entries: List[Dict[str, Any]], meeting_title: str, project_name: str = "Unknown Project") -> Dict[str, Any]:

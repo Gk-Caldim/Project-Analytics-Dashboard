@@ -9,6 +9,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
 import { setMeetingContext, saveMOM } from '../../store/slices/momSlice';
+import FillerDetector from '../../utils/fillerDetector';
+
 
 // ── Speaker colour palette ──────────────────────────────────────────
 const SPEAKER_COLORS = [
@@ -805,10 +807,9 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
             // Ignore very short bursts
             if (cleanText.length < 3) return;
 
-            const lower = cleanText.toLowerCase();
-            // Heuristic to ignore simple greetings / filler lines
-            const isFiller = /^(thanks|good afternoon|good morning|hello|hi|bye|see you|good evening|sounds good|okay|ok|yes|no)\.?$/i.test(lower);
-            if (isFiller) return;
+            // ── Filler detection — delegated to shared FillerDetector module ──
+            if (FillerDetector.classify(cleanText).isFiller) return;
+
 
             let sentenceSpeaker = entry.speaker;
             let actualPoint = cleanText;

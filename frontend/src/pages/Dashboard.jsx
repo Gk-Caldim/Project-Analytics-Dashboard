@@ -71,7 +71,6 @@ const Dashboard = () => {
 
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
-  const isOnMOMView = location.pathname.includes('/mom/view');
 
   // Fetch settings on mount
   useEffect(() => {
@@ -336,6 +335,7 @@ const Dashboard = () => {
     else if (path.includes('/dashboard/mom/view')) dispatch(setActiveModule('meetings'));
     else if (path.includes('/dashboard/mom')) dispatch(setActiveModule('mom-module'));
     else if (path.includes('/dashboard/meetings')) dispatch(setActiveModule('meetings'));
+    else if (path.includes('/dashboard/saved-moms')) dispatch(setActiveModule('saved-moms'));
     else if (path.includes('/dashboard/schedule-meeting')) dispatch(setActiveModule('schedule-meeting'));
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
   }, [location.pathname, dispatch, mastersSubmodules, otherModules]);
@@ -533,6 +533,7 @@ const Dashboard = () => {
     if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
     if (activeModule === 'meetings') return 'Meetings Console';
+    if (activeModule === 'saved-moms') return 'Saved MOMs';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
 
     const allModules = [...mastersModules, ...mastersSubmodules, ...uploadsModules, ...uploadsSubmodules, ...otherModules];
@@ -582,6 +583,7 @@ const Dashboard = () => {
     if (module) path = module.path;
     else if (moduleId === 'mom-module') path = 'mom';
     else if (moduleId === 'meetings') path = 'meetings';
+    else if (moduleId === 'saved-moms') path = 'saved-moms';
     else if (moduleId === 'schedule-meeting') path = 'schedule-meeting';
 
     navigate(`/dashboard/${path}`);
@@ -838,8 +840,9 @@ const Dashboard = () => {
     if (!hasPermission('MOM')) return null;
 
     const isExpanded = expandedModules['mom'];
-    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || isOnMOMView;
-    const isAllMeetingsActive = activeModule === 'meetings' || isOnMOMView;
+    const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'saved-moms';
+    const isAllMeetingsActive = activeModule === 'meetings';
+    const isSavedMomsActive = activeModule === 'saved-moms';
 
     return (
       <div key="mom">
@@ -870,14 +873,12 @@ const Dashboard = () => {
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
             >
-              <span className="text-[18px]">
-                {isOnMOMView ? 'MOM Output' : 'All Meetings'}
-              </span>
+              <span className="text-[18px]">All Meetings</span>
             </button>
-
+ 
             <button
               onClick={() => handleModuleClick('mom-module')}
-              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module' && !isOnMOMView
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${activeModule === 'mom-module'
                   ? 'border-l-[#0D9488] text-white font-medium'
                   : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
                 }`}
@@ -885,6 +886,18 @@ const Dashboard = () => {
               <span className="text-[18px]">
                 Create MOM
               </span>
+            </button>
+
+
+
+            <button
+              onClick={() => handleModuleClick('saved-moms')}
+              className={`w-full flex items-center px-4 py-2 pl-11 transition-all duration-fast border-l-[3px] ${isSavedMomsActive
+                  ? 'border-l-[#0D9488] text-white font-medium'
+                  : 'border-l-transparent text-[#94A3B8] opacity-60 hover:opacity-100'
+                }`}
+            >
+              <span className="text-[18px]">Saved MOMs</span>
             </button>
           </div>
         )}

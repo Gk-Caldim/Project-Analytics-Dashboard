@@ -51,7 +51,7 @@ if __name__ == "__main__":
     try:
         # Using subprocess.run to execute uvicorn
         # The environment variable DB_TYPE is inherited by the subprocess
-        subprocess.run(["uvicorn", "app.main:app", "--reload"], shell=True)
+        subprocess.run(["uvicorn", "app.main:app", "--reload", "--port", "8001"], shell=True)
     except KeyboardInterrupt:
         print("\nServer stopped by user.")
     except Exception as e:

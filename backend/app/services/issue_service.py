@@ -287,7 +287,8 @@ def list_issues(
     if department_filter:
         q = q.filter(Issue.department == department_filter)
     
-    issues = q.all()
+    # Sort by ID ascending before ranking to ensure stable insertion order for MOM items
+    issues = q.order_by(Issue.id.asc()).all()
     
     # Dynamic health status calculation and sorting
     return rank_issues(issues)

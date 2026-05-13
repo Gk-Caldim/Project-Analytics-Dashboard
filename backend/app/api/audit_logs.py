@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.schemas.audit_log import AuditLogCreate, AuditLogResponse
 from app.models.audit_log import AuditLog

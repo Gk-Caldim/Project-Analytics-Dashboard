@@ -14,8 +14,8 @@ const CriticalIssuesWidget = ({ projectId }) => {
   const [selectedIssue, setSelectedIssue] = useState(null);
 
   // Filter States
-  const [statusFilter, setStatusFilter] = useState('All'); // Default to All instead of Open to show more data
-  const [priorityFilter, setPriorityFilter] = useState('High'); // Keep High as default for 'Critical' widget
+  const [statusFilter, setStatusFilter] = useState('Open'); // Default to Open for dashboard focus
+  const [priorityFilter, setPriorityFilter] = useState('All'); // Show ALL by default so MOM items appear
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 

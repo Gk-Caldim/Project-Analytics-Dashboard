@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
-import { updateMomRow, deleteMomRow, saveMOM, setMomData as setMomDataRedux } from '../../store/slices/momSlice';
+import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingContext } from '../../store/slices/momSlice';
 import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
@@ -63,6 +63,8 @@ const MOMViewPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [localTranscript, setLocalTranscript] = useState([]);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [pickerProjectId, setPickerProjectId] = useState('');
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -74,15 +76,25 @@ const MOMViewPage = () => {
       setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => { });
 
+    // ── Debug: log the meetingId on mount ──
+    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| redux meetingId:', meetingId);
+
     // Hydrate if meetingId is provided in URL and Redux is empty or needs refresh
     if (urlMeetingId && (!momData || momData.length === 0 || meetingId !== urlMeetingId)) {
       setLoading(true);
       
       Promise.all([
         API.get(`/meetings/${urlMeetingId}`).catch(() => null),
-        API.get(`/mom/${urlMeetingId}`).catch(() => null)
+        API.get(`/mom/${urlMeetingId}`).catch(() => null),
+        API.get(`/mom/issues/${urlMeetingId}`).catch(() => null),
       ])
-        .then(([meetingRes, momRes]) => {
+        .then(([meetingRes, momRes, issuesRes]) => {
+          console.log('[MOMViewPage] API responses:', {
+            meeting: meetingRes?.data?.success,
+            momData: momRes?.data?.mom_data?.length ?? 0,
+            syncedIssues: issuesRes?.data?.total ?? 0,
+          });
+
           const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
           if (!m) {
             toast.error("Failed to load meeting details.");
@@ -90,15 +102,20 @@ const MOMViewPage = () => {
           }
 
           const transcript = m.transcript || [];
-          setLocalTranscript(transcript); // Store transcript locally so it survives even if rows are empty
+          setLocalTranscript(transcript);
 
           let finalRows = [];
 
-          if (momRes?.data?.mom_data) {
-            // Priority 1: Saved edited MOM data
+          if (momRes?.data?.mom_data && momRes.data.mom_data.length > 0) {
+            // Priority 1: Saved edited MOM data from MOMSession
             finalRows = momRes.data.mom_data;
+            console.log('[MOMViewPage] Source: MOMSession.mom_data →', finalRows.length, 'rows');
+          } else if (issuesRes?.data?.success && issuesRes.data.rows?.length > 0) {
+            // Priority 2: Synced issues from the Issue table (written by /mom/issues POST)
+            finalRows = issuesRes.data.rows;
+            console.log('[MOMViewPage] Source: Issue table (synced) →', finalRows.length, 'rows');
           } else if (m.intelligence_data) {
-            // Priority 2: Original AI generated data
+            // Priority 3: Original AI generated data on the Meeting record
             const intel = m.intelligence_data;
             finalRows = [
               ...(intel?.action_items || []).map(a => ({ 
@@ -123,6 +140,9 @@ const MOMViewPage = () => {
                 project_name: m.title
               }))
             ];
+            console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
+          } else {
+            console.warn('[MOMViewPage] No data found from any source for meetingId:', urlMeetingId);
           }
 
           if (finalRows.length > 0) {
@@ -130,13 +150,24 @@ const MOMViewPage = () => {
           }
 
           dispatch(setMomDataRedux(finalRows));
+
+          // Resolve actual project name from the projects list
+          const resolvedProjectName = (() => {
+            if (!m.project_id) return '';
+            // projects may not be loaded yet — use inline lookup then settle for m.project_name if available
+            const found = projects.find(p =>
+              String(p.dbProjectId || p.id || p.project_id) === String(m.project_id)
+            );
+            return found?.name || m.project_name || '';
+          })();
+
           dispatch({ 
             type: 'mom/setMeetingContext', 
             payload: { 
               meetingId: m.id, 
               meetingName: m.title, 
               projectId: m.project_id,
-              projectName: m.project_id ? m.title : ''
+              projectName: resolvedProjectName,
             } 
           });
         })
@@ -147,6 +178,7 @@ const MOMViewPage = () => {
         .finally(() => setLoading(false));
     }
   }, [urlMeetingId, dispatch]);
+
 
   // ── Derive sections from momData ─────────────────────────────────────
   const rows = momData || [];
@@ -243,50 +275,6 @@ const MOMViewPage = () => {
     });
   }, [rows]);
 
-  const handleSave = useCallback(async () => {
-    if (!projectId) {
-      toast.error('No project linked — cannot save MOM.');
-      return;
-    }
-    const targetProjectId = Number(projectId);
-    if (isNaN(targetProjectId)) {
-      toast.error('Invalid Project ID — please re-select your project.');
-      return;
-    }
-
-    try {
-      await dispatch(saveMOM({
-        meetingId,
-        meetingName,
-        projectId: targetProjectId,
-        projectName,
-        momData: rows
-      })).unwrap();
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err) {
-      const rawDetail = err?.response?.data?.detail || err?.message;
-      const detail = Array.isArray(rawDetail)
-        ? rawDetail.map(e => `${e.loc?.join('.')} — ${e.msg}`).join('; ')
-        : (rawDetail || 'Save failed');
-      toast.error(`Save failed: ${detail}`);
-    }
-  }, [dispatch, meetingId, meetingName, projectId, projectName, rows]);
-
-  // ── Auto-save (Debounced) ──
-  useEffect(() => {
-    // Skip auto-save if we just loaded or are in an error state
-    if (!meetingId || status === 'loading' || status === 'error') return;
-
-    const handler = setTimeout(() => {
-      // Only auto-save if there's actual data and it's not currently saving
-      if (rows.length > 0 && status !== 'saving') {
-        handleSave();
-      }
-    }, 2000);
-
-    return () => clearTimeout(handler);
-  }, [rows, meetingId, handleSave, status]);
 
   // ── Render ─────────────────────────────────────────────────────────────
   // ── Render ─────────────────────────────────────────────────────────────
@@ -294,20 +282,6 @@ const MOMViewPage = () => {
     <>
       <div className="mvp-root-wrapper">
         <div className="mvp-main-content">
-          {/* ── Top Bar ── */}
-          <header className="mvp-top-bar">
-            <div className="mvp-top-bar-inner">
-              <div className="mvp-top-bar-left">
-                <h2 className="mvp-page-title">Minutes of Meeting</h2>
-              </div>
-              <div className="mvp-top-bar-right">
-                <button className="mvp-btn-kia">KIA Boards</button>
-                <div className="mvp-user-pill">
-                  <div className="mvp-user-avatar">GK</div>
-                </div>
-              </div>
-            </div>
-          </header>
           <div className="mvp-root">
             <div className="mvp-content-container">
               {/* ── Executive Header Card ── */}
@@ -364,8 +338,8 @@ const MOMViewPage = () => {
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
                     justifyContent: 'center', gap: '12px', flexShrink: 0
                   }}>
-                    {/* Row 1: Project & Status Group */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                     {/* Row 1: Project & Status Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
                       {projectName ? (
                         <div style={{
                           padding: '4px 12px', borderRadius: '4px',
@@ -378,13 +352,63 @@ const MOMViewPage = () => {
                           {projectName}
                         </div>
                       ) : (
-                        <div style={{
-                          padding: '4px 12px', borderRadius: '4px',
-                          background: '#FFFBEB', color: '#D97706',
-                          border: '1px solid #FDE68A',
-                          fontSize: '12px', fontWeight: 700
-                        }}>
-                          No Project Linked
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={() => setShowProjectPicker(v => !v)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '4px 12px', borderRadius: '4px',
+                              background: '#FFFBEB', color: '#D97706',
+                              border: '1px solid #FDE68A',
+                              fontSize: '12px', fontWeight: 700,
+                              cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            No Project Linked <ChevronDown size={12} />
+                          </button>
+                          {showProjectPicker && (
+                            <div style={{
+                              position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                              background: '#fff', border: '1px solid #E2E8F0',
+                              borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+                              zIndex: 200, minWidth: '220px', overflow: 'hidden'
+                            }}>
+                              <div style={{ padding: '10px 14px', borderBottom: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Link a Project
+                              </div>
+                              <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                {projects.length === 0 && (
+                                  <div style={{ padding: '16px', fontSize: '12px', color: '#94A3B8', textAlign: 'center' }}>No projects found</div>
+                                )}
+                                {projects.map(p => {
+                                  const pid = p.dbProjectId || p.id || p.project_id;
+                                  const pname = p.name || p.project_name;
+                                  return (
+                                    <button
+                                      key={pid}
+                                      onClick={() => {
+                                        dispatch(setMeetingContext({ projectId: String(pid), projectName: pname }));
+                                        setShowProjectPicker(false);
+                                        toast.success(`Linked to ${pname}`);
+                                      }}
+                                      style={{
+                                        width: '100%', textAlign: 'left',
+                                        padding: '10px 14px', fontSize: '13px',
+                                        color: '#1E293B', background: 'transparent',
+                                        border: 'none', cursor: 'pointer',
+                                        borderBottom: '1px solid #F8FAFC',
+                                        fontWeight: 500
+                                      }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#F0FDFA'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      {pname}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -400,22 +424,6 @@ const MOMViewPage = () => {
 
                     {/* Row 2: Buttons Group */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={handleSave}
-                        disabled={status === 'saving'}
-                        style={{
-                          height: '36px', padding: '7px 16px',
-                          background: '#0D9488', color: '#fff',
-                          border: 'none', borderRadius: '6px',
-                          fontSize: '13px', fontWeight: 500, fontFamily: 'inherit',
-                          cursor: status === 'saving' ? 'not-allowed' : 'pointer',
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          opacity: status === 'saving' ? 0.7 : 1,
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {status === 'saving' ? <><Loader size={14} className="animate-spin" /> Saving…</> : saveSuccess ? <><Check size={14} /> Saved</> : 'Save MOM'}
-                      </button>
 
                       <button
                         onClick={() => setDiscussionOpen(true)}
@@ -441,48 +449,84 @@ const MOMViewPage = () => {
               <div className="mvp-body">
                 {/* ── 1. The Dynamic Metrics Band ── */}
                 <div className="mvp-section">
-                  <div className="mvp-stats-band">
-                    <div className="mvp-stat-item risks">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.risks}</div>
-                          <div className="mvp-stat-label">Key Risks</div>
-                        </div>
+                  <div className="mvp-stats-band" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    
+                    {/* KEY RISKS */}
+                    <div className="mvp-stat-item risks" style={{ 
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FECACA', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCA5A5', opacity: 0.2 }}>
+                        <AlertTriangle size={64} />
                       </div>
-                    </div>
-                    <div className="mvp-stat-item pending">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.pending}</div>
-                          <div className="mvp-stat-label">Pending Actions</div>
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <AlertTriangle size={16} /> Key Risks
                       </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#991B1B', lineHeight: 1 }}>{execSummary.risks}</div>
                     </div>
-                    <div className="mvp-stat-item resolved">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.resolved}</div>
-                          <div className="mvp-stat-label">Resolved</div>
-                        </div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748B', marginTop: '4px' }}>
+
+                    {/* PENDING ACTIONS */}
+                    <div className="mvp-stat-item pending" style={{ 
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FDE68A', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCD34D', opacity: 0.2 }}>
+                        <Clock size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Clock size={16} /> Pending Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#92400E', lineHeight: 1 }}>{execSummary.pending}</div>
+                    </div>
+
+                    {/* RESOLVED */}
+                    <div className="mvp-stat-item resolved" style={{ 
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)', 
+                      border: '1px solid #BBF7D0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#86EFAC', opacity: 0.2 }}>
+                        <CheckCircle size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <CheckCircle size={16} /> Resolved
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 800, color: '#166534', lineHeight: 1 }}>{execSummary.resolved}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#15803D', opacity: 0.8 }}>
                           {execSummary.resolved === 0 ? 'None yet' : 'Tasks completed'}
                         </div>
                       </div>
                     </div>
-                    <div className="mvp-stat-item total">
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                          <div className="mvp-stat-value">{execSummary.total}</div>
-                          <div className="mvp-stat-label">Total Actions</div>
-                        </div>
+
+                    {/* TOTAL ACTIONS */}
+                    <div className="mvp-stat-item total" style={{ 
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', 
+                      border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#CBD5E1', opacity: 0.2 }}>
+                        <Target size={64} />
                       </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Target size={16} /> Total Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#334155', lineHeight: 1 }}>{execSummary.total}</div>
                     </div>
+
                   </div>
                 </div>
 
                 {/* ── 2. The Original Meeting Table ── */}
                 <div style={{ marginTop: '24px' }}>
-                  {rows.length > 0 ? (
+                  {loading ? (
+                    <div style={{ padding: '48px', textAlign: 'center', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                      <Loader size={24} className="animate-spin" style={{ color: '#0D9488', margin: '0 auto 12px' }} />
+                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>Loading action items…</p>
+                    </div>
+                  ) : rows.length > 0 ? (
                     <MeetingTable
                       meetings={rows}
                       employees={employees}
@@ -496,16 +540,17 @@ const MOMViewPage = () => {
                         No action items generated
                       </p>
                       <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '6px' }}>
-                        Go back to Review and verify transcript content.
+                        This meeting has no synced action items yet.
                       </p>
                       <Link 
-                        to="/dashboard/mom" 
+                        to="/dashboard/saved-moms" 
                         style={{ fontSize: '13px', color: '#0D9488', marginTop: '16px', display: 'inline-block', fontWeight: 500 }}
                       >
-                        ← Back to Review
+                        ← Back to Saved MOMs
                       </Link>
                     </div>
                   )}
+
                 </div>
 
                 <style>{`

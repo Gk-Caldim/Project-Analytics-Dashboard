@@ -1,5 +1,6 @@
 // ScheduleMeetingSidebar.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../../utils/api';
 import { RefreshCw } from 'lucide-react';
 import './ScheduleMeetingSidebar.css';
@@ -23,6 +24,7 @@ const MicrosoftLogo = () => (
 );
 
 export function ScheduleMeetingSidebar({ isOpen, onClose, momData }) {
+  const navigate = useNavigate();
   // State
   const [formData, setFormData] = useState({
     title: '',
@@ -126,11 +128,19 @@ export function ScheduleMeetingSidebar({ isOpen, onClose, momData }) {
       const result = response.data;
 
       if (result.success) {
+        // Open the meeting link in a new tab if it exists
+        if (result.meeting.join_url) {
+          window.open(result.meeting.join_url, '_blank');
+        }
+        
         setMeetingResult(result.meeting);
         setUiState(prev => ({
           ...prev,
           successMessage: `Meeting published successfully!`
         }));
+
+        // Redirect to the meeting details page
+        navigate(`/dashboard/meeting/${result.meeting.id}`);
       } else {
         setUiState(prev => ({
           ...prev,
@@ -140,7 +150,7 @@ export function ScheduleMeetingSidebar({ isOpen, onClose, momData }) {
     } catch (error) {
       setUiState(prev => ({
         ...prev,
-        errors: { submit: error.response?.data?.detail || error.response?.data?.error || 'Failed to publish meeting' }
+        errors: { submit: error.response?.data?.error || error.response?.data?.detail || 'Failed to publish meeting' }
       }));
     } finally {
       setUiState(prev => ({ ...prev, isLoading: false }));
