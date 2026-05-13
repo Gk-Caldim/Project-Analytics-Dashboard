@@ -1115,10 +1115,10 @@ const Dashboard = () => {
         )}
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#171717]' : 'bg-app-bg'}`}>
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-black' : 'bg-app-bg'}`}>
           {/* Header */}
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
-            ? 'bg-[#171717] border-b border-white/5'
+            ? 'bg-black border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Title */}
             <div className="flex items-center gap-4 flex-1">
