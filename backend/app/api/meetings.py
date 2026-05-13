@@ -67,6 +67,7 @@ class ScheduleRequest(BaseModel):
     project_id: Optional[int] = None
 
 class MeetingUpdateRequest(BaseModel):
+    title: Optional[str] = None
     date: Optional[str] = None
     time: Optional[str] = None
     platform: Optional[str] = None
@@ -75,6 +76,7 @@ class MeetingUpdateRequest(BaseModel):
     agenda: Optional[List[str]] = None
     agenda_text: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
 
 class CancelRequest(BaseModel):
     reason: Optional[str] = None
@@ -481,23 +483,61 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
+    if req.title is not None: meeting.title = req.title  # type: ignore
     if req.date is not None: meeting.date = req.date  # type: ignore
     if req.time is not None: meeting.time = req.time  # type: ignore
-    if req.platform is not None: meeting.platform = req.platform  # type: ignore
     if req.duration is not None: meeting.duration_minutes = req.duration  # type: ignore
     if req.attendees is not None: meeting.attendees = json.dumps(req.attendees)  # type: ignore
     if req.description is not None: meeting.description = req.description  # type: ignore
+    if req.status is not None: meeting.status = req.status  # type: ignore
     
+    # Handle platform change - regenerate link if platform is different
+    if req.platform is not None and req.platform.lower() != meeting.platform:
+        platform = req.platform.lower()
+        meeting_data = {
+            "title":           meeting.title,
+            "description":     meeting.description or "",
+            "date":            meeting.date,
+            "time":            meeting.time,
+            "duration_minutes": meeting.duration_minutes,
+            "platform":        platform,
+            "attendees":       json.loads(cast(str, meeting.attendees)) if meeting.attendees else [],
+            "timezone_name":   "UTC", # Defaulting to UTC for now
+            "agenda_text":     meeting.agenda_text or "",
+        }
+        
+        try:
+            if platform in ("google", "gmeet", "meet"):
+                access_token = GoogleTokenService.get_fresh_access_token(db)
+                creator = GoogleMeetCreator(access_token)
+                result  = creator.create_meeting(meeting_data)
+                meeting.join_url     = result.get("join_url")
+                meeting.meeting_code = result.get("meeting_code")
+                meeting.platform = "google" # normalize
+            elif platform == "teams":
+                teams_token = get_teams_token()
+                creator = MicrosoftTeamsCreator(teams_token)
+                result  = creator.create_meeting(meeting_data)
+                meeting.join_url     = result.get("join_url")
+                meeting.meeting_code = result.get("meeting_code")
+                meeting.platform = "teams"
+            else:
+                raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
+        except Exception as e:
+            logger.error(f"Platform regeneration failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to regenerate meeting link: {str(e)}")
+    elif req.platform is not None:
+        # Just update the string if it's the same but maybe different case
+        meeting.platform = req.platform.lower()
+
     if req.agenda_text is not None:
         meeting.agenda_text = req.agenda_text  # type: ignore
     elif req.agenda is not None:
-        # backward compat loop
         meeting.agenda_text = '\n'.join(req.agenda)  # type: ignore
         
     db.commit()
     db.refresh(meeting)
     
-    # re-fetch wrapper
     return await get_meeting(cast(str, meeting.id), db=db)
 
 @router.post("/{meeting_id}/cancel")

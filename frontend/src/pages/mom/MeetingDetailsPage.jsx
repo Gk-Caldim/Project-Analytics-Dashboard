@@ -6,10 +6,13 @@ import {
   FileText, AlertCircle, Plus, GripVertical,
   Eye, EyeOff, Send, Loader, ChevronRight,
   Home, Layout, Calendar, Clock, Users, Activity,
-  Mic, Square, Pause, Play, Sparkles
+  Mic, Square, Pause, Play, Sparkles, Pencil as PencilIcon, Search, ChevronDown,
+  ChevronUp, GripHorizontal
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MeetingDetailsPage.css';
+import { useConfirm } from '../../hooks/use-confirm';
+import { Spinner } from '../../components/ui/spinner';
 import API from '../../utils/api';
 
 // ─── Recording Helpers ───────────────────────────────────────────────────────
@@ -36,8 +39,32 @@ const SpeechRecognitionAPI = typeof window !== 'undefined'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const parseAgendaItem = (item) =>
-  typeof item === 'string' ? { title: item, duration: 0, assignee: '' } : item;
+const parseAgendaItem = (item) => {
+  if (typeof item === 'string') {
+    return { title: item, duration: 0, assignee: null, status: 'default', id: Math.random() };
+  }
+  return { 
+    ...item, 
+    duration: parseInt(item.duration) || 0, 
+    assignee: item.assignee || null,
+    status: item.status || 'default',
+    id: item.id || Math.random()
+  };
+};
+
+const getAgendaSuggestions = (title = '') => {
+  const t = title.toLowerCase();
+  if (t.includes('sync') || t.includes('status')) {
+    return ["Status update", "Blockers & dependencies", "Next steps & owners"];
+  }
+  if (t.includes('client') || t.includes('review')) {
+    return ["Project progress review", "Client feedback", "Action items & deadlines"];
+  }
+  if (t.includes('interview') || t.includes('hiring')) {
+    return ["Candidate introduction", "Technical assessment", "Q&A session"];
+  }
+  return ["Opening remarks", "Main discussion points", "Closing & next steps"];
+};
 
 const getMeetingStatus = (meeting) => {
   if (!meeting) return 'upcoming';
@@ -71,6 +98,7 @@ const formatDate = (dateStr) => {
 const MeetingDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const currentUser = useSelector(s => s.auth?.user || s.user?.profile || null);
   const isHost = !currentUser || currentUser?.role === 'host' || currentUser?.role === 'admin';
 
@@ -83,6 +111,7 @@ const MeetingDetailsPage = () => {
   const [meetingStatus, setMeetingStatus] = useState('upcoming');
   const [countdown, setCountdown] = useState('');
   const [copiedField, setCopiedField] = useState(null);
+  const [projectName, setProjectName] = useState('');
 
   // Agenda input
   const [agendaInput, setAgendaInput] = useState({ show: false, title: '', duration: '', assignee: '' });
@@ -95,9 +124,6 @@ const MeetingDetailsPage = () => {
   // Access key
   const [accessKeyRevealed, setAccessKeyRevealed] = useState(false);
 
-  // Cancel
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelUndoTimer, setCancelUndoTimer] = useState(null);
 
   // Reschedule
   const [showReschedule, setShowReschedule] = useState(false);
@@ -109,6 +135,19 @@ const MeetingDetailsPage = () => {
 
   // After-meeting tab (for Logs & Audit view)
   const [afterTab, setAfterTab] = useState('mom'); // mom | issues | activity
+
+  // Inline Editing & Auto-save
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved' | 'error'
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'date' | 'time' | 'host' | 'platform' | 'status' | 'assignee-{index}'
+  const [conflicts, setConflicts] = useState([]);
+
+  // Agenda Builder
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+  const [deletingIndex, setDeletingIndex] = useState(null);
+  const [undoTimeout, setUndoTimeout] = useState(null);
 
   // ── Record Mode ───────────────────────────────────────────────────────
   const [recordState, setRecordState]   = useState('IDLE'); // IDLE | RECORDING | PAUSED
@@ -184,12 +223,38 @@ const MeetingDetailsPage = () => {
         updateReadiness(ag, att);
         setMeetingStatus(getMeetingStatus(m));
         setMomContent(ag.map(a => `## ${a.title}\n\n- \n`).join('\n'));
+
+        // Fetch project name if project_id exists
+        if (m.project_id) {
+          try {
+            const projResp = await API.get(`/projects/${m.project_id}`);
+            if (projResp.data) {
+              setProjectName(projResp.data.name);
+            }
+          } catch (err) {
+            console.error('Failed to fetch project details:', err);
+          }
+        }
       }
     } catch { showToast('Failed to load meeting'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { fetchMeeting(); }, [id]);
+
+  useEffect(() => {
+    const fetchAllMeetings = async () => {
+      try {
+        const resp = await API.get('/meetings/');
+        if (resp.data.success) {
+          setConflicts(resp.data.meetings.filter(m => m.id !== id));
+        }
+      } catch (err) {
+        console.error('Failed to fetch meetings for conflict detection:', err);
+      }
+    };
+    fetchAllMeetings();
+  }, [id]);
 
   useEffect(() => {
     if (!meeting) return;
@@ -218,16 +283,7 @@ const MeetingDetailsPage = () => {
     return () => clearInterval(t);
   }, [meeting]);
 
-  useEffect(() => {
-    const fn = (e) => {
-      if (e.key !== 'Escape') return;
-      setShowCancelModal(false); setShowReschedule(false);
-      setShowAttendeeForm(false);
-      setAgendaInput({ show: false, title: '', duration: '', assignee: '' });
-    };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
-  }, []);
+
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -244,31 +300,146 @@ const MeetingDetailsPage = () => {
     if (next) console.log(`[ACCESS KEY REVEALED] meeting=${id} user=${currentUser?.email} at=${new Date().toISOString()}`);
   };
 
-  const saveAgendaPoint = async () => {
-    if (!agendaInput.title.trim()) { setAgendaInput({ show: false, title: '', duration: '', assignee: '' }); return; }
-    const item = { title: agendaInput.title.trim(), duration: parseInt(agendaInput.duration) || 0, assignee: agendaInput.assignee };
-    const newAg = [...agenda, item];
+  const updateMeetingField = async (field, value) => {
+    try {
+      setSaveStatus('saving');
+      const payload = { [field]: value };
+      const resp = await API.patch(`/meetings/${id}`, payload);
+      
+      if (resp.data.success) {
+        setMeeting(resp.data.meeting);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(null), 1500);
+        
+        // If platform changed, show special toast as requested
+        if (field === 'platform') {
+          showToast('Link updated');
+        }
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (err) {
+      console.error(`Failed to update ${field}:`, err);
+      setSaveStatus('error');
+    }
+  };
+
+  const handleTitleBlur = () => {
+    setEditingTitle(false);
+    if (!tempTitle.trim()) {
+      showToast("Meeting name can't be empty");
+      setTempTitle(meeting.title);
+      return;
+    }
+    if (tempTitle !== meeting.title) {
+      updateMeetingField('title', tempTitle.trim());
+    }
+  };
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter') handleTitleBlur();
+    if (e.key === 'Escape') {
+      setEditingTitle(false);
+      setTempTitle(meeting.title);
+    }
+  };
+
+  const saveAgenda = async (newAg) => {
     setAgenda(newAg);
-    setAgendaInput({ show: false, title: '', duration: '', assignee: '' });
     updateReadiness(newAg, attendees);
-    showToast('Agenda point added');
-    try { await API.patch(`/meetings/${id}`, { agenda_text: newAg.map(a => a.title).join('\n') }); } catch {}
+    try { 
+      await API.patch(`/meetings/${id}`, { 
+        agenda_text: JSON.stringify(newAg) // Store as JSON string to preserve metadata
+      }); 
+    } catch (err) {
+      console.error('Failed to save agenda:', err);
+      showToast('Failed to sync agenda');
+    }
   };
 
-  const deleteAgendaPoint = async (i) => {
-    const newAg = agenda.filter((_, idx) => idx !== i);
-    setAgenda(newAg); updateReadiness(newAg, attendees);
-    try { await API.patch(`/meetings/${id}`, { agenda_text: newAg.map(a => a.title).join('\n') }); } catch {}
-  };
-
-  const handleDrop = (e, i) => {
-    e.preventDefault();
-    const { dragging } = dragState;
-    if (dragging === null || dragging === i) { setDragState({ dragging: null, over: null }); return; }
+  const addAgendaPoint = (title = '', index = null) => {
+    const newItem = { title, duration: 0, assignee: null, status: 'default', id: Math.random() };
     const newAg = [...agenda];
-    const [removed] = newAg.splice(dragging, 1);
-    newAg.splice(i, 0, removed);
-    setAgenda(newAg); setDragState({ dragging: null, over: null });
+    if (index !== null) {
+      newAg.splice(index + 1, 0, newItem);
+    } else {
+      newAg.push(newItem);
+    }
+    saveAgenda(newAg);
+    // Logic to focus the new input should go here
+  };
+
+  const updateAgendaItem = (index, field, value) => {
+    const newAg = [...agenda];
+    newAg[index] = { ...newAg[index], [field]: value };
+    saveAgenda(newAg);
+  };
+
+  const deleteAgendaItem = (index) => {
+    const itemToDelete = agenda[index];
+    const newAg = agenda.filter((_, i) => i !== index);
+    
+    // Undo logic
+    setDeletingIndex(index);
+    if (undoTimeout) clearTimeout(undoTimeout);
+    
+    const timeout = setTimeout(() => {
+      saveAgenda(newAg);
+      setDeletingIndex(null);
+    }, 3000);
+    
+    setUndoTimeout(timeout);
+    
+    toast.success(`Removed: ${itemToDelete.title}`, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(timeout);
+          setDeletingIndex(null);
+          showToast('Restored');
+        }
+      },
+      duration: 3000
+    });
+  };
+
+  const duplicateAgendaItem = (index) => {
+    const item = { ...agenda[index], id: Math.random() };
+    const newAg = [...agenda];
+    newAg.splice(index + 1, 0, item);
+    saveAgenda(newAg);
+    showToast('Item duplicated');
+  };
+
+  // Drag and Drop
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    // Use a ghost image if desired, but we'll use CSS for the placeholder
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (draggedIndex === null || dragOverIndex === null || draggedIndex === dragOverIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newAg = [...agenda];
+    const [removed] = newAg.splice(draggedIndex, 1);
+    newAg.splice(dragOverIndex, 0, removed);
+    
+    saveAgenda(newAg);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleAddAttendee = async () => {
@@ -287,19 +458,7 @@ const MeetingDetailsPage = () => {
     try { await API.post(`/meetings/${id}/resend-invite`, { email }); } catch {}
   };
 
-  const confirmCancel = async () => {
-    setShowCancelModal(false);
-    showToast(`Meeting cancelled — Undo`, true);
-    const timer = setTimeout(async () => {
-      try { await API.post(`/meetings/${id}/cancel`, { reason: 'User requested cancellation' }); navigate('/dashboard/meetings'); } catch {}
-    }, 5000);
-    setCancelUndoTimer(timer);
-  };
 
-  const undoCancel = () => {
-    if (cancelUndoTimer) clearTimeout(cancelUndoTimer);
-    showToast('Cancellation undone');
-  };
 
   const handleReschedule = async () => {
     if (!rescheduleValue) return;
@@ -599,6 +758,13 @@ const MeetingDetailsPage = () => {
 
   // ─── Derived ───────────────────────────────────────────────────────────────
 
+  const checkConflict = (date, time) => {
+    if (!date || !time) return null;
+    return conflicts.find(m => m.date === date && m.time === time);
+  };
+
+  const currentConflict = checkConflict(meeting?.date, meeting?.time);
+
   const totalDuration = agenda.reduce((s, a) => s + (parseInt(a.duration) || 0), 0);
   const ringColor = readiness.score === 1 ? '#d97706' : readiness.score === 2 ? '#f59e0b' : '#059669';
 
@@ -608,7 +774,7 @@ const MeetingDetailsPage = () => {
 
   if (loading) return (
     <div className="mdp2-loading">
-      <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      <Spinner size="lg" className="text-indigo-600" />
     </div>
   );
 
@@ -646,54 +812,265 @@ const MeetingDetailsPage = () => {
             Dashboard
           </Link>
           <ChevronRight className="mdp2-bc-sep" style={{ width: 12, height: 12 }} />
-          <Link to="/dashboard/meetings" className="mdp2-bc-link">
-            <Layout style={{ width: 12, height: 12 }} />
-            Meetings
-          </Link>
-          <ChevronRight className="mdp2-bc-sep" style={{ width: 12, height: 12 }} />
+          {projectName ? (
+            <>
+              <Link to="/dashboard/projects" className="mdp2-bc-link">
+                <Layout style={{ width: 12, height: 12 }} />
+                Projects
+              </Link>
+              <ChevronRight className="mdp2-bc-sep" style={{ width: 12, height: 12 }} />
+              <span className="mdp2-bc-link" style={{ cursor: 'default' }}>
+                {projectName}
+              </span>
+              <ChevronRight className="mdp2-bc-sep" style={{ width: 12, height: 12 }} />
+            </>
+          ) : (
+            <>
+              <Link to="/dashboard/meetings" className="mdp2-bc-link">
+                <Layout style={{ width: 12, height: 12 }} />
+                Meetings
+              </Link>
+              <ChevronRight className="mdp2-bc-sep" style={{ width: 12, height: 12 }} />
+            </>
+          )}
           <span className="mdp2-bc-current">{meeting.title}</span>
         </nav>
       </div>
 
       {/* ── Meeting Header Card ── */}
       <div className="mdp2-header-card">
+        {/* Global Save Status Indicator */}
+        <div className={`mdp2-save-status ${saveStatus || ''}`}>
+          {saveStatus === 'saving' && <><Loader className="mdp2-spin" size={12} /> Saving...</>}
+          {saveStatus === 'saved' && <><Check size={12} /> Saved</>}
+          {saveStatus === 'error' && <span className="mdp2-save-error" onClick={() => window.location.reload()}>Failed to save — Retry</span>}
+        </div>
+
         <div className="mdp2-header-top">
-          <div>
+          <div style={{ flex: 1 }}>
             <div className="mdp2-header-meta">
-              {statusBadge()}
-              <span className="mdp2-meta-sep">|</span>
-              <span className="mdp2-meta-item">
-                <Calendar style={{ width: 12, height: 12 }} />
-                <button
-                  className="mdp2-bc-link"
-                  style={{ fontWeight: 600, color: '#374151' }}
-                  onClick={() => { setRescheduleValue(`${meeting.date}T09:00`); setShowReschedule(true); }}
+              {/* Status Badge Editing */}
+              <div className="mdp2-inline-edit-container">
+                <button 
+                  className={`mdp2-status-badge ${meetingStatus} editable`}
+                  onClick={() => setActiveDropdown(activeDropdown === 'status' ? null : 'status')}
                 >
-                  {formatDate(meeting.date)}
+                  {meetingStatus === 'live' && <span className="mdp2-live-dot" />}
+                  {meetingStatus === 'upcoming' ? 'Scheduled' : 
+                   meetingStatus === 'ended' ? 'Ended' : 
+                   meetingStatus === 'cancelled' ? 'Cancelled' : meetingStatus.toUpperCase()}
                 </button>
-              </span>
+                {activeDropdown === 'status' && (
+                  <div className="mdp2-inline-dropdown compact">
+                    {['upcoming', 'cancelled', 'ended', 'draft'].map(s => (
+                      <button 
+                        key={s} 
+                        className={`mdp2-dropdown-item ${meeting.status === s ? 'active' : ''}`}
+                        onClick={async () => {
+                          if (s === 'cancelled') {
+                            const isConfirmed = await confirm({
+                              title: 'Cancel Meeting',
+                              description: 'Are you sure you want to cancel this meeting? This will notify all attendees.',
+                              confirmText: 'Yes, Cancel',
+                              variant: 'danger'
+                            });
+                            if (!isConfirmed) return;
+                          }
+                          updateMeetingField('status', s);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                        {meeting.status === s && <Check size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <span className="mdp2-meta-sep">|</span>
-              <span className="mdp2-meta-item">
-                <Clock style={{ width: 12, height: 12 }} />
-                {meeting.time}
-              </span>
+
+              <div className="mdp2-meta-group">
+                {/* Date Editing */}
+                <div className="mdp2-inline-edit-container">
+                  <span className="mdp2-meta-item editable" onClick={() => setActiveDropdown(activeDropdown === 'date' ? null : 'date')}>
+                    <Calendar style={{ width: 12, height: 12 }} />
+                    {formatDate(meeting.date)}
+                    {currentConflict && (
+                      <div className="mdp2-conflict-indicator" title={`Conflicts with ${currentConflict.title}`}>
+                        <div className="mdp2-conflict-pulse" />
+                      </div>
+                    )}
+                  </span>
+                  {activeDropdown === 'date' && (
+                    <div className="mdp2-inline-dropdown picker">
+                      <input 
+                        type="date" 
+                        defaultValue={meeting.date}
+                        onBlur={(e) => {
+                          if (e.target.value && e.target.value !== meeting.date) {
+                            updateMeetingField('date', e.target.value);
+                          }
+                          setActiveDropdown(null);
+                        }}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Time Editing */}
+                <div className="mdp2-inline-edit-container">
+                  <span className="mdp2-meta-item editable" onClick={() => setActiveDropdown(activeDropdown === 'time' ? null : 'time')}>
+                    <Clock style={{ width: 12, height: 12 }} />
+                    {meeting.time}
+                  </span>
+                  {activeDropdown === 'time' && (
+                    <div className="mdp2-inline-dropdown picker">
+                      <input 
+                        type="time" 
+                        defaultValue={meeting.time.includes('AM') || meeting.time.includes('PM') ? "" : meeting.time}
+                        onBlur={(e) => {
+                          if (e.target.value) {
+                            // Convert 24h to 12h if needed
+                            let [h, m] = e.target.value.split(':').map(Number);
+                            const period = h >= 12 ? 'PM' : 'AM';
+                            h = h % 12 || 12;
+                            const time12 = `${h}:${String(m).padStart(2, '0')} ${period}`;
+                            if (time12 !== meeting.time) {
+                              updateMeetingField('time', time12);
+                            }
+                          }
+                          setActiveDropdown(null);
+                        }}
+                        autoFocus
+                      />
+                      <div className="mdp2-dropdown-hint text-[9px] mt-1 text-orange-400 font-bold uppercase">
+                        {currentConflict ? `Conflicts with ${currentConflict.title}` : ""}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <span className="mdp2-meta-sep">|</span>
-              <span className="mdp2-meta-item">
-                <Users style={{ width: 12, height: 12 }} />
-                Host: <strong style={{ color: '#111827', marginLeft: 3 }}>{hostName}</strong>
-              </span>
+
+              {/* Host Reassignment */}
+              <div className="mdp2-inline-edit-container">
+                <span className="mdp2-meta-item editable" onClick={() => setActiveDropdown(activeDropdown === 'host' ? null : 'host')}>
+                  <Users style={{ width: 12, height: 12 }} />
+                  Host: <strong style={{ color: '#111827', marginLeft: 3 }}>{hostName}</strong>
+                </span>
+                {activeDropdown === 'host' && (
+                  <div className="mdp2-inline-dropdown searchable">
+                    <div className="mdp2-dropdown-search">
+                      <Search size={14} />
+                      <input type="text" placeholder="Search attendees..." autoFocus />
+                    </div>
+                    <div className="mdp2-dropdown-list">
+                      {attendees.map((att, idx) => {
+                        const name = typeof att === 'string' ? att.split('@')[0] : att.name || att.email.split('@')[0];
+                        return (
+                          <button 
+                            key={idx} 
+                            className="mdp2-dropdown-item"
+                            onClick={() => {
+                              // Move selected attendee to first position (host)
+                              const newAtts = [...attendees];
+                              const [removed] = newAtts.splice(idx, 1);
+                              newAtts.unshift(removed);
+                              updateMeetingField('attendees', newAtts);
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            {name}
+                            {hostName === name && <Check size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <span className="mdp2-meta-sep">|</span>
-              <span className="mdp2-meta-item">
-                {platformIcon}
-                {meeting.platform === 'meet' ? 'Google Meet' : 'MS Teams'}
-              </span>
+
+              {/* Platform Switcher */}
+              <div className="mdp2-inline-edit-container">
+                <div 
+                  className="mdp2-platform-badge editable" 
+                  onClick={() => setActiveDropdown(activeDropdown === 'platform' ? null : 'platform')}
+                >
+                  {platformIcon}
+                  <span>{meeting.platform === 'google' || meeting.platform === 'meet' ? 'Google Meet' : 'MS Teams'}</span>
+                </div>
+                {activeDropdown === 'platform' && (
+                  <div className="mdp2-inline-dropdown compact">
+                    <button 
+                      className={`mdp2-dropdown-item ${(meeting.platform === 'google' || meeting.platform === 'meet') ? 'active' : ''}`}
+                      onClick={() => {
+                        if (meeting.platform !== 'google' && meeting.platform !== 'meet') {
+                          updateMeetingField('platform', 'google');
+                        }
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" style={{ width: 14, height: 14 }}><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>
+                      Google Meet
+                      {(meeting.platform === 'google' || meeting.platform === 'meet') && <Check size={14} />}
+                    </button>
+                    <button 
+                      className={`mdp2-dropdown-item ${meeting.platform === 'teams' ? 'active' : ''}`}
+                      onClick={() => {
+                        if (meeting.platform !== 'teams') {
+                          updateMeetingField('platform', 'teams');
+                        }
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      <Video style={{ width: 14, height: 14, color: '#4f46e5' }} />
+                      MS Teams
+                      {meeting.platform === 'teams' && <Check size={14} />}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <h1 className="mdp2-meeting-title">{meeting.title}</h1>
+
+            {/* Title Editing */}
+            <div className="mdp2-title-container">
+              {editingTitle ? (
+                <input
+                  className="mdp2-meeting-title-input"
+                  value={tempTitle}
+                  onChange={e => setTempTitle(e.target.value)}
+                  onBlur={handleTitleBlur}
+                  onKeyDown={handleTitleKeyDown}
+                  autoFocus
+                />
+              ) : (
+                <div 
+                  className="mdp2-meeting-title-row"
+                  onClick={() => {
+                    setTempTitle(meeting.title);
+                    setEditingTitle(true);
+                  }}
+                >
+                  <h1 className="mdp2-meeting-title">{meeting.title}</h1>
+                  <PencilIcon className="mdp2-title-pencil" size={16} />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mdp2-header-actions">
             {meetingStatus === 'upcoming' && countdown && (
-              <span className="mdp2-countdown">{countdown}</span>
+              <div className={`mdp2-timer-badge ${
+                countdown.includes('h') && parseInt(countdown) > 6 ? 'green' : 
+                countdown.includes('h') && parseInt(countdown) >= 1 ? 'amber' : 'red'
+              }`}>
+                {countdown}
+              </div>
             )}
             <button
               className="mdp2-btn-secondary"
@@ -712,20 +1089,6 @@ const MeetingDetailsPage = () => {
             </button>
           </div>
         </div>
-
-        {/* Reschedule inline */}
-        {showReschedule && (
-          <div className="mdp2-reschedule-row">
-            <input
-              type="datetime-local"
-              className="mdp2-reschedule-input"
-              value={rescheduleValue}
-              onChange={e => setRescheduleValue(e.target.value)}
-            />
-            <button className="mdp2-btn-secondary" style={{ padding: '6px 12px' }} onClick={handleReschedule}>Save</button>
-            <button className="mdp2-btn-secondary" style={{ padding: '6px 12px' }} onClick={() => setShowReschedule(false)}>Cancel</button>
-          </div>
-        )}
       </div>
 
       {/* ── Body Grid ── */}
@@ -737,103 +1100,165 @@ const MeetingDetailsPage = () => {
           {/* BEFORE MEETING */}
           <div className="mdp2-phase-label">Before Meeting</div>
 
-          {/* Agenda */}
+          {/* Agenda Builder */}
           <div className="mdp2-card" ref={agendaPanelRef}>
             <div className="mdp2-card-header">
-              <span className="mdp2-card-title">
-                Agenda{totalDuration > 0 ? ` · ${totalDuration} min total` : ''}
-              </span>
-              <button
-                className="mdp2-card-action-link"
-                onClick={() => setAgendaInput({ show: true, title: '', duration: '', assignee: '' })}
-              >
-                <Plus style={{ width: 12, height: 12 }} />
-                Add Point
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span className="mdp2-card-title">Agenda</span>
+                {meeting && (
+                  <div className="mdp2-time-budget-container">
+                    <div className="mdp2-time-budget-meta">
+                      <span>{totalDuration} min of {meeting.duration || 60} min planned</span>
+                      {totalDuration > (meeting.duration || 60) && (
+                        <span className="mdp2-budget-over">({totalDuration - (meeting.duration || 60)} min over)</span>
+                      )}
+                    </div>
+                    <div className="mdp2-budget-bar-bg">
+                      <div 
+                        className={`mdp2-budget-bar-fill ${
+                          totalDuration > (meeting.duration || 60) ? 'red' : 
+                          totalDuration > (meeting.duration || 60) - 5 ? 'amber' : 'green'
+                        }`}
+                        style={{ width: `${Math.min(100, (totalDuration / (meeting.duration || 60)) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+            
             <div className="mdp2-card-body">
-              {agenda.length === 0 && !agendaInput.show ? (
-                <div className="mdp2-agenda-empty">
-                  <FileText style={{ width: 20, height: 20, color: '#d1d5db' }} />
-                  <span style={{ fontWeight: 600, fontSize: 13, color: '#9ca3af' }}>No agenda yet</span>
-                  <span style={{ fontSize: 11, color: '#d1d5db' }}>Add topics to keep the meeting on track</span>
-                  <button
-                    className="mdp2-card-action-link"
-                    style={{ marginTop: 4 }}
-                    onClick={() => setAgendaInput({ show: true, title: '', duration: '', assignee: '' })}
-                  >
-                    <Plus style={{ width: 12, height: 12 }} />Add first point
-                  </button>
-                </div>
-              ) : (
-                <div className="mdp2-agenda-list">
-                  {agenda.map((item, i) => (
+              <div className="mdp2-agenda-builder">
+                {/* Suggestions for Empty State */}
+                {agenda.length === 0 && (
+                  <div className="mdp2-agenda-suggestions">
+                    <div className="mdp2-suggestion-label">Suggested for {meeting?.title} — click to add</div>
+                    {getAgendaSuggestions(meeting?.title).map((s, idx) => (
+                      <div 
+                        key={`suggest-${idx}`} 
+                        className="mdp2-agenda-row ghost"
+                        onClick={() => addAgendaPoint(s)}
+                      >
+                        <div className="mdp2-row-number">{idx + 1}</div>
+                        <div className="mdp2-row-text">{s}</div>
+                        <Plus className="mdp2-row-plus" size={14} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Confirmed Agenda Items */}
+                <div 
+                  className="mdp2-agenda-list"
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={handleDrop}
+                >
+                  {agenda.map((item, idx) => (
                     <div
-                      key={i}
-                      className="mdp2-agenda-item"
+                      key={item.id || idx}
+                      className={`mdp2-agenda-row ${draggedIndex === idx ? 'dragging' : ''} ${dragOverIndex === idx ? 'drag-over' : ''} ${item.status}`}
                       draggable
-                      onDragStart={() => setDragState({ dragging: i, over: i })}
-                      onDragOver={e => { e.preventDefault(); setDragState(p => ({ ...p, over: i })); }}
-                      onDrop={e => handleDrop(e, i)}
-                      style={dragState.over === i ? { background: 'rgba(79,70,229,0.04)', borderRadius: 6 } : {}}
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
                     >
-                      <GripVertical className="mdp2-agenda-grab" style={{ width: 13, height: 13 }} />
-                      <div className="mdp2-agenda-dot" />
-                      <span className="mdp2-agenda-text">{item.title}</span>
-                      {item.duration > 0 && <span className="mdp2-agenda-tag dur">{item.duration}m</span>}
-                      {item.assignee && <span className="mdp2-agenda-tag who">{item.assignee.split('@')[0]}</span>}
-                      <button className="mdp2-agenda-del" onClick={() => deleteAgendaPoint(i)}>
-                        <X style={{ width: 13, height: 13 }} />
-                      </button>
+                      {/* Drag Handle */}
+                      <div className="mdp2-row-grip">
+                        {item.status === 'completed' ? <Check size={14} className="text-green-600" /> : <GripVertical size={14} />}
+                      </div>
+
+                      {/* Number */}
+                      <div className="mdp2-row-number">{idx + 1}</div>
+
+                      {/* Text Edit */}
+                      <div className="mdp2-row-content">
+                        <input 
+                          className="mdp2-row-input"
+                          value={item.title}
+                          onChange={(e) => updateAgendaItem(idx, 'title', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') addAgendaPoint('', idx);
+                            if (e.key === 'Backspace' && !item.title) deleteAgendaItem(idx);
+                          }}
+                          placeholder="What will you discuss?"
+                        />
+                      </div>
+
+                      {/* Meta Actions (Hover) */}
+                      <div className="mdp2-row-actions">
+                        {/* Assignee Picker */}
+                        <div className="mdp2-inline-edit-container">
+                          <button 
+                            className="mdp2-avatar-picker"
+                            onClick={() => setActiveDropdown(activeDropdown === `assignee-${idx}` ? null : `assignee-${idx}`)}
+                          >
+                            {item.assignee ? (
+                              <div className="mdp2-avatar-sm" title={item.assignee}>
+                                {getInitials(item.assignee)}
+                              </div>
+                            ) : (
+                              <div className="mdp2-avatar-plus"><Plus size={10} /></div>
+                            )}
+                          </button>
+                          {activeDropdown === `assignee-${idx}` && (
+                            <div className="mdp2-inline-dropdown compact bottom-left">
+                              <button className="mdp2-dropdown-item" onClick={() => { updateAgendaItem(idx, 'assignee', null); setActiveDropdown(null); }}>
+                                Unassigned
+                              </button>
+                              {attendees.map((att, aidx) => {
+                                const name = typeof att === 'string' ? att.split('@')[0] : att.name || att.email.split('@')[0];
+                                return (
+                                  <button 
+                                    key={aidx} 
+                                    className="mdp2-dropdown-item"
+                                    onClick={() => {
+                                      updateAgendaItem(idx, 'assignee', name);
+                                      setActiveDropdown(null);
+                                    }}
+                                  >
+                                    {name}
+                                    {item.assignee === name && <Check size={14} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Time Estimate */}
+                        <div className="mdp2-row-time">
+                          <input 
+                            type="number"
+                            className="mdp2-time-input"
+                            value={item.duration || ''}
+                            onChange={(e) => updateAgendaItem(idx, 'duration', e.target.value)}
+                            placeholder="0"
+                          />
+                          <span>min</span>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="mdp2-row-controls">
+                          <button className="mdp2-control-btn" onClick={() => duplicateAgendaItem(idx)} title="Duplicate">
+                            <Copy size={13} />
+                          </button>
+                          <button className="mdp2-control-btn del" onClick={() => deleteAgendaItem(idx)} title="Remove">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
 
-              {agendaInput.show && (
-                <div className="mdp2-agenda-form">
-                  <input
-                    autoFocus
-                    type="text"
-                    className="mdp2-form-input"
-                    placeholder="Agenda topic…"
-                    value={agendaInput.title}
-                    onChange={e => setAgendaInput(p => ({ ...p, title: e.target.value }))}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') saveAgendaPoint();
-                      if (e.key === 'Escape') setAgendaInput({ show: false, title: '', duration: '', assignee: '' });
-                    }}
-                  />
-                  <div className="mdp2-form-row">
-                    <input
-                      type="number"
-                      className="mdp2-form-num"
-                      placeholder="Min"
-                      min="0"
-                      value={agendaInput.duration}
-                      onChange={e => setAgendaInput(p => ({ ...p, duration: e.target.value }))}
-                    />
-                    <select
-                      className="mdp2-form-select"
-                      value={agendaInput.assignee}
-                      onChange={e => setAgendaInput(p => ({ ...p, assignee: e.target.value }))}
-                    >
-                      <option value="">Assign to…</option>
-                      {attendees.map((att, i) => {
-                        const email = typeof att === 'string' ? att : att.email;
-                        const name = att.name || email.split('@')[0];
-                        return <option key={i} value={email}>{name}</option>;
-                      })}
-                    </select>
-                    <button className="mdp2-btn-icon primary" onClick={saveAgendaPoint}>
-                      <Check style={{ width: 12, height: 12 }} />
-                    </button>
-                    <button className="mdp2-btn-icon" onClick={() => setAgendaInput({ show: false, title: '', duration: '', assignee: '' })}>
-                      <X style={{ width: 12, height: 12 }} />
-                    </button>
-                  </div>
-                </div>
-              )}
+                {/* Add Point Button */}
+                <button 
+                  className="mdp2-agenda-add-btn"
+                  onClick={() => addAgendaPoint()}
+                >
+                  <Plus size={14} />
+                  Add agenda point
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1063,7 +1488,7 @@ const MeetingDetailsPage = () => {
                         disabled={generatingMom}
                       >
                         {generatingMom
-                          ? <><Loader style={{ width: 13, height: 13, animation: 'spin 1s linear infinite' }} />Generating…</>
+                          ? <Spinner size="sm" />
                           : <><FileText style={{ width: 13, height: 13 }} />Generate MOM</>}
                       </button>
                     </div>
@@ -1248,7 +1673,23 @@ const MeetingDetailsPage = () => {
             <button
               id="mdp2-cancel-btn"
               className="mdp2-btn-cancel"
-              onClick={() => setShowCancelModal(true)}
+              onClick={async () => {
+                const isConfirmed = await confirm({
+                  title: 'Cancel Meeting',
+                  description: `Are you sure you want to cancel "${meeting.title}"? All attendees will be notified.`,
+                  confirmText: 'Yes, Cancel Meeting',
+                  variant: 'danger'
+                });
+                if (isConfirmed) {
+                  try { 
+                    await API.post(`/meetings/${id}/cancel`, { reason: 'User requested cancellation' }); 
+                    toast.success('Meeting cancelled successfully');
+                    navigate('/dashboard/meetings'); 
+                  } catch {
+                    toast.error('Failed to cancel meeting');
+                  }
+                }
+              }}
             >
               <Trash2 style={{ width: 13, height: 13 }} />
               Cancel Meeting
@@ -1259,26 +1700,7 @@ const MeetingDetailsPage = () => {
       </div>
 
 
-      {/* ── Cancel Modal ── */}
-      {showCancelModal && (
-        <div className="mdp2-modal-overlay" onClick={() => setShowCancelModal(false)}>
-          <div className="mdp2-modal-card" onClick={e => e.stopPropagation()}>
-            <div className="mdp2-modal-header">
-              <span className="mdp2-modal-title">Cancel Meeting</span>
-              <button onClick={() => setShowCancelModal(false)} style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}>
-                <X style={{ width: 16, height: 16 }} />
-              </button>
-            </div>
-            <div className="mdp2-modal-body">
-              Cancel <strong>{meeting.title}</strong>? All {attendees.length} attendee{attendees.length !== 1 ? 's' : ''} will be notified.
-            </div>
-            <div className="mdp2-modal-footer">
-              <button className="mdp2-modal-btn secondary" onClick={() => setShowCancelModal(false)}>Keep Meeting</button>
-              <button className="mdp2-modal-btn danger" onClick={confirmCancel}>Yes, Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
     </div>
   );

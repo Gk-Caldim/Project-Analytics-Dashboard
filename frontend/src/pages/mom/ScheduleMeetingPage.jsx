@@ -1,13 +1,91 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, ChevronDown, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil, Plus } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Video, RefreshCw, Menu, ChevronLeft, ChevronRight, ChevronDown, Check, X, Bell, Target, AlignLeft, CheckCircle2, ArrowRight, Pencil, Plus, Lock, Sparkles, Trash2, ExternalLink } from 'lucide-react';
+import { useConfirm } from '../../hooks/use-confirm';
+import { Spinner } from '../../components/ui/spinner';
 import './ScheduleMeetingPage.css';
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '../../components/ui/tooltip';
 import API from '../../utils/api'; // Assuming axios instance is set up
+
+// --- Utility Helpers (Hoisted outside to avoid TDZ issues) ---
+const to12Hour = (timeStr, useLower = false) => {
+  if (!timeStr) return '';
+  if (typeof timeStr === 'string' && timeStr.includes('T')) {
+    const d = new Date(timeStr);
+    timeStr = `${d.getHours()}:${d.getMinutes()}`;
+  }
+  const parts = String(timeStr).split(':');
+  const h = Number(parts[0]) || 0;
+  const m = parts.length > 1 ? Number(parts[1]) : 0;
+  const period = h >= 12 ? (useLower ? 'pm' : 'PM') : (useLower ? 'am' : 'AM');
+  const hour = h % 12 || 12;
+  return `${String(hour).padStart(2, '0')}:${String(m || 0).padStart(2, '0')} ${period}`;
+};
+
+const parseTimeTo24 = (timeStr) => {
+  if (!timeStr) return { h: 0, m: 0 };
+  if (timeStr.includes('T')) {
+    const d = new Date(timeStr);
+    return { h: d.getHours(), m: d.getMinutes() };
+  }
+  const [timePart, period] = timeStr.split(' ');
+  let [h, m] = timePart.split(':').map(Number);
+  if (period === 'PM' && h !== 12) h += 12;
+  if (period === 'AM' && h === 12) h = 0;
+  return { h, m: m || 0 };
+};
+
+const addMinutes = (time24, mins) => {
+  const [h, m] = time24.split(':').map(Number);
+  const total = h * 60 + m + mins;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+};
+
+// --- New Component: CollisionIndicator ---
+const CollisionIndicator = ({ groupMeetings, to12Hour }) => {
+  return (
+    <Tooltip delayDuration={100}>
+      <TooltipTrigger asChild>
+        <motion.div 
+          className="collision-pulse-dot"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            backgroundColor: ["#f97316", "#fb923c", "#f97316"] 
+          }}
+          transition={{ repeat: Infinity, duration: 1.5 }}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="bg-gray-900 border-none shadow-2xl p-0 overflow-hidden min-w-[200px]">
+        <div className="p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">Conflict Detected</span>
+            <span className="text-[9px] font-bold text-gray-400">{groupMeetings.length} Events</span>
+          </div>
+          <div className="space-y-1.5">
+            {groupMeetings.map((m, idx) => (
+              <div key={idx} className="flex flex-col border-l-2 border-orange-500/50 pl-2 py-0.5">
+                <span className="text-[11px] font-bold text-white truncate">{m.title}</span>
+                <span className="text-[9px] text-gray-400">{to12Hour(m.time, true)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-orange-500/10 px-3 py-1.5 border-t border-white/5">
+          <p className="text-[8px] font-bold text-orange-300 uppercase tracking-tighter">Nearly at same time</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
 
 const ScheduleMeetingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const confirm = useConfirm();
   // --- Calendar State ---
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -39,15 +117,24 @@ const ScheduleMeetingPage = () => {
   const [existingMeetings, setExistingMeetings] = useState([]);
   const [selectedMeetingForDetails, setSelectedMeetingForDetails] = useState(null);
   const [popoverAnchor, setPopoverAnchor] = useState(null); // { x, y } position
+  const [copiedPopoverLink, setCopiedPopoverLink] = useState(false);
 
-  // ── Zoho-style color map per meeting type ──
+  // ── Drag and Drop Rescheduling ──
+  const [selectedMeetingIds, setSelectedMeetingIds] = useState([]); // Multi-selection for Method 2
+  const [draggedMeeting, setDraggedMeeting] = useState(null);
+  const [draggedType, setDraggedType] = useState(null); // The type object being dragged from sidebar
+  const [dragOverInfo, setDragOverInfo] = useState(null); // { date, time, topPx }
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [highlightedMeetingId, setHighlightedMeetingId] = useState(null);
+
+  // ── Zoho-inspired premium color map ──
   const MEETING_TYPE_COLORS = {
-    quickSync:      { bg: '#e8f0fe', border: '#4285f4', text: '#1a56db' }, // Google Blue
-    clientMeeting:  { bg: '#fce8e6', border: '#ea4335', text: '#c5221f' }, // Google Red
-    interview:      { bg: '#e6f4ea', border: '#34a853', text: '#1e8e3e' }, // Google Green
-    deepWork:       { bg: '#fef7e0', border: '#fbbc04', text: '#ea8600' }, // Google Yellow
-    webinar:        { bg: '#f3e8fd', border: '#9334e6', text: '#7627bb' }, // Purple
-    custom:         { bg: '#e8f5f0', border: '#00897b', text: '#00695c' }, // Teal
+    quickSync:      { bg: '#e8f0fe', border: '#1a73e8', text: '#174ea6' }, // Blue
+    clientMeeting:  { bg: '#fef7e0', border: '#fbbc04', text: '#b06000' }, // Yellow/Amber
+    interview:      { bg: '#e6f4ea', border: '#1e8e3e', text: '#0d652d' }, // Green
+    deepWork:       { bg: '#fce8e6', border: '#d93025', text: '#a50e0e' }, // Red/Coral
+    webinar:        { bg: '#f3e8fd', border: '#9334e6', text: '#681da8' }, // Purple
+    custom:         { bg: '#e4f7fb', border: '#00bcd4', text: '#00838f' }, // Cyan
   };
 
   const getMeetingColor = (type) => MEETING_TYPE_COLORS[type] || MEETING_TYPE_COLORS['quickSync'];
@@ -447,19 +534,116 @@ const ScheduleMeetingPage = () => {
 
   const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 to 20:00
 
+  // --- 1. Detect and Split Overlapping Events (Logic) ---
+  const meetingsByDay = useMemo(() => {
+    const dayMap = {};
+    weekDays.forEach(d => {
+      const key = d.toDateString();
+      const dayMeetings = existingMeetings.filter(m => {
+        if (!m.date) return false;
+        const mDate = new Date(m.date);
+        return mDate.toDateString() === key;
+      }).sort((a, b) => {
+        const aT = parseTimeTo24(a.time);
+        const bT = parseTimeTo24(b.time);
+        return (aT.h * 60 + aT.m) - (bT.h * 60 + bT.m);
+      });
+
+      if (!dayMeetings.length) {
+        dayMap[key] = {};
+        return;
+      }
+
+      const layoutMap = {};
+      const groups = [];
+
+      // Create connected components of overlapping meetings
+      dayMeetings.forEach(m => {
+        const { h, m: min } = parseTimeTo24(m.time);
+        const start = h * 60 + min;
+        const end = start + (m.duration || 60);
+        m._start = start;
+        m._end = end;
+
+        let foundGroup = false;
+        for (let group of groups) {
+          if (group.some(gm => start < gm._end && end > gm._start)) {
+            group.push(m);
+            foundGroup = true;
+            break;
+          }
+        }
+        if (!foundGroup) groups.push([m]);
+      });
+
+      // For each group, assign columns side-by-side
+      groups.forEach(group => {
+        const columns = [];
+        group.sort((a, b) => a._start - b._start).forEach(m => {
+          let colIdx = 0;
+          while (columns[colIdx] && columns[colIdx].some(cm => m._start < cm._end && m._end > cm._start)) {
+            colIdx++;
+          }
+          if (!columns[colIdx]) columns[colIdx] = [];
+          columns[colIdx].push(m);
+          m._colIdx = colIdx;
+        });
+
+        const maxCols = columns.length;
+        group.forEach(m => {
+          layoutMap[m.id] = {
+            left: (m._colIdx * 100) / maxCols,
+            width: 100 / maxCols,
+            totalInGroup: group.length,
+            isConflict: maxCols > 1
+          };
+        });
+      });
+      dayMap[key] = layoutMap;
+    });
+    return dayMap;
+  }, [existingMeetings, weekDays]);
+
   // ── Drag to Schedule State ──
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStartInfo, setDragStartInfo] = useState(null);
 
   useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      if (isDragging) setIsDragging(false);
-      if (isResizing) setIsResizing(false);
+    const handleGlobalMouseMove = (e) => {
+      if (isResizing && dragStartInfo && timeSlotsRef.current) {
+        const gridRect = timeSlotsRef.current.getBoundingClientRect();
+        const relativeY = e.clientY - gridRect.top + timeSlotsRef.current.scrollTop;
+        const currentMinFromStart = relativeY;
+        const totalMinAtMouse = (7 * 60) + currentMinFromStart;
+        const snappedMin = Math.round(totalMinAtMouse / 15) * 15;
+        const minEndMin = dragStartInfo.totalMin + 15;
+        const finalEndMin = Math.max(snappedMin, minEndMin);
+        const eH = Math.floor(finalEndMin / 60);
+        const eM = finalEndMin % 60;
+        
+        requestAnimationFrame(() => {
+          setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+        });
+      }
     };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      setIsResizing(false);
+      setDraggedMeeting(null);
+      setDraggedType(null);
+      setDragOverInfo(null);
+      document.body.classList.remove('resizing-active');
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, [isDragging, isResizing]);
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, isResizing, dragStartInfo]);
 
   const handleSlotMouseDown = (date, hour, min) => {
     if (isPastSlot(date, hour, min)) return;
@@ -495,25 +679,72 @@ const ScheduleMeetingPage = () => {
       
       const sH = Math.floor(startMin / 60);
       const sM = startMin % 60;
-      setStartTime(`${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`);
-      
       const eH = Math.floor(endMin / 60);
       const eM = endMin % 60;
-      setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
-    } else if (isResizing) {
-      if (currMin < dragStartInfo.totalMin) return; // Prevent sizing backwards
-      const endMin = currMin + 30; // Snap to end of target slot
-      const eH = Math.floor(endMin / 60);
-      const eM = endMin % 60;
-      setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+
+      requestAnimationFrame(() => {
+        setStartTime(`${String(sH).padStart(2, '0')}:${String(sM).padStart(2, '0')}`);
+        setEndTime(`${String(eH).padStart(2, '0')}:${String(eM).padStart(2, '0')}`);
+      });
     }
   };
 
   const handleExistingMeetingClick = (e, meeting) => {
     e.stopPropagation();
+    setCopiedPopoverLink(false);
+    
+    // Multi-selection logic (Method 2)
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedMeetingIds(prev => 
+        prev.includes(meeting.id) ? prev.filter(id => id !== meeting.id) : [...prev, meeting.id]
+      );
+      setSelectedMeetingForDetails(null);
+      setPopoverAnchor(null);
+      return;
+    }
+
+    // Requirement 5: Open Breakdown panel with pre-filled details
+    setSelectedMeetingIds([meeting.id]);
+    
+    // Populate form fields for the "Breakdown" sidebar
+    if (meeting.date) setSelectedDate(new Date(meeting.date));
+    if (meeting.project_id) setSelectedProjectId(String(meeting.project_id));
+    
+    // Handle attendees (backend might return list of objects or emails)
+    const atts = Array.isArray(meeting.attendees) 
+      ? meeting.attendees.map(a => typeof a === 'object' ? a.email : a)
+      : [];
+    setAttendees(atts);
+    
+    // Handle agenda
+    const ag = typeof meeting.agenda_text === 'string' 
+      ? meeting.agenda_text.split('\n').filter(Boolean)
+      : (Array.isArray(meeting.agenda) ? meeting.agenda : []);
+    setAgenda(ag);
+    
+    // Handle Platform
+    if (meeting.platform) setPlatform(meeting.platform);
+    
+    // Handle Time
+    const { h, m } = parseTimeTo24(meeting.time);
+    const start24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    setStartTime(start24);
+    setUseCustomTime(true);
+    setPresetDuration(meeting.duration || 60);
+    setEndTime(addMinutes(start24, meeting.duration || 60));
+    setMeetingType(meeting.meeting_type || 'quickSync');
+    setDescription(meeting.description || '');
+
+    // Existing popover logic
     const rect = e.currentTarget.getBoundingClientRect();
-    // Position to the right or left depending on space
-    const x = rect.right + 10 > window.innerWidth - 300 ? rect.left - 310 : rect.right + 10;
+    const popoverWidth = 340;
+    const padding = 10;
+    
+    let x = rect.right + padding;
+    if (x + popoverWidth > window.innerWidth) {
+      x = rect.left - popoverWidth - padding;
+    }
+    
     const y = Math.min(rect.top, window.innerHeight - 400);
     setPopoverAnchor({ x, y });
     setSelectedMeetingForDetails(meeting);
@@ -539,28 +770,7 @@ const ScheduleMeetingPage = () => {
     return `${h} hr ${m} min`;
   };
 
-  const to12Hour = (timeStr) => {
-    if (!timeStr) return '';
-    if (typeof timeStr === 'string' && timeStr.includes('T')) {
-      const d = new Date(timeStr);
-      timeStr = `${d.getHours()}:${d.getMinutes()}`;
-    }
-    const parts = String(timeStr).split(':');
-    const h = Number(parts[0]) || 0;
-    const m = parts.length > 1 ? Number(parts[1]) : 0;
-    const period = h >= 12 ? 'PM' : 'AM';
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m || 0).padStart(2, '0')} ${period}`;
-  };
 
-  // Add preset duration minutes to a 24h time string
-  const addMinutes = (time24, mins) => {
-    const [h, m] = time24.split(':').map(Number);
-    const total = h * 60 + m + mins;
-    const nh = Math.floor(total / 60) % 24;
-    const nm = total % 60;
-    return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
-  };
 
   const handleStartTimeChange = (val) => {
     setStartTime(val);
@@ -571,6 +781,153 @@ const ScheduleMeetingPage = () => {
       if ((eh * 60 + em) <= (sh * 60 + sm)) setTimeError('End time must be after start time.');
     }
     setSelectedTime(val ? to12Hour(val) : null);
+  };
+
+  // ── Drag and Drop Handlers ──
+  const handleDragStart = (e, meeting) => {
+    if (isRescheduling) { e.preventDefault(); return; }
+    
+    // If dragging a selected meeting, move the whole batch
+    const batch = selectedMeetingIds.includes(meeting.id) ? selectedMeetingIds : [meeting.id];
+    e.dataTransfer.setData('meetingIds', JSON.stringify(batch));
+    e.dataTransfer.effectAllowed = 'move';
+    
+    setDraggedMeeting(meeting);
+    setDraggedType(null);
+    
+    setTimeout(() => {
+      batch.forEach(id => {
+        const el = document.getElementById(`meeting-${id}`);
+        if (el) el.style.opacity = '0.3';
+      });
+    }, 0);
+  };
+
+  const handleMeetingTypeDragStart = (e, type) => {
+    e.dataTransfer.setData('meetingType', type.id);
+    e.dataTransfer.effectAllowed = 'copy';
+    setDraggedType(type);
+    setDraggedMeeting(null);
+  };
+
+  const handleDragEnd = (e, meeting) => {
+    setDraggedMeeting(null);
+    setDraggedType(null);
+    setDragOverInfo(null);
+    if (meeting) {
+      const el = document.getElementById(`meeting-${meeting.id}`);
+      if (el) el.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e, date) => {
+    e.preventDefault(); 
+    if (!draggedMeeting && !draggedType) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    
+    const minutesSinceStart = relativeY;
+    const totalMinutes = hours[0] * 60 + minutesSinceStart;
+    
+    const snappedMinutes = Math.round(totalMinutes / 15) * 15;
+    const finalTop = (snappedMinutes - hours[0] * 60);
+    
+    const h = Math.floor(snappedMinutes / 60);
+    const m = snappedMinutes % 60;
+    const time24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    
+    // Axis Locking Logic: If drag is primarily horizontal, preserve the original time
+    let finalTime = time24;
+    const isHorizontalDrag = Math.abs(e.movementX || 0) > Math.abs(e.movementY || 0) * 1.5;
+    
+    if (isHorizontalDrag && draggedMeeting) {
+      finalTime = draggedMeeting.time_24 || time24; // Use helper if available
+    }
+
+    // Throttle state updates for smoothness
+    if (!dragOverInfo || dragOverInfo.time !== finalTime || dragOverInfo.date.getTime() !== date.getTime()) {
+      requestAnimationFrame(() => {
+        setDragOverInfo({ date, time: finalTime, topPx: finalTop });
+      });
+    }
+  };
+
+  const handleDrop = async (e, date) => {
+    e.preventDefault();
+    const batchData = e.dataTransfer.getData('meetingIds');
+    const meetingIds = batchData ? JSON.parse(batchData) : [];
+    const typeId = e.dataTransfer.getData('meetingType');
+    
+    if (!dragOverInfo) return;
+
+    if (meetingIds.length > 0) {
+      const targetDate = date.toISOString().split('T')[0];
+      const targetTime = to12Hour(dragOverInfo.time);
+      
+      // Calculate time offset for batch moves (preserving relative distance)
+      const baseMeeting = existingMeetings.find(m => m.id === meetingIds[0]);
+      
+      setDraggedMeeting(null);
+      setDragOverInfo(null);
+
+      // Perform batch move
+      for (const id of meetingIds) {
+        await handleRescheduleMeeting(id, targetDate, targetTime);
+      }
+      setSelectedMeetingIds([]);
+    } else if (typeId) {
+      setMeetingType(typeId);
+      setSelectedDate(date);
+      setUseCustomTime(true);
+      
+      let finalTime;
+      if (dragOverInfo.isHeader) {
+        finalTime = '09:00'; // Default for header drop
+      } else {
+        finalTime = dragOverInfo.time;
+      }
+      
+      setStartTime(finalTime);
+      setEndTime(addMinutes(finalTime, presetDuration));
+      setSelectedTime(to12Hour(finalTime));
+      
+      setDraggedType(null);
+      setDragOverInfo(null);
+      
+      // Focus the form
+      const formEl = document.querySelector('.form-column');
+      if (formEl) formEl.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleRescheduleMeeting = async (meetingId, newDate, newTime) => {
+    try {
+      setIsRescheduling(true);
+      
+      // Optimistic update
+      const oldMeetings = [...existingMeetings];
+      setExistingMeetings(prev => prev.map(m => 
+        String(m.id) === String(meetingId) ? { ...m, date: newDate, time: newTime } : m
+      ));
+
+      const resp = await API.patch(`/meetings/${meetingId}`, {
+        date: newDate,
+        time: newTime
+      });
+
+      if (resp.data.success) {
+        toast.success('Meeting rescheduled');
+      } else {
+        setExistingMeetings(oldMeetings);
+        toast.error('Failed to reschedule');
+      }
+    } catch (err) {
+      toast.error('Error rescheduling meeting');
+      console.error(err);
+    } finally {
+      setIsRescheduling(false);
+    }
   };
 
   const handleEndTimeChange = (val) => {
@@ -636,6 +993,100 @@ const ScheduleMeetingPage = () => {
     }
   };
 
+  const handleAutoMove = async (meeting) => {
+    // ── Resolution Intelligence: Find Next Free Slot ──
+    const mDate = new Date(meeting.date);
+    const dayKey = mDate.toDateString();
+    const dayMeetings = existingMeetings.filter(m => new Date(m.date).toDateString() === dayKey && m.id !== meeting.id);
+    
+    // Convert all meetings to ranges in minutes
+    const ranges = dayMeetings.map(m => {
+      const { h, m: min } = parseTimeTo24(m.time);
+      const start = h * 60 + min;
+      const end = start + (m.duration || 60);
+      return { start, end };
+    }).sort((a, b) => a.start - b.start);
+
+    const duration = meeting.duration || 60;
+    const workdayStart = 8 * 60; // 8 AM
+    const workdayEnd = 18 * 60;  // 6 PM
+    
+    let targetStart = null;
+    let currentPos = workdayStart;
+
+    // Check for gaps
+    for (const r of ranges) {
+      if (r.start - currentPos >= duration) {
+        targetStart = currentPos;
+        break;
+      }
+      currentPos = Math.max(currentPos, r.end);
+    }
+
+    // Check after last meeting
+    if (targetStart === null && workdayEnd - currentPos >= duration) {
+      targetStart = currentPos;
+    }
+
+    if (targetStart !== null) {
+      const h = Math.floor(targetStart / 60);
+      const m = targetStart % 60;
+      const newTime24 = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      
+      try {
+        setLoading(true);
+        // Optimistic UI update
+        const updated = { ...meeting, time: newTime24 };
+        setExistingMeetings(prev => prev.map(ex => ex.id === meeting.id ? updated : ex));
+        
+        // Perspective update: API call
+        await API.patch(`/meetings/${meeting.id}`, { time: newTime24 });
+        
+        // Feedback
+        setHighlightedMeetingId(meeting.id);
+        setTimeout(() => setHighlightedMeetingId(null), 2500);
+      } catch (err) {
+        console.error('Failed to auto-move meeting', err);
+        // Rollback on failure
+        setExistingMeetings(prev => prev.map(ex => ex.id === meeting.id ? meeting : ex));
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      alert("No free slots found on this day. Try another date.");
+    }
+  };
+
+  const handleDeleteMeeting = async (meetingId) => {
+    const isConfirmed = await confirm({
+      title: 'Cancel Meeting',
+      description: 'Are you sure you want to cancel this meeting? This will notify all attendees.',
+      confirmText: 'Yes, Cancel Meeting',
+      variant: 'danger'
+    });
+    
+    if (!isConfirmed) return;
+    
+    try {
+      setLoading(true);
+      const resp = await API.post(`/meetings/${meetingId}/cancel`, {
+        reason: 'User cancelled from schedule grid',
+        notify_attendees: true
+      });
+      
+      if (resp.data.success) {
+        setExistingMeetings(prev => prev.filter(m => m.id !== meetingId));
+        setSelectedMeetingForDetails(null);
+        setPopoverAnchor(null);
+      }
+    } catch (err) {
+      console.error('Failed to cancel meeting', err);
+      alert('Failed to cancel meeting. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -662,10 +1113,6 @@ const ScheduleMeetingPage = () => {
         });
 
         if (resp.data.success) {
-          // Open the Teams meeting link in a new tab
-          if (resp.data.join_url) {
-            window.open(resp.data.join_url, '_blank');
-          }
           // Redirect to the internal meeting details page
           navigate(`/dashboard/meeting/${resp.data.meeting_id}`);
         } else {
@@ -700,10 +1147,6 @@ const ScheduleMeetingPage = () => {
     try {
       const resp = await API.post('/meetings/publish', payload);
       if (resp.data.success) {
-        // Open the Google Meet link in a new tab
-        if (resp.data.meeting.join_url) {
-          window.open(resp.data.meeting.join_url, '_blank');
-        }
         // Redirect to the internal meeting details page
         navigate(`/dashboard/meeting/${resp.data.meeting.id}`);
       } else {
@@ -745,7 +1188,8 @@ const ScheduleMeetingPage = () => {
   }, [meetingType]);
 
   return (
-    <div className="schedule-meeting-page h-full w-full">
+    <TooltipProvider>
+      <div className="schedule-meeting-page h-full w-full">
       {/* ───── LEFT COLUMN (MINI CAL & SETTINGS) ───── */}
       <div className="sidebar-left flex flex-col gap-5 h-full overflow-y-auto pr-2 pb-4">
         
@@ -841,7 +1285,10 @@ const ScheduleMeetingPage = () => {
             {meetingTypes.map(type => (
               <button
                 key={type.id}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                draggable={true}
+                onDragStart={(e) => handleMeetingTypeDragStart(e, type)}
+                onDragEnd={() => handleDragEnd(null, null)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-grab active:cursor-grabbing ${
                   meetingType === type.id 
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' 
                     : 'border-transparent hover:bg-gray-50 text-gray-600 hover:border-gray-200'
@@ -980,31 +1427,63 @@ const ScheduleMeetingPage = () => {
             {activeView === 'Agenda' ? (
               <div className="agenda-view-wrapper flex-1 overflow-y-auto px-6 py-4 custom-scrollbar bg-gray-50/30">
                 {(() => {
-                  const futureMeetings = existingMeetings.filter(m => !isPastSlot(m.date, parseInt((m.time||'0').split(':')[0]), parseInt((m.time||'0').split(':')[1])));
+                  const futureMeetings = existingMeetings.filter(m => {
+                    const { h, m: min } = parseTimeTo24(m.time);
+                    return !isPastSlot(m.date, h, min);
+                  });
                   futureMeetings.sort((a,b) => new Date(a.date) - new Date(b.date));
                   if(futureMeetings.length === 0) return <div className="text-gray-400 mt-10 text-center font-medium">No upcoming meetings. Enjoy your time back!</div>;
                   
                   let lastDate = '';
-                  return futureMeetings.map(m => {
-                    const mDateStr = new Date(m.date).toLocaleDateString();
-                    const showHeader = mDateStr !== lastDate;
-                    lastDate = mDateStr;
-                    const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
-                    return (
-                      <React.Fragment key={m.id || Math.random()}>
-                        {showHeader && <div className="text-sm font-extrabold text-gray-800 mt-6 mb-3 border-b border-gray-100 pb-1">{new Date(m.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>}
-                        <div 
-                          className="flex items-center gap-4 py-3 px-4 mb-2 bg-white hover:bg-gray-50 rounded-xl cursor-pointer transition-colors shadow-sm border border-gray-100"
-                          onClick={(e) => handleExistingMeetingClick(e, m)}
-                        >
-                          <div className="w-20 text-xs font-bold text-gray-500 whitespace-nowrap text-right pr-2">{to12Hour(m.time)}</div>
-                          <div className="w-1 h-10 rounded-full" style={{ backgroundColor: mColor.border }}></div>
-                          <div className="flex-1">
-                            <div className="font-bold text-gray-900 text-sm">{m.title}</div>
-                            <div className="text-xs text-gray-500 mt-0.5">{m.duration} min • {m.meeting_type || 'General'}</div>
-                          </div>
-                          {m.attendees && (
-                            <div className="flex flex-shrink-0 -space-x-1.5 overflow-hidden hidden sm:flex pl-2">
+                    return futureMeetings.map(m => {
+                      const mDateStr = new Date(m.date).toLocaleDateString();
+                      const showHeader = mDateStr !== lastDate;
+                      lastDate = mDateStr;
+                      const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
+                      const isSelected = selectedMeetingIds.includes(m.id);
+
+                      return (
+                        <React.Fragment key={m.id || Math.random()}>
+                          {showHeader && (
+                            <div 
+                              className={`text-sm font-extrabold text-gray-800 mt-6 mb-3 border-b border-gray-100 pb-1 transition-colors ${dragOverInfo && dragOverInfo.date.getTime() === new Date(m.date).setHours(0,0,0,0) ? 'text-indigo-600 border-indigo-400 bg-indigo-50/50 rounded-t-lg' : ''}`}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                const d = new Date(m.date);
+                                d.setHours(0,0,0,0);
+                                if (!dragOverInfo || dragOverInfo.date.getTime() !== d.getTime()) {
+                                  setDragOverInfo({ date: d, isHeader: true });
+                                }
+                              }}
+                              onDragLeave={() => setDragOverInfo(null)}
+                              onDrop={(e) => handleDrop(e, new Date(m.date))}
+                            >
+                              {new Date(m.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                            </div>
+                          )}
+                          
+                          <motion.div 
+                            key={m.id || Math.random()}
+                            id={`agenda-meeting-${m.id}`}
+                            layoutId={`meeting-${m.id}`}
+                            draggable={isSelected}
+                            onDragStart={(e) => handleDragStart(e, m)}
+                            onDragEnd={(e) => handleDragEnd(e, m)}
+                            className={`flex items-center gap-4 py-3 px-4 mb-2 transition-all shadow-sm border ${isSelected ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-100 opacity-100' : 'bg-white/50 grayscale-[0.3] opacity-70 hover:opacity-100 hover:grayscale-0 border-gray-100'} rounded-xl cursor-pointer`}
+                            onClick={(e) => handleExistingMeetingClick(e, m)}
+                            whileHover={{ scale: 1.005 }}
+                          >
+                            <div className={`w-20 text-xs font-bold whitespace-nowrap text-right pr-2 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`}>{to12Hour(m.time)}</div>
+                            <div className="w-1 h-10 rounded-full opacity-40" style={{ backgroundColor: mColor.border }}></div>
+                            <div className="flex-1">
+                              <div className={`font-bold text-sm flex items-center gap-2 ${isSelected ? 'text-indigo-900' : 'text-gray-400'}`}>
+                                {isSelected ? <ArrowRight className="w-3 h-3 text-indigo-500" /> : <Lock className="w-3 h-3 opacity-50" />}
+                                {m.title}
+                              </div>
+                              <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`}>{m.duration} min • {m.meeting_type || 'General'}</div>
+                            </div>
+                            {m.attendees && (
+                              <div className={`flex flex-shrink-0 -space-x-1.5 overflow-hidden hidden sm:flex pl-2 ${isSelected ? 'opacity-100' : 'opacity-50'}`}>
                               {Array.isArray(m.attendees) ? m.attendees.filter(a => a).map((a, i) => {
                                 const initial = (typeof a === 'object' ? (a.name || a.email || '?') : String(a)).trim().charAt(0).toUpperCase() || '?';
                                 return (
@@ -1014,7 +1493,7 @@ const ScheduleMeetingPage = () => {
                               )}) : null}
                             </div>
                           )}
-                        </div>
+                          </motion.div>
                       </React.Fragment>
                     );
                   });
@@ -1074,7 +1553,7 @@ const ScheduleMeetingPage = () => {
                   const hasSelection = selectedDate && 
                                        selectedDate.getDate() === d.getDate() && 
                                        selectedDate.getMonth() === d.getMonth() &&
-                                       startTime && endTime;
+                                       startTime && endTime && !selectedMeetingForDetails;
                   let topPx = 0;
                   let heightPx = 0;
                   let isCollision = false;
@@ -1097,8 +1576,8 @@ const ScheduleMeetingPage = () => {
                       const mDate = new Date(m.date);
                       if (mDate.getDate() !== d.getDate() || mDate.getMonth() !== d.getMonth() || mDate.getFullYear() !== d.getFullYear()) return false;
                       
-                      const [mH, mM] = (m.time || '00:00').split(':').map(Number);
-                      const mStartMin = mH * 60 + mM;
+                      const { h, m: min } = parseTimeTo24(m.time);
+                      const mStartMin = h * 60 + min;
                       const mEndMin = mStartMin + (m.duration || 60);
                       
                       return blockStartMin < mEndMin && blockEndMin > mStartMin; // Overlap formula
@@ -1106,7 +1585,28 @@ const ScheduleMeetingPage = () => {
                   }
 
                   return (
-                    <div key={d.toISOString()} className={`day-col${isToday(d) ? ' today-col' : ''}`}>
+                    <div 
+                      key={d.toISOString()} 
+                      className={`day-col relative${isToday(d) ? ' today-col' : ''}${dragOverInfo && dragOverInfo.date.getTime() === d.getTime() ? ' drag-over' : ''}`}
+                      onDragOver={(e) => handleDragOver(e, d)}
+                      onDrop={(e) => handleDrop(e, d)}
+                    >
+                      {/* Rescheduling Ghost Preview */}
+                      {dragOverInfo && (draggedMeeting || draggedType) && dragOverInfo.date.getTime() === d.getTime() && (
+                        <div 
+                          className="event-block ghost-preview absolute left-[4px] right-[4px] z-0 opacity-40 pointer-events-none border-2 border-dashed border-indigo-400 rounded-lg flex flex-col p-2"
+                          style={{ 
+                            top: `${dragOverInfo.topPx}px`, 
+                            height: `${(draggedMeeting?.duration || draggedMeeting?.duration_minutes) || 60}px`,
+                            backgroundColor: '#e0e7ff',
+                          }}
+                        >
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase mb-1">{to12Hour(dragOverInfo.time, true)}</span>
+                          {draggedType && <span className="text-[9px] font-bold text-indigo-500 truncate">{draggedType.label}</span>}
+                          {draggedMeeting && <span className="text-[9px] font-bold text-indigo-500 truncate">{draggedMeeting.title}</span>}
+                        </div>
+                      )}
+                      
                       {hours.map(h => (
                         <div key={h} className="hour-slot-group">
                           <div
@@ -1125,93 +1625,186 @@ const ScheduleMeetingPage = () => {
                       ))}
                       
                       
-                      {/* Render EXISTING Meetings for this day */}
-                      {existingMeetings.map(m => {
-                        if (!m.date) return null;
-                        const mDate = new Date(m.date);
-                        if (
-                          mDate.getDate() !== d.getDate() ||
-                          mDate.getMonth() !== d.getMonth() ||
-                          mDate.getFullYear() !== d.getFullYear()
-                        ) return null;
-                        
-                        const [mH, mM] = (m.time || '00:00').split(':').map(Number);
-                        const dur = m.duration || 60;
-                        const blockTop = (mH - hours[0]) * 60 + mM;
-                        const blockHeight = Math.max(dur, 22); // min height for readability
-                        const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
+                      {/* Render EXISTING Meetings for this day (with intelligent overlap layout) */}
+                      {(() => {
+                        const dayKey = d.toDateString();
+                        const dayLayouts = meetingsByDay[dayKey] || {};
+                        const dayMeetings = existingMeetings.filter(m => {
+                          if (!m.date) return false;
+                          const mDate = new Date(m.date);
+                          return mDate.toDateString() === dayKey;
+                        });
 
-                        return (
-                          <div 
-                            key={m.id || Math.random()}
-                            className="event-block existing-meeting absolute left-0 right-0 flex flex-col justify-start overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
-                            onClick={(e) => handleExistingMeetingClick(e, m)}
-                            style={{ 
-                              top: `${blockTop}px`, 
-                              height: `${blockHeight}px`,
-                              backgroundColor: mColor.bg,
-                              borderLeft: `3px solid ${mColor.border}`,
-                              borderRadius: '2px',
-                              padding: '3px 6px',
-                              color: mColor.text,
-                              fontSize: '11px',
-                              fontWeight: '600',
-                              lineHeight: '1.3',
-                            }}
-                            title={`${m.title} (${m.time})`}
-                          >
-                            <span className="leading-tight" style={{ 
-                              display: '-webkit-box', 
-                              WebkitLineClamp: blockHeight > 45 ? 2 : 1, 
-                              WebkitBoxOrient: 'vertical', 
-                              overflow: 'hidden' 
-                            }}>
-                              {m.title}
-                            </span>
-                            {blockHeight > 30 && (
-                              <span style={{ fontSize: '10px', fontWeight: '500', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {to12Hour(m.time)}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
+                        return dayMeetings.map(m => {
+                          const layout = dayLayouts[m.id] || { left: 0, width: 100, isConflict: false, totalInGroup: 1 };
+                          const { h: mH, m: mM } = parseTimeTo24(m.time);
+                          const dur = m.duration || 60;
+                          const blockTop = (mH - hours[0]) * 60 + mM;
+                          const blockHeight = Math.max(dur, 40); // Requirement 4: Consistent min-height
+                          const mColor = getMeetingColor(m.meeting_type || m.type || 'quickSync');
 
-                      {/* Render DRAFT / SELECTION Meeting */}
-                      {hasSelection && (
-                        <div 
-                          className={`event-block active flex flex-col justify-center absolute left-0 right-0 z-30 transition-all ${isCollision ? 'error-collision' : ''}`}
-                          style={{ 
-                            top: `${topPx}px`, 
-                            height: `${heightPx}px`, 
-                            backgroundColor: isCollision ? '#fef2f2' : `${eventColor}20`,
-                            borderLeft: `3px solid ${isCollision ? '#ef4444' : eventColor}`,
-                            borderRadius: '2px',
-                            padding: '0 8px',
-                            boxShadow: isCollision ? `0 2px 8px rgba(220, 38, 38, 0.15)` : `0 2px 10px ${eventColor}25`,
-                            color: isCollision ? '#c5221f' : eventColor,
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            lineHeight: '1.2',
-                          }}
-                        >
-                          <span className="truncate">{isCollision ? 'Overlapping Meeting!' : effectiveTitle}</span>
-                          <span className="opacity-80 text-[10px] sm:text-xs font-medium">{selectedTime} {isCollision ? '' : `• ${Math.round(heightPx)}m`}</span>
+                          const start24 = `${String(mH).padStart(2, '0')}:${String(mM).padStart(2, '0')}`;
+                          const end24 = addMinutes(start24, dur);
+                          const timeRange = `${to12Hour(m.time, true)} - ${to12Hour(end24, true)}`;
+                          const isSelected = selectedMeetingIds.includes(m.id);
                           
-                          {/* Drag handle to resize block downwards visually */}
-                          <div 
-                            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize group"
-                            onMouseDown={(e) => {
-                              e.stopPropagation();
-                              setIsResizing(true);
-                              const [sh, sm] = startTime.split(':').map(Number);
-                              setDragStartInfo({ date: selectedDate, totalMin: sh * 60 + sm });
-                            }}
-                          >
-                            <div className="w-6 h-[3px] bg-black/20 rounded-full mx-auto opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
-                          </div>
-                        </div>
-                      )}
+                          const isUltraShort = dur < 30;
+                          const isShort = dur < 45;
+
+                          return (
+                            <motion.div 
+                              key={m.id || Math.random()}
+                              id={`meeting-${m.id}`}
+                              layoutId={`meeting-${m.id}`}
+                              className={`event-block existing-meeting absolute flex ${isUltraShort ? 'flex-row items-center justify-between' : 'flex-col justify-start'} transition-all shadow-sm ${isSelected ? 'selected-card z-50' : 'z-10'} ${highlightedMeetingId === m.id ? 'focused-conflict-card' : ''}`}
+                              onClick={(e) => handleExistingMeetingClick(e, m)} 
+                              whileHover={{ scale: 1.02, zIndex: 60, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} 
+                              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                              style={{ 
+                                top: `${blockTop}px`, 
+                                height: `${blockHeight}px`,
+                                left: `${layout.left}%`,
+                                width: `${layout.width}%`,
+                                backgroundColor: `${mColor.border}15`, 
+                                borderLeft: `3px solid ${mColor.border}`, 
+                                borderRadius: '4px',
+                                padding: isUltraShort ? '4px 8px' : '6px 8px',
+                                pointerEvents: 'auto', // Re-enabled to allow Tooltip interaction
+                                overflow: 'visible',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {/* New Tooltip-based Collision Hub */}
+                              {layout.isConflict && (
+                                <div className="absolute top-1 right-1 z-[100]">
+                                  <CollisionIndicator 
+                                    groupMeetings={dayMeetings.filter(dm => {
+                                      const { h, m: min } = parseTimeTo24(dm.time);
+                                      const s = h * 60 + min;
+                                      const e = s + (dm.duration || 60);
+                                      const { h: mh, m: mm } = parseTimeTo24(m.time);
+                                      const ms = mh * 60 + mm;
+                                      const me = ms + (m.duration || 60);
+                                      return s < me && e > ms;
+                                    })} 
+                                    to12Hour={to12Hour}
+                                  />
+                                </div>
+                              )}
+
+                              <div className={`flex ${isUltraShort ? 'flex-1 items-center gap-2' : 'flex-col'} overflow-hidden`}>
+                                <div className="flex items-center gap-1 overflow-hidden">
+                                  {isSelected && <ArrowRight className="w-2.5 h-2.5 text-indigo-600 shrink-0" />}
+                                  <span className={`truncate ${isUltraShort ? 'text-[10px]' : 'text-[11px]'} font-bold text-gray-800 leading-tight`}>
+                                    {m.title}
+                                  </span>
+                                </div>
+                                
+                                {!isUltraShort && (
+                                  <span className={`text-[10px] font-medium text-gray-500 truncate ${isShort ? '' : 'mb-1'}`}>
+                                    {isShort ? to12Hour(m.time, true) : timeRange}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {isUltraShort && (
+                                <span className="text-[9px] font-black text-gray-400 whitespace-nowrap ml-2">
+                                  {to12Hour(m.time, true)}
+                                </span>
+                              )}
+
+                              {!isShort && m.attendees?.length > 0 && (
+                                <div className="mt-auto flex -space-x-1.5 overflow-hidden">
+                                  {m.attendees.slice(0, 3).map((a, i) => {
+                                    const initial = (typeof a === 'object' ? (a.name || a.email || '?') : String(a)).trim().charAt(0).toUpperCase() || '?';
+                                    return (
+                                      <div key={i} className="w-4 h-4 rounded-full border border-white bg-slate-100 flex items-center justify-center text-[7px] font-black text-slate-700 shadow-sm">
+                                        {initial}
+                                      </div>
+                                    );
+                                  })}
+                                  {m.attendees.length > 3 && (
+                                    <div className="w-4 h-4 rounded-full border border-white bg-slate-100 flex items-center justify-center text-[7px] font-bold text-slate-500 shadow-sm">
+                                      +{m.attendees.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </motion.div>
+                          );
+                        });
+                      })()}
+
+                      {/* Render DRAFT / SELECTION Meeting (Only if not viewing existing meeting details) */}
+                      {hasSelection && !selectedMeetingForDetails && (() => {
+                          const isUltraShort = (draggedMeeting?.duration || draggedMeeting?.duration_minutes || heightPx) < 30;
+                          const isShort = (draggedMeeting?.duration || draggedMeeting?.duration_minutes || heightPx) < 45;
+
+                          return (
+                            <motion.div 
+                              layout
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className={`event-block active flex ${isUltraShort ? 'flex-row items-center justify-between' : 'flex-col justify-center'} absolute left-0 right-0 z-30 transition-all cursor-grab active:cursor-grabbing ${isCollision ? 'error-collision' : ''}`}
+                              style={{ 
+                                top: `${topPx}px`, 
+                                height: `${heightPx}px`, 
+                                backgroundColor: isCollision ? '#fef2f2' : `${eventColor}25`,
+                                borderLeft: `4px solid ${isCollision ? '#ef4444' : eventColor}`,
+                                borderRadius: '6px',
+                                padding: isUltraShort ? '0 8px' : '0 12px',
+                                boxShadow: isCollision ? `0 2px 8px rgba(220, 38, 38, 0.15)` : `0 12px 40px ${eventColor}45`,
+                                color: isCollision ? '#c5221f' : eventColor,
+                                fontSize: isUltraShort ? '10px' : '11px',
+                                fontWeight: '700',
+                                lineHeight: '1.2',
+                                pointerEvents: (isDragging || isResizing) ? 'none' : 'auto'
+                              }}
+                            >
+                              <div className={`flex ${isUltraShort ? 'items-center gap-2' : 'flex-col mb-1'} overflow-hidden`}>
+                                {!isUltraShort && (
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <span className="px-1.5 py-0.5 bg-white/90 rounded text-[8px] font-black uppercase tracking-tighter shadow-sm border border-black/5">Draft</span>
+                                    {heightPx > 50 && (
+                                      <span className="text-[9px] font-bold opacity-60 uppercase truncate ml-2">
+                                        {projects.find(p => p.id === selectedProjectId)?.name || 'Select Project...'}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                <div className={`font-bold truncate ${isUltraShort ? 'text-[10px]' : 'text-[12px]'}`}>
+                                  {isCollision ? 'Collision!' : effectiveTitle}
+                                </div>
+                              </div>
+
+                              {!isUltraShort && (
+                                <span className="opacity-80 text-[10px] font-medium flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {selectedTime} ({formatDuration(Math.round(heightPx))})
+                                </span>
+                              )}
+
+                              {isUltraShort && (
+                                <span className="text-[9px] font-black opacity-60 whitespace-nowrap">{to12Hour(startTime, true)}</span>
+                              )}
+                          
+                              {/* Premium Drag handle to resize block downwards */}
+                              <div 
+                                className={`absolute bottom-[-5px] left-0 right-0 h-[12px] cursor-ns-resize group z-40 flex items-center justify-center transition-all ${isResizing ? 'opacity-100 scale-y-125' : 'opacity-0 hover:opacity-100'}`}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  setIsRescheduling(true); // Fixed: was using setIsRescheduling but in draft context
+                                  setIsResizing(true);
+                                  const [sh, sm] = startTime.split(':').map(Number);
+                                  setDragStartInfo({ date: selectedDate, totalMin: sh * 60 + sm });
+                                  document.body.classList.add('resizing-active');
+                                }}
+                              >
+                                <div className="w-14 h-[4px] bg-white rounded-full shadow-md border border-black/5" />
+                              </div>
+                            </motion.div>
+                          );
+                      })()}
                     </div>
                   );
                 })}
@@ -1228,41 +1821,41 @@ const ScheduleMeetingPage = () => {
       <div className="form-column h-full overflow-y-auto pb-6 pl-1 custom-scrollbar">
         <div className="sticky-panel glass-panel border border-gray-200/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
 
-          {/* Live Summary Box */}
-          <div className="summary-box mb-8 bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 p-5 rounded-xl text-sm">
-            <h4 className="font-bold text-indigo-900 mb-3 uppercase tracking-wider text-xs">Meeting Breakdown</h4>
-            <div className="space-y-2 text-indigo-950 font-medium">
+          {/* Live Summary Box - Leaner & Neutral */}
+          <div className="summary-box mb-6 bg-gray-50/50 border border-gray-100 p-4 rounded-xl text-[12px]">
+            <h4 className="font-bold text-gray-400 mb-3 uppercase tracking-[0.15em] text-[10px]">Meeting Breakdown</h4>
+            <div className="space-y-2.5 text-gray-700 font-medium">
               <div className="flex justify-between items-center">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Date</span>
-                <span>{selectedDate ? selectedDate.toLocaleDateString() : '--'}</span>
+                <span className="text-gray-400 flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Date</span>
+                <span className="font-bold">{selectedDate ? selectedDate.toLocaleDateString() : '--'}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Time</span>
-                <span className="font-mono">
+                <span className="text-gray-400 flex items-center gap-1.5"><Clock className="w-3 h-3" /> Time</span>
+                <span className="font-mono font-black text-indigo-600">
                   {useCustomTime
                     ? (startTime && endTime ? `${to12Hour(startTime)} → ${to12Hour(endTime)}` : '--')
                     : (selectedTime || '--')}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Duration</span>
-                <span className={effectiveDuration ? 'text-indigo-900' : 'text-gray-400'}>{formatDuration(effectiveDuration)}</span>
+                <span className="text-gray-400 flex items-center gap-1.5"><Clock className="w-3 h-3" /> Duration</span>
+                <span className={`font-bold ${effectiveDuration ? 'text-gray-900' : 'text-gray-300'}`}>{formatDuration(effectiveDuration)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Attendees</span>
-                <span>{attendees.length} people</span>
+                <span className="text-gray-400 flex items-center gap-1.5"><Users className="w-3 h-3" /> Attendees</span>
+                <span className="font-bold">{attendees.length} people</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Video className="w-3.5 h-3.5" /> Platform</span>
-                <span>{platform ? platforms.find(p => p.id === platform).name : '--'}</span>
+                <span className="text-gray-400 flex items-center gap-1.5"><Video className="w-3 h-3" /> Platform</span>
+                <span className="font-bold">{platform ? platforms.find(p => p.id === platform).name : '--'}</span>
               </div>
-              <div className="flex justify-between items-center pt-1 border-t border-indigo-100 mt-1">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Pencil className="w-3.5 h-3.5" /> Type</span>
-                <span className="text-xs truncate max-w-[55%] text-right">{effectiveTitle}</span>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-1">
+                <span className="text-gray-400 flex items-center gap-1.5"><Pencil className="w-3 h-3" /> Type</span>
+                <span className="text-[11px] font-black truncate max-w-[55%] text-right text-indigo-600">{effectiveTitle}</span>
               </div>
-              <div className="flex justify-between items-center pt-1 mt-1 border-t border-indigo-100">
-                <span className="text-indigo-700 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Project</span>
-                <span className="text-xs truncate max-w-[55%] text-right font-bold">
+              <div className="flex justify-between items-center pt-1 mt-1 border-t border-gray-100">
+                <span className="text-gray-400 flex items-center gap-1.5"><Target className="w-3 h-3" /> Project</span>
+                <span className="text-[11px] truncate max-w-[55%] text-right font-black text-indigo-600 uppercase tracking-tighter">
                   {selectedProjectId ? projects.find(p => String(p.id || p.project_id) === String(selectedProjectId))?.name || 'Selected' : '--'}
                 </span>
               </div>
@@ -1337,50 +1930,45 @@ const ScheduleMeetingPage = () => {
               </div>
             </div>
 
-            {/* Platform Selector */}
+            {/* Platform Selector - Leaner Cards */}
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Platform <span className="text-red-500">*</span></label>
-              <div className="platform-grid flex gap-3">
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Select Platform</label>
+              <div className="platform-grid flex gap-2">
                 {platforms.map(p => (
                   <button
                     key={p.id} type="button"
                     disabled={teamsAuthChecking && p.id === 'teams'}
-                    className={`flex-1 group flex flex-col items-center gap-3 p-4 rounded-xl border transition-all duration-300 ${platform === p.id
+                    className={`flex-1 group flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 ${platform === p.id
                         ? 'border-indigo-600 bg-indigo-50/20 shadow-sm'
-                        : 'border-gray-200 bg-white hover:border-indigo-200'
+                        : 'border-gray-100 bg-gray-50/30 hover:border-indigo-200 hover:bg-white'
                       } ${teamsAuthChecking && p.id === 'teams' ? 'opacity-60 cursor-wait' : ''}`}
                     onClick={() => handlePlatformSelect(p.id)}
                   >
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${platform === p.id ? 'bg-white shadow-sm' : 'bg-gray-50/50'}`}>
-                      {teamsAuthChecking && p.id === 'teams' ? <RefreshCw className="animate-spin text-indigo-500 w-4 h-4" /> : p.icon}
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${platform === p.id ? 'bg-white shadow-sm' : 'bg-white/50'}`}>
+                      {teamsAuthChecking && p.id === 'teams' ? <RefreshCw className="animate-spin text-indigo-500 w-3.5 h-3.5" /> : p.icon}
                     </div>
-                    <div className="text-center">
-                      <span className={`text-[11px] font-semibold tracking-wide uppercase ${platform === p.id ? 'text-indigo-900' : 'text-gray-600'}`}>{p.name}</span>
+                    <div className="flex flex-col items-start">
+                      <span className={`text-[10px] font-black tracking-wide uppercase ${platform === p.id ? 'text-indigo-900' : 'text-gray-500'}`}>{p.name}</span>
                       {platform === p.id ? (
-                        <div className="mt-1 flex items-center justify-center gap-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
-                          <span className="text-[9px] font-bold text-indigo-600 uppercase tracking-tight">Active</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-1 h-1 rounded-full bg-indigo-500 animate-pulse"></div>
+                          <span className="text-[8px] font-bold text-indigo-600 uppercase tracking-tight">Active</span>
                         </div>
                       ) : recommendedPlatform === p.id ? (
-                        <div className="mt-1">
-                          <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-tighter">Recommended</span>
-                        </div>
+                        <span className="text-[8px] font-semibold text-gray-400 uppercase tracking-tighter italic">Suggested</span>
                       ) : null}
                     </div>
                   </button>
                 ))}
               </div>
-              {teamsAuthChecking && (
-                <p className="text-xs text-blue-500 mt-2 font-medium">Checking Teams authentication...</p>
-              )}
             </div>
 
-            {/* Duration — Preset chips + optional Custom time range */}
+            {/* Duration Section - Leaner */}
             <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-indigo-500" /> Duration
+              <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-indigo-500" /> Meeting Duration
               </label>
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="flex flex-wrap gap-1.5 mb-3">
                 {presetDurations.map(d => (
                   <button
                     key={d.value}
@@ -1388,53 +1976,52 @@ const ScheduleMeetingPage = () => {
                     onClick={() => {
                       setPresetDuration(d.value);
                       setUseCustomTime(false);
-                      // If a start time already exists, auto-recalculate end time
                       if (startTime) setEndTime(addMinutes(startTime, d.value));
                     }}
-                    className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all duration-200 ${!useCustomTime && presetDuration === d.value
+                    className={`text-[10px] px-2.5 py-1 rounded-lg font-black border transition-all duration-200 ${!useCustomTime && presetDuration === d.value
                         ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                        : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-200 hover:text-indigo-600'
                       }`}
                   >
-                    {!useCustomTime && presetDuration === d.value && <Check className="w-3 h-3 inline mr-1" />}
                     {d.label}
                   </button>
                 ))}
-                {/* Custom chip */}
                 <button
                   type="button"
                   onClick={() => setUseCustomTime(!useCustomTime)}
-                  className={`text-xs px-3 py-1.5 rounded-full font-semibold border transition-all duration-200 ${useCustomTime
-                      ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                  className={`text-[10px] px-2.5 py-1 rounded-lg font-black border transition-all duration-200 ${useCustomTime
+                      ? 'bg-indigo-100 text-indigo-700 border-indigo-200 shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-100 hover:border-indigo-200 hover:text-indigo-600'
                     }`}
                 >
-                  {useCustomTime && <Check className="w-3 h-3 inline mr-1" />}
-                  Custom
+                  Custom...
                 </button>
               </div>
 
-              {/* Universal Time Inspector */}
-              <div className="animate-fadeIn mt-6 bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-inner">
-                <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">Precise Timing</label>
-                <div className="flex items-center gap-3">
+              {/* Precise Timing - Leaner Layout */}
+              <div className="mt-4 pt-4 border-t border-gray-50">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-[10px] font-black text-gray-300 uppercase tracking-widest">Precise Timing</label>
+                  {computedDuration && !timeError && (
+                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                      {formatDuration(computedDuration)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1 font-semibold">Start</label>
                     <input
                       type="time"
-                      className={`ui-select w-full font-mono text-sm tracking-wider bg-white ${startTime ? 'border-indigo-300 text-indigo-800' : ''}`}
+                      className={`ui-select w-full font-mono text-[11px] font-black tracking-widest bg-gray-50/50 border-gray-100 focus:bg-white rounded-lg px-2 py-1.5 ${startTime ? 'text-indigo-800' : ''}`}
                       value={startTime}
                       onChange={(e) => handleStartTimeChange(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-end pb-1">
-                    <span className="text-gray-300 font-bold text-lg mt-5">→</span>
-                  </div>
+                  <ArrowRight className="w-3 h-3 text-gray-200" />
                   <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1 font-semibold">End</label>
                     <input
                       type="time"
-                      className={`ui-select w-full font-mono text-sm tracking-wider bg-white ${endTime ? 'border-indigo-300 text-indigo-800' : ''} ${timeError ? 'border-red-400 bg-red-50' : ''}`}
+                      className={`ui-select w-full font-mono text-[11px] font-black tracking-widest bg-gray-50/50 border-gray-100 focus:bg-white rounded-lg px-2 py-1.5 ${endTime ? 'text-indigo-800' : ''} ${timeError ? 'border-red-400 bg-red-50' : ''}`}
                       value={endTime}
                       min={startTime}
                       onChange={(e) => handleEndTimeChange(e.target.value)}
@@ -1442,14 +2029,9 @@ const ScheduleMeetingPage = () => {
                   </div>
                 </div>
                 {timeError && (
-                  <p className="text-xs text-red-500 mt-2 font-medium flex items-center gap-1">
-                    <X className="w-3 h-3" /> {timeError}
+                  <p className="text-[9px] text-red-500 mt-2 font-bold flex items-center gap-1">
+                    <X className="w-2.5 h-2.5" /> {timeError}
                   </p>
-                )}
-                {computedDuration && !timeError && (
-                  <div className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-full">
-                    <Check className="w-3 h-3" /> Duration: {formatDuration(computedDuration)}
-                  </div>
                 )}
               </div>
             </div>
@@ -1486,11 +2068,7 @@ const ScheduleMeetingPage = () => {
               className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-white transition-all shadow-md ${!validateForm() || loading ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-gray-900 hover:bg-black hover:shadow-lg active:scale-[0.98]'}`}
               disabled={!validateForm() || loading}
             >
-              {loading ? (
-                <><RefreshCw className="w-5 h-5 animate-spin" /> Finalizing...</>
-              ) : (
-                'Publish & Send Invites'
-              )}
+              {loading ? <Spinner size="sm" /> : 'Publish & Send Invites'}
             </button>
             {!validateForm() && (
               <p className="text-center text-xs text-gray-400 mt-2">Please complete required fields (*)</p>
@@ -1502,91 +2080,167 @@ const ScheduleMeetingPage = () => {
       {/* ───── ZO-STYLE MEETING POPOVER ───── */}
       {selectedMeetingForDetails && popoverAnchor && (
         <div 
-          className="meeting-popover fixed z-[100] w-[300px] glass-panel rounded-2xl shadow-xl border border-white/60 overflow-hidden animate-fadeIn animate-scaleIn"
-          style={{ left: popoverAnchor.x, top: popoverAnchor.y }}
+          className="meeting-popover fixed z-[100] w-[340px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.18)] border border-gray-100 overflow-hidden animate-fadeIn animate-scaleIn"
+          style={{ 
+            left: popoverAnchor.x, 
+            top: popoverAnchor.y,
+            borderLeft: `5px solid ${getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border}` 
+          }}
         >
-          <div className="p-5">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-gray-900 leading-tight mb-1">{selectedMeetingForDetails.title}</h3>
-                <div className="flex items-center gap-2">
-                  <span 
-                    className="w-2.5 h-2.5 rounded-full" 
-                    style={{ backgroundColor: getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border }}
-                  />
-                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
-                    {selectedMeetingForDetails.meeting_type || 'General'}
-                  </span>
+          {/* Header */}
+          <div className="p-6 pb-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1 min-w-0 pr-4">
+                <h3 className="text-[15px] font-extrabold text-gray-900 leading-tight mb-2 truncate" title={selectedMeetingForDetails.title}>
+                  {selectedMeetingForDetails.title}
+                </h3>
+                <div className="flex items-center">
+                  <div 
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-md border"
+                    style={{ 
+                      backgroundColor: `${getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border}10`,
+                      borderColor: `${getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border}30`
+                    }}
+                  >
+                    <span 
+                      className="w-1.5 h-1.5 rounded-full" 
+                      style={{ backgroundColor: getMeetingColor(selectedMeetingForDetails.meeting_type || selectedMeetingForDetails.type).border }}
+                    />
+                    <span className="text-[10px] font-black text-gray-700 uppercase tracking-tighter">
+                      {selectedMeetingForDetails.meeting_type || 'General'}
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="flex gap-1 -mt-1">
-                <button className="p-1.5 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-gray-400 transition-colors" title="Edit">
+              <div className="flex items-center gap-1.5">
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-indigo-600 transition-all active:scale-95" 
+                  title="Quick Edit"
+                  onClick={() => {
+                    handleExistingMeetingClick({ stopPropagation: () => {} }, selectedMeetingForDetails);
+                    setSelectedMeetingForDetails(null);
+                  }}
+                >
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
-                <button className="p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg text-gray-400 transition-colors" title="Delete">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-                <div className="w-px h-4 bg-gray-200 self-center ml-1" />
                 <button 
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors ml-1"
+                  className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-all active:scale-95" 
+                  title="Delete"
+                  onClick={() => handleDeleteMeeting(selectedMeetingForDetails.id)}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+                <button 
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-900 transition-all ml-1 active:scale-95"
                   onClick={() => setSelectedMeetingForDetails(null)}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-3.5 mb-6">
-              <div className="flex items-center gap-3 text-sm text-gray-600 font-medium">
+          {/* Body */}
+          <div className="px-6 py-4 space-y-5 border-t border-gray-50 bg-white">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50/50 flex items-center justify-center shrink-0 border border-indigo-100/50">
                 <Calendar className="w-4 h-4 text-indigo-500" />
-                <span>{new Date(selectedMeetingForDetails.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600 font-medium">
-                <Clock className="w-4 h-4 text-indigo-500" />
-                <span>{to12Hour(selectedMeetingForDetails.time)} • {selectedMeetingForDetails.duration} minutes</span>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold text-gray-800">{new Date(selectedMeetingForDetails.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                <span className="text-[10px] font-medium text-gray-500 mt-0.5">Primary Schedule</span>
               </div>
-              {selectedMeetingForDetails.attendees && (
-                <div className="flex items-start gap-3 text-sm text-gray-600 font-medium">
-                  <Users className="w-4 h-4 text-indigo-500 mt-0.5 shrink-0" />
-                  <div className="flex -space-x-2 overflow-hidden flex-wrap gap-y-1">
+            </div>
+            
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-amber-50/50 flex items-center justify-center shrink-0 border border-amber-100/50">
+                <Clock className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold text-gray-800">{to12Hour(selectedMeetingForDetails.time)} • {selectedMeetingForDetails.duration || 30} minutes</span>
+                <span className="text-[10px] font-medium text-gray-500 mt-0.5">Time Duration</span>
+              </div>
+            </div>
+
+            {selectedMeetingForDetails.attendees && (
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50/50 flex items-center justify-center shrink-0 border border-emerald-100/50">
+                  <Users className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <span className="text-[12px] font-bold text-gray-800 mb-2">Attendees ({Array.isArray(selectedMeetingForDetails.attendees) ? selectedMeetingForDetails.attendees.length : 0})</span>
+                  <div className="flex -space-x-1.5 overflow-hidden flex-wrap gap-y-1">
                     {Array.isArray(selectedMeetingForDetails.attendees) ? (
-                      selectedMeetingForDetails.attendees.filter(a => a).map((a, i) => {
+                      selectedMeetingForDetails.attendees.filter(a => a).slice(0, 6).map((a, i) => {
                         const initial = (typeof a === 'object' ? (a.name || a.email || '?') : String(a)).trim().charAt(0).toUpperCase() || '?';
                         return (
-                        <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-600 border border-indigo-200">
-                          {initial !== '?' && initial !== '[' ? initial : 'A'}
-                        </div>
-                      )})
-                    ) : (
-                      <span className="text-gray-500 text-xs truncate max-w-[200px]">{selectedMeetingForDetails.attendees}</span>
+                          <div key={i} className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-700 border border-slate-200 shadow-sm" title={typeof a === 'string' ? a : a.name || a.email}>
+                            {initial !== '?' && initial !== '[' ? initial : 'A'}
+                          </div>
+                        );
+                      })
+                    ) : null}
+                    {Array.isArray(selectedMeetingForDetails.attendees) && selectedMeetingForDetails.attendees.length > 6 && (
+                      <div className="h-6 w-6 rounded-full ring-2 ring-white bg-indigo-600 flex items-center justify-center text-[8px] font-black text-white border border-indigo-700 shadow-sm">
+                        +{selectedMeetingForDetails.attendees.length - 6}
+                      </div>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
 
-            <div className="pt-4 mt-2 border-t border-gray-100">
+          {/* Actions */}
+          <div className="p-6 pt-4 bg-gray-50/80 flex flex-col gap-3">
+            <button 
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[13px] font-extrabold transition-all shadow-lg shadow-indigo-200/50 flex items-center justify-center gap-2 active:scale-[0.98]"
+              onClick={() => {
+                if (selectedMeetingForDetails.join_url) {
+                  window.open(selectedMeetingForDetails.join_url, '_blank');
+                } else {
+                  navigate(`/dashboard/meeting/${selectedMeetingForDetails.id}`);
+                }
+              }}
+            >
+              <Video className="w-4 h-4" /> Join Virtual Room
+            </button>
+            <div className="flex gap-2">
               <button 
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 mb-2"
-                onClick={() => navigate(`/dashboard/meeting/${selectedMeetingForDetails.id || selectedMeetingForDetails.project_id}`)}
-              >
-                <Video className="w-4 h-4" /> Join Virtual Room
-              </button>
-              <button 
-                className="w-full py-2 bg-white hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-semibold transition-all border border-gray-200 flex items-center justify-center gap-2"
+                className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all border flex items-center justify-center gap-1.5 active:scale-[0.98] ${
+                  copiedPopoverLink 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                }`}
                 onClick={(e) => {
                    e.preventDefault();
-                   navigator.clipboard.writeText(window.location.origin + `/dashboard/meeting/${selectedMeetingForDetails.id || selectedMeetingForDetails.project_id}`);
+                   const link = window.location.origin + `/dashboard/meeting/${selectedMeetingForDetails.id}`;
+                   navigator.clipboard.writeText(link);
+                   setCopiedPopoverLink(true);
+                   setTimeout(() => setCopiedPopoverLink(false), 2000);
                 }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                Copy Invite Link
+                {copiedPopoverLink ? (
+                  <><Check className="w-3 h-3" /> Link Copied!</>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                    Copy Link
+                  </>
+                )}
+              </button>
+              <button 
+                className="flex-none px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-[0.98]"
+                onClick={() => navigate(`/dashboard/meeting/${selectedMeetingForDetails.id}`)}
+              >
+                Details
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 };
 

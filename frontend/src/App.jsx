@@ -40,6 +40,7 @@ import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import NotFound from './pages/NotFound';
 
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ConfirmProvider } from './hooks/use-confirm';
 import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
@@ -268,8 +269,9 @@ function App() {
         {(t) => <CustomToast t={t} toast={toast} />}
       </Toaster>
 
-      <ErrorBoundary>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ConfirmProvider>
+        <ErrorBoundary>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
@@ -319,8 +321,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Router>
-    </ErrorBoundary>
+        </Router>
+      </ErrorBoundary>
+    </ConfirmProvider>
   </ThemeProvider>
 );
 }

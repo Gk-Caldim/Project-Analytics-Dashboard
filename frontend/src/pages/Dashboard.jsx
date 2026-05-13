@@ -347,6 +347,10 @@ const Dashboard = () => {
       dispatch(setActiveModule('schedule-meeting'));
       dispatch(setExpandedModules({ 'mom': true }));
     }
+    else if (path.includes('/dashboard/meeting/')) {
+      dispatch(setActiveModule('meetings'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
   }, [location.pathname, dispatch, mastersSubmodules, otherModules]);
 
@@ -542,7 +546,10 @@ const Dashboard = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
     if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
-    if (activeModule === 'meetings') return 'Meetings Console';
+    if (activeModule === 'meetings') {
+      if (location.pathname.includes('/dashboard/meeting/')) return 'Meeting Details';
+      return 'Meetings Console';
+    }
     if (activeModule === 'saved-moms') return 'Saved MOMs';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
 
