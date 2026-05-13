@@ -331,43 +331,38 @@ const VPProjectDashboard = ({
                       parsedSyncedAt = `${sDateStr} · ${sTimeStr}`;
                     }
                     return (
-                      <div
-                        key={h.history_id || idx}
-                        style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '8px 12px', background: idx === 0 ? '#F0FDF4' : '#F8FAFC',
-                          borderRadius: '8px', border: idx === 0 ? '1px solid #BBF7D0' : '1px solid #F1F5F9',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                          <span style={{
-                            width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
-                            background: idx === 0 ? '#22c55e' : '#cbd5e1'
-                          }} />
-                          <span style={{ fontSize: '13px', fontWeight: idx === 0 ? 600 : 400, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {h.meeting_name || 'Untitled Meeting'}
-                          </span>
-                          {idx === 0 && (
-                            <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '99px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
-                              latest
+                      <tr key={h.history_id || idx} style={{ borderBottom: '1px solid #F1F5F9', background: idx === 0 ? '#F0FDF4' : 'transparent' }}>
+                        <td style={{ padding: '12px 16px', color: '#64748B', fontWeight: 500 }}>{idx + 1}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <span style={{ fontSize: '13px', fontWeight: idx === 0 ? 600 : 400, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {h.meeting_name || 'Untitled Meeting'}
                             </span>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                            {idx === 0 && (
+                              <span style={{ fontSize: '10px', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', borderRadius: '99px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
+                                latest
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: '#475569' }}>{parsedDate}</td>
+                        <td style={{ padding: '12px 16px', color: '#94A3B8', fontSize: '12px' }}>{parsedSyncedAt}</td>
+                        <td style={{ padding: '12px 16px' }}>
                           <span style={{ fontSize: '12px', color: '#0D9488', fontWeight: 500 }}>{h.row_count} issues</span>
-                          <span style={{ fontSize: '12px', color: '#94A3B8' }}>{parsedDate}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
                           <button
                             onClick={() => h.session_id && navigate(`/dashboard/mom/view/${h.session_id}`)}
                             style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
                           >
                             View
                           </button>
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     );
                   })}
-                </div>
-              </div>
+                </tbody>
+              </table>
             )}
 
           </div>
