@@ -166,12 +166,10 @@ function App() {
           }));
         }
 
-        // 2. Fetch Exchange Rates
-        const ratesRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const ratesData = await ratesRes.json();
-
-        if (ratesData && ratesData.rates) {
-          dispatch(setExchangeRates(ratesData.rates));
+        // 2. Fetch Exchange Rates from local backend (which proxies to live source)
+        const ratesRes = await API.get('/currency/rates');
+        if (ratesRes.data) {
+          dispatch(setExchangeRates(ratesRes.data));
         }
 
       } catch (error) {

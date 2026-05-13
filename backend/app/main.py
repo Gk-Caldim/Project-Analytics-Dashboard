@@ -71,6 +71,7 @@ from app.api.teams import router as teams_router
 from app.api.application_access import router as application_access_router
 from app.api.chats import router as chat_router
 from app.api.enterprise import router as enterprise_router
+from app.api.currency import router as currency_router
 from app.crud.role import seed_default_roles
 
 app = FastAPI(
@@ -196,6 +197,7 @@ app.include_router(chat_router, prefix=API_PREFIX)
 from app.api.departments import router as departments_router
 app.include_router(departments_router, prefix=API_PREFIX)
 app.include_router(enterprise_router, prefix=API_PREFIX)
+app.include_router(currency_router, prefix=API_PREFIX)
 
 from app.api.transcript import router as transcript_router
 app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])

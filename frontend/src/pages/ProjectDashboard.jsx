@@ -3571,7 +3571,7 @@ const ProjectTitleDashboard = () => {
                     // Format monetary values
                     if (['estimated', 'utilized', 'commitment', 'total_utilization', 'balance'].includes(col.id)) {
                       if (val !== '-') {
-                        val = format(val, false);
+                        val = format(val);
                       }
                     }
 

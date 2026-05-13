@@ -87,7 +87,7 @@ const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }
           color === 'emerald' ? 'text-emerald-600' :
           'text-slate-900 dark:text-white'
         }`}>
-          {format(value, false)}
+          {format(value)}
         </p>
       </div>
 
@@ -181,7 +181,7 @@ const BudgetMaster = () => {
   const isPM = userRole === 'Project Manager';
   const isHead = ['Head', 'Admin', 'Super Admin'].includes(userRole);
   const isFinance = ['Finance', 'Admin', 'Super Admin'].includes(userRole);
-  const { format } = useCurrency();
+  const { format, convert, code } = useCurrency();
 
   // ─── Permission helper ─────────────────────────────────────────────────────
   // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
@@ -367,6 +367,11 @@ const BudgetMaster = () => {
     if (col?.type === 'number' || col?.type === 'currency') {
       const parsed = parseFloat(value);
       val = isNaN(parsed) ? (value === '' ? '' : value) : parsed;
+      
+      // If it's a monetary column, convert from current currency to USD for storage
+      if (col?.type === 'currency' && val !== '') {
+        val = convert(val, code, 'USD');
+      }
     }
 
     setEditingData(prev => {
@@ -456,7 +461,15 @@ const BudgetMaster = () => {
             const row = { id: `row_${Date.now()}_${i}` };
             columns.forEach(col => {
               const idx = headers.indexOf(col.label.toLowerCase());
-              row[col.label] = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
+              let val = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
+              
+              // If it's a monetary column, assume the Excel has values in the current currency
+              // and convert them to USD for internal storage.
+              if (col.type === 'currency' && val !== '' && !isNaN(parseFloat(val))) {
+                val = convert(parseFloat(val), code, 'USD');
+              }
+              
+              row[col.label] = val;
             });
             rows.push(recalc(row));
           }
@@ -733,7 +746,7 @@ const BudgetMaster = () => {
           if (val === undefined || val === null) return '-';
           if (MONETARY_COLS.includes(c.label)) {
             try {
-              return format(val, false);
+              return format(val);
             } catch {
               return String(val);
             }
@@ -1030,8 +1043,8 @@ const BudgetMaster = () => {
                       Overall Budget
                     </label>
                     <input type="number"
-                      value={overallBudget}
-                      onChange={e => setOverallBudget(e.target.value)}
+                      value={convert(overallBudget, 'USD', code)}
+                      onChange={e => setOverallBudget(convert(parseFloat(e.target.value) || 0, code, 'USD'))}
                       placeholder="0.00"
                       className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold" />
                   </div>
@@ -1052,7 +1065,7 @@ const BudgetMaster = () => {
                   <div>
                     <p className="text-base font-bold text-red-800">Project is Over Budget</p>
                     <p className="text-sm text-red-600 mt-1">
-                      Total utilization <strong>{format(totalUtilization, false)}</strong> exceeds budget <strong>{format(parseFloat(overallBudget), false)}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget), false)}</strong>
+                      Total utilization <strong>{format(totalUtilization)}</strong> exceeds budget <strong>{format(parseFloat(overallBudget))}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget))}</strong>
                     </p>
                   </div>
                 </div>
@@ -1079,7 +1092,7 @@ const BudgetMaster = () => {
                     count={tableData.length}
                     extraStat={{ 
                       label: 'Budget Limit', 
-                      value: format(parseFloat(overallBudget), false),
+                      value: format(parseFloat(overallBudget)),
                       color: isOverBudget ? 'text-red-500' : 'text-slate-500'
                     }}
                   />
@@ -1328,7 +1341,7 @@ const BudgetMaster = () => {
                                     ) : (
                                       <input
                                         type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
-                                        value={val !== undefined && val !== null ? val : ''}
+                                        value={col.type === 'currency' ? convert(val, 'USD', code) : (val !== undefined && val !== null ? val : '')}
                                         readOnly={ro}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
                                         className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-all ${ro
@@ -1345,7 +1358,7 @@ const BudgetMaster = () => {
                               let display = val !== undefined && val !== null && val !== '' ? val : '—';
                               if (display !== '—' && mon) {
                                 const n = parseFloat(display);
-                                if (!isNaN(n)) display = format(n, false);
+                                if (!isNaN(n)) display = format(n);
                               }
 
                               return (
@@ -1405,9 +1418,9 @@ const BudgetMaster = () => {
                           {visibleColumns.map((col, idx) => {
                             let cell = null;
                             if (idx === 0) cell = <span className="text-xs font-bold text-slate-500">Total</span>;
-                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated, false)}</span>;
-                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization, false)}</span>;
-                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(totalBalance, false)}</span>;
+                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated)}</span>;
+                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>;
+                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(totalBalance)}</span>;
                             const num = isMonetary(col.label) || col.label === 'Unit count';
                             return (
                               <td key={col.id} className={`py-6 px-6 ${num ? 'text-right' : ''}`}>{cell}</td>
@@ -1488,7 +1501,7 @@ const BudgetMaster = () => {
                           <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2">Current Project Budget</label>
                             <div className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-lg text-slate-700 dark:text-slate-300">
-                              {format(overallBudget, false)}
+                              {format(overallBudget)}
                             </div>
                           </div>
                           <div>
@@ -1497,8 +1510,8 @@ const BudgetMaster = () => {
                             </label>
                             <div className="relative">
                               <input type="number" required
-                                value={revisionData.revised_budget}
-                                onChange={e => setRevisionData({ ...revisionData, revised_budget: e.target.value })}
+                                value={convert(revisionData.revised_budget, 'USD', code)}
+                                onChange={e => setRevisionData({ ...revisionData, revised_budget: convert(parseFloat(e.target.value) || 0, code, 'USD') })}
                                 placeholder="0.00"
                                 className="w-full px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
                               
@@ -1537,7 +1550,7 @@ const BudgetMaster = () => {
                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
                                     <p className="text-sm font-black text-slate-700 dark:text-slate-300">
-                                      {format(marketAnalysis.remaining_balance, false)}
+                                      {format(marketAnalysis.remaining_balance)}
                                     </p>
                                   </div>
                                 </div>
@@ -1546,7 +1559,7 @@ const BudgetMaster = () => {
                                   <div>
                                     <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Suggested Adjustment</p>
                                     <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                                      +{format(marketAnalysis.delta, false)}
+                                      +{format(marketAnalysis.delta)}
                                     </p>
                                   </div>
                                   
@@ -1575,7 +1588,7 @@ const BudgetMaster = () => {
                             <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
                               <span className="text-xs font-bold text-indigo-800 dark:text-indigo-300">New Projected Total</span>
                               <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                                {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0), false)}
+                                {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0))}
                               </span>
                             </div>
                           )}
@@ -1673,11 +1686,11 @@ const BudgetMaster = () => {
                               <p className="text-[10px] text-slate-400 font-bold">#{rev.id}</p>
                             </td>
                             <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{rev.pm_name || '—'}</td>
-                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-400">{format(rev.previous_budget, false)}</td>
-                            <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget, false)}</td>
+                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-400">{format(rev.previous_budget)}</td>
+                            <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
                             <td className="py-4 px-6 text-right">
                               <span className={`text-xs font-black ${delta >= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                {delta >= 0 ? '+' : ''}{format(delta, false)}
+                                {delta >= 0 ? '+' : ''}{format(delta)}
                               </span>
                             </td>
                             <td className="py-4 px-6"><RevisionBadge status={rev.status} /></td>
@@ -1735,7 +1748,6 @@ const BudgetMaster = () => {
             </div>
           )}
 
-          {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
           {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
           {activeTab === 'Analytics' && (
             <div className="space-y-6">
@@ -1896,7 +1908,7 @@ const BudgetMaster = () => {
                         <div key={idx} className="space-y-2">
                           <div className="flex justify-between items-end">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</span>
-                            <span className="text-[10px] font-black text-slate-400">{format(cat.value, false)} ({Math.round(percentage)}%)</span>
+                            <span className="text-[10px] font-black text-slate-400">{format(cat.value)} ({Math.round(percentage)}%)</span>
                           </div>
                           <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                             <motion.div 
@@ -1961,69 +1973,17 @@ const BudgetMaster = () => {
                   <div className="mt-8 grid grid-cols-2 gap-4">
                     <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Spent (Utilized)</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalUtilized, false)}</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalUtilized)}</p>
                     </div>
                     <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Committed</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalCommitment, false)}</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalCommitment)}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Category-wise Over-budget Warning */}
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6">Category Risk Assessment</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-100 dark:border-slate-700">
-                        <th className="py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimate</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilized</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance</th>
-                        <th className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                      {estimatedBreakdown.map((cat, idx) => {
-                        const catUtil = tableData
-                          .filter(r => (r.Category || 'Other') === cat.label)
-                          .reduce((s, r) => s + (parseFloat(r['Total utilization']) || 0), 0);
-                        const balance = cat.value - catUtil;
-                        const isRisk = catUtil > cat.value;
-                        return (
-                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                            <td className="py-4 text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</td>
-                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(cat.value, false)}</td>
-                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(catUtil, false)}</td>
-                            <td className={`py-4 text-right text-xs font-bold ${balance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(balance, false)}</td>
-                            <td className="py-4 text-center">
-                              <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                isRisk ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              }`}>
-                                {isRisk ? 'Over Budget' : 'Within Limit'}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {estimatedBreakdown.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="py-16">
-                            <div className="flex flex-col items-center justify-center text-center">
-                              <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
-                                <ShieldAlert className="h-5 w-5 text-slate-300 dark:text-slate-600" />
-                              </div>
-                              <p className="text-[11px] font-bold text-slate-400 italic">No category data available for risk assessment</p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+
             </div>
           )}
 
@@ -2097,7 +2057,7 @@ const BudgetMaster = () => {
                             {item.attachment_name ? 'Upload' : 'Save'}
                           </span>
                         </td>
-                        <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget, false)}</td>
+                        <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget)}</td>
                         <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
                         <td className="py-4 px-6 text-sm font-bold text-slate-500">
                           {new Date(item.updated_at).toLocaleDateString()}
@@ -2233,7 +2193,7 @@ const BudgetMaster = () => {
                           {log.user_role || '—'}
                         </td>
                         <td className="py-3 px-5 text-sm font-bold text-blue-600">
-                          {log.details?.overall_budget != null ? format(log.details.overall_budget, false) : '—'}
+                          {log.details?.overall_budget != null ? format(log.details.overall_budget) : '—'}
                         </td>
                         <td className="py-3 px-5 text-xs font-bold text-slate-600">
                           {log.details?.rows ?? '—'}
