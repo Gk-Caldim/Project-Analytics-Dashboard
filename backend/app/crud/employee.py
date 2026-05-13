@@ -193,3 +193,18 @@ def bulk_delete_employees(db: Session, employee_ids: List[int]) -> bool:
     except Exception as e:
         db.rollback()
         raise e
+
+def get_employees_by_role(db: Session, role: str) -> List[Employee]:
+    """Get all employees with a specific role"""
+    return db.query(Employee).filter(Employee.role.ilike(f"%{role}%")).all()
+
+def get_employee_statistics(db: Session) -> dict:
+    """Get employee count statistics grouped by role"""
+    results = db.query(Employee.role, func.count(Employee.id).label('count')).group_by(Employee.role).all()
+    
+    stats = {}
+    for role, count in results:
+        if role:  # Only include roles that are not null
+            stats[role] = count
+    
+    return stats
