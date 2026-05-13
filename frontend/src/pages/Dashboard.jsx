@@ -327,11 +327,26 @@ const Dashboard = () => {
       }
     }
     else if (path.includes('/dashboard/masters')) dispatch(setActiveModule('masters-main'));
-    else if (path.includes('/dashboard/mom/view')) dispatch(setActiveModule('meetings'));
-    else if (path.includes('/dashboard/mom')) dispatch(setActiveModule('mom-module'));
-    else if (path.includes('/dashboard/meetings')) dispatch(setActiveModule('meetings'));
-    else if (path.includes('/dashboard/saved-moms')) dispatch(setActiveModule('saved-moms'));
-    else if (path.includes('/dashboard/schedule-meeting')) dispatch(setActiveModule('schedule-meeting'));
+    else if (path.includes('/dashboard/mom/view')) {
+      dispatch(setActiveModule('meetings'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/mom')) {
+      dispatch(setActiveModule('mom-module'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/meetings')) {
+      dispatch(setActiveModule('meetings'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/saved-moms')) {
+      dispatch(setActiveModule('saved-moms'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/schedule-meeting')) {
+      dispatch(setActiveModule('schedule-meeting'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
   }, [location.pathname, dispatch, mastersSubmodules, otherModules]);
 
@@ -604,7 +619,7 @@ const Dashboard = () => {
       }
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
-    } else if (moduleId === 'mom-module') {
+    } else if (moduleId === 'mom-module' || moduleId === 'meetings' || moduleId === 'saved-moms' || moduleId === 'schedule-meeting') {
       if (!expandedModules['mom']) {
         dispatch(setExpandedModules({ 'mom': true }));
       }

@@ -192,6 +192,18 @@ const Sidebar = ({
                                 >
                                     Create MOM
                                 </div>
+                                <div
+                                    onClick={() => handleModuleClick('saved-moms')}
+                                    className={`sidebar-sub-item ${activeModule === 'saved-moms' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Saved MOMs
+                                </div>
+                                <div
+                                    onClick={() => handleModuleClick('schedule-meeting')}
+                                    className={`sidebar-sub-item ${activeModule === 'schedule-meeting' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Schedule Meeting
+                                </div>
                             </div>
                         </motion.div>
                     )}
