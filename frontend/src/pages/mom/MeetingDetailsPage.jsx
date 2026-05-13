@@ -7,7 +7,7 @@ import {
   Eye, EyeOff, Send, Loader, ChevronRight,
   Home, Layout, Calendar, Clock, Users, Activity,
   Mic, Square, Pause, Play, Sparkles, Pencil as PencilIcon, Search, ChevronDown,
-  ChevronUp, GripHorizontal
+  ChevronUp, GripHorizontal, Globe, Crown, Mail, UserPlus, MoreVertical
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './MeetingDetailsPage.css';
@@ -93,6 +93,44 @@ const formatDate = (dateStr) => {
   return fmt;
 };
 
+const MOCK_TEAM_MEMBERS = [
+  { id: 'u1', name: 'Pradeep', email: 'pradeep@example.com', timezone: 'IST', avatar: null },
+  { id: 'u2', name: 'Gaurav Kumar', email: 'gk@example.com', timezone: 'IST', avatar: null },
+  { id: 'u3', name: 'John Doe', email: 'john@example.com', timezone: 'PST', avatar: null },
+  { id: 'u4', name: 'Jane Smith', email: 'jane@example.com', timezone: 'GMT', avatar: null },
+  { id: 'u5', name: 'Alice Wong', email: 'alice@example.com', timezone: 'HKT', avatar: null },
+];
+
+const getAttendeeTime = (timezone, meetingDate, meetingTime) => {
+  try {
+    const options = { hour: '2-digit', minute: '2-digit', hour12: true };
+    if (timezone === 'IST') options.timeZone = 'Asia/Kolkata';
+    else if (timezone === 'PST') options.timeZone = 'America/Los_Angeles';
+    else if (timezone === 'GMT') options.timeZone = 'Europe/London';
+    else if (timezone === 'HKT') options.timeZone = 'Asia/Hong_Kong';
+    
+    let baseDate = new Date();
+    if (meetingDate && meetingTime) {
+      const [time, mod] = (meetingTime || '12:00 AM').split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (mod === 'PM' && h !== 12) h += 12;
+      if (mod === 'AM' && h === 12) h = 0;
+      baseDate = new Date(`${meetingDate}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
+    }
+
+    return new Intl.DateTimeFormat('en-US', options).format(baseDate);
+  } catch {
+    return '12:00 PM';
+  }
+};
+
+const getInitialsColor = (name = '') => {
+  const colors = ['#4f46e5', '#06b6d4', '#8b5cf6', '#ec4899', '#f97316', '#10b981'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const MeetingDetailsPage = () => {
@@ -148,6 +186,14 @@ const MeetingDetailsPage = () => {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [deletingIndex, setDeletingIndex] = useState(null);
   const [undoTimeout, setUndoTimeout] = useState(null);
+
+  // Attendee Management
+  const [showAttendeeSearch, setShowAttendeeSearch] = useState(false);
+  const [attendeeSearchQuery, setAttendeeSearchQuery] = useState('');
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState([]);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [attendeeUndoTimer, setAttendeeUndoTimer] = useState(null);
+  const [removingAttendeeId, setRemovingAttendeeId] = useState(null);
 
   // ── Record Mode ───────────────────────────────────────────────────────
   const [recordState, setRecordState]   = useState('IDLE'); // IDLE | RECORDING | PAUSED
@@ -216,7 +262,7 @@ const MeetingDetailsPage = () => {
       if (resp.data.success) {
         const m = resp.data.meeting;
         setMeeting(m);
-        const ag = m.agenda_text ? m.agenda_text.split('\n').filter(Boolean).map(parseAgendaItem) : [];
+        const ag = (m.agenda || []).map(parseAgendaItem);
         const att = m.attendees || [];
         setAgenda(ag);
         setAttendees(att);
@@ -442,14 +488,75 @@ const MeetingDetailsPage = () => {
     setDragOverIndex(null);
   };
 
-  const handleAddAttendee = async () => {
-    if (!newAttendee.email.trim()) return;
-    const att = { name: newAttendee.email.split('@')[0], email: newAttendee.email, role: newAttendee.role, rsvpStatus: 'PENDING', invitedAt: new Date().toISOString() };
-    const newAtts = [...attendees, att];
-    setAttendees(newAtts); setNewAttendee({ email: '', role: 'attendee' });
-    setShowAttendeeForm(false); updateReadiness(agenda, newAtts);
+
+
+
+  const saveAttendees = async (newAtts) => {
+    setAttendees(newAtts);
+    updateReadiness(agenda, newAtts);
+    try { 
+      await API.patch(`/meetings/${id}`, { attendees: newAtts }); 
+    } catch (err) {
+      console.error('Failed to save attendees:', err);
+      showToast('Failed to sync attendee list');
+    }
+  };
+
+  const handleUpdateAttendee = (attendeeId, field, value) => {
+    const newAtts = attendees.map(a => {
+      const email = typeof a === 'string' ? a : a.email;
+      const aid = a.id || email;
+      if (aid === attendeeId) {
+        return { ...(typeof a === 'string' ? { email: a } : a), [field]: value };
+      }
+      return a;
+    });
+    saveAttendees(newAtts);
+  };
+
+  const handleRemoveAttendee = (attendeeId) => {
+    const attToRemove = attendees.find(a => (a.id || a.email) === attendeeId);
+    if (!attToRemove) return;
+
+    setRemovingAttendeeId(attendeeId);
+    if (attendeeUndoTimer) clearTimeout(attendeeUndoTimer);
+
+    const timer = setTimeout(() => {
+      const newAtts = attendees.filter(a => (a.id || a.email) !== attendeeId);
+      saveAttendees(newAtts);
+      setRemovingAttendeeId(null);
+    }, 3000);
+
+    setAttendeeUndoTimer(timer);
+
+    toast.success(`Removed ${attToRemove.name || attToRemove.email}`, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(timer);
+          setRemovingAttendeeId(null);
+          showToast('Restored');
+        }
+      },
+      duration: 3000
+    });
+  };
+
+  const handleAddAttendee = (contact) => {
+    const email = typeof contact === 'string' ? contact : contact.email;
+    const exists = attendees.some(a => (typeof a === 'string' ? a : a.email) === email);
+    if (exists) {
+      showToast(`${email} is already invited`);
+      return;
+    }
+
+    const newAtt = typeof contact === 'string' 
+      ? { email, name: email.split('@')[0], role: 'attendee', rsvpStatus: 'PENDING', invitedAt: new Date().toISOString(), timezone: 'IST' }
+      : { ...contact, role: 'attendee', rsvpStatus: 'PENDING', invitedAt: new Date().toISOString() };
+
+    const newAtts = [...attendees, newAtt];
+    saveAttendees(newAtts);
     showToast('Invitation sent');
-    try { await API.patch(`/meetings/${id}`, { attendees: newAtts }); } catch {}
   };
 
   const handleResendInvite = async (email) => {
@@ -458,7 +565,53 @@ const MeetingDetailsPage = () => {
     try { await API.post(`/meetings/${id}/resend-invite`, { email }); } catch {}
   };
 
+  const handleHostReassignment = async (attendeeId) => {
+    const att = attendees.find(a => (a.id || a.email) === attendeeId);
+    if (!att) return;
 
+    const isConfirmed = await confirm({
+      title: 'Transfer Host Role',
+      description: `Make ${att.name || att.email} the new host? You will become a regular attendee.`,
+      confirmText: 'Yes, Transfer',
+      variant: 'danger'
+    });
+
+    if (isConfirmed) {
+      const newAtts = attendees.map(a => {
+        const aid = a.id || a.email;
+        if (aid === attendeeId) return { ...a, role: 'host' };
+        if (a.role === 'host') return { ...a, role: 'attendee' };
+        return a;
+      });
+      saveAttendees(newAtts);
+      showToast(`Host role transferred to ${att.name || att.email}`);
+    }
+  };
+
+  const handleBulkAction = (action) => {
+    if (selectedAttendeeIds.length === 0) return;
+
+    if (action === 'remove') {
+      const newAtts = attendees.filter(a => !selectedAttendeeIds.includes(a.id || a.email));
+      saveAttendees(newAtts);
+      showToast(`Removed ${selectedAttendeeIds.length} attendees`);
+      setSelectedAttendeeIds([]);
+    } else if (action === 'resend') {
+      selectedAttendeeIds.forEach(id => {
+        const att = attendees.find(a => (a.id || a.email) === id);
+        if (att) handleResendInvite(att.email);
+      });
+      setSelectedAttendeeIds([]);
+    } else if (action === 'copy') {
+      const emails = attendees
+        .filter(a => selectedAttendeeIds.includes(a.id || a.email))
+        .map(a => a.email)
+        .join(', ');
+      navigator.clipboard.writeText(emails);
+      showToast('Emails copied to clipboard');
+      setSelectedAttendeeIds([]);
+    }
+  };
 
   const handleReschedule = async () => {
     if (!rescheduleValue) return;
@@ -1262,74 +1415,269 @@ const MeetingDetailsPage = () => {
             </div>
           </div>
 
-          {/* Attendees */}
+          {/* Smart Attendee Management */}
           <div className="mdp2-card">
             <div className="mdp2-card-header">
-              <span className="mdp2-card-title">Attendees · {attendees.length}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="mdp2-card-title">Attendees</span>
+                  <button 
+                    className="mdp2-card-action-link"
+                    onClick={() => setShowAttendeeSearch(!showAttendeeSearch)}
+                  >
+                    <UserPlus size={14} />
+                    Add
+                  </button>
+                </div>
+                
+                {/* RSVP Summary Chips */}
+                <div className="mdp2-rsvp-summary">
+                  {(() => {
+                    const counts = attendees.reduce((acc, a) => {
+                      const status = (a.rsvpStatus || 'PENDING').toLowerCase();
+                      acc[status] = (acc[status] || 0) + 1;
+                      return acc;
+                    }, {});
+                    if (counts.pending === 0 && counts.declined === 0 && attendees.length > 0) {
+                      return <div className="mdp2-rsvp-chip all">All confirmed</div>;
+                    }
+                    return (
+                      <>
+                        <div className="mdp2-rsvp-chip ok">{counts.accepted || 0} accepted</div>
+                        <div className="mdp2-rsvp-chip wait">{counts.pending || 0} pending</div>
+                        <div className="mdp2-rsvp-chip no">{counts.declined || 0} declined</div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
-            <div className="mdp2-card-body">
-              <div className="mdp2-attendee-list">
-                {attendees.map((att, i) => {
-                  const email = typeof att === 'string' ? att : att.email;
-                  const name = att.name || email.split('@')[0];
-                  const isHostRow = i === 0;
-                  const rsvp = att.rsvpStatus || 'PENDING';
-                  let tagCls = 'wait', tagLabel = 'Awaiting';
-                  if (isHostRow) { tagCls = 'host'; tagLabel = 'Host'; }
-                  else if (rsvp === 'ACCEPTED') { tagCls = 'ok'; tagLabel = 'Accepted'; }
-                  else if (rsvp === 'DECLINED') { tagCls = 'no'; tagLabel = 'Declined'; }
-                  return (
-                    <div key={i} className="mdp2-attendee-row">
-                      <div className="mdp2-avatar">{name.substring(0,2).toUpperCase()}</div>
-                      <div className="mdp2-att-info">
-                        <span className="mdp2-att-name">{name}</span>
-                        <span className="mdp2-att-email">{email}</span>
-                      </div>
-                      {!isHostRow && rsvp === 'PENDING' && (
-                        <button className="mdp2-card-action-link" style={{ fontSize: 10 }} onClick={() => handleResendInvite(email)}>
-                          Resend
-                        </button>
+
+            {/* RSVP Nudge Banner */}
+            {!bannerDismissed && attendees.some(a => a.rsvpStatus === 'PENDING') && (
+              <div className="mdp2-nudge-banner">
+                <div className="mdp2-nudge-content">
+                  <AlertCircle size={14} />
+                  <span>{attendees.filter(a => a.rsvpStatus === 'PENDING').length} awaiting response</span>
+                </div>
+                <div className="mdp2-nudge-actions">
+                  <button onClick={() => { handleBulkAction('resend'); setBannerDismissed(true); }}>Remind all</button>
+                  <button onClick={() => setBannerDismissed(true)}>Dismiss</button>
+                </div>
+              </div>
+            )}
+
+            {/* Bulk Actions Bar */}
+            {selectedAttendeeIds.length > 1 && (
+              <div className="mdp2-bulk-bar">
+                <span>{selectedAttendeeIds.length} selected</span>
+                <div className="mdp2-bulk-actions">
+                  <button onClick={() => handleBulkAction('resend')} title="Resend Invites"><Send size={14} /></button>
+                  <button onClick={() => handleBulkAction('copy')} title="Copy Emails"><Copy size={14} /></button>
+                  <button onClick={() => handleBulkAction('remove')} className="del" title="Remove Selected"><Trash2 size={14} /></button>
+                </div>
+                <button className="mdp2-bulk-close" onClick={() => setSelectedAttendeeIds([])}><X size={14} /></button>
+              </div>
+            )}
+
+            <div className="mdp2-card-body" style={{ padding: 0 }}>
+              {/* Add Attendee Search Input */}
+              {showAttendeeSearch && (
+                <div className="mdp2-search-row">
+                  <div className="mdp2-search-input-wrapper">
+                    <Search size={14} className="mdp2-search-icon" />
+                    <input 
+                      autoFocus
+                      placeholder="Search by name or email..."
+                      value={attendeeSearchQuery}
+                      onChange={(e) => setAttendeeSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setShowAttendeeSearch(false);
+                      }}
+                    />
+                  </div>
+                  
+                  {attendeeSearchQuery.trim() && (
+                    <div className="mdp2-autocomplete-dropdown">
+                      {MOCK_TEAM_MEMBERS.filter(m => 
+                        m.name.toLowerCase().includes(attendeeSearchQuery.toLowerCase()) || 
+                        m.email.toLowerCase().includes(attendeeSearchQuery.toLowerCase())
+                      ).map(contact => (
+                        <div 
+                          key={contact.id} 
+                          className="mdp2-autocomplete-item"
+                          onClick={() => { handleAddAttendee(contact); setAttendeeSearchQuery(''); }}
+                        >
+                          <div className="mdp2-avatar-sm" style={{ backgroundColor: getInitialsColor(contact.name) }}>
+                            {getInitials(contact.name)}
+                          </div>
+                          <div className="mdp2-contact-info">
+                            <span className="name">{contact.name}</span>
+                            <span className="email">{contact.email}</span>
+                          </div>
+                          <div className="mdp2-contact-meta">
+                            {contact.timezone}
+                            {['22', '23', '00', '01', '02', '03', '04', '05'].includes(getAttendeeTime(contact.timezone, meeting?.date, meeting?.time).split(':')[0]) && (
+                              <AlertCircle size={10} className="text-amber-500" title="Outside working hours" />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {/* Fallback for raw email */}
+                      {!MOCK_TEAM_MEMBERS.some(m => m.email === attendeeSearchQuery) && attendeeSearchQuery.includes('@') && (
+                        <div 
+                          className="mdp2-autocomplete-item fallback"
+                          onClick={() => { handleAddAttendee(attendeeSearchQuery); setAttendeeSearchQuery(''); }}
+                        >
+                          <UserPlus size={14} />
+                          <span>Invite <strong>{attendeeSearchQuery}</strong></span>
+                        </div>
                       )}
-                      <span className={`mdp2-att-tag ${tagCls}`}>{tagLabel}</span>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+              )}
+
+              <div className="mdp2-attendee-list">
+                {attendees
+                  .sort((a, b) => {
+                    const roleOrder = { host: 0, organizer: 1, attendee: 2 };
+                    if (roleOrder[a.role || 'attendee'] !== roleOrder[b.role || 'attendee']) {
+                      return roleOrder[a.role || 'attendee'] - roleOrder[b.role || 'attendee'];
+                    }
+                    const statusOrder = { accepted: 0, pending: 1, declined: 2 };
+                    return statusOrder[a.rsvpStatus?.toLowerCase() || 'pending'] - statusOrder[b.rsvpStatus?.toLowerCase() || 'pending'];
+                  })
+                  .map((att, i) => {
+                    const email = typeof att === 'string' ? att : att.email;
+                    const id = att.id || email;
+                    const name = att.name || email.split('@')[0];
+                    const rsvp = (att.rsvpStatus || 'PENDING').toLowerCase();
+                    const isRemoving = removingAttendeeId === id;
+
+                    return (
+                      <div 
+                        key={id} 
+                        className={`mdp2-attendee-row rich ${rsvp} ${isRemoving ? 'removing' : ''}`}
+                      >
+                        {/* Checkbox for Bulk */}
+                        <div className="mdp2-att-check">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedAttendeeIds.includes(id)}
+                            onChange={(e) => {
+                              if (e.target.checked) setSelectedAttendeeIds([...selectedAttendeeIds, id]);
+                              else setSelectedAttendeeIds(selectedAttendeeIds.filter(sid => sid !== id));
+                            }}
+                          />
+                        </div>
+
+                        <div className="mdp2-avatar" style={{ backgroundColor: getInitialsColor(name) }}>
+                          {getInitials(name)}
+                          <div className="mdp2-avatar-tooltip">
+                            <strong>{name}</strong>
+                            <span>{email}</span>
+                            <div className="mdp2-local-time">
+                              <Clock size={10} />
+                              {getAttendeeTime(att.timezone || 'IST', meeting?.date, meeting?.time)} local
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mdp2-att-info">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span className="mdp2-att-name">{name}</span>
+                            {att.role === 'host' && (
+                              <div className="mdp2-role-badge host" onClick={() => handleHostReassignment(id)}>Host</div>
+                            )}
+                            {att.role === 'organizer' && (
+                              <div className="mdp2-role-badge organizer">Organizer</div>
+                            )}
+                          </div>
+                          <span className="mdp2-att-email">{email}</span>
+                        </div>
+
+                        {/* RSVP Chip with Override */}
+                        <div className="mdp2-inline-edit-container">
+                          <div 
+                            className={`mdp2-rsvp-chip-status ${rsvp}`}
+                            onClick={() => setActiveDropdown(activeDropdown === `rsvp-${id}` ? null : `rsvp-${id}`)}
+                          >
+                            {rsvp === 'accepted' && <Check size={12} />}
+                            {rsvp === 'pending' && <Clock size={12} />}
+                            {rsvp === 'declined' && <X size={12} />}
+                            <span style={{ textTransform: 'capitalize' }}>{rsvp}</span>
+                          </div>
+                          {activeDropdown === `rsvp-${id}` && (
+                            <div className="mdp2-inline-dropdown compact bottom-left" style={{ zIndex: 120 }}>
+                              {['accepted', 'pending', 'declined'].map(s => (
+                                <button 
+                                  key={s}
+                                  className="mdp2-dropdown-item"
+                                  onClick={() => { handleUpdateAttendee(id, 'rsvpStatus', s.toUpperCase()); setActiveDropdown(null); }}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Hover Actions */}
+                        <div className="mdp2-att-actions">
+                          <span className="mdp2-att-tz"><Globe size={12} /> {att.timezone || 'IST'}</span>
+                          <div className="mdp2-action-btns">
+                            <button onClick={() => handleResendInvite(email)} title="Resend Invite"><Send size={13} /></button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); setActiveDropdown(activeDropdown === `role-${id}` ? null : `role-${id}`); }}
+                              title="Change Role"
+                            >
+                              <Crown size={13} />
+                            </button>
+                            {activeDropdown === `role-${id}` && (
+                              <div className="mdp2-inline-dropdown compact bottom-right" style={{ zIndex: 120 }}>
+                                <button className="mdp2-dropdown-item" onClick={() => { handleHostReassignment(id); setActiveDropdown(null); }}>Make Host</button>
+                                <button className="mdp2-dropdown-item" onClick={() => { handleUpdateAttendee(id, 'role', 'organizer'); setActiveDropdown(null); }}>Make Organizer</button>
+                                <button className="mdp2-dropdown-item" onClick={() => { handleUpdateAttendee(id, 'role', 'attendee'); setActiveDropdown(null); }}>Make Attendee</button>
+                              </div>
+                            )}
+                            <button className="del" onClick={() => handleRemoveAttendee(id)} title="Remove"><Trash2 size={13} /></button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
 
-              {showAttendeeForm ? (
-                <div className="mdp2-agenda-form" style={{ marginTop: 8 }}>
-                  <input
-                    autoFocus
-                    type="email"
-                    className="mdp2-form-input"
-                    placeholder="colleague@company.com"
-                    value={newAttendee.email}
-                    onChange={e => setNewAttendee(p => ({ ...p, email: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && handleAddAttendee()}
-                  />
-                  <div className="mdp2-form-row">
-                    <select
-                      className="mdp2-form-select"
-                      value={newAttendee.role}
-                      onChange={e => setNewAttendee(p => ({ ...p, role: e.target.value }))}
-                    >
-                      <option value="attendee">Attendee</option>
-                      <option value="host">Host</option>
-                      <option value="observer">Observer</option>
-                    </select>
-                    <button className="mdp2-btn-icon primary" onClick={handleAddAttendee}>
-                      <Send style={{ width: 12, height: 12 }} />
-                    </button>
-                    <button className="mdp2-btn-icon" onClick={() => setShowAttendeeForm(false)}>
-                      <X style={{ width: 12, height: 12 }} />
-                    </button>
+              {/* Timezone Overlap Panel */}
+              {attendees.some(a => a.timezone && a.timezone !== 'IST') && (
+                <div className="mdp2-timezone-panel">
+                  <div className="mdp2-timezone-header">
+                    <span>Timezone overlap</span>
+                    <Globe size={12} />
+                  </div>
+                  <div className="mdp2-timezone-overlap">
+                    {attendees.map((att, i) => (
+                      <div key={i} className="mdp2-tz-item">
+                        <span className="initials">{getInitials(att.name || att.email)}</span>
+                        <span className="time">{getAttendeeTime(att.timezone || 'IST', meeting?.date, meeting?.time)}</span>
+                        {['22', '23', '00', '01', '02', '03', '04', '05'].includes(getAttendeeTime(att.timezone || 'IST', meeting?.date, meeting?.time).split(':')[0]) && (
+                          <AlertCircle size={10} className="text-amber-500" />
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ) : (
-                <button className="mdp2-att-add-btn" onClick={() => setShowAttendeeForm(true)}>
-                  <Plus style={{ width: 12, height: 12 }} />
-                  Add Attendee
-                </button>
+              )}
+
+              {/* Empty State Prompt */}
+              {attendees.length === 0 && !showAttendeeSearch && (
+                <div className="mdp2-attendees-empty">
+                  <Users size={24} />
+                  <p>No attendees yet — meetings are better together</p>
+                  <button onClick={() => setShowAttendeeSearch(true)}>+ Invite people</button>
+                  <span>They'll receive an invite automatically</span>
+                </div>
               )}
             </div>
           </div>

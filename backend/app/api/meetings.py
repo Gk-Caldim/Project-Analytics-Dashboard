@@ -448,7 +448,17 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
 
     agenda_list = []
     if meeting.agenda_text:
-        agenda_list = [t for t in meeting.agenda_text.split('\n') if t.strip()]
+        try:
+            # Try to parse as JSON first (for rich agenda items)
+            parsed = json.loads(meeting.agenda_text)
+            if isinstance(parsed, list):
+                agenda_list = parsed
+            else:
+                # If it's a JSON string but not a list, wrap it
+                agenda_list = [str(parsed)]
+        except Exception:
+            # Fallback to newline splitting for legacy plain text agenda
+            agenda_list = [t for t in meeting.agenda_text.split('\n') if t.strip()]
 
     return {
         "success": True,
