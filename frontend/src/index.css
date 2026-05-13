@@ -45,6 +45,13 @@
   --accent-analytics: #0891B2;
   --text-tertiary: #475569;
   --blue-50: #eff6ff;
+  --blue-900: #1e3a8a;
+  --green-50: #f0fdf4;
+  --green-900: #166534;
+  --purple-50: #f5f3ff;
+  --purple-900: #5b21b6;
+  --red-50: #fef2f2;
+  --red-900: #991b1b;
   --amber: #f59e0b;
   --green: #10b981;
   --red: #ef4444;
@@ -56,32 +63,50 @@
   --brand-primary-bg: #1E242B;
 
   /* Redesign Specs - Dark Theme */
-  --secondary: #35606B;
+  --secondary: #FFFFFF;
   --sidebar-bg: #16313E;
   --sidebar-hover: #214454;
-  --active-menu: #35606B;
+  --active-menu: #4A8FA1;
   --primary: #16313E;
 
-  /* Layout Variables */
-  --text-primary: #E6EAF0;
-  --text-secondary: #AAB3BD;
-  --text-muted: #7D8792;
+  /* Layout Variables - STRICT WHITE FOR DARK MODE */
+  --text-primary: #FFFFFF;
+  --text-secondary: #F1F5F9;
+  --text-muted: #E2E8F0;
   --border-subtle: #46525E;
   --border-strong: #5E6D7E;
   --surface: #2B353F;
   --bg: #1E242B;
   --elevated-card: #32414C;
-  --table-hover: rgba(53, 96, 107, 0.10);
+  --table-hover: rgba(74, 143, 161, 0.15);
   
   /* Header & Glassmorphism */
   --glass-header-bg: rgba(30, 36, 43, 0.85);
   --glass-header-blur: blur(12px);
 
   /* Overrides for dynamic elements */
-  --accent: #35606B;
-  --accent-hover: #4A8FA1;
-  --text-tertiary: #AAB3BD;
-  --blue-50: rgba(53, 96, 107, 0.15);
+  --accent: #4A8FA1;
+  --accent-hover: #5FB0C4;
+  --text-tertiary: #F1F5F9;
+  --blue-50: rgba(74, 143, 161, 0.15);
+  --blue-900: #FFFFFF;
+  --green-50: rgba(16, 185, 129, 0.1);
+  --green-900: #10b981;
+  --purple-50: rgba(139, 92, 246, 0.1);
+  --purple-900: #a78bfa;
+  --red-50: rgba(239, 68, 68, 0.1);
+  --red-900: #f87171;
+}
+
+/* Global Text Visibility Force for Dark Mode */
+[data-theme='dark'] body {
+  color: #FFFFFF !important;
+}
+
+[data-theme='dark'] p, 
+[data-theme='dark'] span, 
+[data-theme='dark'] div:not([class*="badge"]):not([class*="status"]):not([class*="pill"]):not([style*="background"]) {
+  color: inherit;
 }
 
 /* Utils */

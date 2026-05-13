@@ -56,10 +56,10 @@ const CriticalIssuesWidget = ({ projectId }) => {
 
   const getStatusIcon = (health) => {
     switch (health) {
-      case 'Overdue': return <AlertCircle size={14} color="#ef4444" />;
-      case 'At Risk': return <AlertTriangle size={14} color="#f59e0b" />;
-      case 'On Track': return <CheckCircle2 size={14} color="#10b981" />;
-      default: return <Clock size={14} color="#64748b" />;
+      case 'Overdue': return <AlertCircle size={14} color="var(--red)" />;
+      case 'At Risk': return <AlertTriangle size={14} color="var(--amber)" />;
+      case 'On Track': return <CheckCircle2 size={14} color="var(--green)" />;
+      default: return <Clock size={14} color="var(--text-muted)" />;
     }
   };
 
@@ -97,7 +97,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
       {/* ── Header & Toolbar ── */}
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AlertCircle size={18} color="#ef4444" />
+          <AlertCircle size={18} color="var(--red)" />
           <div style={styles.title}>Critical Issues</div>
           <span style={styles.countBadge}>{issues.length}</span>
         </div>
@@ -106,11 +106,11 @@ const CriticalIssuesWidget = ({ projectId }) => {
             onClick={() => setShowFilters(!showFilters)}
             style={{
               ...styles.iconBtn,
-              backgroundColor: showFilters ? '#eff6ff' : 'transparent',
-              border: showFilters ? '1px solid #bfdbfe' : '1px solid transparent'
+              backgroundColor: showFilters ? 'var(--blue-50)' : 'transparent',
+              border: showFilters ? '1px solid var(--border-subtle)' : '1px solid transparent'
             }}
           >
-            <ListFilter size={16} color={showFilters ? '#1e293b' : '#64748b'} />
+            <ListFilter size={16} color={showFilters ? 'var(--accent)' : 'var(--text-muted)'} />
           </button>
         </div>
       </div>
@@ -119,7 +119,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
       {showFilters && (
         <div style={styles.filterBar}>
           <div style={styles.searchBox}>
-            <Search size={14} color="#94a3b8" />
+            <Search size={14} color="var(--text-muted)" />
             <input
               placeholder="Search title or owner..."
               value={searchQuery}
@@ -156,7 +156,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
       <div style={styles.list}>
         {filteredIssues.length === 0 ? (
           <div style={styles.emptyState}>
-            <CheckCircle2 size={32} color="#10b981" style={{ marginBottom: 12, opacity: 0.5 }} />
+            <CheckCircle2 size={32} color="var(--green)" style={{ marginBottom: 12, opacity: 0.5 }} />
             <div style={styles.emptyText}>
               {searchQuery || statusFilter !== 'All' || priorityFilter !== 'High'
                 ? "No issues match these filters."
@@ -179,7 +179,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
                     <span style={styles.separator} />
                     <span style={{
                       ...styles.metaItem,
-                      color: issue.health_status === 'Overdue' ? '#ef4444' : '#64748b',
+                      color: issue.health_status === 'Overdue' ? 'var(--red)' : 'var(--text-muted)',
                       fontWeight: issue.health_status === 'Overdue' ? 700 : 500
                     }}>
                       <Calendar size={10} />
@@ -188,7 +188,7 @@ const CriticalIssuesWidget = ({ projectId }) => {
                   </div>
                 </div>
               </div>
-              <ChevronRight size={16} color="#cbd5e1" style={{ marginLeft: 8 }} />
+              <ChevronRight size={16} color="var(--border-subtle)" style={{ marginLeft: 8 }} />
             </div>
           ))
         )}

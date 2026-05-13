@@ -1,6 +1,6 @@
 .executive-project-card {
   background: var(--surface, #FFFFFF);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 2px;
   padding: 16px;
   /* Reduced from 24px */
@@ -337,7 +337,7 @@
   text-overflow: ellipsis;
   font-size: 15px;
   font-weight: 700;
-  color: var(--brand-navy);
+  color: var(--text-primary);
   min-width: 120px;
 }
 

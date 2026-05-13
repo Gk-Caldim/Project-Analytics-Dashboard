@@ -145,7 +145,7 @@ const PdfPreviewModal = ({
       left: 0
     }}>
       <div style={{
-        backgroundColor: '#f8fafc',
+        backgroundColor: 'var(--bg)',
         width: '100vw',
         height: '100vh',
         display: 'flex',
@@ -156,8 +156,8 @@ const PdfPreviewModal = ({
         {/* Modal Controls */}
         <div style={{
           padding: '10px 20px',
-          backgroundColor: 'white',
-          borderBottom: '1px solid #e2e8f0',
+          backgroundColor: 'var(--surface)',
+          borderBottom: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
@@ -168,7 +168,7 @@ const PdfPreviewModal = ({
             onClick={downloadPdf}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#1e3a5f',
+              backgroundColor: 'var(--accent)',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
@@ -187,9 +187,9 @@ const PdfPreviewModal = ({
             onClick={() => setShowSidebar(!showSidebar)}
             style={{
               padding: '8px 16px',
-              backgroundColor: showSidebar ? '#1e3a5f' : '#f1f5f9',
-              color: showSidebar ? 'white' : '#64748b',
-              border: '1px solid #e2e8f0',
+              backgroundColor: showSidebar ? 'var(--accent)' : 'var(--bg)',
+              color: showSidebar ? 'white' : 'var(--text-secondary)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '6px',
               fontSize: '14px',
               fontWeight: 'bold',
@@ -225,7 +225,7 @@ const PdfPreviewModal = ({
         <div style={{ 
           flex: 1, 
           display: 'flex', 
-          backgroundColor: '#e2e8f0',
+          backgroundColor: 'var(--border-subtle)',
           justifyContent: 'center',
           position: 'relative',
           overflow: 'hidden'
@@ -234,13 +234,13 @@ const PdfPreviewModal = ({
           {showSidebar && (
             <div style={{ 
               width: '280px', 
-              backgroundColor: 'white', 
-              borderRight: '1px solid #cbd5e1', 
+              backgroundColor: 'var(--surface)', 
+              borderRight: '1px solid var(--border-subtle)', 
               padding: '16px', 
               zIndex: 100,
               boxShadow: '0 0 10px rgba(0,0,0,0.05)'
             }}>
-              <h3 style={{ fontSize: '15px', color: '#1e3a5f', marginTop: 0, marginBottom: '8px' }}>Section Order</h3>
+              <h3 style={{ fontSize: '15px', color: 'var(--text-primary)', marginTop: 0, marginBottom: '8px' }}>Section Order</h3>
               <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
                 Drag to reorder sections in the PDF.
               </p>
@@ -273,8 +273,8 @@ const PdfPreviewModal = ({
                                 style={{ 
                                   ...provided.draggableProps.style,
                                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                  padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '6px',
-                                  backgroundColor: snapshot.isDragging ? '#f0f7ff' : '#f8fafc',
+                                  padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: '6px',
+                                  backgroundColor: snapshot.isDragging ? 'var(--blue-50)' : 'var(--bg)',
                                   zIndex: snapshot.isDragging ? 1000 : 1
                                 }}
                               >
@@ -282,7 +282,7 @@ const PdfPreviewModal = ({
                                   <div {...provided.dragHandleProps} style={{ color: '#94a3b8', cursor: 'grab' }}>
                                     <GripVertical size={16} />
                                   </div>
-                                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e3a5f' }}>
+                                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                                     {label}
                                   </span>
                                 </div>

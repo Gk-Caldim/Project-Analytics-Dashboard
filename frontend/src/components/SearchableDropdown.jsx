@@ -64,13 +64,13 @@ const SearchableDropdown = ({
       <div
         className={`
           flex items-center justify-between w-full px-3 py-2 text-sm border rounded-lg cursor-pointer transition-all duration-200
-          ${disabled ? 'bg-gray-50 cursor-not-allowed opacity-60' : 'bg-white hover:border-blue-400'}
-          ${isOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-300'}
+          ${disabled ? 'bg-gray-50 dark:bg-slate-800 cursor-not-allowed opacity-60' : 'bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-500'}
+          ${isOpen ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/20' : 'border-gray-300 dark:border-slate-700'}
         `}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="flex-1 truncate">
-          <span className={value ? "text-gray-900" : "text-gray-400"}>
+          <span className={value ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}>
             {displayLabel}
           </span>
         </div>
@@ -78,7 +78,7 @@ const SearchableDropdown = ({
           {value && !disabled && (
             <button
               onClick={handleClear}
-              className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -88,13 +88,13 @@ const SearchableDropdown = ({
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl animate-in fade-in zoom-in duration-200 origin-top">
-          <div className="p-2 border-b border-gray-100">
+        <div className="absolute z-[100] w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-xl animate-in fade-in zoom-in duration-200 origin-top">
+          <div className="p-2 border-b border-gray-100 dark:border-slate-800">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                className="w-full pl-9 pr-3 py-2 text-sm border-0 focus:ring-0 bg-gray-50 rounded-md"
+                className="w-full pl-9 pr-3 py-2 text-sm border-0 focus:ring-0 bg-gray-50 dark:bg-slate-800 rounded-md text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500"
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -113,7 +113,7 @@ const SearchableDropdown = ({
                     key={index}
                     className={`
                       flex items-center justify-between px-3 py-2 text-sm cursor-pointer transition-colors
-                      ${isSelected ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'}
+                      ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}
                     `}
                     onClick={() => handleSelect(option)}
                   >

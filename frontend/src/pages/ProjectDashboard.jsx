@@ -1475,7 +1475,10 @@ const ProjectTitleDashboard = () => {
       }
       if (key === 'milestones') return !!(dashboardData?.milestones?.length > 0);
       if (key === 'criticalIssues') return !!(criticalIssues?.length > 0);
-      if (key === 'budget') return budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
+      if (key === 'budget') return (budgetTableData || []).some((row, i) => {
+        if (Array.isArray(row)) return i > 0 && row.slice(2).some(v => parseNum(v) !== 0);
+        return row && typeof row === 'object' && Object.values(row).some(v => parseNum(v) !== 0);
+      });
       return true;
     });
 
@@ -1764,7 +1767,7 @@ const ProjectTitleDashboard = () => {
     // If it's a module from dashboard, data comes from dashboardData.milestones
     if (!data) {
       return (
-        <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>
+        <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
           No data available for this submodule
         </div>
       );
@@ -1797,7 +1800,7 @@ const ProjectTitleDashboard = () => {
 
     if (rows.length === 0) {
       return (
-        <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>
+        <div style={{ textAlign: 'center', padding: '50px', color: 'var(--text-muted)' }}>
           No data rows available
         </div>
       );
@@ -1824,7 +1827,10 @@ const ProjectTitleDashboard = () => {
 
     const hasMilestones = !!(dashboardData?.milestones?.length > 0);
     const hasCriticalIssues = !!(criticalIssues?.length > 0);
-    const hasBudgetData = budgetTableData.some((row, i) => i > 0 && row.slice(2).some(v => parseNum(v) !== 0));
+    const hasBudgetData = (budgetTableData || []).some((row, i) => {
+      if (Array.isArray(row)) return i > 0 && row.slice(2).some(v => parseNum(v) !== 0);
+      return row && typeof row === 'object' && Object.values(row).some(v => parseNum(v) !== 0);
+    });
 
     const dynamicTrackerKeys = [
       ...(activeProject?.submodules || []).map(sub => sub.id),
@@ -1858,7 +1864,7 @@ const ProjectTitleDashboard = () => {
         padding: '20px'
       }}>
         <div style={{
-          backgroundColor: 'white',
+          backgroundColor: 'var(--surface)',
           borderRadius: '8px',
           width: '600px',
           maxWidth: '100%',
@@ -1872,7 +1878,7 @@ const ProjectTitleDashboard = () => {
             padding: '15px 20px',
             fontSize: '18px',
             fontWeight: 'bold',
-            borderBottom: '1px solid #2c4c7c',
+            borderBottom: '1px solid rgba(0,0,0,0.1)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -1898,12 +1904,12 @@ const ProjectTitleDashboard = () => {
           </div>
 
           <div style={{ padding: '20px' }}>
-            <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '15px' }}>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '15px' }}>
               Select which sections to display in the {activeProject?.name} dashboard. Unchecked sections will be hidden.
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--accent)' }}>Dashboard Sections:</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Sections:</h3>
               <button
                 onClick={handleSelectAllVisibility}
                 style={{
@@ -1911,7 +1917,7 @@ const ProjectTitleDashboard = () => {
                   fontSize: '13px',
                   borderRadius: '4px',
                   border: '1px solid var(--accent)',
-                  backgroundColor: allSelected ? 'var(--accent)' : 'white',
+                  backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
                   color: allSelected ? 'white' : 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: 'bold'
@@ -1923,19 +1929,19 @@ const ProjectTitleDashboard = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
               {hasMilestones && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? '#f0f9ff' : 'white' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? 'var(--blue-50)' : 'var(--surface)' }}>
                   <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
                   <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
                 </label>
               )}
               {hasCriticalIssues && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? '#f0f9ff' : 'white' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
                   <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
                   <span style={{ fontWeight: '600' }}>Critical Issues</span>
                 </label>
               )}
               {hasBudgetData && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? '#f0f9ff' : 'white' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? 'var(--blue-50)' : 'var(--surface)' }}>
                   <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
                   <span style={{ fontWeight: '600' }}>Budget Summary</span>
                 </label>
@@ -1944,10 +1950,10 @@ const ProjectTitleDashboard = () => {
               <div style={{
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '8px',
-                background: tempVisibleSections.metricsSummary ? '#f0f9ff' : 'white',
+                background: tempVisibleSections.metricsSummary ? 'var(--blue-50)' : 'var(--surface)',
                 overflow: 'hidden'
               }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', borderBottom: tempVisibleSections.metricsSummary ? '1px solid #bae6fd' : 'none' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <input type="checkbox" checked={tempVisibleSections.metricsSummary || false} onChange={() => handleSectionVisibilityToggle('metricsSummary')} />
                   <span style={{ fontWeight: '600' }}>Project Metrics Summary</span>
                 </label>
@@ -1986,13 +1992,13 @@ const ProjectTitleDashboard = () => {
             {/* Preview of visible sections */}
             <div style={{
               marginTop: '20px',
-              backgroundColor: '#f8f9fa',
+              backgroundColor: 'var(--bg)',
               padding: '15px',
               borderRadius: '6px',
-              border: '1px solid #e0e0e0'
+              border: '1px solid var(--border-subtle)'
             }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--accent)' }}>Dashboard Preview:</h4>
-              <div style={{ fontSize: '13px', color: '#4b5563' }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Preview:</h4>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
                     .filter(([section, selected]) => {
@@ -2019,8 +2025,8 @@ const ProjectTitleDashboard = () => {
                       return (
                         <span key={section} style={{
                           padding: '4px 10px',
-                          backgroundColor: '#dbeafe',
-                          color: '#1e40af',
+                          backgroundColor: 'var(--blue-50)',
+                          color: 'var(--blue-900)',
                           borderRadius: '16px',
                           fontSize: '12px',
                           fontWeight: 'bold'
@@ -2032,7 +2038,7 @@ const ProjectTitleDashboard = () => {
 
                 </div>
                 {Object.values(tempVisibleSections).filter(v => v).length === 0 && (
-                  <div style={{ color: '#9ca3af', textAlign: 'center', padding: '10px' }}>
+                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>
                     No sections selected - dashboard will be empty
                   </div>
                 )}
@@ -2048,8 +2054,8 @@ const ProjectTitleDashboard = () => {
             justifyContent: 'flex-end',
             gap: '10px',
             padding: '15px 20px',
-            borderTop: '1px solid #e0e0e0',
-            backgroundColor: '#f9fafb',
+            borderTop: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--bg)',
             borderRadius: '0 0 8px 8px',
             position: 'sticky',
             bottom: 0,
@@ -2061,9 +2067,9 @@ const ProjectTitleDashboard = () => {
                 padding: '10px 20px',
                 fontSize: '14px',
                 borderRadius: '4px',
-                border: '1px solid #c0c0c0',
-                backgroundColor: 'white',
-                color: '#4b5563',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 fontWeight: 'bold'
               }}
@@ -2102,7 +2108,7 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+        <div style={{ backgroundColor: 'var(--surface)', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
           <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
             <span>Edit Project Milestones</span>
             <button onClick={() => setShowEditMilestones(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
@@ -2135,7 +2141,7 @@ const ProjectTitleDashboard = () => {
                             newForm.plan[char] = e.target.value;
                             setMilestoneForm(newForm);
                           }}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                     ))}
@@ -2148,7 +2154,7 @@ const ProjectTitleDashboard = () => {
                           newForm.plan.implementation = e.target.value;
                           setMilestoneForm(newForm);
                         }}
-                        style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                       />
                     </td>
                   </tr>
@@ -2164,7 +2170,7 @@ const ProjectTitleDashboard = () => {
                             newForm.actual[char] = e.target.value;
                             setMilestoneForm(newForm);
                           }}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                     ))}
@@ -2177,7 +2183,7 @@ const ProjectTitleDashboard = () => {
                           newForm.actual.implementation = e.target.value;
                           setMilestoneForm(newForm);
                         }}
-                        style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                       />
                     </td>
                   </tr>
@@ -2185,7 +2191,7 @@ const ProjectTitleDashboard = () => {
               </table>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
-              <button onClick={() => setShowEditMilestones(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setShowEditMilestones(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface)', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
@@ -2227,14 +2233,14 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+        <div style={{ backgroundColor: 'var(--surface)', borderRadius: '8px', width: '900px', maxWidth: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
           <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
             <span>Edit Critical Issues</span>
             <button onClick={() => setShowEditIssues(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
           </div>
           <div style={{ padding: '20px' }}>
             <div style={{ marginBottom: '15px' }}>
-              <button onClick={addIssue} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '13px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+              <button onClick={addIssue} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '13px', backgroundColor: 'var(--green)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
                 <Plus className="h-4 w-4" /> Add Issue
               </button>
             </div>
@@ -2257,7 +2263,7 @@ const ProjectTitleDashboard = () => {
                         <textarea
                           value={issue.issue}
                           onChange={(e) => updateIssue(issue.id, 'issue', e.target.value)}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px', resize: 'vertical', minHeight: '40px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '12px', resize: 'vertical', minHeight: '40px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                       <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
@@ -2265,7 +2271,7 @@ const ProjectTitleDashboard = () => {
                           type="text"
                           value={issue.responsibility}
                           onChange={(e) => updateIssue(issue.id, 'responsibility', e.target.value)}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '12px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                       <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
@@ -2273,7 +2279,7 @@ const ProjectTitleDashboard = () => {
                           type="text"
                           value={issue.function}
                           onChange={(e) => updateIssue(issue.id, 'function', e.target.value)}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '12px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                       <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
@@ -2281,14 +2287,14 @@ const ProjectTitleDashboard = () => {
                           type="date"
                           value={issue.targetDate}
                           onChange={(e) => updateIssue(issue.id, 'targetDate', e.target.value)}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '11px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '11px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         />
                       </td>
                       <td style={{ padding: '5px', border: '1px solid var(--border-subtle)' }}>
                         <select
                           value={issue.status}
                           onChange={(e) => updateIssue(issue.id, 'status', e.target.value)}
-                          style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}
+                          style={{ width: '100%', padding: '6px', border: '1px solid var(--border-subtle)', borderRadius: '4px', fontSize: '12px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                         >
                           <option value="Open">Open</option>
                           <option value="In Progress">In Progress</option>
@@ -2306,7 +2312,7 @@ const ProjectTitleDashboard = () => {
               </table>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
-              <button onClick={() => setShowEditIssues(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setShowEditIssues(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface)', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
@@ -2510,7 +2516,7 @@ const ProjectTitleDashboard = () => {
 
       return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-          <div style={{ backgroundColor: 'white', borderRadius: '12px', width: '95vw', maxWidth: '1200px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', width: '95vw', maxWidth: '1200px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
                 <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Edit Budget Summary</span>
@@ -2522,7 +2528,7 @@ const ProjectTitleDashboard = () => {
 
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, backgroundColor: 'var(--bg)' }}>
               <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--surface)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Project Name:</span>
                   <input
                     type="text"
@@ -2531,7 +2537,7 @@ const ProjectTitleDashboard = () => {
                     style={{ border: 'none', color: 'var(--accent)', fontWeight: '800', fontSize: '14px', outline: 'none', width: '180px' }}
                   />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--surface)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Status:</span>
                   <select
                     value={modalProjectStatus}
@@ -2545,7 +2551,7 @@ const ProjectTitleDashboard = () => {
                     <option style={{ color: 'black' }} value="On Hold">On Hold</option>
                   </select>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--surface)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '6px' }}>
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>System Currency:</span>
                   <span style={{ color: 'var(--accent)', fontWeight: '800', fontSize: '14px' }}>{symbol}</span>
                 </div>
@@ -2565,7 +2571,7 @@ const ProjectTitleDashboard = () => {
                 </button>
               </div>
 
-              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'white', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg)', borderBottom: '2px solid var(--border-subtle)' }}>
@@ -2573,7 +2579,7 @@ const ProjectTitleDashboard = () => {
                         <th key={i} style={{
                           padding: '12px 14px',
                           borderRight: i === headers.length - 1 ? 'none' : '1px solid var(--border-subtle)',
-                          color: '#475569',
+                          color: 'var(--text-secondary)',
                           fontWeight: 'bold'
                         }}>
                           {h}
@@ -2590,7 +2596,7 @@ const ProjectTitleDashboard = () => {
                       const canDelete = !isHeader && !isTotal;
 
                       return (
-                        <tr key={idx} style={{ backgroundColor: isTotal ? 'var(--bg)' : 'white', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <tr key={idx} style={{ backgroundColor: isTotal ? 'var(--bg)' : 'var(--surface)', borderBottom: '1px solid var(--border-subtle)' }}>
                           {row.map((cell, colIdx) => {
                             const isCalculatedCell = colIdx === 5 || colIdx === 7 || isTotal;
                             const isLabelCell = colIdx === 0 && (isHeader || isTotal);
@@ -2602,7 +2608,7 @@ const ProjectTitleDashboard = () => {
                                 borderRight: colIdx === row.length - 1 ? 'none' : '1px solid var(--border-subtle)'
                               }}>
                                 {isReadOnly ? (
-                                  <div style={{ padding: '12px 14px', color: isHeader || isTotal ? 'var(--accent)' : '#334155', fontWeight: isHeader || isTotal ? 'bold' : 'normal', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
+                                  <div style={{ padding: '12px 14px', color: isHeader || isTotal ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isHeader || isTotal ? 'bold' : 'normal', minHeight: '44px', display: 'flex', alignItems: 'center' }}>
                                     {cell}
                                   </div>
                                 ) : (
@@ -2611,8 +2617,8 @@ const ProjectTitleDashboard = () => {
                                     value={cell}
                                     onChange={(e) => updateValue(absoluteIdx, colIdx, e.target.value)}
                                     placeholder={colIdx === 1 ? "Dept Name" : ""}
-                                    style={{ width: '100%', padding: '12px 14px', border: '1px solid transparent', outline: 'none', color: '#334155', height: '100%', backgroundColor: 'transparent' }}
-                                    onFocus={(e) => { e.target.style.backgroundColor = '#eff6ff'; }}
+                                    style={{ width: '100%', padding: '12px 14px', border: '1px solid transparent', outline: 'none', color: 'var(--text-primary)', height: '100%', backgroundColor: 'transparent' }}
+                                    onFocus={(e) => { e.target.style.backgroundColor = 'var(--bg)'; }}
                                     onBlur={(e) => { e.target.style.backgroundColor = 'transparent'; }}
                                   />
                                 )}
@@ -2634,8 +2640,8 @@ const ProjectTitleDashboard = () => {
               </div>
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: 'white' }}>
-              <button onClick={() => setShowEditSummary(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: 'white', color: '#475569', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: '12px', backgroundColor: 'var(--surface)' }}>
+              <button onClick={() => setShowEditSummary(false)} style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface)', color: 'var(--text-primary)', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSave} style={{ padding: '10px 20px', borderRadius: '6px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
@@ -2659,7 +2665,7 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-        <div style={{ backgroundColor: 'white', borderRadius: '8px', width: '400px', maxWidth: '100%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+        <div style={{ backgroundColor: 'var(--surface)', borderRadius: '8px', width: '400px', maxWidth: '100%', boxShadow: '0 10px 25px rgba(0,0,0,0.4)', border: '1px solid var(--border-subtle)' }}>
           <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '15px 20px', fontSize: '18px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Edit {currentConfig.title}</span>
             <button onClick={() => setShowEditSummary(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '20px', cursor: 'pointer' }}>×</button>
@@ -2668,7 +2674,7 @@ const ProjectTitleDashboard = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
               {currentConfig.fields.map(field => (
                 <div key={field.key}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#4b5563', marginBottom: '5px' }}>{field.label}</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '5px' }}>{field.label}</label>
                   <div style={{ position: 'relative' }}>
                     {field.key.toLowerCase().includes('amount') || field.key.toLowerCase().includes('budget') ? (
                       <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold', color: 'var(--accent)' }}>{symbol}</span>
@@ -2691,7 +2697,7 @@ const ProjectTitleDashboard = () => {
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setShowEditSummary(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: 'white', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setShowEditSummary(false)} style={{ padding: '8px 16px', borderRadius: '4px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface)', color: 'var(--text-primary)', cursor: 'pointer' }}>Cancel</button>
               <button onClick={handleSave} style={{ padding: '8px 16px', borderRadius: '4px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
             </div>
           </div>
@@ -2877,26 +2883,32 @@ const ProjectTitleDashboard = () => {
     }
 
 
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || document.body.classList.contains('dark');
+    const textColor = isDark ? '#FFFFFF' : '#1e293b';
+    const secondaryTextColor = isDark ? '#FFFFFF' : '#475569';
+    const borderColor = isDark ? '#46525E' : '#CBD5E1';
+    const tooltipBg = isDark ? '#2B353F' : 'rgba(255, 255, 255, 0.96)';
+
     const baseOption = {
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        backgroundColor: 'rgba(255, 255, 255, 0.96)',
-        borderColor: '#CBD5E1',
+        backgroundColor: tooltipBg,
+        borderColor: borderColor,
         borderWidth: 1,
-        textStyle: { color: '#1e293b', fontSize: 12 },
-        extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px;',
+        textStyle: { color: textColor, fontSize: 12 },
+        extraCssText: `box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-radius: 8px;`,
         formatter: (params) => {
           if (!params || params.length === 0) return '';
-          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid #F1F5F9; padding-bottom: 4px; color: #1e293b;">${formatXAxisValue(params[0].axisValue)}</div>`;
+          let html = `<div style="font-weight: 800; margin-bottom: 8px; border-bottom: 1px solid ${borderColor}; padding-bottom: 4px; color: ${textColor};">${formatXAxisValue(params[0].axisValue)}</div>`;
           params.forEach(p => {
             const val = typeof p.value === 'number' ? Math.round(p.value * 100) / 100 : p.value;
             html += `<div style="display: flex; justify-content: space-between; gap: 24px; align-items: center; margin-bottom: 3px;">
               <span style="display: flex; align-items: center;">
                 <span style="display:inline-block;margin-right:8px;border-radius:2px;width:10px;height:10px;background-color:${p.color};"></span>
-                <span style="color: #475569; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
+                <span style="color: ${secondaryTextColor}; font-weight: 600;">${humanizeLabel(p.seriesName)}</span>
               </span>
-              <span style="font-weight: 800; color: #1e293b;">${val} ${derivedConfig ? 'Days' : ''}</span>
+              <span style="font-weight: 800; color: ${textColor};">${val} ${derivedConfig ? 'Days' : ''}</span>
             </div>`;
           });
           return html;
@@ -2912,12 +2924,12 @@ const ProjectTitleDashboard = () => {
             readOnly: true,
             title: 'Data View',
             lang: ['Data View', 'Close', 'Refresh'],
-            backgroundColor: '#fff',
-            textareaColor: '#fff',
-            textareaBorderColor: '#CBD5E1',
-            textColor: '#1e293b',
-            buttonColor: '#1e293b',
-            buttonTextColor: '#fff',
+            backgroundColor: isDark ? '#1E242B' : '#fff',
+            textareaColor: isDark ? '#2B353F' : '#fff',
+            textareaBorderColor: borderColor,
+            textColor: textColor,
+            buttonColor: textColor,
+            buttonTextColor: isDark ? '#1E242B' : '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
               if (!series || series.length === 0) return '<div style="padding:20px;">No data available</div>';
@@ -2933,10 +2945,10 @@ const ProjectTitleDashboard = () => {
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
                   <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
-                    <th style="padding:10px;color:#1e293b;font-weight:800;">${xHeader}</th>`;
+                    <th style="padding:10px;color:${textColor};font-weight:800;">${xHeader}</th>`;
 
               series.forEach(s => {
-                table += `<th style="padding:10px;color:#1e293b;font-weight:800;">${s.name || 'Value'}</th>`;
+                table += `<th style="padding:10px;color:${textColor};font-weight:800;">${s.name || 'Value'}</th>`;
               });
 
               table += `</tr></thead><tbody>`;
@@ -2953,12 +2965,12 @@ const ProjectTitleDashboard = () => {
                 }
 
                 table += `<tr style="border-bottom:1px solid #F1F5F9;">
-                  <td style="padding:8px 10px;color:#475569;">${name}</td>`;
+                  <td style="padding:8px 10px;color:${secondaryTextColor};">${name}</td>`;
 
                 series.forEach(s => {
                   const item = s.data[i];
                   const val = typeof item === 'object' ? item.value : item;
-                  table += `<td style="padding:8px 10px;color:#1e293b;font-weight:700;">${val !== undefined ? val : '-'}</td>`;
+                  table += `<td style="padding:8px 10px;color:${textColor};font-weight:700;">${val !== undefined ? val : '-'}</td>`;
                 });
 
                 table += `</tr>`;
@@ -2972,11 +2984,11 @@ const ProjectTitleDashboard = () => {
             show: true,
             title: 'Download',
             pixelRatio: 3,
-            iconStyle: { borderColor: '#1e293b' }
+            iconStyle: { borderColor: textColor }
           }
         },
-        iconStyle: { borderColor: 'var(--text-muted)' },
-        emphasis: { iconStyle: { borderColor: '#1e293b' } }
+        iconStyle: { borderColor: secondaryTextColor },
+        emphasis: { iconStyle: { borderColor: textColor } }
       },
       dataZoom: xLabels.length > 10 ? [
         { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
@@ -2992,7 +3004,7 @@ const ProjectTitleDashboard = () => {
         top: isMaximized ? 'middle' : 'auto',
         itemWidth: 12,
         itemHeight: 12,
-        textStyle: { fontSize: 10, color: '#475569', fontWeight: '600' },
+        textStyle: { fontSize: 10, color: secondaryTextColor, fontWeight: '600' },
         pageButtonPosition: 'end',
         pageIconSize: 10,
         padding: [5, 10]
@@ -3016,23 +3028,24 @@ const ProjectTitleDashboard = () => {
           rotate: xLabels.length > 5 ? (chartType === 'bar-rotated' ? 45 : 35) : 0,
           formatter: formatXAxisValue,
           fontSize: 10,
-          color: '#475569'
+          color: secondaryTextColor
         },
-        axisLine: { lineStyle: { color: '#CBD5E1' } }
+        axisLine: { lineStyle: { color: borderColor } }
       },
       yAxis: {
         type: 'value',
         name: yAxisLabel,
         boundaryGap: ['15%', '15%'],
         nameTextStyle: {
-          color: '#475569',
+          color: secondaryTextColor,
           fontSize: 11,
           fontWeight: 'bold',
           align: 'left',
           padding: [0, 0, 0, 20] // Shift only the label to the right into the chart area
         },
-        axisLabel: { color: '#475569', fontSize: 10 },
-        splitLine: { lineStyle: { type: 'dashed', color: '#F1F5F9' } }
+        axisLine: { lineStyle: { color: borderColor } },
+        splitLine: { lineStyle: { color: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' } },
+        axisLabel: { color: secondaryTextColor, fontSize: 10 }
       }
 
     };
@@ -3066,7 +3079,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e293b',
+                color: textColor,
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3088,8 +3101,8 @@ const ProjectTitleDashboard = () => {
               showSymbol: true,
               symbolSize: 8,
               data: yValues,
-              lineStyle: { width: 3, color: '#3b82f6' },
-              itemStyle: { color: '#3b82f6', borderWidth: 2, borderColor: '#fff' },
+              lineStyle: { width: 3, color: isDark ? '#60a5fa' : '#3b82f6' },
+              itemStyle: { color: isDark ? '#60a5fa' : '#3b82f6', borderWidth: 2, borderColor: isDark ? '#1E242B' : '#fff' },
               areaStyle: chartType === 'area' ? {
                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                   { offset: 0, color: 'rgba(59, 130, 246, 0.5)' },
@@ -3099,7 +3112,7 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                color: '#1e293b',
+                color: textColor,
                 fontSize: 10,
                 fontWeight: 'bold'
               }
@@ -3133,11 +3146,11 @@ const ProjectTitleDashboard = () => {
           color: getDiversePalette(),
           tooltip: {
             trigger: 'item',
-            backgroundColor: 'rgba(255, 255, 255, 0.96)',
-            borderColor: '#CBD5E1',
+            backgroundColor: tooltipBg,
+            borderColor: borderColor,
             borderWidth: 1,
-            textStyle: { color: '#1e293b' },
-            formatter: (p) => `<div style="padding: 4px;"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:#475569">Value:</span> <b>${p.value}</b><br/><span style="color:#475569">Share:</span> <b>${p.percent}%</b></div>`
+            textStyle: { color: textColor },
+            formatter: (p) => `<div style="padding: 4px; color: ${textColor};"><b>${formatXAxisValue(p.name)}</b><br/><span style="color:${secondaryTextColor}">Value:</span> <b>${p.value}</b><br/><span style="color:${secondaryTextColor}">Share:</span> <b>${p.percent}%</b></div>`
           },
           toolbox: baseOption.toolbox, // retain toolbox from base option
           legend: baseOption.legend,
@@ -3150,7 +3163,7 @@ const ProjectTitleDashboard = () => {
               avoidLabelOverlap: true,
               itemStyle: {
                 borderRadius: 4,
-                borderColor: '#fff',
+                borderColor: isDark ? '#2B353F' : '#fff',
                 borderWidth: 2
               },
               label: {
@@ -3161,9 +3174,9 @@ const ProjectTitleDashboard = () => {
                 edgeDistance: 10,
                 lineHeight: 15,
                 rich: {
-                  name: { fontSize: 9, fontWeight: '700', color: '#1e293b', padding: [0, 0, 2, 0] },
-                  value: { fontSize: 9, fontWeight: '800', color: '#3b82f6' },
-                  percent: { fontSize: 9, color: '#475569' }
+                  name: { fontSize: 9, fontWeight: '700', color: textColor, padding: [0, 0, 2, 0] },
+                  value: { fontSize: 9, fontWeight: '800', color: isDark ? '#60a5fa' : '#3b82f6' },
+                  percent: { fontSize: 9, color: secondaryTextColor }
                 }
               },
               labelLine: {
@@ -3193,8 +3206,8 @@ const ProjectTitleDashboard = () => {
           xAxis: {
             type: 'value',
             boundaryGap: ['15%', '15%'],
-            axisLabel: { color: '#475569', fontSize: 10 },
-            splitLine: { lineStyle: { type: 'dashed', color: '#F1F5F9' } }
+            axisLabel: { color: secondaryTextColor, fontSize: 10 },
+            splitLine: { lineStyle: { type: 'dashed', color: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9' } }
           },
           yAxis: {
             type: 'category',
@@ -3202,7 +3215,7 @@ const ProjectTitleDashboard = () => {
             axisLabel: {
               interval: 0,
               fontSize: 10,
-              color: '#1e293b',
+              color: secondaryTextColor,
               fontWeight: '600'
             }
           },
@@ -3228,7 +3241,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e293b',
+                color: textColor,
                 fontSize: 10,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3274,7 +3287,7 @@ const ProjectTitleDashboard = () => {
               },
               label: {
                 show: true,
-                color: '#1e293b',
+                color: textColor,
                 fontSize: 9,
                 fontWeight: 'bold',
                 formatter: (p) => p.value !== 0 ? p.value : ''
@@ -3334,8 +3347,8 @@ const ProjectTitleDashboard = () => {
               symbol: 'circle',
               symbolSize: 10,
               data: yValues,
-              lineStyle: { width: 4, color: '#10b981' },
-              itemStyle: { color: '#059669', borderWidth: 2, borderColor: '#fff' },
+              lineStyle: { width: 4, color: isDark ? '#34d399' : '#10b981' },
+              itemStyle: { color: isDark ? '#34d399' : '#059669', borderWidth: 2, borderColor: isDark ? '#1E242B' : '#fff' },
               areaStyle: {
                 color: {
                   type: 'linear',
@@ -3351,7 +3364,7 @@ const ProjectTitleDashboard = () => {
                 position: 'top',
                 formatter: (p) => p.value,
                 fontWeight: 'bold',
-                color: '#047857'
+                color: isDark ? '#34d399' : '#047857'
               }
             }
           ]
@@ -3384,7 +3397,7 @@ const ProjectTitleDashboard = () => {
               show: isMaximized,
               position: 'top',
               fontSize: 9,
-              color: '#475569',
+              color: secondaryTextColor,
               fontWeight: 'bold',
               formatter: (p) => p.value > 0 ? p.value : ''
             }
@@ -3403,7 +3416,7 @@ const ProjectTitleDashboard = () => {
     return (
       <div style={size}>
         <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ mx: 2, opacity: 0.3 }}>|</span> <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
+          <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
         </div>
         <ReactECharts
           ref={(e) => {
@@ -3548,12 +3561,12 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div style={{ overflowX: 'auto', marginTop: '10px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              <tr style={{ backgroundColor: 'var(--bg)', borderBottom: '2px solid var(--border-subtle)' }}>
                 {targetCols.map(col => (
-                  <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
+                  <th key={col.id} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
                     {col.label}
                   </th>
                 ))}
@@ -3561,9 +3574,9 @@ const ProjectTitleDashboard = () => {
             </thead>
             <tbody>
               {paginatedRows.length === 0 ? (
-                <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontWeight: '600' }}>No detailed budget records found.</td></tr>
+                <tr><td colSpan={targetCols.length} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '600' }}>No detailed budget records found.</td></tr>
               ) : paginatedRows.map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? 'white' : '#fcfdfe' }}>
+                <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
                   {targetCols.map(col => {
                     const valKey = col.keys.find(k => row[k] !== undefined && row[k] !== null);
                     let val = valKey !== undefined ? row[valKey] : '-';
@@ -3576,7 +3589,7 @@ const ProjectTitleDashboard = () => {
                     }
 
                     return (
-                      <td key={col.id} style={{ padding: '8px 14px', color: '#1e293b', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
+                      <td key={col.id} style={{ padding: '8px 14px', color: 'var(--text-primary)', fontWeight: col.id === 'item_name' ? '700' : '500' }}>
                         {val}
                       </td>
                     );
@@ -3588,14 +3601,14 @@ const ProjectTitleDashboard = () => {
         </div>
 
         {allRows.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '8px' }}>
-            <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '8px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>
               Showing <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{Math.min(allRows.length, startIndex + 1)}</span> to <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{Math.min(allRows.length, startIndex + budgetItemsPerPage)}</span> of <span style={{ color: 'var(--accent)', fontWeight: '800' }}>{allRows.length}</span> results
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Rows per page:</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Rows per page:</span>
                 <select 
                   value={budgetItemsPerPage}
                   onChange={(e) => {
@@ -3609,7 +3622,7 @@ const ProjectTitleDashboard = () => {
                     fontSize: '12px',
                     fontWeight: '700',
                     color: 'var(--accent)',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--surface)',
                     outline: 'none',
                     cursor: 'pointer'
                   }}
@@ -3626,13 +3639,13 @@ const ProjectTitleDashboard = () => {
                   disabled={budgetPage === 1}
                   style={{
                     padding: '6px 12px',
-                    border: '1px solid #cbd5e1',
-                    background: 'white',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--surface)',
                     borderRadius: '6px',
                     cursor: budgetPage === 1 ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     fontWeight: '700',
-                    color: budgetPage === 1 ? '#94a3b8' : 'var(--accent)',
+                    color: budgetPage === 1 ? 'var(--text-muted)' : 'var(--accent)',
                     transition: 'all 0.2s',
                     display: 'flex',
                     alignItems: 'center',
@@ -3675,9 +3688,9 @@ const ProjectTitleDashboard = () => {
                           fontSize: '12px',
                           fontWeight: '800',
                           border: '1px solid',
-                          borderColor: budgetPage === p ? 'var(--accent)' : '#cbd5e1',
-                          backgroundColor: budgetPage === p ? 'var(--accent)' : 'white',
-                          color: budgetPage === p ? 'white' : (typeof p === 'number' ? '#475569' : '#94a3b8'),
+                          borderColor: budgetPage === p ? 'var(--accent)' : 'var(--border-subtle)',
+                          backgroundColor: budgetPage === p ? 'var(--accent)' : 'var(--surface)',
+                          color: budgetPage === p ? 'white' : (typeof p === 'number' ? 'var(--text-primary)' : 'var(--text-muted)'),
                           cursor: typeof p === 'number' ? 'pointer' : 'default',
                           transition: 'all 0.2s'
                         }}
@@ -3693,8 +3706,8 @@ const ProjectTitleDashboard = () => {
                   disabled={budgetPage === totalBudgetPages || totalBudgetPages === 0}
                   style={{
                     padding: '6px 12px',
-                    border: '1px solid #cbd5e1',
-                    background: 'white',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--surface)',
                     borderRadius: '6px',
                     cursor: (budgetPage === totalBudgetPages || totalBudgetPages === 0) ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
@@ -3746,7 +3759,7 @@ const ProjectTitleDashboard = () => {
           style={{
             maxWidth: '750px',
             width: '100%',
-            backgroundColor: 'white',
+            backgroundColor: 'var(--surface)',
             borderRadius: '24px',
             padding: '50px',
             position: 'relative',
@@ -3761,7 +3774,7 @@ const ProjectTitleDashboard = () => {
               top: '24px',
               right: '24px',
               border: 'none',
-              background: '#f1f5f9',
+              background: 'var(--bg)',
               cursor: 'pointer',
               width: '36px',
               height: '36px',
@@ -3769,7 +3782,7 @@ const ProjectTitleDashboard = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#64748b'
+              color: 'var(--text-muted)'
             }}
           >
             <X size={18} />
@@ -3780,7 +3793,7 @@ const ProjectTitleDashboard = () => {
               <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
                 <SparklesIcon size={20} />
               </div>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#1e3a5f', letterSpacing: '-0.025em' }}>AI Insights</h2>
+              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>AI Insights</h2>
             </div>
             <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
           </div>
@@ -3831,7 +3844,7 @@ const ProjectTitleDashboard = () => {
         }}>
           {currentCharts.map(chart => (
             <div key={chart.id} style={{
-              backgroundColor: 'white',
+              backgroundColor: 'var(--surface)',
               borderRadius: '12px',
               padding: '12px 16px', // Reduced padding
               border: '1px solid var(--border-subtle)',
@@ -3863,7 +3876,7 @@ const ProjectTitleDashboard = () => {
               style={{
                 padding: '8px 20px',
                 border: '1px solid #cbd5e1',
-                background: 'white',
+                background: 'var(--surface)',
                 borderRadius: '8px',
                 cursor: metricsPage === 1 ? 'not-allowed' : 'pointer',
                 fontSize: '13px',
@@ -3885,7 +3898,7 @@ const ProjectTitleDashboard = () => {
               style={{
                 padding: '8px 20px',
                 border: '1px solid #cbd5e1',
-                background: 'white',
+                background: 'var(--surface)',
                 borderRadius: '8px',
                 cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer',
                 fontSize: '13px',
@@ -3937,7 +3950,7 @@ const ProjectTitleDashboard = () => {
         padding: '30px'
       }}>
         <div style={{
-          backgroundColor: 'white',
+          backgroundColor: 'var(--surface)',
           borderRadius: '4px',
           width: '98%',
           maxWidth: '1400px',
@@ -3974,7 +3987,7 @@ const ProjectTitleDashboard = () => {
                     fontSize: '12px',
                     borderRadius: '4px',
                     border: '1px solid #cbd5e1',
-                    backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'white',
+                    backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'var(--surface)',
                     color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
                     cursor: 'pointer',
                     fontWeight: '800',
@@ -4005,7 +4018,7 @@ const ProjectTitleDashboard = () => {
                   fontSize: '12px',
                   borderRadius: '4px',
                   border: '1px solid #cbd5e1',
-                  backgroundColor: 'white',
+                  backgroundColor: 'var(--surface)',
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '800',
@@ -4032,7 +4045,7 @@ const ProjectTitleDashboard = () => {
                   fontSize: '12px',
                   borderRadius: '4px',
                   border: '1px solid var(--accent)',
-                  backgroundColor: 'white',
+                  backgroundColor: 'var(--surface)',
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '900',
@@ -4044,7 +4057,7 @@ const ProjectTitleDashboard = () => {
             </div>
           </div>
           <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg)' }}>
-            <div style={{ backgroundColor: 'white', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
+            <div style={{ backgroundColor: 'var(--surface)', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
               <div style={{ height: '550px' }}>
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
@@ -4106,10 +4119,10 @@ const ProjectTitleDashboard = () => {
 
               return (
                 <div style={{
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--elevated-card)',
                   padding: '24px',
-                  borderRadius: '12px',
-                  border: '1px solid #e2e8f0',
+                  borderRadius: '0',
+                  border: '1px solid var(--border-subtle)',
                   marginBottom: '30px',
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -4130,8 +4143,8 @@ const ProjectTitleDashboard = () => {
                   <div style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a5f', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Analysis Summary</h5>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                        <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Analysis Summary</h5>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', backgroundColor: 'var(--elevated-card)', padding: '2px 8px', borderRadius: '4px' }}>
                           {isNumeric ? 'SUMMATION' : 'COUNT'} LOGIC
                         </span>
                       </div>
@@ -4158,26 +4171,26 @@ const ProjectTitleDashboard = () => {
                         Explain Analysis
                       </button>
                     </div>
-                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '0', overflow: 'hidden', backgroundColor: 'var(--surface)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                         <thead>
-                          <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
-                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{humanizeLabel(config.xAxis)}</th>
-                            <th style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontWeight: '800' }}>{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
+                          <tr style={{ backgroundColor: 'var(--elevated-card)', textAlign: 'left' }}>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontWeight: '800' }}>{humanizeLabel(config.xAxis)}</th>
+                            <th style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontWeight: '800' }}>{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {sortedEntries.slice(0, 10).map(([x, y]) => (
-                            <tr key={x} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '10px 16px', color: '#1e293b', fontWeight: '600' }}>{x}</td>
-                              <td style={{ padding: '10px 16px', color: 'var(--accent)', fontWeight: '900', fontSize: '13px' }}>
+                            <tr key={x} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: '600' }}>{x}</td>
+                              <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: '900', fontSize: '13px' }}>
                                 {isNumeric ? (Math.round(y * 100) / 100).toLocaleString() : y}
                               </td>
                             </tr>
                           ))}
                           {sortedEntries.length > 10 && (
-                            <tr style={{ backgroundColor: '#f8fafc' }}>
-                              <td colSpan="2" style={{ padding: '10px 16px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', fontSize: '11px' }}>
+                            <tr style={{ backgroundColor: 'var(--bg)' }}>
+                              <td colSpan="2" style={{ padding: '10px 16px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', fontSize: '11px' }}>
                                 Showing top 10 categories. Total {sortedEntries.length} categories analyzed.
                               </td>
                             </tr>
@@ -4191,9 +4204,9 @@ const ProjectTitleDashboard = () => {
             })()}
 
             {/* Detailed Data View Table */}
-            <div style={{ backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--surface)', borderRadius: '0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
               <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--accent)' }}>Detailed Data View</h4>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>Detailed Data View</h4>
                 <button
                   onClick={() => {
                     const tid = getTrackerForPhase(maximizedChart)?.trackerId;
@@ -4236,19 +4249,19 @@ const ProjectTitleDashboard = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--elevated-card)', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 20px', color: '#475569', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
-                      <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
-                      <th style={{ padding: '12px 20px', color: 'var(--accent)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
+                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
+                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
+                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows || []).slice(0, 50).map((row, idx) => {
                       const config = axisConfigs[activeProject.id]?.[maximizedChart];
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--elevated-card)', backgroundColor: idx % 2 === 0 ? 'white' : '#f9fafb' }}>
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--elevated-card)', backgroundColor: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
                           <td style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: '600' }}>{idx + 1}</td>
-                          <td style={{ padding: '10px 20px', color: '#1e293b', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
-                          <td style={{ padding: '10px 20px', color: '#3b82f6', fontWeight: '800' }}>{row[config?.yAxis]}</td>
+                          <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
+                          <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: '800' }}>{row[config?.yAxis]}</td>
                         </tr>
                       );
                     })}
@@ -4326,7 +4339,7 @@ const ProjectTitleDashboard = () => {
 
       {/* Main Dashboard Container */}
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--surface)',
         borderRadius: '16px',
         boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05)',
         overflow: 'hidden',
@@ -4338,7 +4351,7 @@ const ProjectTitleDashboard = () => {
         {/* Header with navigation */}
         {(activeProject || selectedSubmodule) && (
           <header style={{
-            backgroundColor: 'white',
+            backgroundColor: 'var(--surface)',
             color: 'var(--text-primary)',
             padding: '16px 32px',
             fontSize: '16px',
@@ -4357,7 +4370,7 @@ const ProjectTitleDashboard = () => {
                     fontSize: '13px',
                     borderRadius: '6px',
                     border: '1px solid var(--border-strong)',
-                    backgroundColor: 'white',
+                    backgroundColor: 'var(--surface)',
                     color: 'var(--text-primary)',
                     cursor: 'pointer',
                     fontWeight: 'bold',
@@ -4400,7 +4413,7 @@ const ProjectTitleDashboard = () => {
                       fontSize: '13px',
                       borderRadius: '6px',
                       border: '1px solid var(--border-strong)',
-                      backgroundColor: 'white',
+                      backgroundColor: 'var(--surface)',
                       color: 'var(--text-primary)',
                       cursor: 'pointer',
                       fontWeight: 'bold',
@@ -4432,7 +4445,7 @@ const ProjectTitleDashboard = () => {
                       fontSize: '13px',
                       borderRadius: '6px',
                       border: '1px solid var(--border-strong)',
-                      backgroundColor: 'white',
+                      backgroundColor: 'var(--surface)',
                       color: 'var(--text-primary)',
                       cursor: 'pointer',
                       fontWeight: 'bold',
@@ -4460,10 +4473,10 @@ const ProjectTitleDashboard = () => {
               {/* Dashboard Content removed title and stats here */}
 
               {/* Unified Project Overview Container */}
-              <div style={{ backgroundColor: 'white', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+              <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--elevated-card)', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--brand-navy)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
+                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
 
                     {/* Search Bar Integrated into Header */}
                     <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
@@ -4473,7 +4486,7 @@ const ProjectTitleDashboard = () => {
                         placeholder="Search projects..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'white' }}
+                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'var(--surface)' }}
                       />
                     </div>
                   </div>
@@ -4506,14 +4519,14 @@ const ProjectTitleDashboard = () => {
                           setSelectionMode(!selectionMode);
                           if (selectionMode) setSelectedProjects([]);
                         }}
-                        style={{ background: selectionMode ? 'var(--brand-navy)' : 'white', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
+                        style={{ background: selectionMode ? 'var(--brand-navy)' : 'var(--surface)', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
                       >
                         {selectionMode ? 'Cancel' : 'Select'}
                       </button>
 
                       <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }}></div>
 
-                      <div style={{ display: 'flex', background: 'white', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px' }}>
+                      <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px' }}>
                         <button
                           onClick={() => setViewMode('grid')}
                           style={{ background: viewMode === 'grid' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'grid' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
@@ -4571,7 +4584,7 @@ const ProjectTitleDashboard = () => {
 
                 {/* Integrated Pagination at Footer */}
                 {filteredAndSortedProjects.length > itemsPerPage && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: '#f8fafc', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--elevated-card)', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
                       Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length} projects
                     </span>
@@ -4579,14 +4592,14 @@ const ProjectTitleDashboard = () => {
                       <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
                       >
                         Previous
                       </button>
                       <button
                         onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
                         disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'white', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? '#cbd5e1' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
                       >
                         Next
                       </button>
@@ -4618,12 +4631,12 @@ const ProjectTitleDashboard = () => {
               />
 
               {visibleSections.budget && (
-                <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-strong)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                   <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
 
-                      <div style={{ display: 'flex', background: '#f1f5f9', padding: '3px', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', background: 'var(--bg)', padding: '3px', borderRadius: '8px' }}>
                         <button
                           onClick={() => setBudgetViewMode('simplified')}
                           style={{
@@ -4633,8 +4646,8 @@ const ProjectTitleDashboard = () => {
                             borderRadius: '6px',
                             border: 'none',
                             cursor: 'pointer',
-                            backgroundColor: budgetViewMode === 'simplified' ? 'white' : 'transparent',
-                            color: budgetViewMode === 'simplified' ? 'var(--accent)' : '#64748b',
+                            backgroundColor: budgetViewMode === 'simplified' ? 'var(--surface)' : 'transparent',
+                            color: budgetViewMode === 'simplified' ? 'var(--accent)' : 'var(--text-muted)',
                             boxShadow: budgetViewMode === 'simplified' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                             transition: 'all 0.2s'
                           }}
@@ -4650,8 +4663,8 @@ const ProjectTitleDashboard = () => {
                             borderRadius: '6px',
                             border: 'none',
                             cursor: 'pointer',
-                            backgroundColor: budgetViewMode === 'table' ? 'white' : 'transparent',
-                            color: budgetViewMode === 'table' ? 'var(--accent)' : '#64748b',
+                            backgroundColor: budgetViewMode === 'table' ? 'var(--surface)' : 'transparent',
+                            color: budgetViewMode === 'table' ? 'var(--accent)' : 'var(--text-muted)',
                             boxShadow: budgetViewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                             transition: 'all 0.2s'
                           }}
@@ -4660,25 +4673,25 @@ const ProjectTitleDashboard = () => {
                         </button>
                       </div>
                     </div>
-                    <div style={{ backgroundColor: '#eff6ff', color: '#1e40af', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
+                    <div style={{ backgroundColor: 'var(--blue-50)', color: 'var(--blue-900)', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
                   </header>
                   {budgetViewMode === 'simplified' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--elevated-card)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
                         <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
                       </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '12px', border: '1px solid #dcfce7' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#166534', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#10b981' }}>{symbol}{summaryData.budgetUtilized}</p>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--green-50)', borderRadius: '12px', border: '1px solid var(--green-50)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{symbol}{summaryData.budgetUtilized}</p>
                       </div>
-                      <div style={{ padding: '20px', backgroundColor: '#eff6ff', borderRadius: '12px', border: '1px solid #dbeafe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#1e40af', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#4f46e5' }}>{symbol}{summaryData.budgetBalance}</p>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--blue-50)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{symbol}{summaryData.budgetBalance}</p>
                       </div>
-                      <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '12px', border: '1px solid #ede9fe' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: '#6d28d9', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: '#8b5cf6' }}>{summaryData.budgetOutlook}%</p>
+                      <div style={{ padding: '20px', backgroundColor: 'var(--purple-50)', borderRadius: '12px', border: '1px solid var(--purple-50)' }}>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--purple-900)' }}>{summaryData.budgetOutlook}%</p>
                       </div>
                     </div>
                   ) : (
@@ -4711,7 +4724,7 @@ const ProjectTitleDashboard = () => {
             {/* Delete Confirmation Modal */}
             {projectToDelete && (
               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000, padding: '20px' }}>
-                <div style={{ backgroundColor: 'white', borderRadius: '8px', padding: '24px', width: '400px', maxWidth: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+                <div style={{ backgroundColor: 'var(--surface)', borderRadius: '8px', padding: '24px', width: '400px', maxWidth: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ background: '#fef2f2', padding: '8px', borderRadius: '50%' }}>
                       <Trash2 size={24} color="#ef4444" />
@@ -4766,17 +4779,17 @@ const RichTextEditor = ({ value, onChange }) => {
   };
 
   return (
-    <div style={{ border: '1px solid #c0c0c0', borderRadius: '4px', overflow: 'hidden' }}>
+    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
       <div style={{ backgroundColor: 'var(--bg)', padding: '6px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: '4px' }}>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('bold'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>B</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('italic'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontStyle: 'italic' }}>I</button>
-        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('underline'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>U</button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('bold'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-primary)' }}>B</button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('italic'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontStyle: 'italic', color: 'var(--text-primary)' }}>I</button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); handleCommand('underline'); }} style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', color: 'var(--text-primary)' }}>U</button>
       </div>
       <div
         ref={editorRef}
         contentEditable
         onInput={(e) => onChange(e.currentTarget.innerHTML)}
-        style={{ padding: '12px', minHeight: '100px', outline: 'none', fontSize: '13px', backgroundColor: 'white' }}
+        style={{ padding: '12px', minHeight: '100px', outline: 'none', fontSize: '13px', backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
       />
     </div>
   );
@@ -4836,16 +4849,16 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
 
   return (
     <div style={{ marginBottom: '12px' }}>
-      <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--accent)', fontSize: '13px' }}>{label}</label>
+      <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-secondary)', fontSize: '13px' }}>{label}</label>
       <div
         style={{
           display: 'flex',
           flexWrap: 'wrap',
           gap: '6px',
           padding: '6px 8px',
-          border: '1px solid #c0c0c0',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '4px',
-          backgroundColor: 'white',
+          backgroundColor: 'var(--surface)',
           minHeight: '34px',
           alignItems: 'center',
           position: 'relative',
@@ -4857,11 +4870,12 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
           <div key={`${type}-${index}`} style={{
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: 'var(--border-subtle)',
+            backgroundColor: 'var(--elevated-card)',
             padding: '2px 8px',
             borderRadius: '12px',
             fontSize: '12px',
-            color: 'var(--accent)'
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-subtle)'
           }}>
             <span>{email}</span>
             <button
@@ -4924,8 +4938,8 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
             top: '100%',
             left: 0,
             right: 0,
-            backgroundColor: 'white',
-            border: '1px solid #e0e0e0',
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '4px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             marginTop: '4px',
@@ -4947,17 +4961,17 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
                   style={{
                     padding: '8px 15px',
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    borderBottom: '1px solid #f3f4f6',
+                    borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
                     flexDirection: 'column',
                     opacity: isDisabled ? 0.4 : 1,
-                    backgroundColor: isDisabled ? 'var(--bg)' : 'white'
+                    backgroundColor: isDisabled ? 'var(--bg)' : 'var(--surface)'
                   }}
-                  onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = '#f0f7ff'; }}
-                  onMouseLeave={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = 'white'; }}
+                  onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = 'var(--bg)'; }}
+                  onMouseLeave={(e) => { if (!isDisabled) e.currentTarget.style.backgroundColor = 'var(--surface)'; }}
                 >
-                  <span style={{ fontWeight: 'bold', fontSize: '12px', color: 'var(--accent)' }}>{contact.name || 'Unknown Name'}</span>
-                  <span style={{ fontSize: '11px', color: '#6b7280' }}>{contact.email} • {contact.department || 'No Dept'}</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '12px', color: 'var(--text-primary)' }}>{contact.name || 'Unknown Name'}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{contact.email} • {contact.department || 'No Dept'}</span>
                 </div>
               )
             })}
@@ -5041,7 +5055,7 @@ const EmailModal = ({
       padding: '20px'
     }}>
       <div style={{
-        backgroundColor: 'white',
+        backgroundColor: 'var(--surface)',
         borderRadius: '8px',
         width: '700px',
         maxWidth: '100%',
@@ -5058,7 +5072,7 @@ const EmailModal = ({
           padding: '15px 20px',
           fontSize: '18px',
           fontWeight: 'bold',
-          borderBottom: '1px solid #2c4c7c',
+          borderBottom: '1px solid rgba(0,0,0,0.1)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -5086,22 +5100,22 @@ const EmailModal = ({
           overflowY: 'auto',
           flex: 1
         }}>
-          <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '15px' }}>
-            Email the dashboard summary for <span style={{ fontWeight: 'bold', color: 'var(--accent)' }}>{activeProject?.name}</span>.
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '15px' }}>
+            Email the dashboard summary for <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{activeProject?.name}</span>.
           </p>
 
           {formError && (
-            <div style={{ padding: '10px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', fontWeight: 'bold' }}>
+            <div style={{ padding: '10px', backgroundColor: 'var(--bg)', border: '1px solid #ef4444', color: '#f87171', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', fontWeight: 'bold' }}>
               {formError}
             </div>
           )}
 
           {/* To, CC, BCC fields */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4px' }}>
-            <label style={{ fontWeight: 'bold', color: 'var(--accent)', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
+            <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
             <div style={{ display: 'flex', gap: '10px' }}>
-              {!showCc && <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer', padding: 0 }} onClick={() => setShowCc(true)}>Add CC</button>}
-              {!showBcc && <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '12px', cursor: 'pointer', padding: 0 }} onClick={() => setShowBcc(true)}>Add BCC</button>}
+              {!showCc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowCc(true)}>Add CC</button>}
+              {!showBcc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowBcc(true)}>Add BCC</button>}
             </div>
           </div>
           <RecipientInput
@@ -5136,7 +5150,7 @@ const EmailModal = ({
 
           {/* Subject */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>Subject:</label>
+            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Subject:</label>
             <input
               type="text"
               value={emailData.subject}
@@ -5144,16 +5158,18 @@ const EmailModal = ({
               style={{
                 width: '100%',
                 padding: '6px 8px',
-                border: '1px solid #c0c0c0',
+                border: '1px solid var(--border-subtle)',
                 borderRadius: '4px',
-                fontSize: '13px'
+                fontSize: '13px',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--text-primary)'
               }}
             />
           </div>
 
           {/* Message */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>Message (Optional):</label>
+            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Message (Optional):</label>
             <RichTextEditor
               value={emailData.message}
               onChange={(html) => setEmailData(prev => ({ ...prev, message: html }))}
@@ -5162,9 +5178,9 @@ const EmailModal = ({
 
           {/* Attachments */}
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>Attachments:</label>
+            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Attachments:</label>
             {emailData.includePdf ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '20px', border: '1px solid #e2e8f0', fontSize: '12px', color: '#334155' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'var(--elevated-card)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-subtle)', fontSize: '12px', color: 'var(--text-secondary)' }}>
                 <span style={{ marginRight: '6px', fontSize: '14px' }}>📎</span> {activeProject?.name || 'Project'}_Dashboard_Report.pdf (Auto-generated)
                 <button
                   type="button"
@@ -5178,7 +5194,7 @@ const EmailModal = ({
               <button
                 type="button"
                 onClick={() => setEmailData(prev => ({ ...prev, includePdf: true }))}
-                style={{ background: 'none', border: '1px dashed #c0c0c0', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', color: '#1e3a5f', fontSize: '12px', fontWeight: 'bold' }}
+                style={{ background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', color: 'var(--accent)', fontSize: '12px', fontWeight: 'bold' }}
               >
                 + Attach Dashboard PDF
               </button>
@@ -5188,16 +5204,16 @@ const EmailModal = ({
           {/* Section selection */}
           <div style={{ marginBottom: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontWeight: 'bold', color: '#1e3a5f', fontSize: '13px' }}>Select Sections to Include:</label>
+              <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Select Sections to Include:</label>
               <button
                 onClick={handleSelectAll}
                 style={{
                   padding: '2px 8px',
                   fontSize: '11px',
                   borderRadius: '4px',
-                  border: '1px solid #1e3a5f',
-                  backgroundColor: allSelected ? '#1e3a5f' : 'white',
-                  color: allSelected ? 'white' : '#1e3a5f',
+                  border: `1px solid ${allSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                  backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
+                  color: allSelected ? 'white' : 'var(--text-primary)',
                   cursor: 'pointer'
                 }}
               >
@@ -5228,11 +5244,12 @@ const EmailModal = ({
                 if (metricKeys.includes(section.id)) return availablePhases[section.id];
                 return true;
               }).map(section => (
-                <label key={section.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                <label key={section.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
                   <input
                     type="checkbox"
                     checked={emailData.selectedSections[section.id] || false}
                     onChange={() => handleSectionToggle(section.id)}
+                    style={{ cursor: 'pointer' }}
                   />
                   {section.label}
                 </label>
@@ -5254,11 +5271,12 @@ const EmailModal = ({
                 });
                 return !coveredByDefault;
               }).map(sub => (
-                <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer' }}>
+                <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
                   <input
                     type="checkbox"
                     checked={emailData.selectedSections[sub.id] || false}
                     onChange={() => handleSectionToggle(sub.id)}
+                    style={{ cursor: 'pointer' }}
                   />
                   {sub.displayName || sub.name}
                 </label>
@@ -5267,16 +5285,16 @@ const EmailModal = ({
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e0e0e0', paddingTop: '15px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
             <button
               onClick={onClose}
               style={{
                 padding: '10px 20px',
                 fontSize: '14px',
                 borderRadius: '4px',
-                border: '1px solid #c0c0c0',
-                backgroundColor: 'white',
-                color: '#4b5563',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 fontWeight: 'bold'
               }}
@@ -5290,9 +5308,9 @@ const EmailModal = ({
                 padding: '10px 20px',
                 fontSize: '14px',
                 borderRadius: '4px',
-                border: '1px solid #1e3a5f',
-                backgroundColor: 'white',
-                color: '#1e3a5f',
+                border: '1px solid var(--accent)',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--accent)',
                 cursor: 'pointer',
                 fontWeight: 'bold',
                 display: 'flex',
@@ -5310,9 +5328,9 @@ const EmailModal = ({
                 padding: '10px 20px',
                 fontSize: '14px',
                 borderRadius: '4px',
-                border: '1px solid #1e3a5f',
-                backgroundColor: 'white',
-                color: '#1e3a5f',
+                border: '1px solid var(--accent)',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--accent)',
                 cursor: 'pointer',
                 fontWeight: 'bold',
                 display: 'flex',
@@ -5339,7 +5357,7 @@ const EmailModal = ({
                 fontSize: '14px',
                 borderRadius: '4px',
                 border: 'none',
-                backgroundColor: '#1e3a5f',
+                backgroundColor: 'var(--accent)',
                 color: 'white',
                 cursor: 'pointer',
                 fontWeight: 'bold'
@@ -5423,8 +5441,8 @@ const AxisSelectorModal = ({
       position: 'absolute',
       top: '100%',
       right: '0',
-      backgroundColor: 'white',
-      border: '1px solid #e2e8f0',
+      backgroundColor: 'var(--surface)',
+      border: '1px solid var(--border-subtle)',
       borderRadius: '12px',
       boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
       padding: '16px',
@@ -5434,13 +5452,13 @@ const AxisSelectorModal = ({
     }}>
       {!showPrompt ? (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#1e3a5f' }}>Configure Axes</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>Configure Axes</h3>
             <button
               onClick={onClose}
               style={{
                 border: 'none',
-                background: '#f1f5f9',
+                background: 'var(--bg)',
                 cursor: 'pointer',
                 fontSize: '12px',
                 width: '24px',
@@ -5449,7 +5467,7 @@ const AxisSelectorModal = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#64748b',
+                color: 'var(--text-muted)',
                 fontWeight: 'bold'
               }}
             >
@@ -5458,7 +5476,7 @@ const AxisSelectorModal = ({
           </div>
 
           <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
               X-Axis Attribute
             </label>
             <select
@@ -5470,11 +5488,11 @@ const AxisSelectorModal = ({
                 padding: '8px 12px',
                 fontSize: '13px',
                 borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                backgroundColor: dynamicAvailableColumns.length === 0 ? '#f8fafc' : 'white',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: dynamicAvailableColumns.length === 0 ? 'var(--bg)' : 'var(--surface)',
                 cursor: dynamicAvailableColumns.length === 0 ? 'not-allowed' : 'pointer',
                 outline: 'none',
-                color: '#1e3a5f',
+                color: 'var(--text-primary)',
                 fontWeight: '500'
               }}
             >
@@ -5489,7 +5507,7 @@ const AxisSelectorModal = ({
           </div>
 
           <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: '#64748b', marginBottom: '6px', textTransform: 'uppercase' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
               Y-Axis Attribute
             </label>
             <select
@@ -5500,11 +5518,11 @@ const AxisSelectorModal = ({
                 padding: '8px 12px',
                 fontSize: '13px',
                 borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                backgroundColor: 'white',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--surface)',
                 cursor: 'pointer',
                 outline: 'none',
-                color: '#1e3a5f',
+                color: 'var(--text-primary)',
                 fontWeight: '500'
               }}
             >
@@ -5519,7 +5537,7 @@ const AxisSelectorModal = ({
             style={{
               width: '100%',
               padding: '10px',
-              backgroundColor: '#1e3a5f',
+              backgroundColor: 'var(--accent)',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -5534,35 +5552,35 @@ const AxisSelectorModal = ({
         </>
       ) : (
         <div>
-          <div style={{ backgroundColor: '#f1f5f9', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: '#475569', lineHeight: '1.5' }}>
-            <strong style={{ color: '#1e3a5f' }}>Attr 1:</strong> {localConfig.xAxis}<br />
-            <strong style={{ color: '#1e3a5f' }}>Attr 2:</strong> {localConfig.yAxis}
+          <div style={{ backgroundColor: 'var(--bg)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+            <strong style={{ color: 'var(--accent)' }}>Attr 1:</strong> {localConfig.xAxis}<br />
+            <strong style={{ color: 'var(--accent)' }}>Attr 2:</strong> {localConfig.yAxis}
           </div>
-          <h3 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '800', color: '#1e3a5f', lineHeight: '1.4' }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '800', color: 'var(--accent)', lineHeight: '1.4' }}>
             Both are dates {"\u2014"} what should we calculate?
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               onClick={() => handleSelectedMetric('delay', 'Delay', localConfig.xAxis, localConfig.yAxis)}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid #bfdbfe', backgroundColor: '#eff6ff', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#1e40af' }}
+              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--blue-900)', backgroundColor: 'var(--blue-50)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--blue-900)' }}
             >
               Delay = {localConfig.yAxis} - {localConfig.xAxis}
             </button>
             <button
               onClick={() => handleSelectedMetric('duration', 'Duration', localConfig.xAxis, localConfig.yAxis)}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid #bbf7d0', backgroundColor: '#f0fdf4', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#166534' }}
+              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--green-900)', backgroundColor: 'var(--green-50)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--green-900)' }}
             >
               Duration = {localConfig.yAxis} - {localConfig.xAxis}
             </button>
             <button
               onClick={() => { handleAxesUpdate(chartId, localConfig.xAxis, localConfig.yAxis, null); onClose(); }}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#64748b' }}
+              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}
             >
               Plot as-is (no calculation)
             </button>
             <button
               onClick={() => setShowPrompt(false)}
-              style={{ padding: '8px', textAlign: 'center', backgroundColor: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}
+              style={{ padding: '8px', textAlign: 'center', backgroundColor: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}
             >
               {"\u2190"} Back to selection
             </button>
