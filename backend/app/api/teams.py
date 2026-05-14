@@ -35,10 +35,10 @@ from app.services.teams_meeting import (
     is_authenticated,
     create_teams_meeting,
 )
-from app.core.config import FRONTEND_URL
+from app.core.config import FRONTEND_URL, API_PREFIX
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/teams", tags=["Teams"])
+router = APIRouter(prefix=f"{API_PREFIX}/teams", tags=["Teams"])
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────

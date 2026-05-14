@@ -7,7 +7,7 @@ load_dotenv()
 # ------------------------
 # API & Frontend Settings
 # ------------------------
-API_PREFIX = os.getenv("API_PREFIX", "/api")
+API_PREFIX = os.getenv("API_PREFIX", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # ------------------------
