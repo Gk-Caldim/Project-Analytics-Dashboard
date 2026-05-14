@@ -10,7 +10,7 @@ connect_args = {}
 if IS_CLOUD_DB:
     connect_args = {
         "sslmode": "require",
-        "options": "-c statement_timeout=15000",  # Add 15s timeout
+        "options": "-c search_path=public -c statement_timeout=15000",  # Add search_path and 15s timeout
         "connect_timeout": 10,  # 10 second timeout for establishing the connection
     }
 else:
@@ -35,6 +35,11 @@ if not IS_CLOUD_DB:
 
 print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
 try:
+    # Basic URL validation for debugging
+    if DATABASE_URL:
+        scheme = DATABASE_URL.split("://")[0] if "://" in DATABASE_URL else "unknown"
+        print(f"[DB] Using URL scheme: {scheme}")
+    
     engine = create_engine(
         DATABASE_URL,
         poolclass=pool_class,
@@ -43,7 +48,9 @@ try:
     )
     print(f"[DB] Engine created successfully.")
 except Exception as e:
-    print(f"[DB] FAILED to create engine: {e}")
+    import traceback
+    print(f"[DB] FAILED to create engine: {str(e)}")
+    print(f"[DB] Traceback: {traceback.format_exc()}")
     raise
 
 
