@@ -94,7 +94,37 @@ async def set_secure_headers(request: Request, call_next):
     secure_headers.framework.fastapi(response)
     # Additional manual headers for industrial security
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' ws: wss:;"
+    # Updated CSP to allow connections to Render backend and Vercel frontend
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' ws: wss: https://project-analytics-dashboard.onrender.com https://project-analytics-dashboard.vercel.app;"
+    )
+    return response
+
+# CORS configuration
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://project-analytics-dashboard.vercel.app",
+]
+if FRONTEND_URL and FRONTEND_URL not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+def add_cors_headers(response: JSONResponse, request: Request):
+    """Helper to add CORS headers to manual responses (like exception handlers)"""
+    origin = request.headers.get("origin")
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
+    
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
 
@@ -132,11 +162,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": exc.errors()}
     )
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
+    return add_cors_headers(response, request)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -148,29 +174,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal Server Error", "error": str(exc)}
     )
-    # Re-apply CORS headers manually because middleware might be skipped on crash
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    
-    return response
-
-# CORS
-# CORS - Restrict origins in production
-if FRONTEND_URL and FRONTEND_URL != "*":
-    origins = [FRONTEND_URL]
-    # Also allow common dev origins if local
-    if "localhost" in FRONTEND_URL:
-        origins.append("http://127.0.0.1:5173")
-else:
-    origins = ["http://localhost:5173"] # Strict default for safety
-
-
+    return add_cors_headers(response, request)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
