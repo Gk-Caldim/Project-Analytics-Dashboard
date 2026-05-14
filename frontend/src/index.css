@@ -98,15 +98,8 @@
   --red-900: #f87171;
 }
 
-/* Global Text Visibility Force for Dark Mode */
 [data-theme='dark'] body {
-  color: #FFFFFF !important;
-}
-
-[data-theme='dark'] p, 
-[data-theme='dark'] span, 
-[data-theme='dark'] div:not([class*="badge"]):not([class*="status"]):not([class*="pill"]):not([style*="background"]) {
-  color: inherit;
+  color: var(--text-primary);
 }
 
 /* Utils */
@@ -260,7 +253,7 @@
   }
 
   .master-table td {
-    @apply border-b border-slate-100/80 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700;
+    @apply border-b border-slate-100/80 dark:border-slate-700/50 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-100;
   }
 
   .master-table tbody tr {
@@ -283,17 +276,17 @@
 
   /* Freeze styles */
   .master-table .frozen-row {
-    @apply !sticky !bg-sky-50 border-b-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-b-2 border-sky-600 dark:border-sky-500;
     z-index: 20 !important;
   }
 
   .master-table .frozen-column {
-    @apply !sticky !bg-sky-50 border-r-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-r-2 border-sky-600 dark:border-sky-500;
     z-index: 15 !important;
   }
 
   .master-table .frozen-row .frozen-column {
-    @apply !bg-sky-100;
+    @apply bg-sky-100 dark:bg-sky-900/50;
     z-index: 25 !important;
   }
 

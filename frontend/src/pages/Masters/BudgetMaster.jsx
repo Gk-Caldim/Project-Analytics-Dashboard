@@ -96,14 +96,14 @@ const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }
         {extraStat && (
           <div>
             <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">{extraStat.label}</p>
-            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-400'}`}>
+            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-100'}`}>
               {extraStat.value}
             </p>
           </div>
         )}
         <div>
           <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">Items Processed</p>
-          <p className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-tight">{count} Rows</p>
+          <p className="text-xs font-black text-slate-500 dark:text-slate-100 tracking-tight">{count} Rows</p>
         </div>
       </div>
     </div>
@@ -843,7 +843,7 @@ const BudgetMaster = () => {
                 Close
               </button>
             </div>
-            <p className="text-base text-slate-600 dark:text-slate-400 mb-2">Remove this budget entry?</p>
+            <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
             <p className="text-sm text-red-600 mb-6 font-medium">This action cannot be undone.</p>
             <div className="flex justify-end gap-4">
               <button onClick={() => setShowDeletePrompt(null)}
@@ -928,7 +928,7 @@ const BudgetMaster = () => {
               </button>
             </div>
             <div className="p-8">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Defer Until</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-100 uppercase tracking-widest mb-2">Defer Until</label>
               <input type="date" min={new Date().toISOString().split('T')[0]}
                 value={waitingDate}
                 onChange={e => setWaitingDate(e.target.value)}
@@ -954,7 +954,7 @@ const BudgetMaster = () => {
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-white">Budget Master</h1>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage project budgets and revision workflows</p>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-100 mt-1">Manage project budgets and revision workflows</p>
           </div>
         </div>
 
@@ -1019,7 +1019,7 @@ const BudgetMaster = () => {
               <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-100 mb-2">
                       Active Project
                     </label>
                     <SearchableDropdown
@@ -1039,7 +1039,7 @@ const BudgetMaster = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-100 mb-2">
                       Overall Budget
                     </label>
                     <input type="number"
@@ -1049,10 +1049,10 @@ const BudgetMaster = () => {
                       className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-100 mb-2">
                       Project Manager
                     </label>
-                    <div className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 font-bold min-h-[48px] flex items-center">
+                    <div className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-100 font-bold min-h-[48px] flex items-center">
                       {managerName || '— Unassigned —'}
                     </div>
                   </div>
@@ -1106,7 +1106,7 @@ const BudgetMaster = () => {
                     extraStat={{ 
                       label: 'Approved Revisions', 
                       value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
-                      color: 'text-slate-500 dark:text-slate-400'
+                      color: 'text-slate-500 dark:text-slate-100'
                     }}
                   />
                 </div>
@@ -1130,14 +1130,14 @@ const BudgetMaster = () => {
                         <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden">
                           {hasBudgetPerm('add_row') && (
                           <button onClick={() => { addRow(); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-white transition-colors">
                             <Plus className="w-4 h-4 text-blue-500" />
                             <span>Add Row</span>
                           </button>
                           )}
                           {hasBudgetPerm('add_column') && (
                           <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-white transition-colors border-t border-slate-100 dark:border-slate-700/50">
                             <Columns className="w-4 h-4 text-emerald-500" />
                             <span>Add Column</span>
                           </button>
@@ -1167,7 +1167,7 @@ const BudgetMaster = () => {
                         <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
                         <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                           <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors">
+                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-white transition-colors">
                             <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 font-bold">
                               <Save className="w-4 h-4" />
                             </div>
@@ -1177,7 +1177,7 @@ const BudgetMaster = () => {
                             </div>
                           </button>
                           <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-white transition-colors border-t border-slate-100 dark:border-slate-700/50">
                             <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600 font-bold">
                               <RefreshCw className="w-4 h-4" />
                             </div>
@@ -1212,7 +1212,7 @@ const BudgetMaster = () => {
                   <div className="relative">
                     <button
                       onClick={() => setShowExportDropdown(!showExportDropdown)}
-                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
                     >
                       <FileDown className="w-4 h-4" />
                       Export / Download
@@ -1234,26 +1234,26 @@ const BudgetMaster = () => {
                             </div>
                             
                             <button onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <Download className="w-4 h-4 text-blue-500" />
                               Download Template
                             </button>
 
                             <button onClick={() => { handleExportExcel(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
                               Export as Excel
                             </button>
 
                             <button onClick={() => { handleExportPDF(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <FileText className="w-4 h-4 text-red-500" />
                               Export as PDF
                             </button>
 
                             {attachmentName && (
                               <button onClick={() => { handleDownloadBudgetFile(selectedProject, attachmentName); setShowExportDropdown(false); }}
-                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
+                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
                                 <Download className="w-4 h-4 text-slate-400" />
                                 Download Original
                               </button>
@@ -1285,7 +1285,7 @@ const BudgetMaster = () => {
                       <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         {visibleColumns.map(col => (
                           <th key={col.id}
-                            className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
+                            className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
                             onClick={() => handleSort(col.label)}>
                             <div className="flex items-center gap-1">
                               {col.label}
@@ -1297,7 +1297,7 @@ const BudgetMaster = () => {
                             </div>
                           </th>
                         ))}
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 text-center whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700 border-b">
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-100 text-center whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700 border-b">
                           Actions
                         </th>
                       </tr>
@@ -1363,7 +1363,7 @@ const BudgetMaster = () => {
 
                               return (
                                 <td key={col.id}
-                                  className={`py-4 px-6 text-sm whitespace-nowrap transition-all duration-200 ${ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
+                                  className={`py-4 px-6 text-sm whitespace-nowrap transition-all duration-200 ${ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-white'
                                     } ${num ? 'text-right' : ''}`}>
                                   {col.label === 'Status'
                                     ? <StatusBadge value={val} />
@@ -1455,7 +1455,7 @@ const BudgetMaster = () => {
                         <button key={p} onClick={() => setCurrentPage(p)}
                           className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === currentPage
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
                             }`}>
                           {p}
                         </button>
@@ -1483,7 +1483,7 @@ const BudgetMaster = () => {
                     </div>
                     <button onClick={() => setShowNewRevisionForm(!showNewRevisionForm)}
                       className={`h-12 px-8 rounded-lg font-bold text-sm transition-all ${showNewRevisionForm
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-white hover:bg-slate-200'
                         : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20'
                         }`}>
                       {showNewRevisionForm ? 'Cancel Request' : 'New Revision Request'}
@@ -1500,7 +1500,7 @@ const BudgetMaster = () => {
                         <div className="space-y-6">
                           <div>
                             <label className="block text-xs font-bold text-slate-500 mb-2">Current Project Budget</label>
-                            <div className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-lg text-slate-700 dark:text-slate-300">
+                            <div className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-lg text-slate-700 dark:text-white">
                               {format(overallBudget)}
                             </div>
                           </div>
@@ -1543,13 +1543,13 @@ const BudgetMaster = () => {
                                 <div className="grid grid-cols-2 gap-4 mb-6">
                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilization</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                    <p className="text-sm font-black text-slate-700 dark:text-white">
                                       {Math.round(marketAnalysis.utilization_ratio * 100)}%
                                     </p>
                                   </div>
                                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                    <p className="text-sm font-black text-slate-700 dark:text-white">
                                       {format(marketAnalysis.remaining_balance)}
                                     </p>
                                   </div>
@@ -1564,7 +1564,7 @@ const BudgetMaster = () => {
                                   </div>
                                   
                                   <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-100 leading-relaxed italic">
                                       "{marketAnalysis.reasoning}"
                                     </p>
                                   </div>
@@ -1649,7 +1649,7 @@ const BudgetMaster = () => {
                       <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Status', 'Attachment', 'Actions']
                           .map(h => (
-                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
+                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-100 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
                               } ${h === 'Actions' ? 'text-center' : ''}`}>
                               {h}
                             </th>
@@ -1670,7 +1670,7 @@ const BudgetMaster = () => {
                               <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
                                 <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                               </div>
-                              <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No revision requests found</p>
+                              <p className="text-sm font-bold text-slate-500 dark:text-slate-100">No revision requests found</p>
                               <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
                                 Any budget revisions you submit will appear here in the history log.
                               </p>
@@ -1685,8 +1685,8 @@ const BudgetMaster = () => {
                               <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{rev.project_name}</p>
                               <p className="text-[10px] text-slate-400 font-bold">#{rev.id}</p>
                             </td>
-                            <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{rev.pm_name || '—'}</td>
-                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-400">{format(rev.previous_budget)}</td>
+                            <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{rev.pm_name || '—'}</td>
+                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-100">{format(rev.previous_budget)}</td>
                             <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
                             <td className="py-4 px-6 text-right">
                               <span className={`text-xs font-black ${delta >= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -1907,7 +1907,7 @@ const BudgetMaster = () => {
                       return (
                         <div key={idx} className="space-y-2">
                           <div className="flex justify-between items-end">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-white">{cat.label}</span>
                             <span className="text-[10px] font-black text-slate-400">{format(cat.value)} ({Math.round(percentage)}%)</span>
                           </div>
                           <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
@@ -2040,7 +2040,7 @@ const BudgetMaster = () => {
                             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
                               <History className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                             </div>
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No budget history found</p>
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-100">No budget history found</p>
                             <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
                               Upload an excel snapshot or save a manual revision to start building your budget history.
                             </p>
@@ -2049,7 +2049,7 @@ const BudgetMaster = () => {
                       </tr>
                     ) : paginatedHistoryData.map(item => (
                       <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
-                        <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
+                        <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-white tracking-tight">
                           {managerName || 'Unassigned'}
                         </td>
                         <td className="py-4 px-6">
@@ -2058,7 +2058,7 @@ const BudgetMaster = () => {
                           </span>
                         </td>
                         <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget)}</td>
-                        <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
+                        <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{item.uploaded_by || 'Unknown'}</td>
                         <td className="py-4 px-6 text-sm font-bold text-slate-500">
                           {new Date(item.updated_at).toLocaleDateString()}
                         </td>
@@ -2104,7 +2104,7 @@ const BudgetMaster = () => {
                       <button key={p} onClick={() => setHistoryCurrentPage(p)}
                         className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === historyCurrentPage
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
                           }`}>
                         {p}
                       </button>
@@ -2249,7 +2249,7 @@ const BudgetMaster = () => {
                     "Category", "Item Name", "Unit Type", "Unit count",
                     "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
                   ].map(header => (
-                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-white">
                       {header}
                     </div>
                   ))}
@@ -2268,7 +2268,7 @@ const BudgetMaster = () => {
                       <th className="px-6 py-4">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-600 dark:text-slate-400">
+                  <tbody className="text-slate-600 dark:text-slate-100">
                     <tr className="border-b border-slate-100 dark:border-slate-800">
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">CAPEX</td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">Laptop Dell XPS</td>
@@ -2362,7 +2362,7 @@ const BudgetMaster = () => {
             <div className="p-8 space-y-8">
               <div>
                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Project Name</label>
-                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400">
+                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-100">
                   {selectedProject || 'NONE SELECTED'}
                 </div>
               </div>
@@ -2426,7 +2426,7 @@ const BudgetMaster = () => {
                 <span className="text-red-600 font-black text-2xl">!</span>
               </div>
               <h3 className="text-xl font-black text-slate-900 dark:text-white mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
-              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8 leading-relaxed uppercase tracking-widest">
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-100 mb-8 leading-relaxed uppercase tracking-widest">
                 A budget snapshot for <span className="text-slate-900 dark:text-white">{selectedProject}</span> on <span className="text-slate-900 dark:text-white">{budgetDate}</span> already exists.
                 Uploading again will <span className="text-red-600 underline">REPLACE</span> previous data.
               </p>

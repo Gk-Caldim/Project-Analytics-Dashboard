@@ -979,7 +979,7 @@ const EmployeeMaster = () => {
       return (
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'}`}></div>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${isActive ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-100'
             }`}>
             {value || 'Inactive'}
           </span>
@@ -992,7 +992,7 @@ const EmployeeMaster = () => {
         switch (role) {
           case 'Admin': return 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20';
           case 'Manager': return 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20';
-          case 'User': return 'bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20';
+          case 'User': return 'bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-500/10 dark:text-slate-100 dark:border-slate-500/20';
           case 'Intern': return 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
           default: return 'bg-slate-50 text-slate-700 border-slate-100';
         }
@@ -1007,7 +1007,7 @@ const EmployeeMaster = () => {
 
     if (column.id === 'employee_id') {
       return (
-        <span className="text-sm text-slate-700 dark:text-slate-300">{value || '-'}</span>
+        <span className="text-sm font-medium text-slate-700 dark:text-slate-100">{value || '-'}</span>
       )
     }
 
@@ -1016,7 +1016,7 @@ const EmployeeMaster = () => {
         return <span className="text-xs text-slate-400 dark:text-slate-500 italic uppercase tracking-wider font-medium">{value}</span>;
       }
       return (
-        <span className="text-[13px] text-blue-600 dark:text-blue-400 font-medium">
+        <span className="text-[13px] text-blue-600 dark:text-blue-400 font-semibold">
           {value}
         </span>
       );
@@ -1025,10 +1025,10 @@ const EmployeeMaster = () => {
     // Handle custom fields
     if (customColumns.find(c => c.id === column.id)) {
       const customValue = emp.custom_fields ? emp.custom_fields[column.id] : null;
-      return <span className="text-sm text-slate-700 dark:text-slate-300">{customValue || '-'}</span>;
+      return <span className="text-sm text-slate-700 dark:text-slate-100">{customValue || '-'}</span>;
     }
 
-    return <span className="text-sm text-slate-700 dark:text-slate-300">{value || '-'}</span>;
+    return <span className="text-sm text-slate-700 dark:text-slate-100">{value || '-'}</span>;
   };
 
   const visibleColumns = columns.filter(col => col.visible);
@@ -1043,12 +1043,12 @@ const EmployeeMaster = () => {
             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
-                <button onClick={cancelDelete} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+                <button onClick={cancelDelete} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
               <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Delete employee <span className="font-medium">{showDeletePrompt.name}</span>?</p>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">Delete employee <span className="font-medium">{showDeletePrompt.name}</span>?</p>
                 <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
               </div>
               <div className="flex justify-end space-x-2">
@@ -1069,7 +1069,7 @@ const EmployeeMaster = () => {
                 </h3>
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400"
+                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
@@ -1077,12 +1077,12 @@ const EmployeeMaster = () => {
 
               <div className="mb-4">
                 {showDeleteColumnPrompt.type === 'warning' ? (
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                     {showDeleteColumnPrompt.message}
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                       Are you sure you want to delete column
                       <span className="font-medium">
                         {" "}{showDeleteColumnPrompt.columnLabel}
@@ -1122,12 +1122,12 @@ const EmployeeMaster = () => {
             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
               <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to delete {showBulkDeletePrompt.count} selected employee{showBulkDeletePrompt.count > 1 ? 's' : ''}?
                 </p>
                 <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
@@ -1151,12 +1151,12 @@ const EmployeeMaster = () => {
                 </button>
               </div>
               <div className="mb-4 space-y-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
                 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Select Data Type</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Select Data Type</label>
                   <select 
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
@@ -1192,12 +1192,12 @@ const EmployeeMaster = () => {
             <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Export</h3>
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
               <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Export {showExportConfirmPrompt.count} employee{showExportConfirmPrompt.count > 1 ? 's' : ''} as {showExportConfirmPrompt.format.toUpperCase()}?
                 </p>
               </div>
@@ -1230,7 +1230,7 @@ const EmployeeMaster = () => {
               </div>
 
               <div className="p-6">
-                <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">
+                <p className="text-[13px] text-slate-500 dark:text-slate-100 mb-4">
                   Select columns to pin to the left side of the table while scrolling.
                 </p>
                 <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
@@ -1259,7 +1259,7 @@ const EmployeeMaster = () => {
                             className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
                         </div>
-                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-white'}`}>
                           {column.label}
                         </span>
                         {isFrozen && <Snowflake className="h-3 w-3 ml-auto text-blue-500" />}
@@ -1272,7 +1272,7 @@ const EmployeeMaster = () => {
               <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -1305,7 +1305,7 @@ const EmployeeMaster = () => {
               </div>
 
               <div className="p-6">
-                <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">
+                <p className="text-[13px] text-slate-500 dark:text-slate-100 mb-4">
                   Select rows to pin to the top of the table while scrolling.
                 </p>
                 <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
@@ -1335,7 +1335,7 @@ const EmployeeMaster = () => {
                           />
                         </div>
                         <div className="ml-3 flex flex-col">
-                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-white'}`}>
                             {emp.name}
                           </span>
                           <span className="text-[11px] text-slate-400 uppercase font-mono">ID: {emp.id || emp.employee_id}</span>
@@ -1350,7 +1350,7 @@ const EmployeeMaster = () => {
               <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -1386,7 +1386,7 @@ const EmployeeMaster = () => {
 
               <div className="p-6">
                 <div className="mb-6">
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Add New Custom Column</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Add New Custom Column</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1405,7 +1405,7 @@ const EmployeeMaster = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Visibility & Actions</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Visibility & Actions</label>
                   <div className="space-y-1.5 max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
                     {columns.map((column) => {
                       const isEditing = editingColumn === column.id;
@@ -1473,15 +1473,15 @@ const EmployeeMaster = () => {
         {/* Add Employee Modal */}
         {showAddEmployeeModal && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+            <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add New Employee</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Register a new staff member in the system.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Register a new staff member in the system.</p>
                 </div>
                 <button
                   onClick={cancelNewEmployee}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1497,59 +1497,59 @@ const EmployeeMaster = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                     {/* Employee ID */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Employee ID <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Employee ID <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={newEmployee.employee_id || ''}
                         onChange={(e) => handleNewEmployeeChange('employee_id', e.target.value)}
                         placeholder="e.g. EMP001"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.employee_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.employee_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.employee_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.employee_id}</p>}
                     </div>
                     {/* Name */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Full Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={newEmployee.name || ''}
                         onChange={(e) => handleNewEmployeeChange('name', e.target.value)}
                         placeholder="Enter full name"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
                     </div>
                     {/* Email */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Email Address <span className="text-red-500">*</span></label>
                       <input
                         type="email"
                         value={newEmployee.email || ''}
                         onChange={(e) => handleNewEmployeeChange('email', e.target.value)}
                         placeholder="email@example.com"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.email ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.email ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.email && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.email}</p>}
                     </div>
                     {/* Department */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Department <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Department <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={newEmployee.department || ''}
                         onChange={(e) => handleNewEmployeeChange('department', e.target.value)}
                         placeholder="e.g. Engineering"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.department ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.department ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.department && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.department}</p>}
                     </div>
                     {/* Status */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Status <span className="text-red-500">*</span></label>
                       <select
                         value={newEmployee.status || ''}
                         onChange={(e) => handleNewEmployeeChange('status', e.target.value)}
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -1557,11 +1557,11 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Role */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Role <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Role <span className="text-red-500">*</span></label>
                       <select
                         value={newEmployee.role || ''}
                         onChange={(e) => handleNewEmployeeChange('role', e.target.value)}
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.role ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.role ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
                       >
                         <option value="" disabled>Select role</option>
                         {dynamicRoles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
@@ -1600,7 +1600,7 @@ const EmployeeMaster = () => {
                                 onChange={(e) => handleNewEmployeeChange(col.id, e.target.checked)}
                                 className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
                               />
-                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-white cursor-pointer">
                                 {col.label} {col.required && <span className="text-red-500">*</span>}
                               </label>
                             </div>
@@ -1608,14 +1608,14 @@ const EmployeeMaster = () => {
                         }
                          return (
                           <div key={col.id}>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
                             </label>
                             <input
                               type={inputType}
                               value={newEmployee.custom_fields?.[col.id] || ''}
                               onChange={(e) => handleNewEmployeeChange(col.id, e.target.value)}
-                              className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                               placeholder={`Enter ${col.label.toLowerCase()}`}
                             />
                             {validationErrors[col.id] && (
@@ -1630,16 +1630,16 @@ const EmployeeMaster = () => {
                 )}
               </div>
 
-              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                 <button
                   onClick={cancelNewEmployee}
-                  className="px-6 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveNewEmployee}
-                  className="px-8 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 dark:shadow-none transition-all active:scale-[0.98]"
+                  className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md shadow-blue-500/10 dark:shadow-none transition-all active:scale-[0.98]"
                 >
                   Save Employee
                 </button>
@@ -1651,15 +1651,15 @@ const EmployeeMaster = () => {
         {/* Edit Employee Modal */}
         {editingId && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+            <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Employee</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Modify details for <span className="text-blue-600 font-semibold">{editForm.name}</span></p>
+                  <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Modify details for <span className="text-blue-600 font-semibold">{editForm.name}</span></p>
                 </div>
                 <button
                   onClick={cancelEdit}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1675,59 +1675,59 @@ const EmployeeMaster = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                     {/* Employee ID */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Employee ID <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Employee ID <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.employee_id || ''}
                         onChange={(e) => handleEditFormChange('employee_id', e.target.value)}
                         placeholder="e.g. EMP001"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.employee_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.employee_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.employee_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.employee_id}</p>}
                     </div>
                     {/* Name */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Full Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.name || ''}
                         onChange={(e) => handleEditFormChange('name', e.target.value)}
                         placeholder="Enter full name"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
                     </div>
                     {/* Email */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Email Address <span className="text-red-500">*</span></label>
                       <input
                         type="email"
                         value={editForm.email || ''}
                         onChange={(e) => handleEditFormChange('email', e.target.value)}
                         placeholder="email@example.com"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.email ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.email ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.email && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.email}</p>}
                     </div>
                     {/* Department */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Department <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Department <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.department || ''}
                         onChange={(e) => handleEditFormChange('department', e.target.value)}
                         placeholder="e.g. Engineering"
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.department ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.department ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
                       {validationErrors.department && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.department}</p>}
                     </div>
                     {/* Status */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Status <span className="text-red-500">*</span></label>
                       <select
                         value={editForm.status || 'Active'}
                         onChange={(e) => handleEditFormChange('status', e.target.value)}
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -1735,11 +1735,11 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Role */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Role <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Role <span className="text-red-500">*</span></label>
                       <select
                         value={editForm.role || ''}
                         onChange={(e) => handleEditFormChange('role', e.target.value)}
-                        className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.role ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.role ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
                       >
                         <option value="" disabled>Select role</option>
                         {dynamicRoles.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
@@ -1777,7 +1777,7 @@ const EmployeeMaster = () => {
                                 onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
                                 className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
                               />
-                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-white cursor-pointer">
                                 {col.label} {col.required && <span className="text-red-500">*</span>}
                               </label>
                             </div>
@@ -1785,14 +1785,14 @@ const EmployeeMaster = () => {
                         }
                          return (
                           <div key={col.id}>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
                             </label>
                             <input
                               type={inputType}
                               value={editForm.custom_fields?.[col.id] || ''}
                               onChange={(e) => handleEditFormChange(col.id, e.target.value)}
-                              className={`w-full px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                               placeholder={`Enter ${col.label.toLowerCase()}`}
                             />
                             {validationErrors[col.id] && (
@@ -1807,16 +1807,16 @@ const EmployeeMaster = () => {
                 )}
               </div>
 
-              <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                 <button
                   onClick={cancelEdit}
-                  className="px-6 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="px-8 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/20 dark:shadow-none transition-all active:scale-[0.98]"
+                  className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md shadow-blue-500/10 dark:shadow-none transition-all active:scale-[0.98]"
                 >
                   Save Changes
                 </button>
@@ -1830,7 +1830,7 @@ const EmployeeMaster = () => {
 
           {/* Loading / Error State */}
           {loading && (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+            <div className="p-8 text-center text-slate-500 dark:text-slate-100">
               Loading data...
             </div>
           )}
@@ -1857,7 +1857,7 @@ const EmployeeMaster = () => {
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-700 dark:text-slate-100"
                       />
                     </div>
 
@@ -1867,7 +1867,7 @@ const EmployeeMaster = () => {
                         onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                         className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${Object.values(activeFilters).some(v => v.length > 0)
                             ? 'bg-blue-50 border-blue-200 text-blue-600'
-                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'
                           }`}
                       >
                         <Filter className="h-4 w-4" />
@@ -1902,7 +1902,7 @@ const EmployeeMaster = () => {
                                 { id: 'project_name', label: 'Project Name', options: filterOptions.project_name }
                               ].map(section => (
                                 <div key={section.id} className="filter-section">
-                                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-1.5">{section.label}</label>
+                                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase block mb-1.5">{section.label}</label>
                                   <div className="grid grid-cols-1 gap-1.5 pl-1">
                                     {section.options.length > 0 ? section.options.map(option => (
                                       <label key={option} className="flex items-center gap-2 group cursor-pointer">
@@ -1918,7 +1918,7 @@ const EmployeeMaster = () => {
                                           }}
                                           className="h-3.5 w-3.5 text-blue-600 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500 cursor-pointer"
                                         />
-                                        <span className="text-[13px] text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors truncate">
+                                        <span className="text-[13px] text-slate-700 dark:text-white group-hover:text-blue-600 transition-colors truncate">
                                           {option}
                                         </span>
                                       </label>
@@ -1952,7 +1952,7 @@ const EmployeeMaster = () => {
                           setFilterDraft(draft);
                           setShowColumnsDropdown(!showColumnsDropdown);
                         }}
-                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${showColumnsDropdown ? 'bg-slate-100 border-slate-400' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300'
+                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${showColumnsDropdown ? 'bg-slate-100 border-slate-400' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'
                           }`}
                       >
                         <Eye className="h-4 w-4" />
@@ -1975,7 +1975,7 @@ const EmployeeMaster = () => {
                                     }}
                                     className="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                                   />
-                                  <span className="text-[13px] text-slate-700 dark:text-slate-300 select-none group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
+                                  <span className="text-[13px] text-slate-700 dark:text-white select-none group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
                                     {col.label}
                                   </span>
                                 </label>
@@ -2048,25 +2048,25 @@ const EmployeeMaster = () => {
                           <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-lg z-50">
                             <button
                               onClick={() => handleExportClick('excel')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as Excel
                             </button>
                             <button
                               onClick={() => handleExportClick('csv')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as CSV
                             </button>
                             <button
                               onClick={() => handleExportClick('json')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as JSON
                             </button>
                             <button
                               onClick={() => handleExportClick('pdf')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as PDF
                             </button>
@@ -2167,14 +2167,14 @@ const EmployeeMaster = () => {
                                     <>
                                       <button
                                         onClick={() => handleSortFromMenu(col.id, 'ascending')}
-                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                       >
                                         <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
                                         Sort Ascending
                                       </button>
                                       <button
                                         onClick={() => handleSortFromMenu(col.id, 'descending')}
-                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                       >
                                         <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
                                         Sort Descending
@@ -2184,7 +2184,7 @@ const EmployeeMaster = () => {
                                   )}
                                   <button
                                     onClick={() => handleCopyColumnName(col.label)}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                   >
                                     <Copy className="h-3.5 w-3.5 text-slate-400" />
                                     Copy name
@@ -2196,7 +2196,7 @@ const EmployeeMaster = () => {
                                       setShowColumnModal(true);
                                       setActiveDropdownColumn(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                   >
                                     <Edit className="h-3.5 w-3.5 text-slate-400" />
                                     Edit column
@@ -2204,7 +2204,7 @@ const EmployeeMaster = () => {
 
                                   <button
                                     onClick={() => handleFreezeColumnMenu(actualColumnIndex)}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                   >
                                     {isColumnFrozen(actualColumnIndex) ? (
                                       <>
@@ -2224,7 +2224,7 @@ const EmployeeMaster = () => {
                                       toggleFreezeRow();
                                       setActiveDropdownColumn(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
                                   >
                                     {frozenRows.length > 0 ? (
                                       <>
@@ -2349,7 +2349,7 @@ const EmployeeMaster = () => {
                                 <Users className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                               </div>
                               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Employees Found</h3>
-                              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+                              <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
                                 We couldn't find any staff records matching your search. Try adjusting your filters or add a new team member.
                               </p>
                               {hasPermission('Employee Master', 'ADD') && (
@@ -2388,11 +2388,11 @@ const EmployeeMaster = () => {
                       onClick={toggleFreezeRow}
                       className={`flex items-center gap-1 h-10 px-3 text-xs border rounded master-table-tooltip ${frozenRows.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-white'
                         }`}
                       data-tooltip={frozenRows.length > 0 ? "Unfreeze rows" : "Select rows to freeze"}
                     >
-                      <Snowflake className={`h-4 w-4 ${frozenRows.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-400'}`} />
+                      <Snowflake className={`h-4 w-4 ${frozenRows.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-100'}`} />
                       {frozenRows.length > 0 && <span className="ml-1 text-xs">{frozenRows.length}</span>}
                     </button>
                   </div>
@@ -2425,11 +2425,11 @@ const EmployeeMaster = () => {
                 <div className="flex items-center gap-4">
                   {/* Page Size Selector */}
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-600 dark:text-slate-400">Show:</span>
+                    <span className="text-slate-600 dark:text-slate-100">Show:</span>
                     <select
                       value={pageSize}
                       onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                      className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-gray-500"
+                      className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-700 dark:text-slate-100"
                     >
                       {pageSizeOptions.map(size => (
                         <option key={size} value={size}>{size}</option>
@@ -2445,7 +2445,7 @@ const EmployeeMaster = () => {
                         disabled={currentPage === 1}
                         className={`p-1 rounded ${currentPage === 1
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -2457,7 +2457,7 @@ const EmployeeMaster = () => {
                           onClick={() => handlePageChange(pageNum)}
                           className={`px-2 py-1 text-xs rounded ${currentPage === pageNum
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                            : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
                             }`}
                         >
                           {pageNum}
@@ -2469,7 +2469,7 @@ const EmployeeMaster = () => {
                         disabled={currentPage === totalPages}
                         className={`p-1 rounded ${currentPage === totalPages
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -2477,7 +2477,7 @@ const EmployeeMaster = () => {
                     </div>
                   )}
 
-                  <span className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-600 dark:text-white">
                     Showing {paginatedEmployees.length} of {sortedEmployees.length} employees
                   </span>
 
@@ -2486,7 +2486,7 @@ const EmployeeMaster = () => {
                       {selectedEmployees.length} selected
                     </span>
                   )}
-                  <span className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-600 dark:text-white">
                     ({visibleColumns.length} of {columns.length} columns visible)
                   </span>
                   {(frozenRows.length > 0 || frozenColumns.length > 0) && (
