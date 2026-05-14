@@ -219,14 +219,14 @@ const SystemSettings = () => {
                       fontSize: '13px',
                       fontWeight: isActive ? 500 : 400,
                       backgroundColor: isActive ? 'var(--active-menu)' : 'transparent',
-                      color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                     }}
                     onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
                     onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
                   >
                     <span>{item.label}</span>
                     {isActive && (
-                      <div style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: 'var(--accent)', flexShrink: 0 }} />
+                      <div style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: 'var(--text-primary)', flexShrink: 0 }} />
                     )}
                   </button>
                 );
