@@ -1259,7 +1259,7 @@ const EmployeeMaster = () => {
                             className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
                         </div>
-                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-white'}`}>
+                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-100'}`}>
                           {column.label}
                         </span>
                         {isFrozen && <Snowflake className="h-3 w-3 ml-auto text-blue-500" />}
@@ -1335,7 +1335,7 @@ const EmployeeMaster = () => {
                           />
                         </div>
                         <div className="ml-3 flex flex-col">
-                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-white'}`}>
+                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-100'}`}>
                             {emp.name}
                           </span>
                           <span className="text-[11px] text-slate-400 uppercase font-mono">ID: {emp.id || emp.employee_id}</span>
@@ -1476,7 +1476,7 @@ const EmployeeMaster = () => {
             <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Add New Employee</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add New Employee</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Register a new staff member in the system.</p>
                 </div>
                 <button
@@ -1509,7 +1509,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Name */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Full Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={newEmployee.name || ''}
@@ -1521,7 +1521,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Email */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Email Address <span className="text-red-500">*</span></label>
                       <input
                         type="email"
                         value={newEmployee.email || ''}
@@ -1533,7 +1533,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Department */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Department <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={newEmployee.department || ''}
@@ -1545,7 +1545,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Status */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
                       <select
                         value={newEmployee.status || ''}
                         onChange={(e) => handleNewEmployeeChange('status', e.target.value)}
@@ -1557,7 +1557,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Role */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Role <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Role <span className="text-red-500">*</span></label>
                       <select
                         value={newEmployee.role || ''}
                         onChange={(e) => handleNewEmployeeChange('role', e.target.value)}
@@ -1600,7 +1600,7 @@ const EmployeeMaster = () => {
                                 onChange={(e) => handleNewEmployeeChange(col.id, e.target.checked)}
                                 className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
                               />
-                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-white cursor-pointer">
+                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
                                 {col.label} {col.required && <span className="text-red-500">*</span>}
                               </label>
                             </div>
@@ -1608,7 +1608,7 @@ const EmployeeMaster = () => {
                         }
                          return (
                           <div key={col.id}>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
                             </label>
                             <input
@@ -1654,7 +1654,7 @@ const EmployeeMaster = () => {
             <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit Employee</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Edit Employee</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Modify details for <span className="text-blue-600 font-semibold">{editForm.name}</span></p>
                 </div>
                 <button
@@ -1675,7 +1675,7 @@ const EmployeeMaster = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
                     {/* Employee ID */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Employee ID <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Employee ID <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.employee_id || ''}
@@ -1687,7 +1687,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Name */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Full Name <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Full Name <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.name || ''}
@@ -1699,7 +1699,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Email */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Email Address <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Email Address <span className="text-red-500">*</span></label>
                       <input
                         type="email"
                         value={editForm.email || ''}
@@ -1711,7 +1711,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Department */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Department <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department <span className="text-red-500">*</span></label>
                       <input
                         type="text"
                         value={editForm.department || ''}
@@ -1723,7 +1723,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Status */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
                       <select
                         value={editForm.status || 'Active'}
                         onChange={(e) => handleEditFormChange('status', e.target.value)}
@@ -1735,7 +1735,7 @@ const EmployeeMaster = () => {
                     </div>
                     {/* Role */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">Role <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Role <span className="text-red-500">*</span></label>
                       <select
                         value={editForm.role || ''}
                         onChange={(e) => handleEditFormChange('role', e.target.value)}
@@ -1777,7 +1777,7 @@ const EmployeeMaster = () => {
                                 onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
                                 className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
                               />
-                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-white cursor-pointer">
+                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
                                 {col.label} {col.required && <span className="text-red-500">*</span>}
                               </label>
                             </div>
@@ -1785,7 +1785,7 @@ const EmployeeMaster = () => {
                         }
                          return (
                           <div key={col.id}>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-white mb-1.5">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
                             </label>
                             <input
@@ -1867,7 +1867,7 @@ const EmployeeMaster = () => {
                         onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                         className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${Object.values(activeFilters).some(v => v.length > 0)
                             ? 'bg-blue-50 border-blue-200 text-blue-600'
-                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'
+                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-100'
                           }`}
                       >
                         <Filter className="h-4 w-4" />
@@ -1918,7 +1918,7 @@ const EmployeeMaster = () => {
                                           }}
                                           className="h-3.5 w-3.5 text-blue-600 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500 cursor-pointer"
                                         />
-                                        <span className="text-[13px] text-slate-700 dark:text-white group-hover:text-blue-600 transition-colors truncate">
+                                        <span className="text-[13px] text-slate-700 dark:text-slate-100 group-hover:text-blue-600 transition-colors truncate">
                                           {option}
                                         </span>
                                       </label>
@@ -1952,7 +1952,7 @@ const EmployeeMaster = () => {
                           setFilterDraft(draft);
                           setShowColumnsDropdown(!showColumnsDropdown);
                         }}
-                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${showColumnsDropdown ? 'bg-slate-100 border-slate-400' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-white'
+                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${showColumnsDropdown ? 'bg-slate-100 border-slate-400' : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-100'
                           }`}
                       >
                         <Eye className="h-4 w-4" />
@@ -1975,7 +1975,7 @@ const EmployeeMaster = () => {
                                     }}
                                     className="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                                   />
-                                  <span className="text-[13px] text-slate-700 dark:text-white select-none group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
+                                  <span className="text-[13px] text-slate-700 dark:text-slate-100 select-none group-hover:text-blue-600 dark:group-hover:text-blue-400 font-medium">
                                     {col.label}
                                   </span>
                                 </label>
@@ -2048,25 +2048,25 @@ const EmployeeMaster = () => {
                           <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-lg z-50">
                             <button
                               onClick={() => handleExportClick('excel')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as Excel
                             </button>
                             <button
                               onClick={() => handleExportClick('csv')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as CSV
                             </button>
                             <button
                               onClick={() => handleExportClick('json')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as JSON
                             </button>
                             <button
                               onClick={() => handleExportClick('pdf')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as PDF
                             </button>
@@ -2167,14 +2167,14 @@ const EmployeeMaster = () => {
                                     <>
                                       <button
                                         onClick={() => handleSortFromMenu(col.id, 'ascending')}
-                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                       >
                                         <ArrowUp className="h-3.5 w-3.5 text-slate-400" />
                                         Sort Ascending
                                       </button>
                                       <button
                                         onClick={() => handleSortFromMenu(col.id, 'descending')}
-                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                        className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                       >
                                         <ArrowDown className="h-3.5 w-3.5 text-slate-400" />
                                         Sort Descending
@@ -2184,7 +2184,7 @@ const EmployeeMaster = () => {
                                   )}
                                   <button
                                     onClick={() => handleCopyColumnName(col.label)}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                   >
                                     <Copy className="h-3.5 w-3.5 text-slate-400" />
                                     Copy name
@@ -2196,7 +2196,7 @@ const EmployeeMaster = () => {
                                       setShowColumnModal(true);
                                       setActiveDropdownColumn(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                   >
                                     <Edit className="h-3.5 w-3.5 text-slate-400" />
                                     Edit column
@@ -2204,7 +2204,7 @@ const EmployeeMaster = () => {
 
                                   <button
                                     onClick={() => handleFreezeColumnMenu(actualColumnIndex)}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                   >
                                     {isColumnFrozen(actualColumnIndex) ? (
                                       <>
@@ -2224,7 +2224,7 @@ const EmployeeMaster = () => {
                                       toggleFreezeRow();
                                       setActiveDropdownColumn(null);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white"
+                                    className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100"
                                   >
                                     {frozenRows.length > 0 ? (
                                       <>
@@ -2348,7 +2348,7 @@ const EmployeeMaster = () => {
                               <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-200 dark:border-slate-700">
                                 <Users className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                               </div>
-                              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Employees Found</h3>
+                              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Employees Found</h3>
                               <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
                                 We couldn't find any staff records matching your search. Try adjusting your filters or add a new team member.
                               </p>
@@ -2388,7 +2388,7 @@ const EmployeeMaster = () => {
                       onClick={toggleFreezeRow}
                       className={`flex items-center gap-1 h-10 px-3 text-xs border rounded master-table-tooltip ${frozenRows.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-white'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-100'
                         }`}
                       data-tooltip={frozenRows.length > 0 ? "Unfreeze rows" : "Select rows to freeze"}
                     >
@@ -2445,7 +2445,7 @@ const EmployeeMaster = () => {
                         disabled={currentPage === 1}
                         className={`p-1 rounded ${currentPage === 1
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -2457,7 +2457,7 @@ const EmployeeMaster = () => {
                           onClick={() => handlePageChange(pageNum)}
                           className={`px-2 py-1 text-xs rounded ${currentPage === pageNum
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                            : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                             }`}
                         >
                           {pageNum}
@@ -2469,7 +2469,7 @@ const EmployeeMaster = () => {
                         disabled={currentPage === totalPages}
                         className={`p-1 rounded ${currentPage === totalPages
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -2477,7 +2477,7 @@ const EmployeeMaster = () => {
                     </div>
                   )}
 
-                  <span className="text-slate-600 dark:text-white">
+                  <span className="text-slate-600 dark:text-slate-100">
                     Showing {paginatedEmployees.length} of {sortedEmployees.length} employees
                   </span>
 
@@ -2486,7 +2486,7 @@ const EmployeeMaster = () => {
                       {selectedEmployees.length} selected
                     </span>
                   )}
-                  <span className="text-slate-600 dark:text-white">
+                  <span className="text-slate-600 dark:text-slate-100">
                     ({visibleColumns.length} of {columns.length} columns visible)
                   </span>
                   {(frozenRows.length > 0 || frozenColumns.length > 0) && (

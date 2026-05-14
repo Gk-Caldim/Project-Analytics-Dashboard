@@ -1234,7 +1234,7 @@ const ProjectMaster = () => {
     if (!users || users.length === 0) return null;
 
     return (
-      <div className="mt-4 overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+      <div className="mt-4 overflow-hidden border border-slate-200 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-900/40">
         <table className="w-full text-xs text-left">
           <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-100 font-semibold uppercase tracking-wider">
             <tr>
@@ -1251,7 +1251,7 @@ const ProjectMaster = () => {
               
               return (
                 <tr key={user.employeeId} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-white">
+                  <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-100">
                     <div className="flex flex-col">
                       <span>{name}</span>
                       <span className="text-[10px] text-slate-400 font-mono">ID: {user.employeeId}</span>
@@ -1292,13 +1292,13 @@ const ProjectMaster = () => {
 
   // Render input fields
   const renderInput = (col, value, onChange, error, isModal = false) => {
-    const inputClass = `w-full px-3 py-2 text-sm border ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded focus:outline-none focus:ring-1 focus:ring-black`;
+    const inputClass = `w-full px-3 py-2 text-sm border ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all dark:bg-slate-800 dark:text-slate-100 placeholder:text-slate-500`;
 
     const statusOptions = ['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'];
 
     if (col.id === 'status' || col.type === 'select') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <select
           value={value || (col.id === 'status' ? 'Planning' : '')}
           onChange={e => onChange(col.id, e.target.value)}
@@ -1326,7 +1326,7 @@ const ProjectMaster = () => {
       const selectedValues = idsToSelectValues(Array.isArray(value) ? value : (value ? [value] : []));
       return (
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">
             {col.label} {col.required && <span className="text-red-500">*</span>}
           </label>
           <ReactSelect
@@ -1352,7 +1352,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'manager_select') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => e.name)}
           value={value}
@@ -1365,7 +1365,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'employee_id') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => String(e.employee_id || e.id))}
           value={value}
@@ -1382,7 +1382,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'employee_name') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => e.name)}
           value={value}
@@ -1399,7 +1399,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'number') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <input
           type="number"
           value={value || ''}
@@ -1418,7 +1418,7 @@ const ProjectMaster = () => {
 
     return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-white mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <input
           type="text"
           value={value || ''}
@@ -1437,14 +1437,14 @@ const ProjectMaster = () => {
   const renderCellContent = (col, value, row) => {
     if (col.id === 'status') {
       const colorMap = {
-        'Planning': 'bg-blue-100 text-blue-700',
-        'In Progress': 'bg-yellow-100 text-yellow-700',
-        'Completed': 'bg-emerald-100 text-emerald-700',
-        'On Hold': 'bg-slate-100 text-slate-600',
-        'Delayed': 'bg-red-100 text-red-700',
-        'Active': 'bg-emerald-100 text-emerald-700',
-        'Inactive': 'bg-red-100 text-red-700',
-        'Pending': 'bg-slate-100 text-slate-600'
+        'Planning': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'In Progress': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+        'Completed': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        'On Hold': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+        'Delayed': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        'Active': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        'Inactive': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        'Pending': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
       };
       return (
         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${colorMap[value] || 'bg-slate-100 text-slate-600'}`}>
@@ -1454,7 +1454,7 @@ const ProjectMaster = () => {
     }
     if (['budget', 'utilized_budget', 'balance_budget'].includes(col.id)) {
       return (
-        <span className={`text-sm font-medium ${col.id === 'balance_budget' && (parseFloat(value) || 0) < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+        <span className={`text-sm font-semibold ${col.id === 'balance_budget' && (parseFloat(value) || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-100'}`}>
           {format(parseFloat(value) || 0)}
         </span>
       );
@@ -1466,7 +1466,7 @@ const ProjectMaster = () => {
             e.stopPropagation();
             navigate(`/dashboard/masters/project-detail/${row.id}`);
           }}
-          className="text-indigo-600 hover:text-indigo-800 font-medium text-xs bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex items-center gap-1.5"
+          className="text-indigo-600 hover:text-indigo-800 font-medium text-xs bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex items-center gap-1.5"
         >
           <Eye size={14}/>
           Detailed View
@@ -1487,7 +1487,7 @@ const ProjectMaster = () => {
             const emp = employeeList.find(e => String(e.employee_id || e.id) === String(id));
             const label = emp ? emp.name : id;
             return (
-              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
+              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap">
                 {label}
               </span>
             );
@@ -1495,7 +1495,7 @@ const ProjectMaster = () => {
         </div>
       );
     }
-    return <span className="text-sm text-slate-700 dark:text-white">{Array.isArray(value) ? value.join(', ') : (value || '-')}</span>;
+    return <span className="text-sm text-slate-700 dark:text-slate-100">{Array.isArray(value) ? value.join(', ') : (value || '-')}</span>;
   };
 
   const visibleColumns = columns.filter(col => col.visible);
@@ -1507,20 +1507,20 @@ const ProjectMaster = () => {
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-800 rounded-md shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
               <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
                   <AlertTriangle size={20} />
                 </div>
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Permanent Deletion</h3>
               </div>
               
               <div className="p-6">
-                <p className="text-sm text-slate-600 dark:text-white mb-4">
-                  Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-white">"{showDeletePrompt.name}"</span>?
+                <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
+                  Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-slate-100">"{showDeletePrompt.name}"</span>?
                 </p>
                 
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700 mb-6">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-md p-4 border border-slate-200 dark:border-slate-700 mb-6">
                   <h4 className="text-xs font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Impact Warning</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
                     This action is <span className="text-red-600 dark:text-red-400 font-semibold underline">irreversible</span>. The following associated data will also be permanently deleted:
@@ -1537,13 +1537,13 @@ const ProjectMaster = () => {
                 <div className="flex gap-3">
                   <button 
                     onClick={cancelDelete} 
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={confirmDeleteProject} 
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
                     Delete Permanently
@@ -1557,7 +1557,7 @@ const ProjectMaster = () => {
         {/* Delete Column Prompt */}
         {showDeleteColumnPrompt && (
           <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
                   {showDeleteColumnPrompt.title}
@@ -1616,18 +1616,18 @@ const ProjectMaster = () => {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
               <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg text-red-600 dark:text-red-400">
+                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
                   <AlertTriangle size={20} />
                 </div>
                 <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Bulk Deletion</h3>
               </div>
               
               <div className="p-6">
-                <p className="text-sm text-slate-600 dark:text-white mb-4">
+                <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
                   Are you sure you want to delete <span className="font-bold text-red-600 dark:text-red-400">{showBulkDeletePrompt.count} selected projects</span>?
                 </p>
                 
-                <div className="bg-red-50/50 dark:bg-red-900/10 rounded-lg p-4 border border-red-100 dark:border-red-900/20 mb-6">
+                <div className="bg-red-50/50 dark:bg-red-900/10 rounded-md p-4 border border-red-100 dark:border-red-900/20 mb-6">
                   <h4 className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2">CRITICAL Bulk Action Warning</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
                     This will <span className="font-bold">permanently wipe</span> all data for multiple projects at once. This includes all related issues, meetings, trackers, and files across all selected items.
@@ -1637,13 +1637,13 @@ const ProjectMaster = () => {
                 <div className="flex gap-3">
                   <button 
                     onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} 
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-white bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button 
                     onClick={confirmBulkDelete} 
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
                     Delete {showBulkDeletePrompt.count} Projects
@@ -1657,7 +1657,7 @@ const ProjectMaster = () => {
         {/* Bulk Edit Prompt */}
         {showBulkEditPrompt.show && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Edit</h3>
                 <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
@@ -1680,7 +1680,7 @@ const ProjectMaster = () => {
         {/* Add Column Prompt */}
         {showColumnAddPrompt.show && (
           <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4 shadow-xl">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4 shadow-xl">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Add New Column</h3>
                 <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600">
@@ -1697,7 +1697,7 @@ const ProjectMaster = () => {
                   <select 
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none"
                   >
                     <option value="text">Text</option>
                     <option value="long_text">Long Text</option>
@@ -1737,7 +1737,7 @@ const ProjectMaster = () => {
         {/* Export Confirmation Prompt */}
         {showExportConfirmPrompt?.show && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Export</h3>
                 <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
@@ -1763,7 +1763,7 @@ const ProjectMaster = () => {
         {/* Freeze Column Modal */}
         {showFreezeColumnModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
                   <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
@@ -1799,7 +1799,7 @@ const ProjectMaster = () => {
                           }}
                           className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
                         />
-                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-white cursor-pointer flex-1">
+                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1">
                           {column.label}
                         </label>
                         {tempFrozenColumns.includes(actualColumnIndex) && (
@@ -1832,7 +1832,7 @@ const ProjectMaster = () => {
         {/* Freeze Row Modal */}
         {showFreezeRowModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
                   <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
@@ -1867,7 +1867,7 @@ const ProjectMaster = () => {
                           }}
                           className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
                         />
-                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-white cursor-pointer flex-1">
+                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1">
                           Row {actualRowIndex + 1}: {proj.name} ({proj.id})
                         </label>
                         {tempFrozenRows.includes(actualRowIndex) && (
@@ -1900,7 +1900,7 @@ const ProjectMaster = () => {
         {/* Column Management Modal */}
         {showColumnModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
+            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <div></div>
                 <button onClick={() => setShowColumnModal(false)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
@@ -2014,7 +2014,7 @@ const ProjectMaster = () => {
         {/* Add Project Modal */}
         {showAddProjectModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-none shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
               {/* Header */}
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800 flex-shrink-0">
                 <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add New Project</h3>
@@ -2031,35 +2031,35 @@ const ProjectMaster = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Project ID */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Project ID <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={newProject.project_id || ''}
                       onChange={e => handleNewProjectChange('project_id', e.target.value)}
                       placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
                     {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>&#9888;</span>{validationErrors.project_id}</p>}
                   </div>
                   {/* Project Name */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Project name <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={newProject.name || ''}
                       onChange={e => handleNewProjectChange('name', e.target.value)}
                       placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
                     {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
                   </div>
                   {/* Project Manager */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Project manager</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project manager</label>
                     <select
                       value={newProject.project_manager || ''}
                       onChange={e => handleNewProjectChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
                     >
                       <option value="">Select project manager</option>
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
@@ -2067,7 +2067,7 @@ const ProjectMaster = () => {
                   </div>
                   {/* Assign Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Assign team lead</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Assign team lead</label>
                     <SearchableDropdown
                       options={teamLeadOptions}
                       value={newProject.employee_id || ''}
@@ -2080,7 +2080,7 @@ const ProjectMaster = () => {
                   </div>
                   {/* Assign Employee */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Assign employee</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Assign employee</label>
                     <SearchableDropdown
                       options={employeeOptions}
                       value={newProject.assigned_to_id || ''}
@@ -2093,54 +2093,54 @@ const ProjectMaster = () => {
                   </div>
                   {/* Department */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Department</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Department</label>
                     <input
                       type="text"
                       value={newProject.department || ''}
                       onChange={e => handleNewProjectChange('department', e.target.value)}
                       placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Start Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Start date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Start date</label>
                     <input
                       type="date"
                       value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
                       onChange={e => handleNewProjectChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* End Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">End date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">End date</label>
                     <input
                       type="date"
                       value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
                       onChange={e => handleNewProjectChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Timeline (Months) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Timeline (months)</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Timeline (months)</label>
                     <input
                       type="number"
                       value={newProject.timeline_months || ''}
                       onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
                       placeholder="e.g. 6"
                       min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Status */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">Status <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
                     <select
                       value={newProject.status || 'Planning'}
                       onChange={e => handleNewProjectChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
                     >
                       {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -2172,7 +2172,7 @@ const ProjectMaster = () => {
                             onChange={(e) => handleNewProjectChange(col.id, e.target.checked)}
                             className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
-                          <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-white cursor-pointer">
+                          <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-100 cursor-pointer">
                             {col.label} {col.required && <span className="text-red-500">*</span>}
                           </label>
                         </div>
@@ -2183,13 +2183,13 @@ const ProjectMaster = () => {
                       const options = col.validation_rules?.options || [];
                       return (
                         <div key={col.id}>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
                             {col.label} {col.required && <span className="text-red-500">*</span>}
                           </label>
                           <select
                             value={newProject[col.id] || ''}
                             onChange={e => handleNewProjectChange(col.id, e.target.value)}
-                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
                           >
                             <option value="">Select {col.label}</option>
                             {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -2203,7 +2203,7 @@ const ProjectMaster = () => {
 
                     return (
                       <div key={col.id}>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
                           {col.label} {col.required && <span className="text-red-500">*</span>}
                         </label>
                         <input
@@ -2211,7 +2211,7 @@ const ProjectMaster = () => {
                           value={newProject[col.id] || ''}
                           onChange={e => handleNewProjectChange(col.id, e.target.value)}
                           placeholder={`Enter ${col.label.toLowerCase()}`}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                         />
                         {validationErrors[col.id] && (
                           <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
@@ -2222,7 +2222,7 @@ const ProjectMaster = () => {
 
                   {/* Budget Upload (Excel) */}
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
                       Budget file (Excel) <span className="text-slate-400 font-normal">- auto-syncs to Budget Master</span>
                     </label>
                     <div className="relative">
@@ -2232,7 +2232,7 @@ const ProjectMaster = () => {
                         onChange={e => handleNewProjectChange('_budgetFile', e.target.files[0] || null)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                       />
-                      <div className="w-full px-3 py-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-sm flex items-center gap-2 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/40 hover:border-blue-400 transition-colors">
+                      <div className="w-full px-3 py-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-md flex items-center gap-2 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/40 hover:border-blue-400 transition-colors">
                         <FileText className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate text-xs">
                           {newProject._budgetFile ? newProject._budgetFile.name : 'Click to upload budget Excel file (optional)...'}
@@ -2250,13 +2250,13 @@ const ProjectMaster = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={cancelNewProject}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-white"
+                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-100"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveNewProject}
-                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-sm hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Project
@@ -2270,11 +2270,11 @@ const ProjectMaster = () => {
         {/* Edit Project Modal */}
         {editingId && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
               {/* Header */}
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-800/80 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500 rounded-lg shadow-sm">
+                  <div className="p-2 bg-amber-500 rounded-md shadow-sm">
                     <Edit className="h-4 w-4 text-white" />
                   </div>
                   <div>
@@ -2283,7 +2283,7 @@ const ProjectMaster = () => {
                 </div>
                 <button
                   onClick={cancelEdit}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -2294,35 +2294,35 @@ const ProjectMaster = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Project ID */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={editForm.project_id || ''}
                       onChange={e => handleEditFormChange('project_id', e.target.value)}
                       placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
                     {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.project_id}</p>}
                   </div>
                   {/* Project Name */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
                     <input
                       type="text"
                       value={editForm.name || ''}
                       onChange={e => handleEditFormChange('name', e.target.value)}
                       placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                     />
                     {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
                   </div>
                   {/* Project Manager */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Project Manager</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project Manager</label>
                     <select
                       value={editForm.project_manager || ''}
                       onChange={e => handleEditFormChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
                     >
                       <option value="">Select Project Manager</option>
                       {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
@@ -2330,7 +2330,7 @@ const ProjectMaster = () => {
                   </div>
                   {/* Assign Team Lead */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Assign Team Lead</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Assign Team Lead</label>
                     <SearchableDropdown
                       options={teamLeadOptions}
                       value={editForm.employee_id || ''}
@@ -2343,7 +2343,7 @@ const ProjectMaster = () => {
                   </div>
                   {/* Assigned To */}
                   <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Assigned To</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Assigned To</label>
                     <SearchableDropdown
                       options={employeeOptions}
                       value={editForm.assigned_to_id || ''}
@@ -2356,54 +2356,54 @@ const ProjectMaster = () => {
                   </div>
                   {/* Department */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Department</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Department</label>
                     <input
                       type="text"
                       value={editForm.department || ''}
                       onChange={e => handleEditFormChange('department', e.target.value)}
                       placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Start Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Start Date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Start Date</label>
                     <input
                       type="date"
                       value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
                       onChange={e => handleEditFormChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* End Date */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">End Date</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">End Date</label>
                     <input
                       type="date"
                       value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
                       onChange={e => handleEditFormChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Timeline (Months) */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
                     <input
                       type="number"
                       value={editForm.timeline_months || ''}
                       onChange={e => handleEditFormChange('timeline_months', e.target.value)}
                       placeholder="e.g. 6"
                       min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
                     />
                   </div>
                   {/* Status */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
                     <select
                       value={editForm.status || 'Planning'}
                       onChange={e => handleEditFormChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
                     >
                       {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
@@ -2435,7 +2435,7 @@ const ProjectMaster = () => {
                             onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
                             className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
-                          <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-white cursor-pointer uppercase tracking-wide">
+                          <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-100 cursor-pointer uppercase tracking-wide">
                             {col.label} {col.required && <span className="text-red-500">*</span>}
                           </label>
                         </div>
@@ -2446,13 +2446,13 @@ const ProjectMaster = () => {
                       const options = col.validation_rules?.options || [];
                       return (
                         <div key={col.id}>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">
                             {col.label} {col.required && <span className="text-red-500">*</span>}
                           </label>
                           <select
                             value={editForm[col.id] || ''}
                             onChange={e => handleEditFormChange(col.id, e.target.value)}
-                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
+                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
                           >
                             <option value="">Select {col.label}</option>
                             {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -2463,7 +2463,7 @@ const ProjectMaster = () => {
 
                     return (
                       <div key={col.id}>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-white mb-1.5 uppercase tracking-wide">
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">
                           {col.label} {col.is_required && <span className="text-red-500">*</span>}
                         </label>
                         <input
@@ -2471,7 +2471,7 @@ const ProjectMaster = () => {
                           value={editForm[col.id] || ''}
                           onChange={e => handleEditFormChange(col.id, e.target.value)}
                           placeholder={`Enter ${col.label.toLowerCase()}`}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
                           required={col.is_required}
                         />
                         {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
@@ -2493,7 +2493,7 @@ const ProjectMaster = () => {
                         setActiveSubCategoryProject(editForm);
                         setShowSubCategoryModal(true);
                       }}
-                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto"
+                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto"
                     >
                       <FileText className="h-4 w-4" />
                       Trackers management
@@ -2501,13 +2501,13 @@ const ProjectMaster = () => {
                   )}
                   <button
                     onClick={cancelEdit}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-white"
+                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-100"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveEdit}
-                    className="px-5 py-2 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-5 py-2 text-sm font-medium bg-amber-500 text-white rounded-md hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Changes
@@ -2521,15 +2521,15 @@ const ProjectMaster = () => {
         {/* View Project Modal */}
         {showViewModal && viewData && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
                     <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white leading-none">Project Details</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 leading-none">Project Details</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-100 mt-1">Full information for {viewData.name}</p>
                   </div>
                 </div>
@@ -2547,7 +2547,7 @@ const ProjectMaster = () => {
                   {columns.map((col) => (
                     <div key={col.id} className="flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{col.label}</span>
-                      <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700 min-h-[42px] flex items-center">
+                      <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-700 min-h-[42px] flex items-center">
                         {renderCellContent(col, viewData[col.id], viewData)}
                       </div>
                     </div>
@@ -2563,7 +2563,7 @@ const ProjectMaster = () => {
                       setActiveSubCategoryProject(viewData);
                       setShowSubCategoryModal(true);
                     }}
-                    className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
                   >
                     <FileText className="h-4 w-4" />
                     Trackers management
@@ -2571,7 +2571,7 @@ const ProjectMaster = () => {
                 )}
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm shadow-sm"
+                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-md font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm shadow-sm"
                 >
                   Close
                 </button>
@@ -2620,7 +2620,7 @@ const ProjectMaster = () => {
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-800 dark:text-slate-100 placeholder:text-slate-500"
                       />
                     </div>
 
@@ -2639,13 +2639,13 @@ const ProjectMaster = () => {
                         data-tooltip="Filter columns"
                       >
                         <Filter className="h-4 w-4 text-slate-600 dark:text-slate-100" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-white">Filter</span>
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100">Filter</span>
                       </button>
 
                       {showFilterDropdown && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 p-3">
+                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 p-3">
                             <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">Visible Columns</h4>
                             <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
                               {columns.map(col => (
@@ -2696,7 +2696,7 @@ const ProjectMaster = () => {
                         className="flex items-center gap-1.5 h-10 px-3 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors whitespace-nowrap"
                       >
                         <Plus className="h-4 w-4 text-slate-500" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-white">Add Column</span>
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100">Add Column</span>
                       </button>
                     )}
 
@@ -2705,7 +2705,7 @@ const ProjectMaster = () => {
                       onClick={toggleFreezeColumn}
                       className={`flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border rounded whitespace-nowrap master-table-tooltip ${frozenColumns.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-white'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-100'
                         }`}
                       data-tooltip={frozenColumns.length > 0 ? "Unfreeze columns" : "Freeze columns"}
                     >
@@ -2733,25 +2733,25 @@ const ProjectMaster = () => {
                           <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-lg z-50">
                             <button
                               onClick={() => handleExportClick('excel')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as Excel
                             </button>
                             <button
                               onClick={() => handleExportClick('csv')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as CSV
                             </button>
                             <button
                               onClick={() => handleExportClick('json')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as JSON
                             </button>
                             <button
                               onClick={() => handleExportClick('pdf')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as PDF
                             </button>
@@ -2818,30 +2818,30 @@ const ProjectMaster = () => {
                                 </button>
                                 {activeDropdownColumn === col.id && (
                                   <div
-                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
+                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {col.sortable && (
                                       <>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                        <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                           <ArrowUp className="h-3.5 w-3.5 text-slate-400" /> Sort Ascending
                                         </button>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                        <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                           <ArrowDown className="h-3.5 w-3.5 text-slate-400" /> Sort Descending
                                         </button>
                                         <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
                                       </>
                                     )}
-                                    <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                    <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy name
                                     </button>
-                                    <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                    <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       <Edit className="h-3.5 w-3.5 text-slate-400" /> Edit column
                                     </button>
-                                    <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                    <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       {isColumnFrozen(actualColumnIndex) ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze column</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze column</>)}
                                     </button>
-                                    <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-white">
+                                    <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       {frozenRows.length > 0 ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze row(s)</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze row(s)</>)}
                                     </button>
                                     <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
@@ -2939,14 +2939,14 @@ const ProjectMaster = () => {
                             <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
                               <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
                             </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No Projects Found</h3>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
                               Your project list is currently empty. Start by creating a new project to track its progress and budget.
                             </p>
                             {canAddProject && (
                               <button
                                 onClick={handleAddProjectClick}
-                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-all shadow-md shadow-blue-500/10 active:scale-[0.98]"
                               >
                                 <Plus className="h-5 w-5" />
                                 Launch New Project
@@ -2970,7 +2970,7 @@ const ProjectMaster = () => {
                       onClick={toggleFreezeRow}
                       className={`flex items-center gap-1 h-10 px-3 text-xs border rounded master-table-tooltip ${frozenRows.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-white'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-100'
                         }`}
                       data-tooltip={frozenRows.length > 0 ? "Unfreeze rows" : "Select rows to freeze"}
                     >
@@ -3031,7 +3031,7 @@ const ProjectMaster = () => {
                         disabled={currentPage === 1}
                         className={`p-1 rounded ${currentPage === 1
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -3043,7 +3043,7 @@ const ProjectMaster = () => {
                           onClick={() => handlePageChange(pageNum)}
                           className={`px-2 py-1 text-xs rounded ${currentPage === pageNum
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                            : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                             }`}
                         >
                           {pageNum}
@@ -3055,7 +3055,7 @@ const ProjectMaster = () => {
                         disabled={currentPage === totalPages}
                         className={`p-1 rounded ${currentPage === totalPages
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-white hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronRight className="h-4 w-4" />

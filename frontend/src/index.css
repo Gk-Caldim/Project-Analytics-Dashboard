@@ -34,7 +34,7 @@
   --bg: #F8FAFC;
   --elevated-card: #F1F5F9;
   --table-hover: rgba(0, 0, 0, 0.02);
-  
+
   /* Header & Glassmorphism */
   --glass-header-bg: rgba(255, 255, 255, 0.85);
   --glass-header-blur: blur(12px);
@@ -64,7 +64,7 @@
 
   /* Redesign Specs - Dark Theme */
   --secondary: #FFFFFF;
-  --sidebar-bg: #16313E;
+  --sidebar-bg: #1E242B;
   --sidebar-hover: #214454;
   --active-menu: #4A8FA1;
   --primary: #16313E;
@@ -73,19 +73,19 @@
   --text-primary: #FFFFFF;
   --text-secondary: #F1F5F9;
   --text-muted: #E2E8F0;
-  --border-subtle: #46525E;
-  --border-strong: #5E6D7E;
-  --surface: #2B353F;
+  --border-subtle: #727b7e;
+  --border-strong: #aababe;
+  --surface: #0f172a;
   --bg: #1E242B;
   --elevated-card: #32414C;
   --table-hover: rgba(74, 143, 161, 0.15);
-  
+
   /* Header & Glassmorphism */
   --glass-header-bg: rgba(30, 36, 43, 0.85);
   --glass-header-blur: blur(12px);
 
   /* Overrides for dynamic elements */
-  --accent: #4A8FA1;
+  --accent: #647e83;
   --accent-hover: #5FB0C4;
   --text-tertiary: #F1F5F9;
   --blue-50: rgba(74, 143, 161, 0.15);
@@ -188,7 +188,7 @@
   }
 
   .master-table-container {
-    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80;
+    @apply flex flex-col h-full bg-white dark:bg-slate-900 flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80 dark:border-slate-800;
   }
 
   .master-table-inner {
@@ -201,6 +201,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    @apply bg-slate-50/50 dark:bg-slate-950/50;
   }
 
   /* INNER scroll container — flex child that fills outer, then scrolls */
@@ -321,6 +322,12 @@
     width: 280px;
     flex-shrink: 0;
     border-right: 1px solid var(--border-subtle);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar-collapsed {
+    width: 72px !important;
   }
 
   .sidebar-section-label {
