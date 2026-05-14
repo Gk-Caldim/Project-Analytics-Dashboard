@@ -36,13 +36,13 @@ const isReadonly = (label) => READONLY_COLS.includes(label);
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 const StatusBadge = ({ value }) => {
   const cfg = {
-    'In Progress': 'bg-blue-50 text-blue-700 border-blue-100',
-    'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    'On Hold': 'bg-amber-50 text-amber-700 border-amber-100',
-    'Cancelled': 'bg-red-50 text-red-700 border-red-100',
+    'In Progress': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+    'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+    'On Hold': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+    'Cancelled': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
   };
   return (
-    <span className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold ${cfg[value] || 'bg-slate-50 text-slate-700 border-slate-100'}`}>
+    <span className={`px-3 py-1.5 rounded-md border text-[10px] font-bold ${cfg[value] || 'bg-app-bg dark:bg-slate-800/50 text-slate-700 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
       {value || 'Pending'}
     </span>
   );
@@ -51,15 +51,15 @@ const StatusBadge = ({ value }) => {
 // ─── Revision Status Badge ────────────────────────────────────────────────────
 const RevisionBadge = ({ status }) => {
   const cfg = {
-    'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-100',
-    'Declined': 'bg-red-50 text-red-700 border-red-100',
-    'Cancelled': 'bg-slate-50 text-slate-600 border-slate-200',
-    'In Waiting Period': 'bg-amber-50 text-amber-700 border-amber-100',
-    'Pending Head': 'bg-blue-50 text-blue-700 border-blue-100',
-    'Pending Finance': 'bg-purple-50 text-purple-700 border-purple-100',
+    'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+    'Declined': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
+    'Cancelled': 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    'In Waiting Period': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+    'Pending Head': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+    'Pending Finance': 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
   };
   return (
-    <span className={`px-2 py-1 rounded-lg border text-xs font-semibold ${cfg[status] || 'bg-slate-50 text-slate-600 border-slate-100'}`}>
+    <span className={`px-2 py-1 rounded-md border text-xs font-semibold ${cfg[status] || 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
       {status}
     </span>
   );
@@ -68,7 +68,7 @@ const RevisionBadge = ({ status }) => {
 // ─── Summary Card (Static Aggregate View) ───────────────────────────────────
 const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
+    <div className="bg-app-surface dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
       {/* Decorative vertical accent */}
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${
         color === 'red' ? 'bg-red-500' :
@@ -78,32 +78,32 @@ const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }
 
       <div className="flex-1">
         <div className="flex flex-col mb-6">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
-          <p className="text-[10px] font-bold text-slate-500 italic uppercase tracking-wider">{subLabel}</p>
+          <p className="text-xs font-black text-slate-400 dark:text-slate-100 uppercase tracking-[0.2em] mb-1">{label}</p>
+          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 italic uppercase tracking-wider">{subLabel}</p>
         </div>
         <p className={`text-3xl font-black tracking-tighter ${
-          color === 'red' ? 'text-red-600' :
-          color === 'blue' ? 'text-blue-600' :
-          color === 'emerald' ? 'text-emerald-600' :
-          'text-slate-900 dark:text-white'
+          color === 'red' ? 'text-red-600 dark:text-red-400' :
+          color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+          color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+          'text-slate-900 dark:text-slate-100'
         }`}>
-          {format(value, false)}
+          {format(value)}
         </p>
       </div>
 
       {/* Right Side Metadata - Clean & Functional Context */}
-      <div className="pl-10 ml-6 border-l border-slate-100 dark:border-slate-800/50 flex flex-col gap-5 text-right min-w-[140px]">
+      <div className="pl-10 ml-6 border-l border-slate-100 dark:border-slate-800 dark:border-slate-800/50 flex flex-col gap-5 text-right min-w-[140px]">
         {extraStat && (
           <div>
-            <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">{extraStat.label}</p>
-            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-400'}`}>
+            <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">{extraStat.label}</p>
+            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-100'}`}>
               {extraStat.value}
             </p>
           </div>
         )}
         <div>
-          <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-1">Items Processed</p>
-          <p className="text-xs font-black text-slate-500 dark:text-slate-400 tracking-tight">{count} Rows</p>
+          <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Items Processed</p>
+          <p className="text-xs font-black text-slate-500 dark:text-slate-100 tracking-tight">{count} Rows</p>
         </div>
       </div>
     </div>
@@ -181,7 +181,7 @@ const BudgetMaster = () => {
   const isPM = userRole === 'Project Manager';
   const isHead = ['Head', 'Admin', 'Super Admin'].includes(userRole);
   const isFinance = ['Finance', 'Admin', 'Super Admin'].includes(userRole);
-  const { format } = useCurrency();
+  const { format, convert, code } = useCurrency();
 
   // ─── Permission helper ─────────────────────────────────────────────────────
   // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
@@ -367,6 +367,11 @@ const BudgetMaster = () => {
     if (col?.type === 'number' || col?.type === 'currency') {
       const parsed = parseFloat(value);
       val = isNaN(parsed) ? (value === '' ? '' : value) : parsed;
+      
+      // If it's a monetary column, convert from current currency to USD for storage
+      if (col?.type === 'currency' && val !== '') {
+        val = convert(val, code, 'USD');
+      }
     }
 
     setEditingData(prev => {
@@ -456,7 +461,15 @@ const BudgetMaster = () => {
             const row = { id: `row_${Date.now()}_${i}` };
             columns.forEach(col => {
               const idx = headers.indexOf(col.label.toLowerCase());
-              row[col.label] = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
+              let val = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
+              
+              // If it's a monetary column, assume the Excel has values in the current currency
+              // and convert them to USD for internal storage.
+              if (col.type === 'currency' && val !== '' && !isNaN(parseFloat(val))) {
+                val = convert(parseFloat(val), code, 'USD');
+              }
+              
+              row[col.label] = val;
             });
             rows.push(recalc(row));
           }
@@ -733,7 +746,7 @@ const BudgetMaster = () => {
           if (val === undefined || val === null) return '-';
           if (MONETARY_COLS.includes(c.label)) {
             try {
-              return format(val, false);
+              return format(val);
             } catch {
               return String(val);
             }
@@ -817,28 +830,28 @@ const BudgetMaster = () => {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="master-table-container">
+    <div className="master-table-container bg-app-surface dark:bg-slate-900 transition-colors duration-300 min-h-screen">
 
 
       {/* ── Delete Row Prompt ────────────────────────────────────────────────── */}
       {showDeletePrompt && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Confirm Delete</h3>
-              <button onClick={() => setShowDeletePrompt(null)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <button onClick={() => setShowDeletePrompt(null)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
                 Close
               </button>
             </div>
-            <p className="text-base text-slate-600 dark:text-slate-400 mb-2">Remove this budget entry?</p>
+            <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
             <p className="text-sm text-red-600 mb-6 font-medium">This action cannot be undone.</p>
             <div className="flex justify-end gap-4">
               <button onClick={() => setShowDeletePrompt(null)}
-                className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:bg-slate-800/80 transition-all">
+                className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
                 Cancel
               </button>
               <button onClick={confirmDeleteRow}
-                className="h-10 px-6 text-sm font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all">
+                className="h-10 px-6 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
                 Delete
               </button>
             </div>
@@ -851,32 +864,32 @@ const BudgetMaster = () => {
       {/* ── Add Column Modal ────────────────────────────────────────────────── */}
       {showAddColumnModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
+          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add New Column</h3>
-              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
                 <ChevronDown className="w-5 h-5 rotate-180" />
               </button>
             </div>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Column Label</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Column Label</label>
                 <input 
                   type="text" 
                   value={newColumnData.label}
                   onChange={e => setNewColumnData({ ...newColumnData, label: e.target.value })}
                   placeholder="e.g., Tax Rate"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Data Type</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Data Type</label>
                 <select 
                   value={newColumnData.type}
                   onChange={e => setNewColumnData({ ...newColumnData, type: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -887,11 +900,11 @@ const BudgetMaster = () => {
 
               <div className="flex justify-end gap-4 mt-8">
                 <button onClick={() => setShowAddColumnModal(false)}
-                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:bg-slate-800/80 transition-all">
+                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
                   Cancel
                 </button>
                 <button onClick={addColumn}
-                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
+                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
                   Add Column
                 </button>
               </div>
@@ -903,31 +916,31 @@ const BudgetMaster = () => {
       {/* ── Waiting Period Modal ─────────────────────────────────────────────── */}
       {showWaitingModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Set Waiting Period</h3>
-                <p className="text-sm text-slate-500 mt-1">Defer revision until a specific date</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Set Waiting Period</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">Defer revision until a specific date</p>
               </div>
               <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
                 Close
               </button>
             </div>
             <div className="p-8">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Defer Until</label>
+              <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 uppercase tracking-widest mb-2">Defer Until</label>
               <input type="date" min={new Date().toISOString().split('T')[0]}
                 value={waitingDate}
                 onChange={e => setWaitingDate(e.target.value)}
-                className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none mb-8 transition-all" />
+                className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none mb-8 transition-all" />
               <div className="flex gap-4">
                 <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition-all">
+                  className="flex-1 h-12 text-sm font-bold text-slate-600 border border-slate-300 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all">
                   Cancel
                 </button>
                 <button disabled={!waitingDate}
                   onClick={() => { handleStatusUpdate(showWaitingModal, 'In Waiting Period', { waiting_until: waitingDate }); setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-40">
+                  className="flex-1 h-12 text-sm font-bold bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-40">
                   Set Period
                 </button>
               </div>
@@ -937,10 +950,10 @@ const BudgetMaster = () => {
       )}
 
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 py-8 border-b border-slate-200 dark:border-slate-700 mb-8 px-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 py-8 border-b border-slate-200 dark:border-slate-700 mb-8 px-8 bg-app-surface dark:bg-slate-900">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white">Budget Master</h1>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">Budget Master</h1>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage project budgets and revision workflows</p>
           </div>
         </div>
@@ -950,8 +963,8 @@ const BudgetMaster = () => {
           <div className="flex items-center">
             <button onClick={() => setActiveTab('Table')}
               className={`text-sm transition-all ${activeTab === 'Table'
-                ? 'font-black text-slate-900 dark:text-white'
-                : 'font-bold text-slate-400 hover:text-blue-600 dark:text-slate-500'}`}>
+                ? 'font-black text-slate-900 dark:text-slate-100'
+                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
               Budget Table
             </button>
             <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
@@ -961,8 +974,8 @@ const BudgetMaster = () => {
             <div className="flex items-center">
               <button onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
                 className={`text-sm transition-all relative ${activeTab === 'Revisions'
-                  ? 'font-black text-slate-900 dark:text-white'
-                  : 'font-bold text-slate-400 hover:text-blue-600 dark:text-slate-500'}`}>
+                  ? 'font-black text-slate-900 dark:text-slate-100'
+                  : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
                 Revision Budget
                 {revisions.filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length > 0 && (
                   <span className="absolute -top-2 -right-6 px-1.5 py-0.5 text-[8px] font-black bg-blue-600 text-white rounded-none">
@@ -977,8 +990,8 @@ const BudgetMaster = () => {
           <div className="flex items-center">
             <button onClick={() => { setActiveTab('Analytics'); fetchRevisions(); }}
               className={`text-sm transition-all ${activeTab === 'Analytics'
-                ? 'font-black text-slate-900 dark:text-white'
-                : 'font-bold text-slate-400 hover:text-blue-600 dark:text-slate-500'}`}>
+                ? 'font-black text-slate-900 dark:text-slate-100'
+                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
               Budget Analytics
             </button>
             <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
@@ -987,8 +1000,8 @@ const BudgetMaster = () => {
           <div className="flex items-center">
             <button onClick={() => { setActiveTab('History'); fetchHistory(); }}
               className={`text-sm transition-all ${activeTab === 'History'
-                ? 'font-black text-slate-900 dark:text-white'
-                : 'font-bold text-slate-400 hover:text-blue-600 dark:text-slate-500'}`}>
+                ? 'font-black text-slate-900 dark:text-slate-100'
+                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
               Budget History
             </button>
           </div>
@@ -996,17 +1009,17 @@ const BudgetMaster = () => {
       </div>
 
       {/* ── Main Content Scroll Area ────────────────────────────────────────── */}
-      <div className="master-table-scroll">
+      <div className="master-table-scroll bg-app-bg/50 dark:bg-slate-950/50 transition-colors duration-300">
         <div className="master-table-scroll-inner p-8 space-y-8">
 
           {/* ── BUDGET TABLE TAB ─────────────────────────────────────────────────── */}
           {activeTab === 'Table' && (
             <>
               {/* Control Panel */}
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+              <div className="bg-app-surface dark:bg-slate-800 rounded-sm border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                       Active Project
                     </label>
                     <SearchableDropdown
@@ -1026,20 +1039,20 @@ const BudgetMaster = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                       Overall Budget
                     </label>
                     <input type="number"
-                      value={overallBudget}
-                      onChange={e => setOverallBudget(e.target.value)}
+                      value={convert(overallBudget, 'USD', code)}
+                      onChange={e => setOverallBudget(convert(parseFloat(e.target.value) || 0, code, 'USD'))}
                       placeholder="0.00"
-                      className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold" />
+                      className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                       Project Manager
                     </label>
-                    <div className="w-full px-4 py-3 text-base bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 font-bold min-h-[48px] flex items-center">
+                    <div className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-slate-600 dark:text-slate-100 font-bold min-h-[48px] flex items-center">
                       {managerName || '— Unassigned —'}
                     </div>
                   </div>
@@ -1048,11 +1061,11 @@ const BudgetMaster = () => {
 
               {/* Over-budget Warning */}
               {selectedProject && isOverBudget && (
-                <div className="px-8 py-6 bg-red-50 border border-red-200 rounded-lg flex items-start gap-4">
+                <div className="px-8 py-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start gap-4">
                   <div>
-                    <p className="text-base font-bold text-red-800">Project is Over Budget</p>
-                    <p className="text-sm text-red-600 mt-1">
-                      Total utilization <strong>{format(totalUtilization, false)}</strong> exceeds budget <strong>{format(parseFloat(overallBudget), false)}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget), false)}</strong>
+                    <p className="text-base font-bold text-red-800 dark:text-red-400">Project is Over Budget</p>
+                    <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                      Total utilization <strong>{format(totalUtilization)}</strong> exceeds budget <strong>{format(parseFloat(overallBudget))}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget))}</strong>
                     </p>
                   </div>
                 </div>
@@ -1079,8 +1092,8 @@ const BudgetMaster = () => {
                     count={tableData.length}
                     extraStat={{ 
                       label: 'Budget Limit', 
-                      value: format(parseFloat(overallBudget), false),
-                      color: isOverBudget ? 'text-red-500' : 'text-slate-500'
+                      value: format(parseFloat(overallBudget)),
+                      color: isOverBudget ? 'text-red-500' : 'text-slate-500 dark:text-slate-300'
                     }}
                   />
                   <SummaryCard
@@ -1093,20 +1106,20 @@ const BudgetMaster = () => {
                     extraStat={{ 
                       label: 'Approved Revisions', 
                       value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
-                      color: 'text-slate-500 dark:text-slate-400'
+                      color: 'text-slate-500 dark:text-slate-300 dark:text-slate-100'
                     }}
                   />
                 </div>
               )}
 
               {/* Table Toolbar */}
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex flex-wrap items-center gap-4">
+              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center gap-4">
                   {/* Add Item — needs add_row OR add_column permission */}
                   {(hasBudgetPerm('add_row') || hasBudgetPerm('add_column')) && (
                   <div className="relative">
                     <button onClick={() => setShowAddDropdown(!showAddDropdown)}
-                      className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
+                      className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
                       Add Item
                       <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
                     </button>
@@ -1114,17 +1127,17 @@ const BudgetMaster = () => {
                     {showAddDropdown && (
                       <>
                         <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden">
+                        <div className="absolute top-full left-0 mt-2 w-48 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden">
                           {hasBudgetPerm('add_row') && (
                           <button onClick={() => { addRow(); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors">
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors">
                             <Plus className="w-4 h-4 text-blue-500" />
                             <span>Add Row</span>
                           </button>
                           )}
                           {hasBudgetPerm('add_column') && (
                           <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
+                            className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
                             <Columns className="w-4 h-4 text-emerald-500" />
                             <span>Add Column</span>
                           </button>
@@ -1152,25 +1165,25 @@ const BudgetMaster = () => {
                     {showSaveDropdown && (
                       <>
                         <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="absolute top-full left-0 mt-2 w-72 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                           <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors">
-                            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600 font-bold">
+                            className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors">
+                            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-600 font-bold">
                               <Save className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900 dark:text-white">Save Budget</p>
-                              <p className="text-xs text-slate-500 mt-1">Save changes to budget master</p>
+                              <p className="font-bold text-slate-900 dark:text-slate-100">Save Budget</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Save changes to budget master</p>
                             </div>
                           </button>
                           <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-300 transition-colors border-t border-slate-100 dark:border-slate-700/50">
-                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600 font-bold">
+                            className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
+                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md text-emerald-600 font-bold">
                               <RefreshCw className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900 dark:text-white">Save & Sync to Project Master</p>
-                              <p className="text-xs text-slate-500 mt-1">Updates project's budget summary</p>
+                              <p className="font-bold text-slate-900 dark:text-slate-100">Save & Sync to Project Master</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Updates project's budget summary</p>
                             </div>
                           </button>
                         </div>
@@ -1189,7 +1202,7 @@ const BudgetMaster = () => {
                         if (!selectedProject) { toast.error('Please select a project first'); return; }
                         setShowUploadModal(true);
                       }}
-                      className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
+                      className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
                     >
                       {isParsing ? 'Parsing...' : 'Upload Budget'}
                     </button>
@@ -1199,7 +1212,7 @@ const BudgetMaster = () => {
                   <div className="relative">
                     <button
                       onClick={() => setShowExportDropdown(!showExportDropdown)}
-                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-100 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
                     >
                       <FileDown className="w-4 h-4" />
                       Export / Download
@@ -1214,34 +1227,34 @@ const BudgetMaster = () => {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 overflow-hidden"
+                            className="absolute right-0 mt-2 w-64 bg-app-surface dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 overflow-hidden"
                           >
                             <div className="px-4 py-2 mb-2 border-b border-slate-50 dark:border-slate-800">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Options</p>
+                              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Options</p>
                             </div>
                             
                             <button onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <Download className="w-4 h-4 text-blue-500" />
                               Download Template
                             </button>
 
                             <button onClick={() => { handleExportExcel(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
                               Export as Excel
                             </button>
 
                             <button onClick={() => { handleExportPDF(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
+                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <FileText className="w-4 h-4 text-red-500" />
                               Export as PDF
                             </button>
 
                             {attachmentName && (
                               <button onClick={() => { handleDownloadBudgetFile(selectedProject, attachmentName); setShowExportDropdown(false); }}
-                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
-                                <Download className="w-4 h-4 text-slate-400" />
+                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
+                                <Download className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                                 Download Original
                               </button>
                             )}
@@ -1257,9 +1270,9 @@ const BudgetMaster = () => {
                       <input type="text" placeholder="Search..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="px-4 py-2 text-xs font-bold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none w-48 transition-all" />
+                        className="px-4 py-2 text-xs font-bold bg-app-bg dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none w-48 transition-all text-slate-900 dark:text-slate-100" />
                     </div>
-                    <span className="text-xs text-slate-500 font-bold whitespace-nowrap">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap">
                       {sortedData.length} {sortedData.length === 1 ? 'item' : 'items'}
                     </span>
                   </div>
@@ -1269,10 +1282,10 @@ const BudgetMaster = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         {visibleColumns.map(col => (
                           <th key={col.id}
-                            className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
+                            className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
                             onClick={() => handleSort(col.label)}>
                             <div className="flex items-center gap-1">
                               {col.label}
@@ -1284,7 +1297,7 @@ const BudgetMaster = () => {
                             </div>
                           </th>
                         ))}
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 text-center whitespace-nowrap sticky right-0 bg-slate-50 dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700 border-b">
+                        <th className="py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-100 text-center whitespace-nowrap sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700 border-b">
                           Actions
                         </th>
                       </tr>
@@ -1301,15 +1314,15 @@ const BudgetMaster = () => {
                       ) : paginatedData.length === 0 ? (
                         <tr>
                           <td colSpan={visibleColumns.length + 1} className="py-32 text-center">
-                            <p className="text-xl font-black text-slate-300 uppercase tracking-widest mb-2">No Data Available</p>
-                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Select a project or import an Excel file</p>
+                            <p className="text-xl font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-2">No Data Available</p>
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Select a project or import an Excel file</p>
                           </td>
                         </tr>
                       ) : paginatedData.map(row => {
                         const isEdit = editingRowId === row.id;
                         return (
                           <tr key={row.id}
-                            className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-700/20 ${isEdit ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+                            className={`transition-colors hover:bg-app-bg dark:bg-slate-800/80 dark:hover:bg-slate-700/20 ${isEdit ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
                             {visibleColumns.map(col => {
                               const val = isEdit ? editingData[col.label] : row[col.label];
                               const mon = isMonetary(col.label);
@@ -1322,18 +1335,18 @@ const BudgetMaster = () => {
                                     {col.type === 'status' ? (
                                       <select value={val || ''}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
-                                        className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
+                                        className="w-full px-3 py-2 text-sm bg-app-surface dark:bg-slate-800 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
                                         {['In Progress', 'Completed', 'On Hold', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
                                       </select>
                                     ) : (
                                       <input
                                         type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
-                                        value={val !== undefined && val !== null ? val : ''}
+                                        value={col.type === 'currency' ? convert(val, 'USD', code) : (val !== undefined && val !== null ? val : '')}
                                         readOnly={ro}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
-                                        className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-all ${ro
-                                          ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 cursor-not-allowed'
-                                          : 'bg-white dark:bg-slate-800 border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 dark:text-slate-100'
+                                        className={`w-full px-3 py-2 text-sm border rounded-md outline-none transition-all ${ro
+                                          ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 cursor-not-allowed'
+                                          : 'bg-app-surface dark:bg-slate-800 border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 dark:text-slate-100'
                                           } ${num ? 'text-right font-mono' : ''}`}
                                       />
                                     )}
@@ -1345,17 +1358,17 @@ const BudgetMaster = () => {
                               let display = val !== undefined && val !== null && val !== '' ? val : '—';
                               if (display !== '—' && mon) {
                                 const n = parseFloat(display);
-                                if (!isNaN(n)) display = format(n, false);
+                                if (!isNaN(n)) display = format(n);
                               }
 
                               return (
                                 <td key={col.id}
-                                  className={`py-4 px-6 text-sm whitespace-nowrap transition-all duration-200 ${ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'
-                                    } ${num ? 'text-right' : ''}`}>
+                                  className={`py-4 px-6 text-sm whitespace-nowrap transition-all duration-200 ${ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-100'
+                                    } ${num ? 'text-right font-semibold' : ''}`}>
                                   {col.label === 'Status'
                                     ? <StatusBadge value={val} />
                                     : col.label === 'Balance' && parseFloat(val) < 0
-                                      ? <span className="text-red-600 font-bold">{display}</span>
+                                      ? <span className="text-red-600 dark:text-red-400 font-bold">{display}</span>
                                       : display
                                   }
                                 </td>
@@ -1363,31 +1376,31 @@ const BudgetMaster = () => {
                             })}
 
                             {/* Actions col */}
-                            <td className={`py-4 px-6 text-center sticky right-0 border-l border-slate-100 dark:border-slate-700 whitespace-nowrap transition-all duration-200 ${isEdit ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-slate-800'
+                            <td className={`py-4 px-6 text-center sticky right-0 border-l border-slate-100 dark:border-slate-800 dark:border-slate-700 whitespace-nowrap transition-all duration-200 ${isEdit ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-app-surface dark:bg-slate-800'
                               }`}>
                               <div className="flex items-center justify-center gap-2">
                                 {isEdit ? (
                                   <>
                                     <button onClick={saveEdit}
-                                      className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm" title="Save">
+                                      className="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition-all shadow-sm" title="Save">
                                       Save
                                     </button>
                                     <button onClick={cancelEdit}
-                                      className="px-4 py-1.5 text-slate-500 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all" title="Cancel">
+                                      className="px-4 py-1.5 text-slate-500 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all" title="Cancel">
                                       Cancel
                                     </button>
                                   </>
                                 ) : (
                                   hasBudgetPerm('edit_row') && (
                                   <button onClick={() => startEdit(row)}
-                                    className="px-4 py-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg text-xs font-bold transition-all" title="Edit">
+                                    className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md text-xs font-bold transition-all" title="Edit">
                                     Edit
                                   </button>
                                   )
                                 )}
                                 {hasBudgetPerm('delete_row') && (
                                 <button onClick={() => setShowDeletePrompt(row.id)}
-                                  className="px-4 py-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-xs font-bold transition-all" title="Delete">
+                                  className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-xs font-bold transition-all" title="Delete">
                                   Delete
                                 </button>
                                 )}
@@ -1401,19 +1414,19 @@ const BudgetMaster = () => {
                     {/* Summary footer */}
                     {tableData.length > 0 && (
                       <tfoot>
-                        <tr className="bg-slate-50 dark:bg-slate-800/80 border-t-4 border-slate-200 dark:border-slate-700">
+                        <tr className="bg-app-bg dark:bg-slate-800/80 border-t-4 border-slate-200 dark:border-slate-700">
                           {visibleColumns.map((col, idx) => {
                             let cell = null;
-                            if (idx === 0) cell = <span className="text-xs font-bold text-slate-500">Total</span>;
-                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated, false)}</span>;
-                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization, false)}</span>;
-                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(totalBalance, false)}</span>;
+                            if (idx === 0) cell = <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">Total</span>;
+                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated)}</span>;
+                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>;
+                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{format(totalBalance)}</span>;
                             const num = isMonetary(col.label) || col.label === 'Unit count';
                             return (
                               <td key={col.id} className={`py-6 px-6 ${num ? 'text-right' : ''}`}>{cell}</td>
                             );
                           })}
-                          <td className="py-6 px-6 sticky right-0 bg-slate-50 dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700" />
+                          <td className="py-6 px-6 sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700" />
                         </tr>
                       </tfoot>
                     )}
@@ -1422,33 +1435,33 @@ const BudgetMaster = () => {
 
                 {/* Pagination */}
                 {sortedData.length > 0 && (
-                  <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                      <span className="text-xs font-bold text-slate-500">Rows per page:</span>
-                      <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                        className="px-4 py-1.5 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none transition-all focus:ring-4 focus:ring-slate-500/10">
-                        {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
-                      </select>
-                      <span className="text-xs font-bold text-slate-500">
-                        {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
-                      </span>
-                    </div>
+                  <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">Rows per page:</span>
+                    <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                      className="px-4 py-1.5 text-xs font-bold bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none transition-all focus:ring-4 focus:ring-slate-500/10 text-slate-900 dark:text-slate-100">
+                      {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
+                    </select>
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">
+                      {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
+                    </span>
+                  </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
-                        className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                        className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
                         First
                       </button>
                       {getPageNumbers().map(p => (
                         <button key={p} onClick={() => setCurrentPage(p)}
-                          className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === currentPage
+                          className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-md transition-all ${p === currentPage
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
                             }`}>
                           {p}
                         </button>
                       ))}
                       <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}
-                        className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                        className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
                         Last
                       </button>
                     </div>
@@ -1462,15 +1475,15 @@ const BudgetMaster = () => {
           {activeTab === 'Revisions' && (
             <div className="space-y-6">
               {isPM && selectedProject && (
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-bold text-slate-800 dark:text-white">Budget Revision Management</h2>
-                      <p className="text-sm font-semibold text-slate-500 mt-1">Submit and track revision requests for <span className="text-slate-900 dark:text-white">{selectedProject}</span></p>
+                      <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Budget Revision Management</h2>
+                      <p className="text-sm font-semibold text-slate-500 dark:text-slate-300 mt-1">Submit and track revision requests for <span className="text-slate-900 dark:text-slate-100">{selectedProject}</span></p>
                     </div>
                     <button onClick={() => setShowNewRevisionForm(!showNewRevisionForm)}
-                      className={`h-12 px-8 rounded-lg font-bold text-sm transition-all ${showNewRevisionForm
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      className={`h-12 px-8 rounded-md font-bold text-sm transition-all ${showNewRevisionForm
+                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-100 hover:bg-slate-200'
                         : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20'
                         }`}>
                       {showNewRevisionForm ? 'Cancel Request' : 'New Revision Request'}
@@ -1481,26 +1494,26 @@ const BudgetMaster = () => {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700"
+                      className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 dark:border-slate-700"
                     >
                       <form onSubmit={handleRevisionSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2">Current Project Budget</label>
-                            <div className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-lg text-slate-700 dark:text-slate-300">
-                              {format(overallBudget, false)}
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Current Project Budget</label>
+                            <div className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md font-bold text-lg text-slate-700 dark:text-slate-100">
+                              {format(overallBudget)}
                             </div>
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2">
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                               Additional Budget Required
                             </label>
                             <div className="relative">
                               <input type="number" required
-                                value={revisionData.revised_budget}
-                                onChange={e => setRevisionData({ ...revisionData, revised_budget: e.target.value })}
+                                value={convert(revisionData.revised_budget, 'USD', code)}
+                                onChange={e => setRevisionData({ ...revisionData, revised_budget: convert(parseFloat(e.target.value) || 0, code, 'USD') })}
                                 placeholder="0.00"
-                                className="w-full px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
+                                className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
                               
                               <button type="button" onClick={handleFetchMarketAnalysis} disabled={fetchingMarket}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-amber-200 shadow-sm disabled:opacity-50">
@@ -1514,7 +1527,7 @@ const BudgetMaster = () => {
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95, y: 20 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
-                              className="bg-white dark:bg-slate-900 border-2 border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden"
+                              className="bg-app-surface dark:bg-slate-900 border-2 border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden"
                             >
                               <div className="bg-amber-500 px-6 py-3 flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-white">
@@ -1528,16 +1541,16 @@ const BudgetMaster = () => {
                               
                               <div className="p-6">
                                 <div className="grid grid-cols-2 gap-4 mb-6">
-                                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Utilization</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
+                                  <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
+                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Utilization</p>
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
                                       {Math.round(marketAnalysis.utilization_ratio * 100)}%
                                     </p>
                                   </div>
-                                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Remaining</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-300">
-                                      {format(marketAnalysis.remaining_balance, false)}
+                                  <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
+                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Remaining</p>
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
+                                      {format(marketAnalysis.remaining_balance)}
                                     </p>
                                   </div>
                                 </div>
@@ -1545,24 +1558,24 @@ const BudgetMaster = () => {
                                 <div className="space-y-4">
                                   <div>
                                     <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Suggested Adjustment</p>
-                                    <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                                      +{format(marketAnalysis.delta, false)}
+                                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                                      +{format(marketAnalysis.delta)}
                                     </p>
                                   </div>
                                   
                                   <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed italic">
+                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-100 leading-relaxed italic">
                                       "{marketAnalysis.reasoning}"
                                     </p>
                                   </div>
 
                                   <div className="flex gap-3 pt-2">
                                     <button type="button" onClick={handleAcceptSuggestion}
-                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-all shadow-lg active:scale-95">
+                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-800 transition-all shadow-lg active:scale-95">
                                       Apply Suggestion
                                     </button>
                                     <button type="button" onClick={() => setShowMarketSuggestion(false)}
-                                      className="px-6 h-12 bg-white dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-50 transition-all border border-slate-200 dark:border-slate-700">
+                                      className="px-6 h-12 bg-app-surface dark:bg-slate-800 text-slate-500 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all border border-slate-200 dark:border-slate-700">
                                       Dismiss
                                     </button>
                                   </div>
@@ -1572,10 +1585,10 @@ const BudgetMaster = () => {
                           )}
 
                           {revisionData.revised_budget && (
-                            <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
+                            <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-md border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
                               <span className="text-xs font-bold text-indigo-800 dark:text-indigo-300">New Projected Total</span>
                               <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
-                                {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0), false)}
+                                {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0))}
                               </span>
                             </div>
                           )}
@@ -1583,22 +1596,22 @@ const BudgetMaster = () => {
 
                         <div className="space-y-6">
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2">
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                               Reason for Revision
                             </label>
                             <textarea required rows={4}
                               value={revisionData.reasons}
                               onChange={e => setRevisionData({ ...revisionData, reasons: e.target.value })}
                               placeholder="Justification..."
-                              className="w-full px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base resize-none font-bold" />
+                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base resize-none font-bold" />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-2">Support Documentation</label>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Support Documentation</label>
                             <div className="relative">
                               <input type="file" accept=".pdf,.xlsx,.xls"
                                 onChange={e => setRevisionData({ ...revisionData, attachment: e.target.files[0] })}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                              <div className={`w-full px-4 py-4 border-2 border-dashed rounded-lg transition-all flex items-center justify-center gap-4 ${revisionData.attachment ? 'border-indigo-500 bg-indigo-50/10 text-indigo-600' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}>
+                              <div className={`w-full px-4 py-4 border-2 border-dashed rounded-md transition-all flex items-center justify-center gap-4 ${revisionData.attachment ? 'border-indigo-500 bg-indigo-50/10 text-indigo-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
                                 <span className="text-sm font-bold">
                                   {revisionData.attachment ? revisionData.attachment.name : 'Click to attach evidence'}
                                 </span>
@@ -1609,7 +1622,7 @@ const BudgetMaster = () => {
 
                         <div className="md:col-span-2 flex justify-end gap-4 pt-4">
                           <button type="submit" disabled={submittingRevision}
-                            className="h-12 px-12 text-sm font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50">
+                            className="h-12 px-12 text-sm font-bold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50">
                             {submittingRevision ? 'Submitting...' : 'Submit Revision'}
                           </button>
                         </div>
@@ -1619,13 +1632,13 @@ const BudgetMaster = () => {
                 </div>
               )}
 
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-700 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white">Revision Request History</h2>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Revision Request History</h2>
                   </div>
                   <button onClick={fetchRevisions} disabled={fetchingRevisions}
-                    className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-700 transition-all">
+                    className="px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
                     {fetchingRevisions ? 'Refreshing...' : 'Refresh'}
                   </button>
                 </div>
@@ -1633,10 +1646,10 @@ const BudgetMaster = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Status', 'Attachment', 'Actions']
                           .map(h => (
-                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
+                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
                               } ${h === 'Actions' ? 'text-center' : ''}`}>
                               {h}
                             </th>
@@ -1654,11 +1667,11 @@ const BudgetMaster = () => {
                         <tr>
                           <td colSpan={8} className="py-24">
                             <div className="flex flex-col items-center justify-center text-center px-4">
-                              <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
+                              <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800 dark:border-slate-700">
                                 <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
                               </div>
-                              <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No revision requests found</p>
-                              <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                              <p className="text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">No revision requests found</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium max-w-[200px] mt-1">
                                 Any budget revisions you submit will appear here in the history log.
                               </p>
                             </div>
@@ -1667,17 +1680,17 @@ const BudgetMaster = () => {
                       ) : revisions.map(rev => {
                         const delta = (rev.revised_budget || 0) - (rev.previous_budget || 0);
                         return (
-                          <tr key={rev.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-700/20 transition-all duration-200">
+                          <tr key={rev.id} className="hover:bg-app-bg dark:bg-slate-800/80 dark:hover:bg-slate-700/20 transition-all duration-200">
                             <td className="py-4 px-6">
-                              <p className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight">{rev.project_name}</p>
-                              <p className="text-[10px] text-slate-400 font-bold">#{rev.id}</p>
+                              <p className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{rev.project_name}</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">#{rev.id}</p>
                             </td>
-                            <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{rev.pm_name || '—'}</td>
-                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-400">{format(rev.previous_budget, false)}</td>
-                            <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget, false)}</td>
+                            <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{rev.pm_name || '—'}</td>
+                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-100">{format(rev.previous_budget)}</td>
+                            <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
                             <td className="py-4 px-6 text-right">
                               <span className={`text-xs font-black ${delta >= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                                {delta >= 0 ? '+' : ''}{format(delta, false)}
+                                {delta >= 0 ? '+' : ''}{format(delta)}
                               </span>
                             </td>
                             <td className="py-4 px-6"><RevisionBadge status={rev.status} /></td>
@@ -1687,7 +1700,7 @@ const BudgetMaster = () => {
                                   className="text-xs font-bold text-blue-600 hover:text-blue-700">
                                   Download
                                 </button>
-                                : <span className="text-[10px] font-bold text-slate-400">None</span>
+                                : <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">None</span>
                               }
                             </td>
                             <td className="py-4 px-6">
@@ -1695,11 +1708,11 @@ const BudgetMaster = () => {
                                 {isHead && rev.status === 'Pending Head' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Pending Finance')} title="Send to Finance"
-                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm">
+                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm">
                                       Forward
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Cancelled')} title="Cancel"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
                                       Cancel
                                     </button>
                                   </>
@@ -1707,21 +1720,21 @@ const BudgetMaster = () => {
                                 {isFinance && rev.status === 'Pending Finance' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Approved')} title="Approve"
-                                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-700 transition-all shadow-sm">
+                                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold hover:bg-emerald-700 transition-all shadow-sm">
                                       Approve
                                     </button>
                                     <button onClick={() => setShowWaitingModal(rev.id)} title="Set Waiting Period"
-                                      className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-[10px] font-bold hover:bg-amber-600 transition-all shadow-sm">
+                                      className="px-3 py-1.5 bg-amber-500 text-white rounded-md text-[10px] font-bold hover:bg-amber-600 transition-all shadow-sm">
                                       Wait
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Declined')} title="Decline"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
                                       Decline
                                     </button>
                                   </>
                                 )}
                                 {!['Pending Head', 'Pending Finance'].includes(rev.status) && (
-                                  <span className="text-[10px] font-bold text-slate-400">Locked</span>
+                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">Locked</span>
                                 )}
                               </div>
                             </td>
@@ -1736,14 +1749,13 @@ const BudgetMaster = () => {
           )}
 
           {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
-          {/* ── BUDGET ANALYTICS TAB ─────────────────────────────────────────────── */}
           {activeTab === 'Analytics' && (
             <div className="space-y-6">
               {/* Stepper Card */}
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                 <div className="mb-8">
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Budget Revision Lifecycle</h2>
-                  <p className="text-sm font-semibold text-slate-500 mt-1">Track approval stages for {selectedProject || 'Project'}</p>
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Budget Revision Lifecycle</h2>
+                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-300 mt-1">Track approval stages for {selectedProject || 'Project'}</p>
                 </div>
 
                 {(() => {
@@ -1776,8 +1788,8 @@ const BudgetMaster = () => {
                                 initial={false}
                                 animate={{
                                   scale: isActive ? 1.15 : 1,
-                                  backgroundColor: isDone ? '#3b82f6' : 'rgba(255, 255, 255, 0.8)',
-                                  borderColor: isDone ? '#3b82f6' : isActive ? '#3b82f6' : '#f1f5f9',
+                                  backgroundColor: isDone ? '#3b82f6' : 'rgba(15, 23, 42, 0.8)',
+                                  borderColor: isDone ? '#3b82f6' : isActive ? '#3b82f6' : '#334155',
                                 }}
                                 className={`w-14 h-14 rounded-full border flex items-center justify-center transition-all relative backdrop-blur-md shadow-sm dark:bg-slate-900/80`}
                               >
@@ -1794,10 +1806,10 @@ const BudgetMaster = () => {
 
                               {/* Labels */}
                               <div className="absolute top-full mt-6 text-center">
-                                <p className={`text-[12px] font-bold tracking-tight mb-1 ${isDone || isActive ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
+                                <p className={`text-[12px] font-bold tracking-tight mb-1 ${isDone || isActive ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-300'}`}>
                                   {step.label}
                                 </p>
-                                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest opacity-50">
+                                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-300 uppercase tracking-widest">
                                   {step.sub}
                                 </p>
                               </div>
@@ -1837,20 +1849,20 @@ const BudgetMaster = () => {
 
               {/* Quick Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500">Revision Count</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-white">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Revision Count</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
                       {revisions.filter(r => r.project_name === selectedProject).length}
                     </p>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold">Total requests submitted</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">Total requests submitted</p>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500">Approval Rate</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-white">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Approval Rate</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
                       {(() => {
                         const projRevs = revisions.filter(r => r.project_name === selectedProject);
                         if (projRevs.length === 0) return '0%';
@@ -1859,17 +1871,17 @@ const BudgetMaster = () => {
                       })()}
                     </p>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold">Successful final approvals</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">Successful final approvals</p>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500">Pending Review</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-white">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Pending Review</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
                       {revisions.filter(r => r.project_name === selectedProject && ['Pending Head', 'Pending Finance'].includes(r.status)).length}
                     </p>
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold">Requests awaiting action</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">Requests awaiting action</p>
                 </div>
               </div>
             </div>
@@ -1880,12 +1892,12 @@ const BudgetMaster = () => {
             <div className="space-y-8 pb-12">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Budget Distribution Chart (Simulated with CSS) */}
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Allocation</h3>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Allocation</h3>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">By Category</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest">By Category</span>
                     </div>
                   </div>
                   
@@ -1895,8 +1907,8 @@ const BudgetMaster = () => {
                       return (
                         <div key={idx} className="space-y-2">
                           <div className="flex justify-between items-end">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</span>
-                            <span className="text-[10px] font-black text-slate-400">{format(cat.value, false)} ({Math.round(percentage)}%)</span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-100">{cat.label}</span>
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">{format(cat.value)} ({Math.round(percentage)}%)</span>
                           </div>
                           <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                             <motion.div 
@@ -1915,18 +1927,18 @@ const BudgetMaster = () => {
                     })}
                     {estimatedBreakdown.length === 0 && (
                       <div className="py-16 flex flex-col items-center justify-center text-center">
-                        <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                        <div className="w-14 h-14 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
                           <PieChart className="h-6 w-6 text-slate-300 dark:text-slate-600" />
                         </div>
-                        <p className="text-xs font-bold text-slate-400 italic">No allocation data available</p>
+                        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 italic">No allocation data available</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Utilization Health */}
-                <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-8">Utilization Health</h3>
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-8">Utilization Health</h3>
                   
                   <div className="flex items-center justify-center py-4">
                     <div className="relative w-48 h-48 flex items-center justify-center">
@@ -1950,78 +1962,24 @@ const BudgetMaster = () => {
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className={`text-3xl font-black ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-white'}`}>
+                        <span className={`text-3xl font-black ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-slate-100'}`}>
                           {Math.round((totalUtilization / (parseFloat(overallBudget) || 1)) * 100)}%
                         </span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Utilized</span>
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Utilized</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-8 grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Spent (Utilized)</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalUtilized, false)}</p>
+                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Spent (Utilized)</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{format(totalUtilized)}</p>
                     </div>
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Committed</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white">{format(totalCommitment, false)}</p>
+                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Committed</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{format(totalCommitment)}</p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Category-wise Over-budget Warning */}
-              <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6">Category Risk Assessment</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-100 dark:border-slate-700">
-                        <th className="py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimate</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Utilized</th>
-                        <th className="py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance</th>
-                        <th className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                      {estimatedBreakdown.map((cat, idx) => {
-                        const catUtil = tableData
-                          .filter(r => (r.Category || 'Other') === cat.label)
-                          .reduce((s, r) => s + (parseFloat(r['Total utilization']) || 0), 0);
-                        const balance = cat.value - catUtil;
-                        const isRisk = catUtil > cat.value;
-                        return (
-                          <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                            <td className="py-4 text-xs font-bold text-slate-700 dark:text-slate-300">{cat.label}</td>
-                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(cat.value, false)}</td>
-                            <td className="py-4 text-right text-xs font-bold text-slate-900 dark:text-white">{format(catUtil, false)}</td>
-                            <td className={`py-4 text-right text-xs font-bold ${balance < 0 ? 'text-red-600' : 'text-emerald-600'}`}>{format(balance, false)}</td>
-                            <td className="py-4 text-center">
-                              <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                isRisk ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              }`}>
-                                {isRisk ? 'Over Budget' : 'Within Limit'}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {estimatedBreakdown.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="py-16">
-                            <div className="flex flex-col items-center justify-center text-center">
-                              <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
-                                <ShieldAlert className="h-5 w-5 text-slate-300 dark:text-slate-600" />
-                              </div>
-                              <p className="text-[11px] font-bold text-slate-400 italic">No category data available for risk assessment</p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               </div>
             </div>
@@ -2029,29 +1987,29 @@ const BudgetMaster = () => {
 
           {/* ── BUDGET HISTORY TAB ───────────────────────────────────────────────── */}
           {activeTab === 'History' && (
-            <div className="bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+            <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Budget History & Snapshots</h2>
+                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Budget History & Snapshots</h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <select 
                     value={historyFilter} 
                     onChange={e => { setHistoryFilter(e.target.value); setHistoryCurrentPage(1); }}
-                    className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none cursor-pointer">
+                    className="px-3 py-1.5 text-xs font-bold bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none cursor-pointer text-slate-700 dark:text-slate-100">
                     <option value="All">All Types</option>
                     <option value="Upload">Uploads</option>
                     <option value="Save">Manual Saves</option>
                   </select>
                   {(hasBudgetPerm('budget_audits')) && (
                     <button onClick={() => { setShowAuditModal(true); fetchAuditLogs(); }}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-all">
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-900/40 rounded-md hover:bg-indigo-100 transition-all">
                       <ClipboardList className="w-3.5 h-3.5" />
                       Budget Audits
                     </button>
                   )}
                   <button onClick={fetchHistory} disabled={fetchingHistory}
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:text-slate-700 hover:bg-slate-50 transition-all">
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-300 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md hover:text-slate-700 hover:bg-app-bg dark:bg-slate-800/50 transition-all">
                     <RefreshCw className={`w-3.5 h-3.5 ${fetchingHistory ? 'animate-spin' : ''}`} />
                     {fetchingHistory ? 'Refreshing...' : 'Refresh'}
                   </button>
@@ -2061,57 +2019,57 @@ const BudgetMaster = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Project Manager</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Overall Budget</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Uploaded By</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
+                    <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Project Manager</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Type</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Overall Budget</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Uploaded By</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Last Updated</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                     {fetchingHistory ? (
-                      <tr><td colSpan={6} className="py-12 text-center text-slate-400">Loading history...</td></tr>
+                      <tr><td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-300">Loading history...</td></tr>
                     ) : paginatedHistoryData.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-24">
                           <div className="flex flex-col items-center justify-center text-center px-4">
-                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-700">
-                              <History className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                            <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800">
+                              <History className="h-8 w-8 text-slate-300 dark:text-slate-500" />
                             </div>
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">No budget history found</p>
-                            <p className="text-[10px] text-slate-400 font-medium max-w-[200px] mt-1">
+                            <p className="text-sm font-bold text-slate-500 dark:text-slate-100">No budget history found</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium max-w-[200px] mt-1">
                               Upload an excel snapshot or save a manual revision to start building your budget history.
                             </p>
                           </div>
                         </td>
                       </tr>
                     ) : paginatedHistoryData.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-all duration-200">
-                        <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-300 tracking-tight">
+                      <tr key={item.id} className="hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/20 transition-all duration-200">
+                        <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-100 tracking-tight">
                           {managerName || 'Unassigned'}
                         </td>
                         <td className="py-4 px-6">
-                          <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'}`}>
                             {item.attachment_name ? 'Upload' : 'Save'}
                           </span>
                         </td>
-                        <td className="py-4 px-6 text-sm font-bold text-blue-600">{format(item.overall_budget, false)}</td>
-                        <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-400">{item.uploaded_by || 'Unknown'}</td>
-                        <td className="py-4 px-6 text-sm font-bold text-slate-500">
+                        <td className="py-4 px-6 text-sm font-bold text-blue-600 dark:text-blue-400">{format(item.overall_budget)}</td>
+                        <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{item.uploaded_by || 'Unknown'}</td>
+                        <td className="py-4 px-6 text-sm font-bold text-slate-500 dark:text-slate-300">
                           {new Date(item.updated_at).toLocaleDateString()}
                         </td>
                         <td className="py-4 px-6">
                           <div className="flex items-center justify-center gap-4">
                             <button onClick={() => loadVersion(item.id)}
                               title="View Snapshot"
-                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-all">
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 p-1.5 rounded-md transition-all">
                               <Eye className="w-4 h-4" />
                             </button>
                             <button onClick={() => deleteVersion(item.id)}
                               title="Delete Snapshot"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 p-1.5 rounded-md transition-all">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -2124,33 +2082,33 @@ const BudgetMaster = () => {
 
               {/* History Pagination */}
               {historyData.length > 0 && (
-                <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
+                <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-6">
                   <div className="flex items-center gap-6">
-                    <span className="text-xs font-bold text-slate-500">Rows per page:</span>
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300">Rows per page:</span>
                     <select value={historyItemsPerPage} onChange={e => { setHistoryItemsPerPage(Number(e.target.value)); setHistoryCurrentPage(1); }}
-                      className="px-4 py-1.5 text-xs font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none transition-all focus:ring-4 focus:ring-slate-500/10">
+                      className="px-4 py-1.5 text-xs font-bold bg-app-bg dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none transition-all focus:ring-4 focus:ring-slate-500/10 text-slate-700 dark:text-slate-100">
                       {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
                     </select>
-                    <span className="text-xs font-bold text-slate-500">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300">
                       {(historyCurrentPage - 1) * historyItemsPerPage + 1}–{Math.min(historyCurrentPage * historyItemsPerPage, historyData.length)} of {historyData.length}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setHistoryCurrentPage(1)} disabled={historyCurrentPage === 1}
-                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
                       First
                     </button>
                     {getHistoryPageNumbers().map(p => (
                       <button key={p} onClick={() => setHistoryCurrentPage(p)}
-                        className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-lg transition-all ${p === historyCurrentPage
+                        className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-md transition-all ${p === historyCurrentPage
                           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700'
+                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
                           }`}>
                         {p}
                       </button>
                     ))}
                     <button onClick={() => setHistoryCurrentPage(totalHistoryPages)} disabled={historyCurrentPage === totalHistoryPages}
-                      className="px-4 py-2 text-xs font-bold rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
                       Last
                     </button>
                   </div>
@@ -2164,19 +2122,19 @@ const BudgetMaster = () => {
       {/* ── Budget Audit Modal ────────────────────────────────────────────────── */}
       {showAuditModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-md bg-indigo-100 flex items-center justify-center">
                   <ClipboardList className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Audit Trail</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
+                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Audit Trail</h3>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
                 </div>
               </div>
               <button onClick={() => setShowAuditModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400">
+                className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400 dark:text-slate-500">
                 <span className="text-lg font-bold">✕</span>
               </button>
             </div>
@@ -2185,60 +2143,60 @@ const BudgetMaster = () => {
               {fetchingAudit ? (
                 <div className="flex items-center justify-center py-24">
                   <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-                  <span className="ml-3 text-sm font-bold text-slate-400">Loading audit logs...</span>
+                  <span className="ml-3 text-sm font-bold text-slate-400 dark:text-slate-500">Loading audit logs...</span>
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
                     <ClipboardList className="w-8 h-8 text-slate-300" />
                   </div>
-                  <p className="text-sm font-bold text-slate-400">No audit records found</p>
-                  <p className="text-xs text-slate-400 mt-1">Audit entries will appear after any budget save or upload action.</p>
+                  <p className="text-sm font-bold text-slate-400 dark:text-slate-500">No audit records found</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Audit entries will appear after any budget save or upload action.</p>
                 </div>
               ) : (
                 <table className="w-full text-left">
                   <thead className="sticky top-0 z-10">
-                    <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">#</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Timestamp</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Action</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Performed By</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Role</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Budget</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Attachment</th>
-                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Synced</th>
+                    <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">#</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Timestamp</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Action</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Performed By</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Role</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Budget</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Rows</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Attachment</th>
+                      <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Synced</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {auditLogs.map((log, idx) => (
                       <tr key={log.id} className="hover:bg-indigo-50/40 dark:hover:bg-slate-700/20 transition-colors">
-                        <td className="py-3 px-5 text-xs font-bold text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-5 text-xs font-bold text-slate-400 dark:text-slate-500">{idx + 1}</td>
                         <td className="py-3 px-5 text-xs font-bold text-slate-600 whitespace-nowrap">
                           {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
                         </td>
                         <td className="py-3 px-5">
-                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border ${
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
                             log.action === 'UPLOAD'
                               ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : log.action === 'SAVE'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                              : 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200'
                           }`}>{log.action}</span>
                         </td>
-                        <td className="py-3 px-5 text-sm font-bold text-slate-800 dark:text-slate-200">
+                        <td className="py-3 px-5 text-sm font-bold text-slate-800 dark:text-slate-100 dark:text-slate-200">
                           {log.user_name || log.details?.uploaded_by || '—'}
                         </td>
-                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500 dark:text-slate-300">
                           {log.user_role || '—'}
                         </td>
                         <td className="py-3 px-5 text-sm font-bold text-blue-600">
-                          {log.details?.overall_budget != null ? format(log.details.overall_budget, false) : '—'}
+                          {log.details?.overall_budget != null ? format(log.details.overall_budget) : '—'}
                         </td>
                         <td className="py-3 px-5 text-xs font-bold text-slate-600">
                           {log.details?.rows ?? '—'}
                         </td>
-                        <td className="py-3 px-5 text-xs font-bold text-slate-500">
+                        <td className="py-3 px-5 text-xs font-bold text-slate-500 dark:text-slate-300">
                           {log.details?.attachment_name || <span className="text-slate-300">None</span>}
                         </td>
                         <td className="py-3 px-5">
@@ -2253,10 +2211,10 @@ const BudgetMaster = () => {
               )}
             </div>
 
-            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
-              <span className="text-xs font-bold text-slate-400">{auditLogs.length} total entries</span>
+            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500">{auditLogs.length} total entries</span>
               <button onClick={() => { setShowAuditModal(false); }}
-                className="px-6 py-2 text-xs font-black text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-all uppercase tracking-widest">
+                className="px-6 py-2 text-xs font-black text-slate-600 bg-app-surface border border-slate-200 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all uppercase tracking-widest">
                 Close
               </button>
             </div>
@@ -2267,21 +2225,21 @@ const BudgetMaster = () => {
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Upload Template</h3>
-                <p className="text-xs font-black text-slate-500 mt-1 uppercase tracking-widest">Required format for excel uploads</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Upload Template</h3>
+                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Required format for excel uploads</p>
               </div>
               <button onClick={() => setShowTemplateModal(false)}
-                className="text-xs font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest">
+                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
                 Close
               </button>
             </div>
 
             <div className="p-8">
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-none p-8 border border-slate-200 dark:border-slate-700 mb-8">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">
+              <div className="bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-none p-8 border border-slate-200 dark:border-slate-700 mb-8">
+                <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-6">
                   Standard Column Headers
                 </h4>
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -2289,7 +2247,7 @@ const BudgetMaster = () => {
                     "Category", "Item Name", "Unit Type", "Unit count",
                     "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
                   ].map(header => (
-                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                    <div key={header} className="px-4 py-3 bg-app-surface dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
                       {header}
                     </div>
                   ))}
@@ -2299,7 +2257,7 @@ const BudgetMaster = () => {
               <div className="overflow-x-auto rounded-none border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
                       <th className="px-6 py-4">Category</th>
                       <th className="px-6 py-4">Item Name</th>
                       <th className="px-6 py-4">Unit Type</th>
@@ -2308,18 +2266,18 @@ const BudgetMaster = () => {
                       <th className="px-6 py-4">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-600 dark:text-slate-400">
-                    <tr className="border-b border-slate-100 dark:border-slate-800">
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">CAPEX</td>
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">Laptop Dell XPS</td>
+                  <tbody className="text-slate-600 dark:text-slate-100">
+                    <tr className="border-b border-slate-100 dark:border-slate-800 dark:border-slate-800">
+                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">CAPEX</td>
+                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Laptop Dell XPS</td>
                       <td className="px-6 py-4">Nos</td>
                       <td className="px-6 py-4">5</td>
                       <td className="px-6 py-4">1,20,000</td>
                       <td className="px-6 py-4 font-black text-blue-600">IN PROGRESS</td>
                     </tr>
                     <tr>
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">Revenue</td>
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">Software License</td>
+                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Revenue</td>
+                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Software License</td>
                       <td className="px-6 py-4">Nos</td>
                       <td className="px-6 py-4">1</td>
                       <td className="px-6 py-4">50,000</td>
@@ -2330,13 +2288,13 @@ const BudgetMaster = () => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4">
+            <div className="px-8 py-6 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex justify-end gap-4">
               <button onClick={() => setShowTemplateModal(false)}
-                className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-all">
+                className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
                 Close
               </button>
               <button onClick={handleDownloadTemplate}
-                className="h-12 px-12 text-sm font-black bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
+                className="h-12 px-12 text-sm font-black bg-emerald-600 text-white rounded-md hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
                 Download Template
               </button>
             </div>
@@ -2347,36 +2305,36 @@ const BudgetMaster = () => {
       {/* ── Budget Date Modal ────────────────────────────────────────────────── */}
       {showDateModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest">Budget Date</h3>
-                <p className="text-xs font-black text-slate-500 mt-1 uppercase tracking-widest">Effective date for this version</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Date</h3>
+                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Effective date for this version</p>
               </div>
               <button onClick={() => setShowDateModal(false)}
-                className="text-xs font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest">
+                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
                 Close
               </button>
             </div>
 
             <div className="p-8">
               <div className="mb-8">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Effective Date</label>
+                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-white font-bold"
+                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 font-bold"
                 />
               </div>
 
               <div className="flex gap-4">
                 <button onClick={() => setShowDateModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-all">
+                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
                   Cancel
                 </button>
                 <button onClick={executeSave} disabled={saving}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest">
+                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest">
                   {saving ? 'Saving...' : 'Confirm'}
                 </button>
               </div>
@@ -2387,38 +2345,38 @@ const BudgetMaster = () => {
       {/* ── Excel Upload Modal ────────────────────────────────────────────────── */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest">Import Budget</h3>
-                <p className="text-xs font-black text-slate-500 mt-1 uppercase tracking-widest">Upload new budget snapshot</p>
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Import Budget</h3>
+                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Upload new budget snapshot</p>
               </div>
               <button onClick={() => setShowUploadModal(false)}
-                className="text-xs font-black text-slate-400 hover:text-slate-600 transition-all uppercase tracking-widest">
+                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
                 Close
               </button>
             </div>
 
             <div className="p-8 space-y-8">
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Project Name</label>
-                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400">
+                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Project Name</label>
+                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">
                   {selectedProject || 'NONE SELECTED'}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Budget Effective Date</label>
+                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Budget Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-bold text-slate-900 dark:text-white"
+                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Select Excel File</label>
+                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Select Excel File</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -2426,7 +2384,7 @@ const BudgetMaster = () => {
                     onChange={(e) => setTempFile(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className={`w-full px-4 py-4 bg-white dark:bg-slate-800 border-2 border-dashed rounded-lg flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400'}`}>
+                  <div className={`w-full px-4 py-4 bg-app-surface dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
                     <span className="text-xs font-black uppercase tracking-widest">
                       {tempFile ? tempFile.name : 'Click to select file'}
                     </span>
@@ -2436,7 +2394,7 @@ const BudgetMaster = () => {
 
               <div className="flex gap-4 pt-4">
                 <button onClick={() => setShowUploadModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-all">
+                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
                   Cancel
                 </button>
                 <button
@@ -2447,7 +2405,7 @@ const BudgetMaster = () => {
                     const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
                     if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
                   }}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest"
+                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest"
                 >
                   Confirm Upload
                 </button>
@@ -2460,24 +2418,24 @@ const BudgetMaster = () => {
       {/* ── Overwrite Warning Modal ─────────────────────────────────────────── */}
       {showOverwriteWarning && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-red-200 dark:border-red-900/30 overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-red-200 dark:border-red-900/30 overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-12 text-center">
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-none flex items-center justify-center mx-auto mb-8">
                 <span className="text-red-600 font-black text-2xl">!</span>
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
-              <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-8 leading-relaxed uppercase tracking-widest">
-                A budget snapshot for <span className="text-slate-900 dark:text-white">{selectedProject}</span> on <span className="text-slate-900 dark:text-white">{budgetDate}</span> already exists.
+              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
+              <p className="text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 mb-8 leading-relaxed uppercase tracking-widest">
+                A budget snapshot for <span className="text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
                 Uploading again will <span className="text-red-600 underline">REPLACE</span> previous data.
               </p>
 
               <div className="flex gap-4">
                 <button onClick={() => setShowOverwriteWarning(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 transition-all">
+                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
                   Cancel
                 </button>
                 <button onClick={executeUpload}
-                  className="flex-1 h-12 text-sm font-black bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">
+                  className="flex-1 h-12 text-sm font-black bg-red-600 text-white rounded-md hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">
                   Overwrite
                 </button>
               </div>

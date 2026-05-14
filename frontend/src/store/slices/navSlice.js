@@ -16,7 +16,7 @@ const initialState = {
   baseCurrency: sessionStorage.getItem('base_currency') || 'USD ($)',
   sidebarDashboardLimit: parseInt(sessionStorage.getItem('sidebar_dashboard_limit')) || 10,
   sidebarDashboardMode: sessionStorage.getItem('sidebar_dashboard_mode') || 'custom',
-  exchangeRates: JSON.parse(sessionStorage.getItem('exchange_rates')) || { 'USD': 1, 'INR': 83.2, 'EUR': 0.92 },
+  exchangeRates: JSON.parse(sessionStorage.getItem('exchange_rates')) || { 'USD': 1, 'INR': 95.43, 'EUR': 0.92 },
   activeView: sessionStorage.getItem('active_view') || 'dashboard',
   navigationHistory: JSON.parse(sessionStorage.getItem('navigation_history')) || [],
   chatHistory: JSON.parse(sessionStorage.getItem('chat_history')) || [],
@@ -195,6 +195,16 @@ const navSlice = createSlice({
     },
   },
 });
+
+export const fetchExchangeRates = () => async (dispatch) => {
+  try {
+    const { default: API } = await import('../../utils/api');
+    const res = await API.get('/currency/rates');
+    dispatch(setExchangeRates(res.data));
+  } catch (err) {
+    console.error('Failed to fetch live exchange rates:', err);
+  }
+};
 
 export const {
   setActiveModule,

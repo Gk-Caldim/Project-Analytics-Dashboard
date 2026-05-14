@@ -35,43 +35,43 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
   return (
     <div className="space-y-12">
       <div>
-        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">System Configuration</h2>
+        <h2 className="text-3xl font-bold text-text-primary tracking-tight">System Configuration</h2>
         <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
-      <div className="bg-white border border-gray-200 p-8 rounded-none">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-10">System Preferences</h3>
+      <div className="bg-app-surface border border-border p-8 rounded-none">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">System Preferences</h3>
         
         <div className="space-y-12">
           {/* Base Currency Section */}
           <div className="space-y-4">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
               Base Currency
             </label>
             <div className="max-w-xs">
               <select 
                 value={getValue('base_currency') || 'USD ($)'}
                 onChange={(e) => onUpdate('base_currency', e.target.value)}
-                className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
+                className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium appearance-none cursor-pointer"
               >
                 <option>USD ($)</option>
                 <option>INR (₹)</option>
                 <option>EUR (€)</option>
               </select>
-              <p className="text-[11px] text-gray-400 mt-2 italic">Sets the default currency for all financial analytics.</p>
+              <p className="text-[11px] text-text-muted mt-2 italic">Sets the default currency for all financial analytics.</p>
             </div>
           </div>
 
-          <div className="h-px bg-gray-100 w-full" />
+          <div className="h-px bg-border w-full" />
 
           {/* Sidebar Management Section */}
           <div className="space-y-8">
-            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Sidebar Management</h4>
+            <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Sidebar Management</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               {/* Dashboard Sub-modules Mode */}
               <div className="space-y-4">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
                   Dashboard Display Mode
                 </label>
                 <div className="space-y-3">
@@ -81,9 +81,9 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                       name="dashboard_mode"
                       checked={getValue('sidebar_dashboard_mode') !== 'recent'}
                       onChange={() => onUpdate('sidebar_dashboard_mode', 'custom')}
-                      className="w-4 h-4 text-[#0004ab] border-gray-300 focus:ring-[#0004ab]"
+                      className="w-4 h-4 text-brand-accent border-border focus:ring-brand-accent"
                     />
-                    <span className="text-sm text-gray-700 font-medium group-hover:text-[#0004ab] transition-colors">Custom Display Count</span>
+                    <span className="text-sm text-text-secondary font-medium group-hover:text-brand-accent transition-colors">Custom Display Count</span>
                   </label>
                   
                   <label className="flex items-center gap-3 cursor-pointer group">
@@ -92,9 +92,9 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                       name="dashboard_mode"
                       checked={getValue('sidebar_dashboard_mode') === 'recent'}
                       onChange={() => onUpdate('sidebar_dashboard_mode', 'recent')}
-                      className="w-4 h-4 text-[#0004ab] border-gray-300 focus:ring-[#0004ab]"
+                      className="w-4 h-4 text-brand-accent border-border focus:ring-brand-accent"
                     />
-                    <span className="text-sm text-gray-700 font-medium group-hover:text-[#0004ab] transition-colors">Recent Dashboard Activity (Latest 2)</span>
+                    <span className="text-sm text-text-secondary font-medium group-hover:text-brand-accent transition-colors">Recent Dashboard Activity (Latest 2)</span>
                   </label>
                 </div>
               </div>
@@ -103,7 +103,7 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
               <div className="space-y-6">
                 {getValue('sidebar_dashboard_mode') !== 'recent' && (
                   <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
                       Dashboard Module Limit
                     </label>
                     <div className="flex items-center gap-4">
@@ -113,9 +113,9 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
                         max="50"
                         value={getValue('sidebar_dashboard_limit') || '10'}
                         onChange={(e) => onUpdate('sidebar_dashboard_limit', e.target.value)}
-                        className="w-24 h-11 px-4 bg-gray-50 border border-gray-200 rounded-md focus:border-[#0004ab] outline-none transition-colors text-sm font-medium"
+                        className="w-24 h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
                       />
-                      <p className="text-[11px] text-gray-400 italic">Max projects visible.</p>
+                      <p className="text-[11px] text-text-muted italic">Max projects visible.</p>
                     </div>
                   </div>
                 )}

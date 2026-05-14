@@ -44,7 +44,10 @@ if DB_TYPE == "local":
     print("\n[DB CONFIG] Mode: LOCAL (PostgreSQL)")
 else:
     DATABASE_URL = CLOUD_DATABASE_URL
-    print("\n[DB CONFIG] Mode: CLOUD (Supabase)")
+    # Fix for SQLAlchemy 2.0: replaces 'postgres://' with 'postgresql://'
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    print("\n[DB CONFIG] Mode: CLOUD (Supabase/Render)")
 
 # Flag for database-specific engine configurations (like SSL for Supabase)
 IS_CLOUD_DB = (DB_TYPE == "cloud")

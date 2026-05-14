@@ -1,94 +1,89 @@
 import React from 'react';
-import { Palette, RefreshCw } from 'lucide-react';
+import { Sun, Moon, CheckCircle2 } from 'lucide-react';
 
 const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
-  const primaryColor = settings.find(s => s.key === 'primary_color')?.value || '#f4f6f9';
-  const secondaryColor = settings.find(s => s.key === 'secondary_color')?.value || '#0004ab';
   const displayMode = settings.find(s => s.key === 'display_mode')?.value || 'light';
 
-  const ColorInput = ({ label, value, onChange }) => (
-    <div className="space-y-2">
-      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-        {label}
-      </label>
-      <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 p-2 rounded-md">
-        <div 
-          className="w-10 h-10 border border-gray-200 shrink-0 rounded-sm" 
-          style={{ backgroundColor: value }}
-        />
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="bg-transparent border-none focus:ring-0 font-mono text-sm font-bold text-[#000000] uppercase flex-1"
-        />
-      </div>
-    </div>
-  );
+  const ThemeCard = ({ mode, label, description, icon: Icon, colors }) => {
+    const isActive = displayMode === mode;
+
+    return (
+      <button
+        onClick={() => {
+          onUpdate('display_mode', mode);
+          if (onLocalUpdate) onLocalUpdate({ displayMode: mode });
+        }}
+        className={`group relative flex flex-col p-6 rounded-2xl border-2 transition-all duration-300 text-left ${isActive
+          ? 'border-brand-accent bg-app-surface shadow-xl ring-4 ring-brand-accent/10'
+          : 'border-border bg-app-bg hover:border-border-strong hover:bg-app-surface'
+          }`}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className={`p-3 rounded-xl transition-colors duration-300 ${isActive ? 'bg-brand-accent text-white' : 'bg-app-panel text-text-muted group-hover:text-text-primary'
+            }`}>
+            <Icon size={24} />
+          </div>
+          {isActive && (
+            <CheckCircle2 className="text-brand-accent" size={24} />
+          )}
+        </div>
+
+        <div className="space-y-1 mb-8">
+          <h3 className={`text-lg font-bold transition-colors duration-300 ${isActive ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'
+            }`}>
+            {label} Mode
+          </h3>
+          <p className="text-sm text-text-muted leading-relaxed">
+            {description}
+          </p>
+        </div>
+
+        {/* Visual Preview */}
+        <div className="mt-auto space-y-3">
+          <div className="flex gap-2">
+            {colors.map((color, i) => (
+              <div
+                key={i}
+                className="w-8 h-8 rounded-lg border border-border/50 shadow-sm"
+                style={{ backgroundColor: color }}
+              />
+            ))}
+          </div>
+          <div className="h-2 w-full rounded-full bg-app-panel overflow-hidden">
+            <div
+              className="h-full rounded-full bg-brand-accent transition-all duration-500"
+              style={{ width: isActive ? '100%' : '30%' }}
+            />
+          </div>
+        </div>
+      </button>
+    );
+  };
 
   return (
-    <div className="space-y-12">
-      <div>
-        <h2 className="text-3xl font-bold text-[#000000] tracking-tight">Institutional Branding</h2>
-        <p className="text-sm text-gray-500 mt-2">Manage global visual identity, color protocols and display characteristics.</p>
+    <div className="max-w-4xl space-y-12 animate-fadeIn">
+      <div className="space-y-4">
+        <h2 className="text-4xl font-bold text-text-primary tracking-tight">Visual Identity</h2>
+        <p className="text-lg text-text-secondary max-w-2xl">
+          Customize your workspace appearance. Switch between light and dark modes to optimize your analysis experience across different environments.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white border border-gray-200 p-8 rounded-none space-y-8">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Color Core</h3>
-          <div className="space-y-6">
-            <ColorInput 
-              label="Primary Surface HEX" 
-              value={primaryColor} 
-              onChange={(val) => {
-                onUpdate('primary_color', val);
-                if (val.length === 7 && val.startsWith('#')) onLocalUpdate({ primaryColor: val });
-              }}
-            />
-            <ColorInput 
-              label="Secondary Action HEX" 
-              value={secondaryColor} 
-              onChange={(val) => {
-                onUpdate('secondary_color', val);
-                if (val.length === 7 && val.startsWith('#')) onLocalUpdate({ secondaryColor: val });
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-8 rounded-none space-y-8">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Interface Mode</h3>
-          <div className="grid grid-cols-1 gap-2">
-            {['light', 'dark', 'system'].map((m) => (
-              <button
-                key={m}
-                onClick={() => onUpdate('display_mode', m)}
-                className={`flex items-center justify-between px-6 py-4 rounded-full border transition-all ${
-                  displayMode === m 
-                  ? 'bg-[#0004ab] text-white border-[#0004ab]' 
-                  : 'bg-gray-50 text-gray-400 border-gray-100 hover:border-gray-200'
-                }`}
-              >
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{m} Mode</span>
-                {displayMode === m && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-gray-50 border border-gray-200 p-12 rounded-none flex items-center justify-center">
-         <div className="text-center space-y-6 max-w-md">
-            <div className="inline-flex p-4 bg-white border border-gray-200 rounded-md">
-               <RefreshCw className="h-6 w-6 text-gray-300" />
-            </div>
-            <div className="space-y-2">
-               <p className="text-xs font-bold text-[#000000] uppercase tracking-tight">Identity Synchronization</p>
-               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider leading-relaxed">
-                  Changes to the branding core will trigger a system-wide interface rebuild for all active institutional users.
-               </p>
-            </div>
-         </div>
+        <ThemeCard
+          mode="light"
+          label="Light"
+          description="Clean, high-contrast interface designed for daylight environments and maximum readability."
+          icon={Sun}
+          colors={['#F8FAFC', '#FFFFFF', '#0F172A', '#1e293b']}
+        />
+        <ThemeCard
+          mode="dark"
+          label="Dark"
+          description="Premium petroleum aesthetic optimized for focused analysis and reduced eye strain."
+          icon={Moon}
+          colors={['#1E242B', '#2B353F', '#E6EAF0', '#16313E']}
+        />
       </div>
     </div>
   );

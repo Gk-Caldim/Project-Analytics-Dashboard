@@ -47,16 +47,16 @@ const AddColumnModal = ({ isOpen, onClose, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-app-surface dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 border border-border dark:border-slate-800 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-gray-900">Add New Column</h3>
+          <h3 className="font-medium text-text-primary dark:text-slate-100">Add New Column</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-text-secondary dark:text-slate-300 mb-2">
             Column Name
           </label>
           <input
@@ -67,7 +67,7 @@ const AddColumnModal = ({ isOpen, onClose, onSubmit }) => {
               if (error) setError('');
             }}
             placeholder="Enter column name"
-            className={`w-full px-3 py-2 border rounded ${error ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-3 py-2 border rounded bg-app-surface dark:bg-slate-800 text-text-primary dark:text-slate-100 ${error ? 'border-red-500' : 'border-border dark:border-slate-700'
               }`}
             autoFocus
           />
@@ -77,7 +77,7 @@ const AddColumnModal = ({ isOpen, onClose, onSubmit }) => {
         <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+            className="px-4 py-2 border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
@@ -99,23 +99,23 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, message, type = '
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <div className="bg-app-surface dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 border border-border dark:border-slate-800 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-gray-900">Confirm Delete</h3>
+          <h3 className="font-medium text-text-primary dark:text-slate-100">Confirm Delete</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mb-6">
-          <p className="text-gray-600">{message}</p>
+          <p className="text-text-secondary dark:text-slate-300">{message}</p>
           <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
         </div>
 
         <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+            className="px-4 py-2 border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             Cancel
           </button>
@@ -466,9 +466,11 @@ const UploadTrackers = () => {
 
     try {
       // Single bulk delete API call
-      await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
+      const response = await API.post('/uploads/bulk-delete', { ids: selectedTrackers });
+      console.log('Bulk delete response:', response.data);
 
       // After successful deletion, update local state
+      // Filter out deleted trackers from the current list
       setTrackers(prev => prev.filter(tracker => !selectedTrackers.includes(tracker.id)));
 
       // Remove from sidebar contexts
@@ -498,8 +500,21 @@ const UploadTrackers = () => {
       showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
       setShowBulkDeletePrompt({ show: false, count: 0 });
     } catch (error) {
-      console.error('Error in bulk delete process:', error);
-      showNotification('An error occurred during deletion', 'error');
+      console.error('Detailed error in bulk delete process:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Even if an error occurs, if the user reports it was deleted in backend, 
+      // they might want to refresh the page to see current state.
+      showNotification(
+        error.response?.data?.detail || 'An error occurred during deletion. Please refresh the page.', 
+        'error'
+      );
+      
+      // Close the prompt anyway to avoid stuck UI
+      setShowBulkDeletePrompt({ show: false, count: 0 });
     }
   };
 
@@ -1015,11 +1030,11 @@ const UploadTrackers = () => {
     if (col.id === 'fileName') {
       const getFileColor = (type) => {
         switch (type) {
-          case 'CSV': return 'text-blue-600';
+          case 'CSV': return 'text-blue-600 dark:text-blue-400';
           case 'XLS':
-          case 'XLSX': return 'text-green-600';
-          case 'JSON': return 'text-purple-600';
-          default: return 'text-gray-600';
+          case 'XLSX': return 'text-green-600 dark:text-green-400';
+          case 'JSON': return 'text-purple-600 dark:text-purple-400';
+          default: return 'text-slate-600 dark:text-slate-400';
         }
       };
 
@@ -1031,8 +1046,8 @@ const UploadTrackers = () => {
             openFileDirectly(tracker.upload_id);
           }}
         >
-          <File className="h-4 w-4 text-gray-400 mr-2 group-hover/file:text-blue-500 transition-colors" />
-          <span className={`font-medium ${getFileColor(tracker.fileType)} group-hover/file:text-blue-600 group-hover/file:underline transition-all`}>
+          <File className="h-4 w-4 text-slate-400 dark:text-slate-500 mr-2 group-hover/file:text-blue-500 transition-colors" />
+          <span className={`font-medium ${getFileColor(tracker.fileType)} group-hover/file:text-blue-600 dark:group-hover/file:text-blue-400 group-hover/file:underline transition-all`}>
             {getDisplayFileName(value, tracker.project) || '-'}
           </span>
         </div>
@@ -1040,32 +1055,36 @@ const UploadTrackers = () => {
     } else if (col.id === 'employeeName') {
       return (
         <div className="flex items-center">
-          <User className="h-4 w-4 text-gray-500 mr-1" />
-          <span className="font-medium">{value || '-'}</span>
+          <User className="h-4 w-4 text-slate-400 dark:text-slate-500 mr-2" />
+          <span className="font-medium text-text-primary dark:text-slate-200">{value || '-'}</span>
         </div>
       );
     } else if (col.id === 'department') {
       return (
         <div className="flex items-center">
-          <span className="font-medium">{value || '-'}</span>
+          <span className="font-medium text-text-primary dark:text-slate-200">{value || '-'}</span>
         </div>
       );
     } else if (col.id === 'project') {
       return (
         <div className="flex items-center">
-          <span className="font-medium">{value || '-'}</span>
+          <span className="font-medium text-text-primary dark:text-slate-200">{value || '-'}</span>
         </div>
       );
     } else if (col.id === 'uploadDate') {
       return (
-        <div className="flex items-center text-gray-600 text-xs">
-          <Calendar className="h-3.5 w-3.5 mr-1.5" />
+        <div className="flex items-center text-text-secondary dark:text-slate-300 font-medium">
+          <Calendar className="h-3.5 w-3.5 mr-2 text-blue-600 dark:text-blue-400" />
           <span>{value || '-'}</span>
         </div>
       );
     } else if (col.id === 'status') {
       return (
-        <span className={`px-2 py-1 inline-flex text-[10px] leading-4 font-semibold rounded-full ${value === 'Completed' || value === 'Success' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+        <span className={`px-2 py-1 inline-flex text-[10px] leading-4 font-bold rounded-full ${
+          (value === 'Completed' || value === 'Success') 
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' 
+            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800'
+        }`}>
           {value || 'Completed'}
         </span>
       );
@@ -1114,11 +1133,11 @@ const UploadTrackers = () => {
     <div className="space-y-3 sm:space-y-4 px-0 relative">
       {/* Loading Overlay */}
       {fetchingData && (
-        <div className="fixed inset-0 bg-white/60 backdrop-blur-[2px] z-[100] flex items-center justify-center">
-          <div className="flex flex-col items-center">
-            <RefreshCw className="h-10 w-10 text-blue-600 animate-spin mb-3" />
-            <p className="text-sm font-semibold text-slate-700">Fetching File Data...</p>
-            <p className="text-xs text-slate-500 mt-1">Downloading content from server</p>
+        <div className="fixed inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[4px] z-[100] flex items-center justify-center">
+          <div className="bg-app-surface dark:bg-slate-900 p-8 rounded-2xl shadow-2xl border border-border dark:border-slate-800 flex flex-col items-center">
+            <RefreshCw className="h-10 w-10 text-blue-600 dark:text-blue-400 animate-spin mb-3" />
+            <p className="text-sm font-bold text-text-primary dark:text-slate-100">Fetching File Data...</p>
+            <p className="text-xs text-text-secondary dark:text-slate-400 mt-1">Downloading content from server</p>
           </div>
         </div>
       )}
@@ -1126,19 +1145,19 @@ const UploadTrackers = () => {
 
       {/* Delete Tracker Modal */}
       {showDeletePrompt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-4 sm:p-6 max-w-sm w-full mx-4 shadow-2xl border border-border dark:border-slate-800">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Confirm Delete</h3>
-              <button onClick={cancelDelete} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4 sm:h-5 sm:w-5" /></button>
+              <h3 className="font-bold text-text-primary dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
+              <button onClick={cancelDelete} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X className="h-4 w-4 sm:h-5 sm:w-5" /></button>
             </div>
-            <div className="mb-4">
-              <p className="text-xs sm:text-sm text-gray-600">Delete upload record <span className="font-medium">{showDeletePrompt.name}</span>?</p>
-              <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
+            <div className="mb-6">
+              <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300">Delete upload record <span className="font-bold text-text-primary dark:text-white underline">{showDeletePrompt.name}</span>?</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2 italic font-medium">This action cannot be undone.</p>
             </div>
             <div className="flex justify-end space-x-2">
-              <button onClick={cancelDelete} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
-              <button onClick={confirmDeleteTracker} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              <button onClick={cancelDelete} className="px-4 py-2 text-xs sm:text-sm border border-border dark:border-slate-700 rounded-lg text-text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+              <button onClick={confirmDeleteTracker} className="px-4 py-2 text-xs sm:text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Delete Record</button>
             </div>
           </div>
         </div>
@@ -1146,23 +1165,23 @@ const UploadTrackers = () => {
 
       {/* Bulk Delete Prompt */}
       {showBulkDeletePrompt.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-4 sm:p-6 max-w-sm w-full mx-4 shadow-2xl border border-border dark:border-slate-800">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Confirm Bulk Delete</h3>
-              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-gray-400 hover:text-gray-600">
+              <h3 className="font-bold text-text-primary dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
+              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                 <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            <div className="mb-4">
-              <p className="text-xs sm:text-sm text-gray-600">
-                Are you sure you want to delete {showBulkDeletePrompt.count} selected upload{showBulkDeletePrompt.count > 1 ? 's' : ''}?
+            <div className="mb-6">
+              <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300">
+                Are you sure you want to delete <span className="font-bold text-text-primary dark:text-white underline">{showBulkDeletePrompt.count}</span> selected upload{showBulkDeletePrompt.count > 1 ? 's' : ''}?
               </p>
-              <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-2 italic font-medium">This action cannot be undone.</p>
             </div>
             <div className="flex justify-end space-x-2">
-              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
-              <button onClick={confirmBulkDelete} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-4 py-2 text-xs sm:text-sm border border-border dark:border-slate-700 rounded-lg text-text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+              <button onClick={confirmBulkDelete} className="px-4 py-2 text-xs sm:text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Bulk Delete</button>
             </div>
           </div>
         </div>
@@ -1184,11 +1203,11 @@ const UploadTrackers = () => {
               </p>
             </div>
             <div className="flex justify-end space-x-2">
-              <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
+              <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
               <button onClick={() => {
                 handleExport(showExportConfirmPrompt.format);
                 setShowExportConfirmPrompt(null);
-              }} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Export</button>
+              }} className="px-4 py-1.5 text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-all shadow-md active:scale-95">Export</button>
             </div>
           </div>
         </div>
@@ -1197,10 +1216,10 @@ const UploadTrackers = () => {
       {/* Upload Form Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4 border border-border dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-sm sm:text-base">
-                <span className="bg-gray-100 text-gray-900 px-2 py-1 rounded">
+                <span className="bg-slate-100 dark:bg-slate-800 text-text-primary dark:text-slate-100 px-2 py-1 rounded">
                   Upload Details
                 </span>
               </h3>
@@ -1216,7 +1235,7 @@ const UploadTrackers = () => {
             <div className="space-y-4">
               {/* Project */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Project *</label>
+                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Project *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={projectList.map(p => p.name)}
@@ -1246,7 +1265,7 @@ const UploadTrackers = () => {
 
               {/* Department */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Department *</label>
+                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Department *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
@@ -1258,7 +1277,7 @@ const UploadTrackers = () => {
                     placeholder="Select department"
                   />
                 ) : (
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                  <div className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-text-secondary dark:text-slate-300 text-sm">
                     {uploadForm.department || 'No Department'}
                   </div>
                 )}
@@ -1267,7 +1286,7 @@ const UploadTrackers = () => {
 
               {/* Employee Name */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Employee Name *</label>
+                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Employee Name *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={employeeList.map(e => e.name)}
@@ -1279,7 +1298,7 @@ const UploadTrackers = () => {
                     placeholder="Select employee name"
                   />
                 ) : (
-                  <div className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-700 text-sm">
+                  <div className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-text-secondary dark:text-slate-300 text-sm">
                     {uploadForm.employeeName || 'Unknown User'}
                   </div>
                 )}
@@ -1288,8 +1307,8 @@ const UploadTrackers = () => {
 
               {/* File Upload */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">File *</label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
+                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">File *</label>
+                <div className="border-2 border-dashed border-border dark:border-slate-700 rounded-lg p-4 hover:border-slate-400 dark:hover:border-slate-500 transition-colors bg-slate-50/50 dark:bg-slate-800/50">
                   <label className="cursor-pointer block">
                     <input
                       type="file"
@@ -1298,11 +1317,11 @@ const UploadTrackers = () => {
                       accept=".xlsx,.xls"
                     />
                     <div className="text-center">
-                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                      <Upload className="h-8 w-8 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
+                      <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300 mb-1">
                         {uploadForm.file ? getDisplayFileName(uploadForm.file.name) : 'Click to select file'}
                       </p>
-                      <p className="text-xs text-gray-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
+                      <p className="text-xs text-text-secondary dark:text-slate-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
                       <p className="text-xs font-semibold text-blue-600 mt-2 italic">Please ensure Department name and file name are exact</p>
                     </div>
                   </label>
@@ -1312,8 +1331,8 @@ const UploadTrackers = () => {
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
-              <button onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50">Cancel</button>
-              <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-black text-white rounded hover:bg-gray-800">Upload File</button>
+              <button onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs sm:text-sm border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+              <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-black dark:bg-white text-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium">Upload File</button>
             </div>
           </div>
         </div>
@@ -1321,8 +1340,8 @@ const UploadTrackers = () => {
 
       {/* Excel Viewer Modal - FIXED to pass headers and data at root level */}
       {excelViewerData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg w-full max-w-7xl h-[95vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-lg w-full max-w-7xl h-[95vh] flex flex-col border border-border dark:border-slate-800 shadow-2xl">
             <div className="flex-1 overflow-auto p-2 sm:p-4">
               <FileContentViewer
                 fileData={excelViewerData.fileData || {
@@ -1394,29 +1413,29 @@ const UploadTrackers = () => {
         <>
           {/* UPLOAD AREA */}
           <PermissionGuard permission="upload_tracker">
-            <div className="bg-white border border-gray-300 rounded p-4 sm:p-6">
+            <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded p-4 sm:p-6 shadow-sm">
               <div className="text-center">
                 <div
-                  className="border-2 border-dashed border-gray-300 rounded-xl p-4 sm:p-8 hover:border-gray-400 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="border-2 border-dashed border-border dark:border-slate-700 rounded-xl p-4 sm:p-8 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors bg-slate-50/30 dark:bg-slate-800/30"
                   onClick={openUploadModal}
                 >
                   <div className="space-y-2 sm:space-y-3">
-                    <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto" />
+                    <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-slate-400 dark:text-slate-500 mx-auto" />
                     <div>
-                      <p className="font-medium text-sm sm:text-base">Drag & drop files or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
+                      <p className="font-medium text-sm sm:text-base text-text-primary dark:text-slate-100">Drag & drop files or click to browse</p>
+                      <p className="text-xs text-text-muted dark:text-slate-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
                     </div>
                   </div>
                 </div>
 
                 {selectedFile && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <File className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">{getDisplayFileName(selectedFile.name)}</span>
+                        <File className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium text-text-primary dark:text-slate-200">{getDisplayFileName(selectedFile.name)}</span>
                       </div>
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-text-secondary dark:text-slate-400">
                         {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
                       </span>
                     </div>
@@ -1426,10 +1445,10 @@ const UploadTrackers = () => {
                 {uploading && (
                   <div className="mt-4 sm:mt-6">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs sm:text-sm font-medium">Uploading...</span>
-                      <span className="text-xs sm:text-sm text-gray-600">{progress}%</span>
+                      <span className="text-xs sm:text-sm font-medium text-text-primary dark:text-slate-100">Uploading...</span>
+                      <span className="text-xs sm:text-sm text-text-secondary dark:text-slate-400">{progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2">
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 sm:h-2">
                       <div
                         className="bg-blue-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
                         style={{ width: `${progress}%` }}
@@ -1443,24 +1462,32 @@ const UploadTrackers = () => {
 
           {/* MAIN BORDER CONTAINER */}
           <PermissionGuard permission="view_tracker">
-            <div className="bg-white border border-gray-300 rounded mx-0">
+            <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded mx-0 shadow-sm">
 
               {/* TOOLBAR SECTION */}
-              <div className="p-4 border-b border-gray-300">
+              <div className="p-4 border-b border-border dark:border-slate-800">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
                   {/* LEFT SIDE - Search */}
                   <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:gap-2 items-start sm:items-center">
                     {/* Search */}
-                    <div className="relative w-full sm:w-auto">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <div className="relative w-full sm:w-48 group">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                       <input
                         type="text"
-                        placeholder="Search..."
+                        placeholder="Search trackers..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                        className="w-full h-10 pl-9 pr-8 text-xs sm:text-sm border border-border dark:border-slate-700 bg-app-surface dark:bg-slate-800 text-text-primary dark:text-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-600 dark:focus:ring-blue-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
                       />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1468,17 +1495,17 @@ const UploadTrackers = () => {
                   <div className="flex gap-2 mt-2 sm:mt-0">
                     {/* Date Filter */}
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                       <input
                         type="date"
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value)}
-                        className="h-10 pl-9 pr-3 text-xs sm:text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black w-full sm:w-40"
+                        className="h-10 pl-9 pr-3 text-xs sm:text-sm border border-border dark:border-slate-700 bg-app-surface dark:bg-slate-800 text-text-primary dark:text-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-600 dark:focus:ring-blue-500 w-full sm:w-40 transition-all [&::-webkit-calendar-picker-indicator]:hidden"
                       />
                       {dateFilter && (
                         <button
                           onClick={() => setDateFilter('')}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                         >
                           <X className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
@@ -1487,18 +1514,18 @@ const UploadTrackers = () => {
 
                     {/* Department Filter */}
                     <div className="relative">
-                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
                       <input
                         type="text"
                         placeholder="Filter by department..."
                         value={departmentFilter}
                         onChange={(e) => setDepartmentFilter(e.target.value)}
-                        className="h-10 pl-9 pr-3 text-xs sm:text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-black w-full sm:w-48"
+                        className="h-10 pl-9 pr-3 text-xs sm:text-sm border border-border dark:border-slate-700 bg-app-surface dark:bg-slate-800 text-text-primary dark:text-slate-100 rounded focus:outline-none focus:ring-1 focus:ring-blue-600 dark:focus:ring-blue-500 w-full sm:w-48 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
                       />
                       {departmentFilter && (
                         <button
                           onClick={() => setDepartmentFilter('')}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
                         >
                           <X className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
@@ -1509,7 +1536,7 @@ const UploadTrackers = () => {
                     <div className="relative">
                       <button
                         onClick={() => setShowExportDropdown(!showExportDropdown)}
-                        className="flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border border-gray-300 rounded hover:bg-gray-50"
+                        className="flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border border-border dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-text-primary dark:text-slate-200"
                       >
                         <Download className="h-4 w-4" />
                       </button>
@@ -1521,28 +1548,28 @@ const UploadTrackers = () => {
                             className="fixed inset-0 z-40"
                             onClick={() => setShowExportDropdown(false)}
                           />
-                          <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-300 rounded shadow-lg z-50">
+                          <div className="absolute right-0 mt-1 w-48 bg-app-surface dark:bg-slate-800 border border-border dark:border-slate-700 rounded shadow-lg z-50 overflow-hidden">
                             <button
                               onClick={() => handleExportClick('excel')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               Export as Excel
                             </button>
                             <button
                               onClick={() => handleExportClick('csv')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               Export as CSV
                             </button>
                             <button
                               onClick={() => handleExportClick('json')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               Export as JSON
                             </button>
                             <button
                               onClick={() => handleExportClick('pdf')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
                             >
                               Export as PDF
                             </button>
@@ -1555,19 +1582,19 @@ const UploadTrackers = () => {
               </div>
 
               {/* TABLE SECTION */}
-              <div className="overflow-auto max-h-[calc(100vh-300px)] bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="overflow-auto max-h-[calc(100vh-300px)] bg-app-surface dark:bg-slate-900 rounded-lg shadow-sm border border-border dark:border-slate-800">
                 <table className="min-w-full text-xs sm:text-sm">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr className="border-b-2 border-slate-200">
+                  <thead className="bg-slate-100 dark:bg-slate-800/80 sticky top-0 z-10">
+                    <tr className="border-b border-border dark:border-slate-700 shadow-sm">
                       {/* Checkbox column */}
-                      <th className="text-left py-3.5 px-4 font-semibold text-slate-600 cursor-pointer whitespace-nowrap w-12 hover:bg-slate-100/80 transition-colors">
+                      <th className="text-left py-3.5 px-4 font-bold text-slate-700 dark:text-slate-200 cursor-pointer whitespace-nowrap w-12 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors">
                         <div className="flex items-center justify-center">
                           <button
                             onClick={toggleSelectAll}
-                            className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                           >
                             {selectAll ? (
-                              <CheckSquare className="h-4 w-4 text-blue-600" />
+                              <CheckSquare className="h-4 w-4 text-blue-600 dark:text-blue-500" />
                             ) : (
                               <Square className="h-4 w-4" />
                             )}
@@ -1577,24 +1604,24 @@ const UploadTrackers = () => {
                       {visibleColumns.map(col => (
                         <th
                           key={col.id}
-                          className="text-left py-3.5 px-4 font-semibold text-slate-600 cursor-pointer hover:bg-slate-100/80 transition-colors whitespace-nowrap"
+                          className="text-left py-3.5 px-4 font-bold text-slate-700 dark:text-slate-200 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition-colors whitespace-nowrap"
                           onClick={() => col.sortable && handleSort(col.id)}
                         >
                           <div className="flex items-center space-x-2">
-                            <span className="uppercase tracking-wider text-[10px]">{col.label}</span>
+                            <span className="uppercase tracking-wider text-[10px] font-bold">{col.label}</span>
                             {col.sortable && getSortIcon(col.id)}
                           </div>
                         </th>
                       ))}
-                      <th className="text-left py-3.5 px-4 font-semibold text-slate-600 whitespace-nowrap uppercase tracking-wider text-[10px]">Actions</th>
+                      <th className="text-left py-3.5 px-4 font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap uppercase tracking-wider text-[10px]">Actions</th>
                     </tr>
                   </thead>
 
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border dark:divide-slate-800/50">
                     {paginatedTrackers.map((tracker) => (
                       <tr
                         key={tracker.upload_id}
-                        className={`hover:bg-blue-50/50 transition-colors border-b border-gray-100 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50' : 'even:bg-gray-50/30'
+                        className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors border-b border-border dark:border-slate-800 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50 dark:bg-blue-900/30' : 'even:bg-slate-50/30 dark:even:bg-slate-800/30'
                           }`}
                       >
                         {/* Checkbox cell */}
@@ -1604,20 +1631,22 @@ const UploadTrackers = () => {
                               type="checkbox"
                               checked={selectedTrackers.includes(tracker.upload_id)}
                               onChange={() => toggleTrackerSelection(tracker.upload_id)}
-                              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              className="h-4 w-4 text-blue-600 border-border dark:border-slate-600 rounded focus:ring-blue-500 bg-app-surface dark:bg-slate-800"
                             />
                           </div>
                         </td>
                         {visibleColumns.map(col => (
                           <td key={col.id} className="py-3 px-4 whitespace-nowrap">
-                            {renderCellContent(col, tracker[col.id], tracker)}
+                            <div className="text-text-primary dark:text-slate-200">
+                              {renderCellContent(col, tracker[col.id], tracker)}
+                            </div>
                           </td>
                         ))}
                         <td className="py-3 px-4 whitespace-nowrap text-left">
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => openFileDirectly(tracker.upload_id)}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-colors"
+                              className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                               title="View File"
                             >
                               <Eye className="h-4 w-4" />
@@ -1625,7 +1654,7 @@ const UploadTrackers = () => {
                             <PermissionGuard permission="delete_tracker">
                               <button
                                 onClick={() => showDeleteConfirmation(tracker.upload_id, getDisplayFileName(tracker.fileName, tracker.project))}
-                                className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-full transition-colors"
+                                className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
                                 title="Delete"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1640,13 +1669,13 @@ const UploadTrackers = () => {
               </div>
 
               {/* FOOTER SECTION */}
-              <div className="px-4 py-3 border-t border-gray-300 text-xs text-gray-900 flex flex-col sm:flex-row items-center justify-between gap-2 bg-white">
+              <div className="px-4 py-3 border-t border-border dark:border-slate-800 text-xs text-text-primary dark:text-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 bg-app-surface dark:bg-slate-900">
                 {/* LEFT SIDE - Upload and Action Buttons */}
                 <div className="flex items-center gap-2">
                   <PermissionGuard permission="upload_tracker">
                     <button
                       onClick={openUploadModal}
-                      className="flex items-center gap-1 h-10 px-3 text-xs border border-gray-300 rounded hover:bg-gray-50"
+                      className="flex items-center gap-1 h-10 px-3 text-xs border border-border dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-text-primary dark:text-slate-200 transition-colors"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -1658,7 +1687,7 @@ const UploadTrackers = () => {
                       <PermissionGuard permission="delete_tracker">
                         <button
                           onClick={handleBulkDelete}
-                          className="flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border border-gray-300 rounded hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                          className="flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border border-border dark:border-slate-700 rounded hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-700 dark:hover:text-red-400 hover:border-red-300 dark:hover:border-red-800 text-text-primary dark:text-slate-200 transition-colors"
                           title={selectedTrackers.length === 1 ? "Delete selected upload" : "Delete selected uploads"}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1673,14 +1702,14 @@ const UploadTrackers = () => {
                 <div className="flex items-center gap-4">
                   {/* Page Size Selector */}
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Rows:</span>
+                    <span className="text-text-secondary dark:text-slate-400 font-medium">Rows:</span>
                     <select
                       value={pageSize}
                       onChange={(e) => {
                         setPageSize(Number(e.target.value));
                         setCurrentPage(1);
                       }}
-                      className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="border border-border dark:border-slate-700 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 bg-app-surface dark:bg-slate-800 text-text-primary dark:text-slate-200"
                     >
                       {[5, 10, 25, 50, 100].map(size => (
                         <option key={size} value={size}>{size}</option>
@@ -1693,27 +1722,27 @@ const UploadTrackers = () => {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
+                      className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors text-text-secondary dark:text-slate-400"
                     >
-                      &lt;
+                      <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className="text-gray-600 mx-2">
+                    <span className="text-text-secondary dark:text-slate-300 mx-2 font-medium">
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-gray-600"
+                      className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors text-text-secondary dark:text-slate-400"
                     >
-                      &gt;
+                      <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
 
-                  <span>
-                    Showing {paginatedTrackers.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, totalItems)} of {totalItems} uploads
+                  <span className="text-text-secondary dark:text-slate-400 font-medium">
+                    Showing <span className="text-text-primary dark:text-slate-200">{(currentPage - 1) * pageSize + 1}</span> to <span className="text-text-primary dark:text-slate-200">{Math.min(currentPage * pageSize, totalItems)}</span> of <span className="text-text-primary dark:text-slate-200">{totalItems}</span> uploads
                   </span>
                   {selectedTrackers.length > 0 && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-xs">
                       {selectedTrackers.length} selected
                     </span>
                   )}

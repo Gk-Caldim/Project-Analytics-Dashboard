@@ -1132,7 +1132,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             {columns.map(col => {
                                 const isEditing = editingColumn === col.id;
                                 return (
-                                    <div key={col.id} className="flex items-center justify-between p-2 border rounded">
+                                    <div key={col.id} className="flex items-center justify-between p-2 border rounded dark:border-slate-700">
                                         {isEditing ? (
                                             <div className="flex items-center gap-2">
                                                 <input type="text" value={tempColumnName} onChange={e => setTempColumnName(e.target.value)} className="px-2 py-1 text-sm border rounded" />
@@ -1157,10 +1157,10 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 
             {showDeleteColumnPrompt && (
                 <div className="fixed inset-0 bg-black/50 flex text-left items-center justify-center z-[110]">
-                    <div className="bg-white p-6 rounded-lg max-w-sm w-full shadow-2xl">
-                        <h3 className="font-medium mb-4">Delete column "{showDeleteColumnPrompt.columnLabel}"?</h3>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-sm w-full shadow-2xl">
+                        <h3 className="font-medium mb-4 text-slate-900 dark:text-slate-100">Delete column "{showDeleteColumnPrompt.columnLabel}"?</h3>
                         <div className="flex justify-end gap-2 text-sm">
-                            <button onClick={() => setShowDeleteColumnPrompt(null)} className="px-3 py-1.5 border rounded">Cancel</button>
+                            <button onClick={() => setShowDeleteColumnPrompt(null)} className="px-3 py-1.5 border dark:border-slate-600 rounded">Cancel</button>
                             <button onClick={confirmDeleteColumn} className="px-3 py-1.5 bg-red-600 text-white rounded">Delete</button>
                         </div>
                     </div>
