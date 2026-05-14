@@ -2932,7 +2932,7 @@ const ProjectTitleDashboard = () => {
             buttonTextColor: isDark ? '#1E242B' : '#fff',
             optionToContent: function (opt) {
               const series = opt.series;
-              if (!series || series.length === 0) return '<div style="padding:20px;">No data available</div>';
+              if (!series || series.length === 0) return `<div style="padding:20px;color:${textColor};">No data available</div>`;
 
               const xAxis = opt.xAxis && opt.xAxis[0];
               const yAxis = opt.yAxis && opt.yAxis[0];
@@ -2941,10 +2941,10 @@ const ProjectTitleDashboard = () => {
               if (xAxis && xAxis.name) xHeader = xAxis.name;
               else if (yAxis && yAxis.type === 'category' && yAxis.name) xHeader = yAxis.name;
 
-              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;background:white;">
+              let table = `<div style="padding:10px;font-family:Inter,sans-serif;height:100%;overflow:auto;background:${isDark ? '#1E242B' : 'white'};">
                 <table style="width:100%;border-collapse:collapse;text-align:left;font-size:12px;">
                 <thead>
-                  <tr style="background:#F8FAFC;border-bottom:2px solid #CBD5E1;">
+                  <tr style="background:${isDark ? '#2B353F' : '#F8FAFC'};border-bottom:2px solid ${borderColor};">
                     <th style="padding:10px;color:${textColor};font-weight:800;">${xHeader}</th>`;
 
               series.forEach(s => {
@@ -2964,7 +2964,7 @@ const ProjectTitleDashboard = () => {
                   name = series[0].data[i].name;
                 }
 
-                table += `<tr style="border-bottom:1px solid #F1F5F9;">
+                table += `<tr style="border-bottom:1px solid ${isDark ? '#2B353F' : '#F1F5F9'};">
                   <td style="padding:8px 10px;color:${secondaryTextColor};">${name}</td>`;
 
                 series.forEach(s => {
@@ -3471,7 +3471,7 @@ const ProjectTitleDashboard = () => {
           onChange={(e) => handleChartTypeChange(chartId, e.target.value)}
           style={{
             ...commonStyle,
-            maxWidth: '90px'
+            minWidth: '85px'
           }}
         >
           <option value="bar">Bar</option>
@@ -3489,7 +3489,7 @@ const ProjectTitleDashboard = () => {
             ...commonStyle,
             backgroundColor: showAxisSelector === chartId ? 'var(--accent)' : 'var(--bg)',
             color: showAxisSelector === chartId ? 'white' : 'var(--accent)',
-            minWidth: '55px'
+            minWidth: '85px'
           }}
         >
           Axes
@@ -3503,7 +3503,7 @@ const ProjectTitleDashboard = () => {
             backgroundColor: 'var(--accent)',
             color: 'white',
             border: '1px solid var(--accent)',
-            minWidth: '65px'
+            minWidth: '85px'
           }}
         >
           Analyze
@@ -3983,7 +3983,8 @@ const ProjectTitleDashboard = () => {
                 <button
                   onClick={() => toggleAxisSelector(maximizedChart)}
                   style={{
-                    padding: '8px 16px',
+                    width: '120px',
+                    height: '34px',
                     fontSize: '12px',
                     borderRadius: '4px',
                     border: '1px solid #cbd5e1',
@@ -3991,7 +3992,10 @@ const ProjectTitleDashboard = () => {
                     color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
                     cursor: 'pointer',
                     fontWeight: '800',
-                    transition: 'none'
+                    transition: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
                   AXES CONFIG
@@ -4014,7 +4018,9 @@ const ProjectTitleDashboard = () => {
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
                 onChange={(e) => handleChartTypeChange(maximizedChart, e.target.value)}
                 style={{
-                  padding: '8px 12px',
+                  width: '120px',
+                  height: '34px',
+                  padding: '0 12px',
                   fontSize: '12px',
                   borderRadius: '4px',
                   border: '1px solid #cbd5e1',
@@ -4022,8 +4028,7 @@ const ProjectTitleDashboard = () => {
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '800',
-                  outline: 'none',
-                  minWidth: '130px'
+                  outline: 'none'
                 }}
               >
                 <option value="bar">Bar Chart</option>
@@ -4041,7 +4046,8 @@ const ProjectTitleDashboard = () => {
               <button
                 onClick={handleCloseMaximize}
                 style={{
-                  padding: '8px 20px',
+                  width: '120px',
+                  height: '34px',
                   fontSize: '12px',
                   borderRadius: '4px',
                   border: '1px solid var(--accent)',
@@ -4049,7 +4055,10 @@ const ProjectTitleDashboard = () => {
                   color: 'var(--accent)',
                   cursor: 'pointer',
                   fontWeight: '900',
-                  letterSpacing: '0.05em'
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
                 CLOSE
