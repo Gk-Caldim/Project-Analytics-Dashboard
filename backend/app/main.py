@@ -196,7 +196,7 @@ app.include_router(budget_router.router, prefix=f"{API_PREFIX}/budget", tags=["B
 app.include_router(sub_category_router, prefix=API_PREFIX)
 app.include_router(settings_router, prefix=API_PREFIX)
 app.include_router(role_router, prefix=API_PREFIX)
-app.include_router(meetings_router, prefix="/api/meetings", tags=["Meetings"])
+app.include_router(meetings_router, prefix=f"{API_PREFIX}/meetings", tags=["Meetings"])
 app.include_router(project_team_router, prefix=API_PREFIX)
 app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
