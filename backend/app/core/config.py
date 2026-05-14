@@ -23,6 +23,11 @@ REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", 7))
 # ------------------------
 DB_TYPE = os.getenv("DB_TYPE", "cloud").lower()
 
+# Force cloud mode if running on Render
+if os.getenv("RENDER") == "true":
+    DB_TYPE = "cloud"
+
+
 # Cloud Database URL (Supabase)
 CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL") or os.getenv("DATABASE_URL")
 
