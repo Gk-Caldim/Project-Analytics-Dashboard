@@ -10,6 +10,7 @@ import API from "../../utils/api";
 import { getEmployees } from "../../utils/employeeApi";
 import SearchableDropdown from "../../components/SearchableDropdown";
 import SubCategoryModal from "../../components/SubCategoryModal";
+import FilterDrawer from './components/FilterDrawer';
 
 import { useNavigate } from 'react-router-dom';
 import useCurrency from "../../hooks/useCurrency";
@@ -99,8 +100,16 @@ const ProjectMaster = () => {
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
   const [dynamicRoles, setDynamicRoles] = useState([]);
 
-  // Filter Dropdown state
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  // Filter states
+  const [activeFilters, setActiveFilters] = useState({
+    department: [],
+    status: [],
+    project_manager: [],
+    employee_name: []
+  });
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [showAllChips, setShowAllChips] = useState(false);
   const [filterDraft, setFilterDraft] = useState({});
 
   // Column header dropdown state
@@ -516,13 +525,34 @@ const ProjectMaster = () => {
     return errors;
   };
 
+  // Unique values for filters
+  const filterOptions = useMemo(() => {
+    return {
+      department: [...new Set(projects.map(p => p.department).filter(Boolean))].sort(),
+      status: [...new Set(projects.map(p => p.status).filter(Boolean))].sort(),
+      project_manager: [...new Set(projects.map(p => p.project_manager).filter(Boolean))].sort(),
+      employee_name: [...new Set(projects.map(p => p.employee_name).filter(Boolean))].sort()
+    };
+  }, [projects]);
+
   // Filter projects
   const filteredProjects = projects.filter(proj => {
-    const matchesSearch = Object.values(proj).some(value =>
+    // Basic validation
+    if (!proj.name) return false;
+
+    // Search term check
+    const matchesSearch = searchTerm === '' || Object.values(proj).some(value =>
       String(value).toLowerCase().includes(searchTerm.toLowerCase())
     );
+    if (!matchesSearch) return false;
 
-    return matchesSearch;
+    // Bulk filter checks
+    if (activeFilters.department.length > 0 && !activeFilters.department.includes(proj.department)) return false;
+    if (activeFilters.status.length > 0 && !activeFilters.status.includes(proj.status)) return false;
+    if (activeFilters.project_manager.length > 0 && !activeFilters.project_manager.includes(proj.project_manager)) return false;
+    if (activeFilters.employee_name.length > 0 && !activeFilters.employee_name.includes(proj.employee_name)) return false;
+
+    return true;
   });
 
   // Sort projects
@@ -1173,6 +1203,12 @@ const ProjectMaster = () => {
         label: e.name,
         name: e.name
       }));
+  }, [employeeList]);
+
+  // Unique departments from employee master
+  const departmentOptions = useMemo(() => {
+    const uniqueDepts = [...new Set(employeeList.map(e => e.department).filter(Boolean))].sort();
+    return uniqueDepts.map(dept => ({ value: dept, label: dept }));
   }, [employeeList]);
 
   // Convert stored array of structured objects Ã¢â€ â€™ react-select option objects
@@ -2093,13 +2129,12 @@ const ProjectMaster = () => {
                   </div>
                   {/* Department */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Department</label>
-                    <input
-                      type="text"
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide text-[11px]">Department</label>
+                    <SearchableDropdown
+                      options={departmentOptions}
                       value={newProject.department || ''}
-                      onChange={e => handleNewProjectChange('department', e.target.value)}
-                      placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      onChange={(val) => handleNewProjectChange('department', val)}
+                      placeholder="Select or type department..."
                     />
                   </div>
                   {/* Start Date */}
@@ -2355,14 +2390,13 @@ const ProjectMaster = () => {
                     />
                   </div>
                   {/* Department */}
-                  <div>
+                  <div className="sm:col-span-1">
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Department</label>
-                    <input
-                      type="text"
+                    <SearchableDropdown
+                      options={departmentOptions}
                       value={editForm.department || ''}
-                      onChange={e => handleEditFormChange('department', e.target.value)}
-                      placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
+                      onChange={(val) => handleEditFormChange('department', val)}
+                      placeholder="Select or type department..."
                     />
                   </div>
                   {/* Start Date */}
@@ -2624,27 +2658,41 @@ const ProjectMaster = () => {
                       />
                     </div>
 
-                    {/* Filter Button */}
+                    {/* Bulk Filter Button */}
+                    <button
+                      onClick={() => setShowFilterDrawer(true)}
+                      className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm"
+                    >
+                      <Filter className="h-4 w-4 text-slate-600 dark:text-slate-100" />
+                      <span className="hidden sm:inline text-slate-700 dark:text-slate-100 font-medium">Filter</span>
+                      {Object.values(activeFilters).some(v => v.length > 0) && (
+                        <span className="bg-blue-600 text-white text-[10px] min-w-[16px] h-4 rounded-full flex items-center justify-center font-bold px-1 animate-in zoom-in duration-200">
+                          {Object.values(activeFilters).reduce((acc, curr) => acc + curr.length, 0)}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Column Visibility Button (Previously Filter) */}
                     <div className="relative">
                       <button
                         onClick={() => {
-                          if (!showFilterDropdown) {
+                          if (!showColumnDropdown) {
                             const draft = {};
                             columns.forEach(col => { draft[col.id] = col.visible; });
                             setFilterDraft(draft);
                           }
-                          setShowFilterDropdown(!showFilterDropdown);
+                          setShowColumnDropdown(!showColumnDropdown);
                         }}
-                        className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
-                        data-tooltip="Filter columns"
+                        className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm"
+                        data-tooltip="Manage columns"
                       >
-                        <Filter className="h-4 w-4 text-slate-600 dark:text-slate-100" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100">Filter</span>
+                        <Eye className="h-4 w-4 text-slate-600 dark:text-slate-100" />
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100 font-medium">Columns</span>
                       </button>
 
-                      {showFilterDropdown && (
+                      {showColumnDropdown && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
+                          <div className="fixed inset-0 z-40" onClick={() => setShowColumnDropdown(false)} />
                           <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 p-3">
                             <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">Visible Columns</h4>
                             <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
@@ -2661,11 +2709,11 @@ const ProjectMaster = () => {
                               ))}
                             </div>
                             <div className="mt-3 pt-3 border-t border-slate-200 flex justify-end gap-2">
-                              <button onClick={() => setShowFilterDropdown(false)} className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
+                              <button onClick={() => setShowColumnDropdown(false)} className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
                               <button
                                 onClick={() => {
                                   setColumns(columns.map(col => ({ ...col, visible: filterDraft[col.id] !== false })));
-                                  setShowFilterDropdown(false);
+                                  setShowColumnDropdown(false);
                                 }}
                                 className="px-3 py-1.5 text-xs bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors shadow-sm"
                               >Apply</button>
@@ -2771,6 +2819,58 @@ const ProjectMaster = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Active Filter Chips */}
+                {Object.values(activeFilters).some(v => v.length > 0) && (
+                  <div className="mt-3 flex flex-wrap gap-2 animate-in slide-in-from-top-2 duration-200">
+                    {(() => {
+                      const allChips = Object.entries(activeFilters).flatMap(([key, values]) =>
+                        values.map(val => ({ key, val }))
+                      );
+                      const visibleChips = showAllChips ? allChips : allChips.slice(0, 10);
+                      const hasMore = allChips.length > 10;
+
+                      return (
+                        <>
+                          {visibleChips.map(({ key, val }, index) => (
+                            <div
+                              key={`${key}-${val}-${index}`}
+                              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 text-[11px] font-bold"
+                            >
+                              <span className="opacity-60 uppercase text-[9px] tracking-wider">{key.replace('_', ' ')}:</span>
+                              <span>{val}</span>
+                              <button
+                                onClick={() => {
+                                  setActiveFilters({
+                                    ...activeFilters,
+                                    [key]: activeFilters[key].filter(v => v !== val)
+                                  });
+                                }}
+                                className="hover:text-blue-900 dark:hover:text-blue-200 transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                          {hasMore && (
+                            <button
+                              onClick={() => setShowAllChips(!showAllChips)}
+                              className="px-3 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                            >
+                              {showAllChips ? 'Show less' : `+${allChips.length - 10} more`}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setActiveFilters({ department: [], status: [], project_manager: [], employee_name: [] })}
+                            className="px-3 py-1 text-[11px] font-bold text-slate-500 hover:text-red-600 transition-colors"
+                          >
+                            Clear all
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* TABLE SECTION - SCROLLABLE */}
@@ -3088,6 +3188,21 @@ const ProjectMaster = () => {
           )}
         </div>
       </>
+      <FilterDrawer
+        isOpen={showFilterDrawer}
+        onClose={() => setShowFilterDrawer(false)}
+        activeFilters={activeFilters}
+        setActiveFilters={setActiveFilters}
+        filterOptions={filterOptions}
+        sections={[
+          { id: 'department', label: 'Department', placeholder: 'Select departments...' },
+          { id: 'status', label: 'Status', placeholder: 'Select status...' },
+          { id: 'project_manager', label: 'Project Manager', placeholder: 'Select project managers...' },
+          { id: 'employee_name', label: 'Team Lead', placeholder: 'Select team leads...' }
+        ]}
+        title="Project Filters"
+        subtitle="Filter projects by department, status, or lead"
+      />
     </div>
   );
 };

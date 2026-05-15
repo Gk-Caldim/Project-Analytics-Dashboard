@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import API from '../../utils/api';
+import FilterDrawer from './components/FilterDrawer';
 
 const MODULE_LIST = [
   'Dashboard', 'MOM', 'Employee Master', 'Project Master',
@@ -127,6 +128,7 @@ const EmployeeMaster = () => {
     status: [],
     project_name: []
   });
+  const [showAllChips, setShowAllChips] = useState(false);
 
   // Get permissions from Redux store
   const { user } = useSelector((state) => state.auth);
@@ -151,7 +153,7 @@ const EmployeeMaster = () => {
     setValidationErrors({});
     try {
       // Silently migrate any legacy 'User' roles → 'Employee' before loading
-      await API.post('/employees/migrate-user-role').catch(() => {});
+      await API.post('/employees/migrate-user-role').catch(() => { });
       await fetchColumns();
       await fetchEmployees();
       await fetchDynamicRoles();
@@ -437,7 +439,7 @@ const EmployeeMaster = () => {
     // Validate custom fields
     customColumns.forEach(col => {
       const value = data.custom_fields?.[col.id];
-      
+
       // Required check
       if (col.required && (value === undefined || value === null || value === '')) {
         errors[col.id] = `${col.label} is required`;
@@ -580,7 +582,7 @@ const EmployeeMaster = () => {
   const handleNewEmployeeChange = (field, value) => {
     const coreFields = ['employee_id', 'name', 'email', 'department', 'role', 'status', 'password', 'confirmPassword', 'modules'];
     const isCustom = !coreFields.includes(field);
-    
+
     setNewEmployee(prev => {
       if (isCustom) {
         return {
@@ -588,7 +590,7 @@ const EmployeeMaster = () => {
           custom_fields: { ...(prev.custom_fields || {}), [field]: value }
         };
       }
-      
+
       const updated = { ...prev, [field]: value };
       // Auto-toggle permissions if role is dynamic
       if (field === 'role') {
@@ -659,7 +661,7 @@ const EmployeeMaster = () => {
       } catch (err) {
         console.error(err);
         const msg = err.response?.data?.detail || err.message;
-          toast.error('Error deleting employee: ' + msg);
+        toast.error('Error deleting employee: ' + msg);
       }
     }
   };
@@ -741,7 +743,7 @@ const EmployeeMaster = () => {
           custom_fields: { ...(prev.custom_fields || {}), [field]: value }
         };
       }
-      
+
       const updated = { ...prev, [field]: value };
       // Auto-toggle permissions if role is dynamic
       if (field === 'role') {
@@ -989,13 +991,17 @@ const EmployeeMaster = () => {
 
     if (column.id === 'role') {
       const getRoleStyles = (role) => {
-        switch (role) {
-          case 'Admin': return 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20';
-          case 'Manager': return 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20';
-          case 'User': return 'bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-500/10 dark:text-slate-100 dark:border-slate-500/20';
-          case 'Intern': return 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
-          default: return 'bg-slate-50 text-slate-700 border-slate-100';
-        }
+        const r = (role || '').toLowerCase();
+        // High Level (Executive/Admin)
+        if (r.includes('admin')) return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20';
+        // Management Level
+        if (r.includes('manager') || r.includes('director') || r.includes('head')) return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20';
+        // Lead Level
+        if (r.includes('lead') || r.includes('senior')) return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20';
+        // Learning Level (Intern/Junior)
+        if (r.includes('intern') || r.includes('trainee') || r.includes('junior')) return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20';
+        // Standard Level (Employee/User)
+        return 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-100 dark:border-slate-500/20';
       };
 
       return (
@@ -1154,10 +1160,10 @@ const EmployeeMaster = () => {
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
-                
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Select Data Type</label>
-                  <select 
+                  <select
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none"
@@ -1241,8 +1247,8 @@ const EmployeeMaster = () => {
                       <label
                         key={column.id}
                         className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isFrozen
-                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
-                            : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
+                          ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
+                          : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
                           }`}
                       >
                         <div className="relative flex items-center">
@@ -1316,8 +1322,8 @@ const EmployeeMaster = () => {
                       <label
                         key={emp.id}
                         className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isFrozen
-                            ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
-                            : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
+                          ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800'
+                          : 'bg-white border-slate-200 hover:border-blue-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-blue-900'
                           }`}
                       >
                         <div className="relative flex items-center">
@@ -1606,7 +1612,7 @@ const EmployeeMaster = () => {
                             </div>
                           );
                         }
-                         return (
+                        return (
                           <div key={col.id}>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
@@ -1783,7 +1789,7 @@ const EmployeeMaster = () => {
                             </div>
                           );
                         }
-                         return (
+                        return (
                           <div key={col.id}>
                             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
                               {col.label} {col.required && <span className="text-red-500">*</span>}
@@ -1864,83 +1870,28 @@ const EmployeeMaster = () => {
                     {/* Bulk Filter Button */}
                     <div className="relative">
                       <button
-                        onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                        className={`flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border rounded hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm ${Object.values(activeFilters).some(v => v.length > 0)
-                            ? 'bg-blue-50 border-blue-200 text-blue-600'
-                            : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-100'
+                        onClick={() => setShowFilterDropdown(true)}
+                        className={`flex items-center gap-2 h-10 px-4 text-xs sm:text-sm font-semibold border rounded-lg transition-all duration-200 shadow-sm active:scale-[0.97] ${Object.values(activeFilters).some(v => v.length > 0)
+                            ? 'bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400'
+                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
                           }`}
                       >
-                        <Filter className="h-4 w-4" />
-                        <span className="hidden sm:inline font-medium">Bulk Filter</span>
+                        <Filter className={`h-4 w-4 ${Object.values(activeFilters).some(v => v.length > 0) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`} />
+                        <span>Filter</span>
                         {Object.values(activeFilters).flat().length > 0 && (
-                          <span className="bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center pointer-events-none ml-1">
+                          <span className="bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center pointer-events-none ml-1 font-bold">
                             {Object.values(activeFilters).flat().length}
                           </span>
                         )}
                       </button>
 
-                      {showFilterDropdown && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                          <div className="absolute left-0 mt-1 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 p-4 max-h-[85vh] flex flex-col overflow-hidden animate-slideInUp">
-                            <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-700 pb-2">
-                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight">Bulk Filters</h4>
-                              <button
-                                onClick={() => setActiveFilters({ department: [], role: [], status: [], project_name: [] })}
-                                className="text-[11px] text-blue-600 hover:text-blue-700 font-medium"
-                              >
-                                Clear All
-                              </button>
-                            </div>
-
-                            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
-                              {/* Filter Sections */}
-                              {[
-                                { id: 'department', label: 'Department', options: filterOptions.department },
-                                { id: 'role', label: 'Role', options: filterOptions.role },
-                                { id: 'status', label: 'Status', options: filterOptions.status },
-                                { id: 'project_name', label: 'Project Name', options: filterOptions.project_name }
-                              ].map(section => (
-                                <div key={section.id} className="filter-section">
-                                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase block mb-1.5">{section.label}</label>
-                                  <div className="grid grid-cols-1 gap-1.5 pl-1">
-                                    {section.options.length > 0 ? section.options.map(option => (
-                                      <label key={option} className="flex items-center gap-2 group cursor-pointer">
-                                        <input
-                                          type="checkbox"
-                                          checked={activeFilters[section.id].includes(option)}
-                                          onChange={(e) => {
-                                            const current = activeFilters[section.id];
-                                            const updated = e.target.checked
-                                              ? [...current, option]
-                                              : current.filter(o => o !== option);
-                                            setActiveFilters({ ...activeFilters, [section.id]: updated });
-                                          }}
-                                          className="h-3.5 w-3.5 text-blue-600 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500 cursor-pointer"
-                                        />
-                                        <span className="text-[13px] text-slate-700 dark:text-slate-100 group-hover:text-blue-600 transition-colors truncate">
-                                          {option}
-                                        </span>
-                                      </label>
-                                    )) : (
-                                      <span className="text-[11px] text-slate-400 italic">No options available</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-                              <button
-                                onClick={() => setShowFilterDropdown(false)}
-                                className="w-full bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                              >
-                                Apply Bulk Filters
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
+                      <FilterDrawer
+                        isOpen={showFilterDropdown}
+                        onClose={() => setShowFilterDropdown(false)}
+                        activeFilters={activeFilters}
+                        setActiveFilters={setActiveFilters}
+                        filterOptions={filterOptions}
+                      />
                     </div>
 
                     {/* Column Visibility Toggle */}
@@ -2086,6 +2037,68 @@ const EmployeeMaster = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Active Filter Chips */}
+                {Object.values(activeFilters).flat().length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2 items-center animate-fadeInUp">
+                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-1">Active Filters:</span>
+                    {(() => {
+                      const allChips = Object.entries(activeFilters).flatMap(([key, values]) =>
+                        values.map(val => ({ key, val }))
+                      );
+                      const displayLimit = 10;
+                      const visibleChips = showAllChips ? allChips : allChips.slice(0, displayLimit);
+                      const hiddenCount = allChips.length - displayLimit;
+
+                      return (
+                        <>
+                          {visibleChips.map(({ key, val }) => (
+                            <div
+                              key={`${key}-${val}`}
+                              className="group flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full shadow-sm hover:border-blue-300 dark:hover:border-blue-800 transition-all"
+                            >
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">{key.replace('_', ' ')}:</span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{val}</span>
+                              <button
+                                onClick={() => {
+                                  const updated = activeFilters[key].filter(v => v !== val);
+                                  setActiveFilters({ ...activeFilters, [key]: updated });
+                                }}
+                                className="ml-0.5 p-0.5 text-slate-400 hover:text-red-500 transition-colors"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {!showAllChips && hiddenCount > 0 && (
+                            <button
+                              onClick={() => setShowAllChips(true)}
+                              className="text-[11px] font-bold text-slate-500 hover:text-blue-600 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full transition-all"
+                            >
+                              +{hiddenCount} more
+                            </button>
+                          )}
+
+                          {showAllChips && allChips.length > displayLimit && (
+                            <button
+                              onClick={() => setShowAllChips(false)}
+                              className="text-[11px] font-bold text-slate-500 hover:text-blue-600 px-2 transition-all"
+                            >
+                              Show less
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                    <button
+                      onClick={() => setActiveFilters({ department: [], role: [], status: [], project_name: [] })}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline px-2 transition-all"
+                    >
+                      Clear all filters
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* TABLE SECTION - SCROLLABLE */}
@@ -2148,8 +2161,8 @@ const EmployeeMaster = () => {
                                       setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id);
                                     }}
                                     className={`p-1.5 rounded-md transition-all ${activeDropdownColumn === col.id
-                                        ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100'
-                                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-100'
+                                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                                       }`}
                                   >
                                     <ChevronDown className="h-4 w-4" />
@@ -2312,8 +2325,8 @@ const EmployeeMaster = () => {
                             })}
                             {/* Actions Cell - Sticky Right */}
                             <td className={`sticky right-0 z-10 py-3 px-4 text-right whitespace-nowrap w-[100px] border-l border-slate-100 dark:border-slate-700 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${selectedEmployees.includes(emp.id)
-                                ? 'bg-[#f8faff] dark:bg-[#1e293b]'
-                                : 'bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50'
+                              ? 'bg-[#f8faff] dark:bg-[#1e293b]'
+                              : 'bg-white dark:bg-slate-800 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50'
                               }`}>
                               <div className="flex items-center justify-end gap-1 transition-opacity duration-200">
                                 {hasPermission('Employee Master', 'EDIT') && (
