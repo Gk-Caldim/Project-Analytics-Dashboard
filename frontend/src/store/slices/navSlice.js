@@ -21,7 +21,8 @@ const initialState = {
   navigationHistory: JSON.parse(sessionStorage.getItem('navigation_history')) || [],
   chatHistory: JSON.parse(sessionStorage.getItem('chat_history')) || [],
   currentChatId: null,
-  unreadNotifications: 2
+  notifications: [],
+  unreadNotifications: 0
 };
 
 const navSlice = createSlice({
@@ -190,9 +191,21 @@ const navSlice = createSlice({
       state.chatHistory = action.payload;
       sessionStorage.setItem('chat_history', JSON.stringify(state.chatHistory));
     },
+    setNotifications: (state, action) => {
+      state.notifications = action.payload;
+      state.unreadNotifications = action.payload.filter(n => !n.is_read).length;
+    },
     markNotificationsRead: (state) => {
+      state.notifications = state.notifications.map(n => ({ ...n, is_read: true }));
       state.unreadNotifications = 0;
     },
+    updateNotification: (state, action) => {
+      const updated = action.payload;
+      state.notifications = state.notifications.map(n => 
+        n.id === updated.id ? { ...n, ...updated } : n
+      );
+      state.unreadNotifications = state.notifications.filter(n => !n.is_read).length;
+    }
   },
 });
 
@@ -228,7 +241,39 @@ export const {
   renameChat,
   deleteChat,
   setChatHistory,
-  markNotificationsRead
+  setNotifications,
+  markNotificationsRead,
+  updateNotification
 } = navSlice.actions;
+
+export const fetchNotifications = () => async (dispatch) => {
+  try {
+    const { default: API } = await import('../../utils/api');
+    const res = await API.get('/notifications/');
+    dispatch(setNotifications(res.data));
+  } catch (err) {
+    console.error('Failed to fetch notifications:', err);
+  }
+};
+
+export const markAllNotificationsRead = () => async (dispatch) => {
+  try {
+    const { default: API } = await import('../../utils/api');
+    await API.put('/notifications/mark-all-read');
+    dispatch(markNotificationsRead());
+  } catch (err) {
+    console.error('Failed to mark all notifications as read:', err);
+  }
+};
+
+export const markNotificationRead = (id) => async (dispatch) => {
+  try {
+    const { default: API } = await import('../../utils/api');
+    const res = await API.put(`/notifications/${id}/read`);
+    dispatch(updateNotification({ id, is_read: true }));
+  } catch (err) {
+    console.error(`Failed to mark notification ${id} as read:`, err);
+  }
+};
 
 export default navSlice.reducer;

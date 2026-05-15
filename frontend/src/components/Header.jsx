@@ -116,6 +116,9 @@ const Header = ({
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-black text-lg truncate">{user?.full_name || 'User'}</p>
                                             <p className="text-sm text-gray-500 mt-1 truncate">{user?.email || 'user@example.com'}</p>
+                                            {user?.employee_id && (
+                                                <p className="text-[10px] font-mono mt-1 text-gray-400">ID: {user.employee_id}</p>
+                                            )}
                                             <span className="inline-block mt-2 px-2.5 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 capitalize">
                                                 {user?.role || 'User'}
                                             </span>
@@ -123,17 +126,7 @@ const Header = ({
                                     </div>
                                 </div>
 
-                                {/* Menu Items */}
-                                <div className="py-2 border-t border-gray-100">
-                                    <button className="w-full px-5 py-3 text-left text-sm text-black hover:bg-gray-50 flex items-center space-x-3">
-                                        <User className="h-5 w-5 text-gray-500" />
-                                        <span className="font-medium">Profile Settings</span>
-                                    </button>
-                                    <button className="w-full px-5 py-3 text-left text-sm text-black hover:bg-gray-50 flex items-center space-x-3">
-                                        <Settings className="h-5 w-5 text-gray-500" />
-                                        <span className="font-medium">Account Settings</span>
-                                    </button>
-                                </div>
+
 
                                 <div className="border-t border-gray-100 py-2">
                                     <button
