@@ -29,12 +29,14 @@ import { trackerSidebarManager } from '../utils/trackerSidebarManager';
 import { getEmployees } from '../utils/employeeApi';
 import { getCurrentUser } from '../utils/userUtils';
 import useCurrency from '../hooks/useCurrency';
+import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 
 const AgentView = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
+  const { themeSettings, updateThemeLocally } = useTheme();
   const { navigationHistory, chatHistory, currentChatId, unreadNotifications } = useSelector(state => state.nav);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
@@ -653,6 +655,38 @@ const AgentView = () => {
         }
       }
 
+      // X. ROLE QUERIES
+      const isRoleQuery = /\b(role|roles|designation|designations|position|positions)\b/i.test(lowerMsg) && 
+                          /\b(list|show|what|which|available|exist|are there|have|present)\b/i.test(lowerMsg);
+      if (!response && isRoleQuery) {
+        try {
+          const roleResp = await API.get('/roles/');
+          const masterRoles = (roleResp.data || []).map(r => typeof r === 'string' ? r : (r.name || ''));
+          
+          // Deep scan: Aggregate from Employees for complete coverage
+          const employeeRoles = (latestEmployees || []).map(e => e.role).filter(Boolean);
+          
+          const uniqueRoles = [...new Set([
+            ...masterRoles,
+            ...employeeRoles
+          ])].map(r => r.trim()).filter(r => r !== '' && r !== '-');
+
+          if (uniqueRoles.length > 0) {
+            response = `I have analyzed the system and identified **${uniqueRoles.length}** distinct role(s) currently present:\n\n`;
+            uniqueRoles.sort().forEach((r, idx) => {
+              response += `${idx + 1}. **${r}**\n`;
+            });
+            fetchedData = uniqueRoles.map(r => ({ name: r, details: 'System Designation', status: 'Active' }));
+            dataType = 'role';
+          } else {
+            response = "I couldn't find any specific roles defined in the system.";
+          }
+        } catch (err) {
+          console.error("Role query error:", err);
+          response = "I encountered an error while analyzing system roles.";
+        }
+      }
+
       // 3. IDENTITY & CAPABILITIES (Only if no data was found and it's clearly about identity)
       if (!response) {
         const isAboutMe = !mentionsProjectOrEmployee && (
@@ -677,9 +711,10 @@ const AgentView = () => {
         const isMilestoneRequest = /\b(milestone|milestones|track|tracking|progress|timeline|stages)\b/i.test(lowerMsg);
         const isIssueRequest = /\b(issue|issues|problem|problems|criticality|critical|mom|generate|blocker|blockers)\b/i.test(lowerMsg);
         const isHealthRequest = /\b(health|check|risk|risk report|how is|status|status check|tell me about|info|information|details|about|explain|summary|overview)\b/i.test(lowerMsg);
-        const isProjectQuery = /\b(project|projects|explain about)\b/i.test(lowerMsg);
+        const isProjectQuery = /\b(project|projects|explain about|dashboard)\b/i.test(lowerMsg);
         const isDelayedQuery = /\b(delayed|overdue|pending|behind|late)\b/i.test(lowerMsg);
-        const isListProjectQuery = isProjectQuery && /\b(all|list|show|what are|which are|are here|in the dashboard|any project|what project|fetch|get|display|how many|count)\b/i.test(lowerMsg);
+        const isListProjectQuery = (isProjectQuery || lowerMsg.includes('dashboard')) && 
+                                   (/\b(all|list|show|what are|which are|are here|in the dashboard|any project|what project|fetch|get|display|how many|count|detail|details|overview|summary|master|about|tell me)\b/i.test(lowerMsg));
 
         if (isListProjectQuery) {
           let filteredProjects = latestProjects;
@@ -850,11 +885,12 @@ const AgentView = () => {
       }
 
       // X. ACTIVITY & AUDIT LOGS
-      const isActivityRequest = /\b(change|changes|update|updates|activity|activities|action|actions|modification|modifications|log|logs|work|task|tasks|operation|operations|transaction|transactions)\b/i.test(lowerMsg);
+      const isActivityRequest = /\b(change|changes|update|updates|activity|activities|action|actions|modification|modifications|log|logs|work|task|tasks|operation|operations|transaction|transactions|audit)\b/i.test(lowerMsg);
+      const isGeneralLogRequest = isActivityRequest && /\b(all|list|show|fetch|get|display|print|recent|latest)\b/i.test(lowerMsg);
       const targetsSelf = /\b(i|my|me)\b/i.test(lowerMsg);
       const hasTarget = targetsSelf || matchedEmployees.length > 0 || userMessage.match(/\b(EMP\d+)\b/i);
 
-      if (!response && isActivityRequest && hasTarget) {
+      if (!response && (isGeneralLogRequest || (isActivityRequest && hasTarget))) {
         try {
           let targetId = null;
           let targetName = null;
@@ -873,29 +909,43 @@ const AgentView = () => {
             }
           }
 
-          if (targetId) {
-            const auditResp = await API.get('/audit-logs/', { params: { user_id: targetId, limit: 100 } });
-            const logs = auditResp.data || [];
-            
-            const isToday = lowerMsg.includes('today');
-            const filteredLogs = logs.filter(log => {
-              if (!isToday) return true;
-              const logDate = new Date(log.timestamp).toLocaleDateString();
-              const today = new Date().toLocaleDateString();
-              return logDate === today;
-            });
+          const params = targetId ? { user_id: targetId, limit: 100 } : { limit: 100 };
+          const auditResp = await API.get('/audit-logs/', { params });
+          const logs = auditResp.data || [];
+          
+          const isToday = lowerMsg.includes('today');
+          const filteredLogs = logs.filter(log => {
+            if (!isToday) return true;
+            const logDate = new Date(log.timestamp).toLocaleDateString();
+            const today = new Date().toLocaleDateString();
+            return logDate === today;
+          });
 
-            if (filteredLogs.length > 0) {
-              response = `Yes, ${targetName} made ${filteredLogs.length} update(s)${isToday ? ' today' : ' recently'}:\n\n`;
-              filteredLogs.slice(0, 10).forEach((log, idx) => {
-                const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                response += `${idx + 1}. **${log.action}** in ${log.module} at ${timeStr}\n`;
-                if (log.details) response += `   - Details: ${log.details}\n`;
-              });
-              if (filteredLogs.length > 10) response += `\n*(Showing latest 10 of ${filteredLogs.length} updates)*`;
-            } else {
-              response = `No updates or changes were found for ${targetName}${isToday ? ' today' : ' recently'}.`;
-            }
+          if (filteredLogs.length > 0) {
+            response = targetName 
+              ? `Yes, ${targetName} made ${filteredLogs.length} update(s)${isToday ? ' today' : ' recently'}:\n\n`
+              : `I found **${filteredLogs.length}** recent system update(s)${isToday ? ' from today' : ''}:\n\n`;
+              
+            filteredLogs.slice(0, 10).forEach((log, idx) => {
+              const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const userStr = log.user_name ? ` by **${log.user_name}**` : '';
+              response += `${idx + 1}. **${log.action}** in ${log.module}${userStr} at ${timeStr}\n`;
+              if (log.details) response += `   - Details: ${log.details}\n`;
+            });
+            if (filteredLogs.length > 10) response += `\n*(Showing latest 10 of ${filteredLogs.length} updates)*`;
+            
+            fetchedData = filteredLogs.map(l => ({ 
+              name: l.action, 
+              module: l.module, 
+              user: l.user_name || 'System', 
+              timestamp: new Date(l.timestamp).toLocaleString(),
+              details: l.details
+            }));
+            dataType = 'audit_log';
+          } else {
+            response = targetName 
+              ? `No updates or changes were found for ${targetName}${isToday ? ' today' : ' recently'}.`
+              : `No recent system updates were found${isToday ? ' today' : ''}.`;
           }
         } catch (err) {
           console.error("Audit log error:", err);
@@ -908,6 +958,30 @@ const AgentView = () => {
       if (!response && isNavigationQuery) {
         navigationModule = modules.find(m => lowerMsg.includes(m.name.toLowerCase()) || (m.id === 'masters-main' && /\b(master|masters)\b/i.test(lowerMsg)));
         if (navigationModule) response = `Certainly. I am navigating you to the ${navigationModule.name} page.`;
+      }
+
+      // 8. THEME SWITCHING (NEW)
+      const isThemeSwitch = /\b(theme|mode|light|dark|appearance|visual)\b/i.test(lowerMsg) && /\b(switch|change|toggle|set|turn on|enable|go to)\b/i.test(lowerMsg);
+      if (!response && isThemeSwitch) {
+        const toDark = lowerMsg.includes('dark');
+        const toLight = lowerMsg.includes('light');
+        
+        if (toDark || toLight) {
+          const targetMode = toDark ? 'dark' : 'light';
+          updateThemeLocally({ displayMode: targetMode });
+          
+          // Also try to persist it immediately if we have the API
+          try {
+            API.patch('/settings/bulk', { 
+              settings: [{ key: 'display_mode', value: targetMode, category: 'Branding', type: 'text' }] 
+            });
+          } catch (err) {
+            console.error("Failed to persist theme switch:", err);
+          }
+          
+          response = `I have switched the interface to **${targetMode.toUpperCase()} MODE**. How does it look?`;
+          dataType = 'theme_switch';
+        }
       }
 
       // 7. GENERAL FALLBACKS
@@ -1343,17 +1417,27 @@ const AgentView = () => {
                                   <th className="px-3 py-2 font-medium whitespace-nowrap">Role</th>
                                   <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Status</th>
                                 </>
+                              ) : msg.dataType === 'audit_log' ? (
+                                <>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Action</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">Module</th>
+                                  <th className="px-3 py-2 font-medium whitespace-nowrap">User</th>
+                                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Timestamp</th>
+                                </>
                               ) : (
                                 <>
                                   <th className="px-3 py-2 font-medium">
                                     {msg.dataType === 'milestone' ? 'Item Name' :
                                       msg.dataType === 'issue' ? 'Critical Issue' :
-                                        msg.dataType === 'transcript_result' ? 'Meeting' : 'Name'}
+                                        msg.dataType === 'transcript_result' ? 'Meeting' : 
+                                          msg.dataType === 'role' ? 'Role Name' :
+                                            msg.dataType === 'department' ? 'Department Name' : 'Name'}
                                   </th>
                                   <th className="px-3 py-2 font-medium">
                                     {msg.dataType === 'milestone' ? 'Module' :
                                       msg.dataType === 'issue' ? 'Priority' :
-                                        msg.dataType === 'transcript_result' ? 'Speaker' : 'Details'}
+                                        msg.dataType === 'transcript_result' ? 'Speaker' : 
+                                          (msg.dataType === 'role' || msg.dataType === 'department') ? 'Classification' : 'Details'}
                                   </th>
                                   <th className="px-3 py-2 font-medium text-right">
                                     {msg.dataType === 'transcript_result' ? 'Moment' : 'Status'}
@@ -1393,9 +1477,6 @@ const AgentView = () => {
                                   </>
                                 ) : msg.dataType === 'employee' ? (
                                   <>
-                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] whitespace-nowrap">{item.employee_id || '-'}</td>
-                                    <td className="px-3 py-2 text-white/90 font-medium whitespace-nowrap">{item.name}</td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.email}</td>
                                     <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.department || '-'}</td>
                                     <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.role || 'User'}</td>
                                     <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -1406,6 +1487,13 @@ const AgentView = () => {
                                         {item.status || 'Active'}
                                       </span>
                                     </td>
+                                  </>
+                                ) : msg.dataType === 'audit_log' ? (
+                                  <>
+                                    <td className="px-3 py-2 text-white/90 font-medium whitespace-nowrap">{item.name}</td>
+                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.module}</td>
+                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.user}</td>
+                                    <td className="px-3 py-2 text-white/40 font-mono text-[9px] text-right whitespace-nowrap">{item.timestamp}</td>
                                   </>
                                 ) : (
                                   <>

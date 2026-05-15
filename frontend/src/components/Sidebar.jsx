@@ -15,20 +15,23 @@ import {
 } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { setSidebarCollapsed } from '../store/slices/navSlice';
+import API from '../utils/api';
 
 // ─── Logo Block ─────────────────────────────────────────────────────────────
-const LogoBlock = ({ collapsed, onToggle }) => (
-    <div className={`h-[72px] flex items-center border-b border-white/5 transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'px-6 justify-between'}`}>
-        {!collapsed && <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>}
-        <button 
-            onClick={onToggle}
-            className={`p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
-            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-        >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
-    </div>
-);
+const LogoBlock = ({ collapsed, onToggle }) => {
+    return (
+        <div className={`h-[72px] flex items-center border-b border-white/5 transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'px-6 justify-between'}`}>
+            {!collapsed && <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>}
+            <button 
+                onClick={onToggle}
+                className={`p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
+                title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+                {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
+        </div>
+    );
+};
 
 // ─── Main Sidebar Component ─────────────────────────────────────────────────
 const Sidebar = ({

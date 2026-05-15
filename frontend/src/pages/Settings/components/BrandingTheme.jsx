@@ -10,7 +10,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
     return (
       <button
         onClick={() => {
-          onUpdate('display_mode', mode);
+          onUpdate('display_mode', mode, true);
           if (onLocalUpdate) onLocalUpdate({ displayMode: mode });
         }}
         className={`group relative flex flex-col p-6 rounded-2xl border-2 transition-all duration-300 text-left ${isActive

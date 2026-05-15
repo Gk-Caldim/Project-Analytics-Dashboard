@@ -80,7 +80,7 @@ const SystemSettings = () => {
     else toast(message);
   };
 
-  const handleUpdate = (key, value) => {
+  const handleUpdate = async (key, value, immediate = false) => {
     setSettings(prev => {
       const exists = prev.find(s => s.key === key);
       if (exists) {
@@ -89,6 +89,31 @@ const SystemSettings = () => {
       return [...prev, { key, value }];
     });
     setModifiedSettings(prev => ({ ...prev, [key]: value }));
+
+    if (immediate) {
+      try {
+        const original = settings.find(s => s.key === key);
+        await API.patch('/settings/bulk', { 
+          settings: [{ 
+            key, 
+            value, 
+            category: original?.category || 'General', 
+            type: original?.type || 'text' 
+          }] 
+        });
+        setModifiedSettings(prev => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+        if (key === 'primary_color' || key === 'secondary_color' || key === 'display_mode') {
+          refreshTheme();
+        }
+      } catch (error) {
+        console.error('Error saving immediate setting:', error);
+        showNotification('Failed to save setting', 'error');
+      }
+    }
   };
 
   const handleLogoUpload = async (imageSource) => {
