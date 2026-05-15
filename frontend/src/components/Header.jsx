@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { fadeUp } from '../utils/animations';
 
@@ -11,6 +12,7 @@ const Header = ({
     currentDate,
     userInitial
 }) => {
+    const navigate = useNavigate();
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
     const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
@@ -61,8 +63,16 @@ const Header = ({
             animate="visible"
         >
             <div className="px-6 py-4 flex items-center justify-between relative z-10 w-full">
-                {/* Left side - Empty for centering */}
-                <div className="w-48"></div>
+                {/* Left side - Back Button */}
+                <div className="w-48 flex items-center">
+                    <button 
+                        onClick={() => navigate(-1)}
+                        className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+                        title="Go Back"
+                    >
+                        <ChevronLeft className="w-6 h-6 text-slate-600 group-hover:text-slate-900" />
+                    </button>
+                </div>
 
                 {/* Center - Title */}
                 <div className="flex-1 flex justify-center items-center">

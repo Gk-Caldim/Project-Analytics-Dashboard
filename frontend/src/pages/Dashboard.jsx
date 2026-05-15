@@ -759,8 +759,15 @@ const Dashboard = () => {
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
             ? 'bg-black border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
-            {/* Left - Title */}
+            {/* Left - Title & Back Button */}
             <div className="flex items-center gap-4 flex-1">
+              <button 
+                onClick={() => navigate(-1)}
+                className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
+                title="Go Back"
+              >
+                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-text-secondary group-hover:text-text-primary'}`} />
+              </button>
               <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
                 {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
               </h1>
