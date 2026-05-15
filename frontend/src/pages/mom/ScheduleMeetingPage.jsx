@@ -301,6 +301,7 @@ const ScheduleMeetingPage = () => {
         now.setHours(0, 0, 0, 0);
         const filtered = meetings.filter(m => {
           if (!m.date) return false;
+          if (m.status === 'cancelled') return false;
           const mDate = new Date(m.date);
           // Only show meetings from today onwards
           return mDate >= now;

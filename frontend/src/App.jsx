@@ -18,6 +18,7 @@ import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
 import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
+import ScheduleMeetingPremiumPage from './pages/mom/ScheduleMeetingPremiumPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
 import SavedMOMsPage from './pages/mom/SavedMOMsPage';
 import SystemSettings from './pages/Settings/SystemSettings';
@@ -38,12 +39,13 @@ import CheckoutPage from './pages/CheckoutPage';
 import LoginPage from './pages/LoginPage';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import NotFound from './pages/NotFound';
+import CalendarPage from './pages/calendar/CalendarPage';
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ConfirmProvider } from './hooks/use-confirm';
 import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
-import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 
@@ -147,7 +149,6 @@ function App() {
   React.useEffect(() => {
     const initializeApp = async () => {
       try {
-        // 1. Fetch System Settings (Company Name, Logo, Base Currency)
         const settingsRes = await API.get('/settings/');
         const settings = settingsRes.data || [];
 
@@ -167,7 +168,6 @@ function App() {
           }));
         }
 
-        // 2. Fetch Exchange Rates
         const ratesRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
         const ratesData = await ratesRes.json();
 
@@ -182,11 +182,9 @@ function App() {
 
     initializeApp();
 
-    // ── Global WebSocket Setup for Real-time Notifications ──
     let retryDelay = 5000;
 
     const connectWebSocket = () => {
-      // 1. Prevent duplicate connections if already connecting or open
       if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
         return;
       }
@@ -195,13 +193,11 @@ function App() {
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
         const wsBase = apiBase.replace(/^http/, 'ws');
         const wsUrl = `${wsBase}/ws/status/dashboard_${Date.now()}`;
-        console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
         wsRef.current = socket;
 
         socket.onopen = () => {
-          console.log('✅ WS CONNECTED (Handshake Successful)');
           retryDelay = 5000;
         };
 
@@ -219,36 +215,28 @@ function App() {
               window.dispatchEvent(new CustomEvent('ISSUE_SYNCED', { detail: data }));
             }
           } catch (e) {
-            console.warn('WS Message non-JSON:', event.data);
           }
         };
 
         socket.onclose = (e) => {
-          // Only retry if this is still the current active socket reference
           if (wsRef.current === socket) {
-            console.log(`🔌 WS CLOSED (Code: ${e.code}, Reason: ${e.reason || 'None'}). Retrying in ${retryDelay / 1000}s...`);
             reconnectTimerRef.current = setTimeout(connectWebSocket, retryDelay);
             retryDelay = Math.min(retryDelay * 2, 60000);
           }
         };
 
         socket.onerror = (err) => {
-          console.error('❌ WS ERROR DETECTED');
-          // onclose will handle retry
         };
       } catch (err) {
-        console.error('WS Setup Exception:', err);
       }
     };
 
     connectWebSocket();
 
     return () => {
-      // Cleanup on unmount
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (wsRef.current) {
         const socket = wsRef.current;
-        // Detach listeners before closing to avoid "Failed" logs during intentional cleanup
         socket.onclose = null;
         socket.onerror = null;
         socket.onopen = null;
@@ -302,7 +290,8 @@ function App() {
             <Route path="mom/legacy" element={<MOMModule />} />
             <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="saved-moms" element={<SavedMOMsPage />} />
-            <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
+            <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
             <Route path="settings/*" element={<SystemSettings />} />
           </Route>

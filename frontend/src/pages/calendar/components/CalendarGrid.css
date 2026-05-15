@@ -1,0 +1,809 @@
+/* CalendarGrid.css — Zoho-Inspired Premium Calendar Grid */
+
+/* ── Self-contained design tokens (grid owns its own vars) ── */
+:root {
+  /* Grid geometry — 1px = 1 minute, 1440px = 24 hours */
+  --cg-grid-height: 1440px;
+  --cg-gutter-width: 72px;
+
+  /* Color tokens */
+  --cg-border-light: rgba(0, 0, 0, 0.07);
+  --cg-border-subtle: rgba(0, 0, 0, 0.05);
+  --cg-accent-blue: #2563EB;
+  --cg-accent-blue-hover: #1D4ED8;
+  --cg-accent-blue-bg: #EFF6FF;
+  --cg-bg-sidebar: #F7F8FA;
+  --cg-bg-today: rgba(37, 99, 235, 0.025);
+  --cg-grid-line: rgba(0, 0, 0, 0.045);
+  --cg-grid-dashed: rgba(0, 0, 0, 0.03);
+  --cg-now-red: #EA4335;
+
+  /* Text */
+  --cg-text-primary: #111827;
+  --cg-text-secondary: #6B7280;
+  --cg-text-muted: #9CA3AF;
+
+  /* Shadows */
+  --cg-shadow-subtle: 0 1px 3px rgba(0,0,0,0.06);
+  --cg-shadow-elevated: 0 4px 16px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06);
+  --cg-shadow-premium: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+
+  /* Radii */
+  --cg-radius-sm: 4px;
+  --cg-radius-md: 8px;
+  --cg-radius-lg: 12px;
+  --cg-radius-xl: 16px;
+}
+
+/* ── Container ────────────────────────────────────────────── */
+.calendar-grid-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Header Row (Day names + date numbers) ───────────────── */
+.grid-header-row {
+  display: flex;
+  height: 64px;
+  border-bottom: 1px solid var(--cg-border-light);
+  flex-shrink: 0;
+  padding-right: 8px; /* compensates for scrollbar width */
+  background: #fff;
+  z-index: 10;
+}
+
+.time-gutter-header {
+  width: var(--cg-gutter-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  border-right: 1px solid var(--cg-border-light);
+}
+
+.week-num-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--cg-text-muted);
+  margin-bottom: 2px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.day-column-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  border-right: 1px solid var(--cg-border-light);
+  transition: background 0.15s;
+  position: relative;
+}
+
+.day-column-header:hover {
+  background-color: var(--cg-bg-sidebar);
+}
+
+/* Today column — blue top accent bar */
+.day-column-header.today-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: var(--cg-accent-blue);
+  border-radius: 0 0 2px 2px;
+}
+
+.day-abbr {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--cg-text-muted);
+  letter-spacing: 0.06em;
+}
+
+.day-column-header.today-active .day-abbr {
+  color: var(--cg-accent-blue);
+}
+
+.day-number {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--cg-text-primary);
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.day-number.today {
+  background-color: var(--cg-accent-blue);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+/* ── Scroll Area ─────────────────────────────────────────── */
+.grid-scroll-area {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.1) transparent;
+}
+
+.grid-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.grid-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.08);
+  border-radius: 3px;
+}
+
+/* ── Time Gutter ─────────────────────────────────────────── */
+.time-gutter {
+  width: var(--cg-gutter-width);
+  flex-shrink: 0;
+  position: relative;
+  height: var(--cg-grid-height);
+  background: #fff;
+  border-right: 1px solid var(--cg-border-light);
+  z-index: 2;
+}
+
+.hour-label {
+  position: absolute;
+  right: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cg-text-muted);
+  white-space: nowrap;
+  transform: translateY(-50%);
+  letter-spacing: -0.01em;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── Grid Columns ────────────────────────────────────────── */
+.grid-columns-container {
+  display: flex;
+  flex: 1;
+  position: relative;
+  height: var(--cg-grid-height);
+  background: #fff;
+}
+
+.grid-day-column {
+  flex: 1;
+  position: relative;
+  border-right: 1px solid var(--cg-border-light);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.grid-day-column:hover {
+  background: rgba(37, 99, 235, 0.008);
+}
+
+.grid-day-column.today-highlight {
+  background-color: var(--cg-bg-today);
+}
+
+/* ── Grid Lines ──────────────────────────────────────────── */
+.hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--cg-grid-line);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.half-hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px dashed var(--cg-grid-dashed);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── Now Indicator ───────────────────────────────────────── */
+.now-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--cg-now-red);
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.now-dot {
+  width: 9px;
+  height: 9px;
+  background-color: var(--cg-now-red);
+  border-radius: 50%;
+  margin-left: -4.5px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(234, 67, 53, 0.2);
+  animation: now-pulse 2s ease-in-out infinite;
+}
+
+@keyframes now-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(234, 67, 53, 0.2); }
+  50%       { box-shadow: 0 0 0 2px #fff, 0 0 0 5px rgba(234, 67, 53, 0.35); }
+}
+
+/* ── Event Blocks (Zoho Card Style) ──────────────────────── */
+.event-block {
+  position: absolute;
+  border-radius: var(--cg-radius-sm);
+  padding: 5px 8px 5px 10px;
+  border-left: 3px solid currentColor;
+  font-size: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: var(--cg-shadow-subtle);
+  user-select: none;
+}
+
+.event-block:hover {
+  transform: translateX(1px) translateY(-1px);
+  box-shadow: var(--cg-shadow-elevated);
+  z-index: 100 !important;
+}
+
+.event-block.is-selected {
+  box-shadow: 0 0 0 2px currentColor, var(--cg-shadow-elevated);
+  z-index: 90 !important;
+}
+
+.event-block.declined {
+  opacity: 0.45;
+  border-left-style: dashed;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(0, 0, 0, 0.025) 8px,
+    rgba(0, 0, 0, 0.025) 16px
+  );
+}
+
+.event-title {
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.event-block.declined .event-title {
+  text-decoration: line-through;
+}
+
+.event-time {
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* ── Month View ──────────────────────────────────────────── */
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+  background-color: var(--cg-border-light);
+  gap: 1px;
+}
+
+.month-cell {
+  background-color: #fff;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: 100px;
+}
+
+.month-cell:hover {
+  background-color: var(--cg-bg-sidebar);
+}
+
+.month-cell.other-month {
+  background-color: #fafafa;
+}
+
+.month-date-num {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 50%;
+  margin-bottom: 2px;
+  cursor: pointer;
+  color: var(--cg-text-primary);
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.month-cell.other-month .month-date-num {
+  color: var(--cg-text-muted);
+}
+
+.month-date-num:hover:not(.today) {
+  background-color: var(--cg-bg-sidebar);
+}
+
+.month-date-num.today {
+  background-color: var(--cg-accent-blue);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+/* ── Zoho Quick Popup (One-Liner Aesthetic) ────────────────────────── */
+.zoho-quick-popup {
+  position: fixed;
+  z-index: 1000;
+  background: white;
+  width: 480px;
+  border-radius: 4px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  border: 1px solid #e5e7eb;
+}
+
+.zoho-popup-warning {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #fde68a;
+}
+
+.zoho-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.zoho-popup-close:hover {
+  color: #374151;
+}
+
+.zoho-popup-content {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zoho-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 32px;
+}
+
+.zoho-icon-col {
+  width: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.zoho-icon {
+  color: #6b7280;
+}
+
+.zoho-title-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: transform 0.1s;
+}
+
+.zoho-title-circle:hover {
+  transform: scale(1.2);
+}
+
+.zoho-color-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  z-index: 100;
+  margin-top: 8px;
+}
+
+.zoho-color-option {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: transform 0.1s;
+}
+
+.zoho-color-option:hover {
+  transform: scale(1.2);
+}
+
+.zoho-input-col {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.zoho-title-input {
+  width: 100%;
+  font-size: 18px;
+  font-weight: 500;
+  color: #111827;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 4px 0;
+  outline: none;
+}
+
+.zoho-title-input:focus {
+  border-bottom-color: #2563eb;
+}
+
+.zoho-title-input::placeholder {
+  color: #9ca3af;
+}
+
+.zoho-attendee-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  background: #f9fafb;
+  border-radius: 4px;
+  border: 1px solid #f3f4f6;
+}
+
+.zoho-attendee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: white;
+  padding: 2px 6px 2px 2px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  font-size: 12px;
+  color: #374151;
+}
+
+.zoho-chip-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.zoho-inline-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: #374151;
+}
+
+.zoho-datetime-box {
+  padding: 4px 10px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #111827;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.zoho-datetime-box:hover {
+  background: #e5e7eb;
+}
+
+.zoho-arrow {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.zoho-select-box {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+}
+
+.zoho-select-box:hover {
+  background: #e5e7eb;
+}
+
+.zoho-platform-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  z-index: 110;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.zoho-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.zoho-dropdown-item:hover {
+  background: #f9fafb;
+}
+
+.zoho-popup-footer {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.zoho-btn-save {
+  padding: 8px 24px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zoho-btn-save:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.zoho-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoho-btn-more {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.zoho-btn-more:hover {
+  text-decoration: underline;
+}
+
+.zoho-picker-anchor {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 120;
+  margin-top: 4px;
+}
+
+/* 3-Column TimePicker (Premium Override) */
+.premium-time-picker-dropdown {
+  width: 220px;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  position: absolute;
+  z-index: 1200;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+
+.flex-row { display: flex; flex-direction: row; align-items: center; }
+.gap-2 { gap: 8px; }
+
+.quick-create-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.ghost-event-block {
+  position: absolute;
+  background: rgba(26, 115, 232, 0.15);
+  border: 1px dashed #1a73e8;
+  border-left: 3px solid #1a73e8;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 8;
+  display: flex;
+  padding: 6px 10px;
+  color: #1a73e8;
+  font-size: 12px;
+  box-sizing: border-box;
+  opacity: 0.8;
+}
+/* ── DatePicker Dropdown ────────────────────────────────────────── */
+.date-picker-dropdown {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+  padding: 16px;
+  width: 260px;
+  user-select: none;
+}
+
+.date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.date-picker-month {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.date-picker-nav {
+  display: flex;
+  gap: 4px;
+}
+
+.date-picker-nav-btn {
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #6b7280;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-picker-nav-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 8px;
+}
+
+.weekday-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker-cell {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.date-picker-cell:hover {
+  background: #f3f4f6;
+}
+
+.date-picker-cell.selected {
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+}
+
+.date-picker-cell.today {
+  color: #2563eb;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.date-picker-cell.muted {
+  color: #d1d5db;
+}
