@@ -94,14 +94,14 @@ async def set_secure_headers(request: Request, call_next):
     secure_headers.framework.fastapi(response)
     # Additional manual headers for industrial security
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    # Updated CSP to allow connections to Render backend and Vercel frontend
+    # Updated CSP to allow connections to Render backend and Vercel frontend subdomains
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https:; "
-        "connect-src 'self' ws: wss: https://project-analytics-dashboard.onrender.com https://project-analytics-dashboard.vercel.app;"
+        "connect-src 'self' ws: wss: https://project-analytics-dashboard.onrender.com https://project-analytics-dashboard.vercel.app https://*.vercel.app;"
     )
     return response
 
@@ -110,6 +110,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://project-analytics-dashboard.vercel.app",
+    "https://project-analytics-dashboard-n64saa9hk.vercel.app", # Added current preview URL
 ]
 if FRONTEND_URL and FRONTEND_URL not in ALLOWED_ORIGINS:
     ALLOWED_ORIGINS.append(FRONTEND_URL)
@@ -117,7 +118,14 @@ if FRONTEND_URL and FRONTEND_URL not in ALLOWED_ORIGINS:
 def add_cors_headers(response: JSONResponse, request: Request):
     """Helper to add CORS headers to manual responses (like exception handlers)"""
     origin = request.headers.get("origin")
+    # Check if origin matches allowed list or vercel pattern
+    is_allowed = False
     if origin in ALLOWED_ORIGINS:
+        is_allowed = True
+    elif origin and (origin.endswith(".vercel.app") and "project-analytics-dashboard" in origin):
+        is_allowed = True
+        
+    if is_allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
     else:
         response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
@@ -179,6 +187,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://project-analytics-dashboard-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
