@@ -45,6 +45,8 @@ import { useDispatch } from 'react-redux';
 import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
+import useInactivityTimeout from './hooks/useInactivityTimeout';
+
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -143,7 +145,11 @@ function App() {
   const wsRef = React.useRef(null);
   const reconnectTimerRef = React.useRef(null);
 
+  // Initialize inactivity logout (30 minutes)
+  useInactivityTimeout(30 * 60 * 1000);
+
   React.useEffect(() => {
+
     const initializeApp = async () => {
       try {
         // 1. Fetch System Settings (Company Name, Logo, Base Currency)

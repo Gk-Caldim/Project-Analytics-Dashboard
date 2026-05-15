@@ -50,6 +50,7 @@ from app.models.mom import MOMSession  # noqa: F401
 from app.models.mom_sync_history import MomSyncHistory # noqa: F401
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
+from app.models.notification import Notification # noqa: F401
  # noqa: F401
 
 # Import routers
@@ -236,6 +237,9 @@ app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
 
 from app.api.websockets import router as websockets_router
 app.include_router(websockets_router, prefix=API_PREFIX)
+
+from app.api.notifications import router as notifications_router
+app.include_router(notifications_router, prefix=API_PREFIX)
 
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"
