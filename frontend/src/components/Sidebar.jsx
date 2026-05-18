@@ -395,11 +395,8 @@ const Sidebar = ({
     };
 
     return (
-        <motion.div
-            className={`app-sidebar h-screen sticky top-0 transition-all duration-300 ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
-            variants={slideInLeft}
-            initial="hidden"
-            animate="visible"
+        <div
+            className={`app-sidebar h-screen sticky top-0 ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
         >
             <LogoBlock collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
@@ -413,7 +410,7 @@ const Sidebar = ({
                 {(!hasAccess || hasAccess('Upload Trackers')) && renderUploadTrackersModule()}
                 {renderOtherModules()}
             </div>
-        </motion.div>
+        </div>
     );
 };
 
