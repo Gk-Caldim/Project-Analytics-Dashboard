@@ -20,17 +20,28 @@ else:
         "connect_timeout": 10
     }
 
-# Use QueuePool for both local and cloud when using direct connection (port 5432)
-# To handle higher scalability without PgBouncer, we increase pool size and max overflow,
-# while keeping pool_timeout reasonable to fail fast if connections are exhausted.
+# Use QueuePool for both local and cloud databases.
+# When using Supabase Cloud via PgBouncer/Supavisor Transaction Mode (port 6543),
+# persistent QueuePool delivers ultra-low latency (50-60ms vs 500ms handshake time)
+# while PgBouncer multiplexes active server connections to prevent EMAXCONNSESSION limits.
 pool_class = QueuePool
-pool_args = {
-    "pool_size": 20,          # Increased from 5: Allow more baseline concurrent connections per worker
-    "max_overflow": 30,       # Increased from 10: Allow temporary bursts
-    "pool_timeout": 15,       # Decreased from 30: Fail faster instead of hanging requests if pool is empty
-    "pool_recycle": 1800,     # Recycle connections every 30 mins to prevent stale/dropped connections by firewall
-    "pool_pre_ping": True,    # Essential for cloud DBs to check connection health before using
-}
+if IS_CLOUD_DB:
+    pool_args = {
+        "pool_size": 10,          # Persistent baseline connections for cloud reuse
+        "max_overflow": 15,       # Allow burst capacity
+        "pool_timeout": 15,       # Prevent hanging if connections are exhausted
+        "pool_recycle": 1800,     # Recycle every 30m to avoid stale firewall disconnects
+        "pool_pre_ping": True,    # Check health before utilizing
+    }
+else:
+    pool_args = {
+        "pool_size": 20,          # Local connection pool
+        "max_overflow": 30,
+        "pool_timeout": 15,
+        "pool_recycle": 1800,
+        "pool_pre_ping": True,
+    }
+
 
 print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
 try:
@@ -80,8 +91,12 @@ if ASYNC_DATABASE_URL:
             "pool_pre_ping": True
         }
         
-        if pool_class == NullPool:
-            async_kwargs["poolclass"] = NullPool
+        if IS_CLOUD_DB:
+            async_kwargs["pool_size"] = 10
+            async_kwargs["max_overflow"] = 15
+            async_kwargs["pool_timeout"] = 15
+            # Critical: Disable prepared statement caching for transaction mode pooler (PgBouncer/Supavisor)
+            async_kwargs["prepared_statement_cache_size"] = 0
         else:
             async_kwargs["pool_size"] = 20
             async_kwargs["max_overflow"] = 30

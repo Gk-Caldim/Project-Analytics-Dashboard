@@ -18,7 +18,7 @@ Routes:
 import base64
 import json
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional, Any, cast
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import Response
