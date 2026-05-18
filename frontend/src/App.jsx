@@ -45,6 +45,7 @@ import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
+import { useQuery } from '@tanstack/react-query';
 
 
 const CustomToast = ({ t, toast }) => {
@@ -147,42 +148,51 @@ function App() {
   // Initialize inactivity logout (30 minutes)
   useInactivityTimeout(30 * 60 * 1000);
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: exchangeRates } = useQuery({
+    queryKey: ['exchangeRates'],
+    queryFn: async () => {
+      const response = await API.get('/currency/rates');
+      return response.data || null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   React.useEffect(() => {
+    if (settings) {
+      const companyName = settings.find(s => s.key === 'company_name')?.value;
+      const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
+      const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
+      const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
+      const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
 
-    const initializeApp = async () => {
-      try {
-        // 1. Fetch System Settings (Company Name, Logo, Base Currency)
-        const settingsRes = await API.get('/settings/');
-        const settings = settingsRes.data || [];
-
-        const companyName = settings.find(s => s.key === 'company_name')?.value;
-        const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
-        const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
-        const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
-        const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
-
-        if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
-          dispatch(setBranding({
-            companyName,
-            companyLogo,
-            baseCurrency,
-            sidebarDashboardLimit,
-            sidebarDashboardMode
-          }));
-        }
-
-        // 2. Fetch Exchange Rates from local backend (which proxies to live source)
-        const ratesRes = await API.get('/currency/rates');
-        if (ratesRes.data) {
-          dispatch(setExchangeRates(ratesRes.data));
-        }
-
-      } catch (error) {
-        console.error('Failed to initialize app settings:', error);
+      if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
+        dispatch(setBranding({
+          companyName,
+          companyLogo,
+          baseCurrency,
+          sidebarDashboardLimit,
+          sidebarDashboardMode
+        }));
       }
-    };
+    }
+  }, [settings, dispatch]);
 
-    initializeApp();
+  React.useEffect(() => {
+    if (exchangeRates) {
+      dispatch(setExchangeRates(exchangeRates));
+    }
+  }, [exchangeRates, dispatch]);
+
+  React.useEffect(() => {
 
     // ── Global WebSocket Setup for Real-time Notifications ──
     let retryDelay = 5000;

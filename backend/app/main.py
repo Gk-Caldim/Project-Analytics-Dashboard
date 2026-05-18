@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import logging
@@ -41,7 +42,6 @@ from app.models import employee_project # noqa: F401
 from app.models import project_permission # noqa: F401
 from app.models import audit_log # noqa: F401
 from app.models.department import Department # noqa: F401
-from app.models.tracker import TrackerData # noqa: F401
 from app.models.upload import Upload # noqa: F401
 from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
@@ -193,6 +193,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Include routers
 

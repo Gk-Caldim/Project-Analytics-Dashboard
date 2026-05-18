@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
 import { setSelectedUploadFileId } from '../../store/slices/navSlice';
 import {
   Upload, File, CheckCircle, Clock, AlertCircle, Download, Trash2, Eye, Edit,
@@ -180,26 +181,33 @@ const UploadTrackers = () => {
   const [employeeList, setEmployeeList] = useState([]);
   const [projectList, setProjectList] = useState([]);
 
+  const { data: uploadData, refetch: refetchUploads } = useQuery({
+    queryKey: ['uploads'],
+    queryFn: async () => {
+      const response = await API.get('/uploads');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: projectsData } = useQuery({
+    queryKey: ['projectsList'],
+    queryFn: async () => {
+      const response = await API.get('/projects/');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const fetchTrackers = async () => {
-      try {
-        const response = await API.get('/uploads');
-        setTrackers(response.data);
-      } catch (error) {
-        console.error('Error fetching trackers from API:', error);
-        showNotification('Failed to load upload history', 'error');
-      }
-    };
+    if (uploadData) setTrackers(uploadData);
+  }, [uploadData]);
 
-    const fetchProjects = async () => {
-      try {
-        const response = await API.get('/projects/');
-        setProjectList(response.data || []);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      }
-    };
+  useEffect(() => {
+    if (projectsData) setProjectList(projectsData);
+  }, [projectsData]);
 
+  useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const response = await getEmployees();
@@ -208,9 +216,6 @@ const UploadTrackers = () => {
         console.error('Error fetching employees:', error);
       }
     };
-
-    fetchTrackers();
-    fetchProjects();
     fetchEmployees();
   }, []);
 

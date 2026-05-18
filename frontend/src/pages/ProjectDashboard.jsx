@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
 import { setProjects, updateProjectConfig } from '../store/slices/projectSlice';
 import { setSelectedProjectFileId } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
@@ -189,7 +190,6 @@ const ProjectTitleDashboard = () => {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [activeEmailField, setActiveEmailField] = useState('email');
   const [visibleSections, setVisibleSections] = useState({
-    milestones: true,
     criticalIssues: true,
     metricsSummary: true,
     budget: true
@@ -199,7 +199,6 @@ const ProjectTitleDashboard = () => {
     subject: 'Project Dashboard Report',
     message: '',
     selectedSections: {
-      milestones: true,
       criticalIssues: true,
       budget: true,
       resource: true,
@@ -452,11 +451,20 @@ const ProjectTitleDashboard = () => {
 
   // parse hooks
 
+  const { data: structuresData, refetch: refetchStructures } = useQuery({
+    queryKey: ['structures'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/projects/all/structures');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const { default: API } = await import('../utils/api');
-        const { data: structures } = await API.get('/projects/all/structures');
+    if (!structuresData) return;
+    try {
+      const structures = structuresData;
 
         const newProjects = (() => {
           const uniqueProjectsMap = new Map();
@@ -600,9 +608,12 @@ const ProjectTitleDashboard = () => {
       } catch (error) {
         console.error('[ProjectDashboard] Error loading project modules:', error);
       }
-    };
+  }, [structuresData, dispatch]);
 
-    loadProjects();
+  useEffect(() => {
+    const loadProjects = () => {
+      refetchStructures();
+    };
 
     window.addEventListener('projectDashboardUpdate', loadProjects);
     window.addEventListener('uploadTrackerUpdate', loadProjects);
@@ -693,55 +704,66 @@ const ProjectTitleDashboard = () => {
     };
   }, [projects, onClearSelection]);
 
+  const resolvedDashboardParams = useMemo(() => {
+    let resolvedProjectId = null;
+    let resolvedModule = null;
+
+    const idToResolve = submoduleId || selectedFileId;
+
+    if (idToResolve && String(idToResolve).startsWith('module-')) {
+      const parts = String(idToResolve).split('-');
+      resolvedProjectId = parts[1];
+      resolvedModule = parts.slice(2).join('-') || null;
+    } else if (activeProject?.dbProjectId) {
+      resolvedProjectId = activeProject.dbProjectId;
+      resolvedModule = null;
+    } else if (projectId && !isNaN(parseInt(projectId))) {
+      resolvedProjectId = projectId;
+      resolvedModule = null;
+    }
+
+    return { resolvedProjectId, resolvedModule };
+  }, [submoduleId, selectedFileId, activeProject?.dbProjectId, projectId]);
+
+  const { data: dashboardQueryData } = useQuery({
+    queryKey: ['dashboard', resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule],
+    queryFn: async () => {
+      const { getDashboard } = await import('../api/dashboard');
+      return getDashboard(resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule);
+    },
+    enabled: !!resolvedDashboardParams.resolvedProjectId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    import('../api/dashboard').then(({ getDashboard }) => {
-      let resolvedProjectId = null;
-      let resolvedModule = null;
-
-      // Prioritize URL submoduleId, then Redux selectedFileId
-      const idToResolve = submoduleId || selectedFileId;
-
-      if (idToResolve && String(idToResolve).startsWith('module-')) {
-        const parts = String(idToResolve).split('-');
-        resolvedProjectId = parts[1];
-        resolvedModule = parts.slice(2).join('-') || null;
-      } else if (activeProject?.dbProjectId) {
-        resolvedProjectId = activeProject.dbProjectId;
-        resolvedModule = null;
-      } else if (projectId && !isNaN(parseInt(projectId))) {
-        resolvedProjectId = projectId;
-        resolvedModule = null;
-      } else {
-        return;
+    if (dashboardQueryData) {
+      setDashboardData(dashboardQueryData);
+      if (dashboardQueryData.milestones) {
+        setMilestones(dashboardQueryData.milestones);
       }
+    }
+  }, [dashboardQueryData]);
 
-      getDashboard(resolvedProjectId, resolvedModule)
-        .then(res => {
-          setDashboardData(res);
-          if (res?.milestones) {
-            setMilestones(res.milestones);
-          }
-        })
-        .catch(console.error);
-    });
-  }, [selectedFileId, submoduleId, projectId]);
+  const { data: issuesData } = useQuery({
+    queryKey: ['issues', activeProject?.dbProjectId],
+    queryFn: async () => {
+      const { listIssues } = await import('../api/issues');
+      return listIssues({ project_id: activeProject.dbProjectId });
+    },
+    enabled: !!activeProject?.dbProjectId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   useEffect(() => {
-    if (!activeProject?.dbProjectId) return;
-
-    import('../api/issues').then(({ listIssues }) => {
-      listIssues({ project_id: activeProject.dbProjectId })
-        .then(issues => {
-          const momSpecific = Array.isArray(issues)
-            ? issues
-              .filter(i => (i.source || '').toUpperCase() === 'MOM')
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            : [];
-          setCriticalIssues(momSpecific);
-        })
-        .catch(console.error);
-    });
-  }, [activeProject?.dbProjectId]);
+    if (issuesData) {
+      const momSpecific = Array.isArray(issuesData)
+        ? issuesData
+            .filter(i => (i.source || '').toUpperCase() === 'MOM')
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        : [];
+      setCriticalIssues(momSpecific);
+    }
+  }, [issuesData]);
 
 
 
@@ -1054,34 +1076,46 @@ const ProjectTitleDashboard = () => {
     }
   }, [activeProject]);
 
-  // Fetch budget table data when selectedBudgetProject changes
+  const targetBudgetProject = selectedBudgetProject || (activeProject ? activeProject.name : null);
+
+  const { data: budgetData } = useQuery({
+    queryKey: ['budget', targetBudgetProject],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get(`/budget/${encodeURIComponent(targetBudgetProject)}`);
+      return response.data || null;
+    },
+    enabled: !!targetBudgetProject,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const fetchBudget = async () => {
-      const targetProject = selectedBudgetProject || (activeProject ? activeProject.name : null);
-      if (!targetProject) return;
-      try {
-        const { default: API } = await import('../utils/api');
-        const response = await API.get(`/budget/${encodeURIComponent(targetProject)}`);
-        if (response.data && Array.isArray(response.data.budget_data) && response.data.budget_data.length > 0) {
-          setBudgetTableData(response.data.budget_data);
-          setBudgetCurrency(response.data.currency || '$');
-        } else {
-          // Reset to default
-          setBudgetCurrency('$');
-          setBudgetTableData([
-            ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
-            ['CAPEX', '', '', '', '', '', '', ''],
-            ['Total CAPEX', '', '', '', '', '', '', ''],
-            ['Revenue', '', '', '', '', '', '', ''],
-            ['Total Revenue', '', '', '', '', '', '', '']
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching budget data:', error);
+    if (budgetData) {
+      if (budgetData.budget_data && Array.isArray(budgetData.budget_data) && budgetData.budget_data.length > 0) {
+        setBudgetTableData(budgetData.budget_data);
+        setBudgetCurrency(budgetData.currency || '$');
+      } else {
+        // Reset to default
+        setBudgetCurrency('$');
+        setBudgetTableData([
+          ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
+          ['CAPEX', '', '', '', '', '', '', ''],
+          ['Total CAPEX', '', '', '', '', '', '', ''],
+          ['Revenue', '', '', '', '', '', '', ''],
+          ['Total Revenue', '', '', '', '', '', '', '']
+        ]);
       }
-    };
-    fetchBudget();
-  }, [selectedBudgetProject, activeProject]);
+    } else if (budgetData === null) {
+      setBudgetCurrency('$');
+      setBudgetTableData([
+        ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
+        ['CAPEX', '', '', '', '', '', '', ''],
+        ['Total CAPEX', '', '', '', '', '', '', ''],
+        ['Revenue', '', '', '', '', '', '', ''],
+        ['Total Revenue', '', '', '', '', '', '', '']
+      ]);
+    }
+  }, [budgetData]);
 
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
@@ -1241,18 +1275,25 @@ const ProjectTitleDashboard = () => {
         }
 
         if (fileMatch) {
-          setSearchParams(prev => {
-            prev.set('projectId', project.id);
-            prev.set('submoduleId', fileMatch.id || fileMatch.trackerId);
-            prev.delete('configure');
-            prev.delete('preview');
-            return prev;
-          });
+          const newProjectId = project.id;
+          const newSubmoduleId = String(fileMatch.id || fileMatch.trackerId);
+          const currentProjectId = searchParams.get('projectId');
+          const currentSubmoduleId = searchParams.get('submoduleId');
+
+          if (currentProjectId !== newProjectId || currentSubmoduleId !== newSubmoduleId) {
+            setSearchParams(prev => {
+              prev.set('projectId', newProjectId);
+              prev.set('submoduleId', newSubmoduleId);
+              prev.delete('configure');
+              prev.delete('preview');
+              return prev;
+            });
+          }
           break;
         }
       }
     }
-  }, [selectedFileId, projects, setSearchParams]);
+  }, [selectedFileId, projects, searchParams, setSearchParams]);
 
   // Handle submodule click
   const handleSubmoduleClick = (submodule) => {
@@ -1706,7 +1747,7 @@ const ProjectTitleDashboard = () => {
           budgetCurrency={budgetCurrency}
           budgetStatus={budgetStatus}
           chartImages={capturedImages}
-          sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
+          sectionOrder={['criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
 
@@ -1766,7 +1807,7 @@ const ProjectTitleDashboard = () => {
           budgetCurrency={budgetCurrency}
           budgetStatus={budgetStatus}
           chartImages={capturedImages}
-          sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
+          sectionOrder={['criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
 
@@ -1966,12 +2007,6 @@ const ProjectTitleDashboard = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              {hasMilestones && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? 'var(--blue-50)' : 'var(--surface)' }}>
-                  <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
-                  <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
-                </label>
-              )}
               {hasCriticalIssues && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
                   <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
@@ -2040,12 +2075,11 @@ const ProjectTitleDashboard = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
                     .filter(([section, selected]) => {
-                      const topLevelSections = ['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                      const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
                       return selected && topLevelSections.includes(section);
                     })
                     .map(([section]) => {
                       const labels = {
-                        milestones: 'Milestone Progress Tracker',
                         criticalIssues: 'MOM Issues',
                         budget: 'Budget Summary',
                         resource: 'Resource Summary',
@@ -4399,7 +4433,6 @@ const ProjectTitleDashboard = () => {
       {renderSimulateModal()}
 
       {/* Edit Modals */}
-      {renderEditMilestonesModal()}
       {renderEditIssuesModal()}
       {renderEditSummaryModal()}
 
@@ -5293,7 +5326,6 @@ const EmailModal = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {/* Default Sections */}
               {[
-                { id: 'milestones', label: 'Milestones' },
                 { id: 'criticalIssues', label: 'Critical Issues' },
                 { id: 'budget', label: 'Budget Summary' },
                 { id: 'resource', label: 'Resource Summary' },

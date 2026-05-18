@@ -3,6 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List, Any, Dict
 import re
 from pydantic import BaseModel
+from cachetools import TTLCache
+
+# Cache for heavy read operations
+structure_cache = TTLCache(maxsize=20, ttl=300) # 5 minutes ttl
 
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.project_column import ProjectColumnCreate, ProjectColumnUpdate, ProjectColumnOut
@@ -481,6 +485,13 @@ def get_all_project_structures(
     """
     from app.models.upload import Upload
 
+    # Check cache first
+    cache_key = "all_structures"
+    if cache_key in structure_cache:
+        print(f"[CACHE HIT] Serving /all/structures from memory instantly!")
+        return structure_cache[cache_key]
+
+    print(f"[CACHE MISS] Fetching /all/structures from database...")
     # Single query: projects joined with their uploads (metadata only, no JSONB)
     projects = db.query(crud_project.Project).all()
     all_uploads = (
@@ -536,5 +547,6 @@ def get_all_project_structures(
             "uploads":          uploads_out,
         })
 
-    return result
+    # Save to cache
+    structure_cache[cache_key] = result
     return result

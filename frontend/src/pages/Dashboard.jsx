@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import ReactDOM from 'react-dom';
 import {
@@ -76,21 +77,23 @@ const Dashboard = () => {
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
 
-  // Fetch settings on mount
+  // Fetch settings using React Query
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
   useEffect(() => {
-    const fetchCompanySettings = async () => {
-      try {
-        const response = await API.get('/settings/');
-        const settings = response.data;
-        const logo = settings.find(s => s.key === 'company_logo')?.value;
-        const name = settings.find(s => s.key === 'company_name')?.value;
-        dispatch(setBranding({ companyLogo: logo, companyName: name }));
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
-    fetchCompanySettings();
-  }, [dispatch]);
+    if (settings) {
+      const logo = settings.find(s => s.key === 'company_logo')?.value;
+      const name = settings.find(s => s.key === 'company_name')?.value;
+      dispatch(setBranding({ companyLogo: logo, companyName: name }));
+    }
+  }, [settings, dispatch]);
 
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -163,13 +166,21 @@ const Dashboard = () => {
   //   { project_id, project_name, modules: [{module_name, milestones_count}], uploads: [...] }
   // modules[] is flat & deduplicated across all uploads on the server side.
   // ==========================================================================  
-  const loadDynamicModules = async () => {
-    try {
+  const { data: structuresData, refetch: refetchStructures } = useQuery({
+    queryKey: ['structures'],
+    queryFn: async () => {
       const { default: APIInstance } = await import("../utils/api");
-      const structuresData = await APIInstance.get('/projects/all/structures');
+      const response = await APIInstance.get('/projects/all/structures');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-      const structures = Array.isArray(structuresData.data) ? structuresData.data : [];
-      console.log('[Dashboard] dynamic modules fetched:', structures.length);
+  useEffect(() => {
+    if (!structuresData) return;
+    try {
+      const structures = Array.isArray(structuresData) ? structuresData : [];
+      console.log('[Dashboard] dynamic modules processed:', structures.length);
 
       const dashProjectsMap = new Map();
 
@@ -241,8 +252,12 @@ const Dashboard = () => {
       localStorage.setItem('project_dashboard_modules', JSON.stringify(finalList));
 
     } catch (error) {
-      console.error('[Dashboard] Critical error in loadDynamicModules:', error);
+      console.error('[Dashboard] Critical error in processing structuresData:', error);
     }
+  }, [structuresData, dispatch]);
+
+  const loadDynamicModules = () => {
+    refetchStructures();
   };
 
 
