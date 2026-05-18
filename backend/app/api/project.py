@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 import re
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.project_column import ProjectColumnCreate, ProjectColumnUpdate, ProjectColumnOut
@@ -585,3 +585,126 @@ def get_all_project_structures(
         })
 
     return result
+
+
+# ============================================================================
+# GROUP CALENDAR JOIN-CODE ENDPOINTS
+# ============================================================================
+
+# ── Pydantic contracts ──────────────────────────────────────────────────────
+
+class JoinCodeResponse(BaseModel):
+    """Returned only to admins/PMs who request a project's join code."""
+    project_id: int
+    project_name: str
+    join_code: str
+
+
+class VerifyJoinCodeRequest(BaseModel):
+    """Payload sent by the frontend when a user tries to subscribe to a group calendar."""
+    # min_length stops trivially empty strings before they hit the DB.
+    code: str = Field(..., min_length=1, max_length=9)
+
+
+class VerifiedProjectInfo(BaseModel):
+    """Safe subset of project data returned on a successful code verification.
+    Intentionally excludes sensitive fields (budget, manager, etc.)."""
+    project_id: int
+    name: str
+    color: Optional[str] = None  # from custom_fields if set
+
+
+# ── Privileged: reveal a project's join code (admin / PM only) ─────────────
+
+@router.get(
+    "/{project_id}/join-code",
+    response_model=JoinCodeResponse,
+    summary="Get a project's calendar join code (Admin/PM only)",
+)
+def get_project_join_code(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns the join code for a project so it can be shared with collaborators.
+
+    Access: Admin, Super Admin, Project Manager roles only.
+    Rationale: restricting to named senior roles prevents any employee from
+    freely harvesting codes for projects they are merely assigned to.
+    """
+    ALLOWED_ROLES = {"Admin", "Super Admin", "Project Manager"}
+    if current_user.get("role") not in ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only Admins and Project Managers can view join codes.",
+        )
+
+    db_project = crud_project.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    if not db_project.join_code:
+        # Should not happen after migration, but handle gracefully.
+        raise HTTPException(
+            status_code=503,
+            detail="Join code not yet generated for this project. Try again shortly.",
+        )
+
+    return JoinCodeResponse(
+        project_id=db_project.id,
+        project_name=db_project.name,
+        join_code=db_project.join_code,
+    )
+
+
+# ── Public (authenticated): verify a code and subscribe ────────────────────
+
+@router.post(
+    "/verify-join-code",
+    response_model=VerifiedProjectInfo,
+    summary="Verify a calendar join code and get project info",
+)
+def verify_join_code(
+    payload: VerifyJoinCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Any authenticated user may submit a join code.
+    On match: returns the safe project subset needed by the frontend.
+    On failure: always returns 404 with a generic message — never reveals
+    whether the project exists, preventing enumeration attacks.
+
+    The frontend stores the returned project_id in localStorage; no server-side
+    subscription record is created (stateless approach — simpler, sufficient for
+    current scale).
+    """
+    # Normalise: uppercase + strip whitespace so "zoho-8a3f" matches "ZOHO-8A3F"
+    code = payload.code.strip().upper()
+
+    from app.models.project import Project as ProjectModel
+    db_project = (
+        db.query(ProjectModel)
+        .filter(ProjectModel.join_code == code)
+        .first()
+    )
+
+    if db_project is None:
+        # Deliberately identical error for wrong code AND non-existent code.
+        # This prevents a user from guessing whether a project exists.
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid or expired join code.",
+        )
+
+    # Extract color from custom_fields if stored there (frontend convention)
+    color = None
+    if isinstance(db_project.custom_fields, dict):
+        color = db_project.custom_fields.get("color")
+
+    return VerifiedProjectInfo(
+        project_id=db_project.id,
+        name=db_project.name,
+        color=color,
+    )

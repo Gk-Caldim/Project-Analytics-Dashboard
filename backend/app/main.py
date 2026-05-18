@@ -119,8 +119,13 @@ async def startup_event():
     db = next(get_db())
     try:
         seed_default_roles(db)
+        # ── Idempotent join_code migration ─────────────────────────────────
+        # Adds the join_code column + backfills existing projects if not done yet.
+        from app.scripts.join_code_migration import run_join_code_migration
+        run_join_code_migration(db)
     finally:
         db.close()
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

@@ -599,6 +599,17 @@ async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depe
         
     return {"success": True, "message": "Meeting successfully cancelled."}
 
+@router.delete("/{meeting_id}")
+async def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    db.delete(meeting)
+    db.commit()
+    
+    return {"success": True, "message": "Meeting successfully deleted."}
+
 @router.post("/{meeting_id}/resend-invite")
 async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
     """Resend a meeting invitation to a specific email."""

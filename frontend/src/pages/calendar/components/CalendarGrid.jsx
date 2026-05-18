@@ -5,6 +5,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import { Calendar, Clock, Video, MapPin, Users, ChevronDown, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './CalendarGrid.css';
+import { EVENT_COLORS } from '../../constants';
 
 dayjs.extend(isoWeek);
 
@@ -161,14 +162,7 @@ const PLATFORMS = [
   { id: 'teams', name: 'Microsoft Teams', icon: <MicrosoftLogo /> }
 ];
 
-const EVENT_COLORS = [
-  { name: 'Blue', hex: '#2563eb' },
-  { name: 'Amber', hex: '#f59e0b' },
-  { name: 'Emerald', hex: '#10b981' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Purple', hex: '#7c3aed' },
-  { name: 'Slate', hex: '#64748b' }
-];
+
 
 // ── Quick Schedule Popup (Zoho One-Liner Aesthetic) ─────────────────────
 const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }) => {

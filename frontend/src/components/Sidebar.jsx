@@ -187,7 +187,6 @@ const Sidebar = ({
                                 >
                                     <div className="flex items-center justify-between w-full">
                                         <span>My Calendar</span>
-                                        <Star size={12} className="text-amber-500 fill-amber-500" />
                                     </div>
                                 </div>
                                 <div

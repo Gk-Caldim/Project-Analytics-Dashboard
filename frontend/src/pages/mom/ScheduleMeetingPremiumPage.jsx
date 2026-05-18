@@ -25,6 +25,9 @@ import {
 import API from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { EVENT_COLORS } from '../constants';
+dayjs.extend(customParseFormat);
 
 // --- Utility Helpers ---
 const to12Hour = (hour) => {
@@ -121,14 +124,7 @@ const PLATFORMS = [
   { id: 'teams', name: 'Microsoft Teams', connected: false, icon: <MicrosoftLogo /> }
 ];
 
-const COLORS = [
-  { name: 'Blue', hex: '#2563eb' },
-  { name: 'Slate', hex: '#64748b' },
-  { name: 'Emerald', hex: '#10b981' },
-  { name: 'Amber', hex: '#f59e0b' },
-  { name: 'Rose', hex: '#e11d48' },
-  { name: 'Purple', hex: '#7c3aed' }
-];
+
 
 const MOCK_MEETINGS = [
   { id: 'm1', title: 'Weekly Product Strategy Sync', start_time: '2026-05-14T11:00:00', end_time: '2026-05-14T12:00:00', color: '#2563eb' },
@@ -169,6 +165,8 @@ const ScheduleMeetingPremiumPage = () => {
     } catch { return INITIAL_DEFAULT_TYPES[0].label; }
   });
   const location = useLocation();
+  const editId = new URLSearchParams(location.search).get('edit');
+  const isEditMode = !!editId;
 
   // Pre-fill date & time when coming from calendar quick-create "More options"
   const [date, setDate] = useState(() => {
@@ -209,7 +207,7 @@ const ScheduleMeetingPremiumPage = () => {
   const [reminder, setReminder] = useState(15);
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState([]);
-  const [eventColor, setEventColor] = useState('#2563eb');
+  const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
   const [description, setDescription] = useState('');
 
   // Custom addition UI inputs
@@ -245,7 +243,6 @@ const ScheduleMeetingPremiumPage = () => {
   // Column resizing layout state
   const [columnWidth, setColumnWidth] = useState(62);
   const [isResizing, setIsResizing] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const rightGridRef = useRef(null);
 
   // Load Projects and Meetings
@@ -278,6 +275,44 @@ const ScheduleMeetingPremiumPage = () => {
       if (!isNaN(d.getTime())) setViewDate(d);
     }
   }, [date]);
+
+  // Fetch meeting data if in edit mode
+  useEffect(() => {
+    if (editId) {
+      const fetchMeeting = async () => {
+        try {
+          const res = await API.get(`/meetings/${editId}`);
+          if (res.data?.success && res.data.meeting) {
+            const m = res.data.meeting;
+            setTitle(m.title || '');
+            if (m.date) {
+              setDate(m.date);
+              setViewDate(new Date(m.date));
+            }
+            if (m.time) {
+              // Time from backend could be "10:00 AM" or "10:00"
+              const parsedStart = dayjs(`2000-01-01 ${m.time}`, ['YYYY-MM-DD h:mm A', 'YYYY-MM-DD HH:mm']);
+              if (parsedStart.isValid()) {
+                setStartTime(parsedStart.format('HH:mm'));
+                if (m.duration) {
+                  setEndTime(parsedStart.add(m.duration, 'minute').format('HH:mm'));
+                }
+              }
+            }
+            if (m.platform) setPlatform(m.platform);
+            if (m.attendees) setAttendees(m.attendees);
+            if (m.description) setDescription(m.description);
+            if (m.reminder_minutes !== undefined) setReminder(m.reminder_minutes);
+            if (m.project_id) setProjectId(m.project_id);
+            if (m.agenda && m.agenda.length > 0) setAgenda(m.agenda);
+          }
+        } catch (error) {
+          toast.error("Failed to fetch meeting for edit");
+        }
+      };
+      fetchMeeting();
+    }
+  }, [editId]);
 
   // Sync sidebar timeline scroll smoothly roughly centered on start time
   useEffect(() => {
@@ -331,7 +366,7 @@ const ScheduleMeetingPremiumPage = () => {
     if (duration <= 0) return null;
     
     const dateStr = dayjs(date).format('YYYY-MM-DD');
-    const dayMeetings = meetings.filter(m => m.date === dateStr);
+    const dayMeetings = meetings.filter(m => m.date === dateStr && String(m.id) !== String(editId));
     
     const conflict = dayMeetings.find(m => {
       const mStart = parseTimeToMinutes(m.time);
@@ -361,7 +396,7 @@ const ScheduleMeetingPremiumPage = () => {
       const endMin = parseTimeToMinutes(endTime);
       const dateStr = dayjs(date).format('YYYY-MM-DD');
       
-      const dayMeetings = meetings.filter(m => m.date === dateStr);
+      const dayMeetings = meetings.filter(m => m.date === dateStr && String(m.id) !== String(editId));
       const hasConflict = dayMeetings.some(m => {
         const mStart = parseTimeToMinutes(m.time);
         const mDuration = m.duration_minutes || 60;
@@ -401,7 +436,7 @@ const ScheduleMeetingPremiumPage = () => {
   const handlePublish = async () => {
     if (!isFormValid || isPublishing) return;
     setIsPublishing(true);
-    const loadingToast = toast.loading('Sending Invites...');
+    const loadingToast = toast.loading(isEditMode ? 'Saving Changes...' : 'Sending Invites...');
     try {
       const payload = {
         title, date, time: startTime,
@@ -410,10 +445,25 @@ const ScheduleMeetingPremiumPage = () => {
         timezone, project_id: projectId || null,
         reminder_minutes: reminder, description, color: eventColor
       };
-      const response = await API.post('/meetings/publish', payload);
+      
+      let response;
+      if (isEditMode) {
+        payload.duration = payload.duration_minutes;
+        delete payload.duration_minutes;
+        response = await API.patch(`/meetings/${editId}`, payload);
+      } else {
+        response = await API.post('/meetings/publish', payload);
+      }
+      
       if (response.data?.success) {
-        toast.success('Meeting scheduled successfully ✓', { id: loadingToast });
-        setTimeout(() => navigate(`/dashboard/meeting/${response.data.meeting.id}`), 1500);
+        toast.success(isEditMode ? 'Event edited successfully' : 'Meeting scheduled successfully', { id: loadingToast });
+        setTimeout(() => {
+          if (isEditMode) {
+             navigate('/dashboard/calendar');
+          } else {
+             navigate(`/dashboard/meeting/${response.data.meeting.id}`);
+          }
+        }, 1500);
       } else {
         throw new Error(response.data?.error || 'Failed to publish');
       }
@@ -530,8 +580,7 @@ const ScheduleMeetingPremiumPage = () => {
     <div className="schedule-premium-page" onClick={() => { setShowDatePicker(false); setShowStartTimePicker(false); setShowEndTimePicker(false); }}>
       <main className="schedule-content">
         
-        {/* Left Column — The Primary Scheduling Form Body */}
-        <section className={`column-left ${isCollapsed ? 'hidden' : ''}`} style={{ flex: `0 0 ${columnWidth}%` }}>
+        <section className="column-left" style={{ flex: `0 0 ${columnWidth}%` }}>
           
           {/* Top Permanent Action Bar — Sleek, fixed inline at the document root to avoid scroll clipping */}
           <div className="top-action-strip">
@@ -539,7 +588,7 @@ const ScheduleMeetingPremiumPage = () => {
               {remainingFields > 0 ? (
                 <>
                   <Info size={13} className="text-red-500 flex-shrink-0" />
-                  <span>Complete required fields to send invites ({remainingFields} left)</span>
+                  <span>Complete required fields to save ({remainingFields} left)</span>
                 </>
               ) : (
                 <span className="text-emerald-600 font-semibold flex items-center gap-1">
@@ -547,16 +596,7 @@ const ScheduleMeetingPremiumPage = () => {
                 </span>
               )}
             </div>
-            <div className="actions-cluster">
-              <button className="btn-cancel-link" onClick={() => navigate(-1)}>Cancel</button>
-              <button 
-                className={`btn-send-invites ${isPulsing ? 'pulse-animation' : ''}`} 
-                disabled={!isFormValid || isPublishing}
-                onClick={handlePublish}
-              >
-                {isPublishing ? 'Sending...' : 'Send Invites'}
-              </button>
-            </div>
+            {/* Buttons moved to the bottom */}
           </div>
           
           {/* Section: Meeting Title Container flowing natively inside the scroll layout */}
@@ -830,7 +870,7 @@ const ScheduleMeetingPremiumPage = () => {
                   <div className="hairline-card">
                     <label className="form-label">Event Color Accent</label>
                     <div className="color-grid-labeled">
-                      {COLORS.map(c => (
+                      {EVENT_COLORS.map(c => (
                         <div key={c.hex} className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setEventColor(c.hex)}>
                           <div className={`color-dot-wrapper ${eventColor === c.hex ? 'selected' : ''}`} style={{ color: c.hex }}>
                             <div className="color-selection-ring" />
@@ -857,18 +897,27 @@ const ScheduleMeetingPremiumPage = () => {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Bottom Action Bar */}
+          <div className="bottom-action-strip mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3 pb-8 px-4">
+            <button className="btn-cancel-link" onClick={() => navigate(-1)}>Cancel</button>
+            <button 
+              className={`btn-send-invites ${isPulsing ? 'pulse-animation' : ''}`} 
+              disabled={!isFormValid || isPublishing}
+              onClick={handlePublish}
+            >
+              {isPublishing ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </section>
 
         {/* Resizer Divider */}
         <div className="resizer-handle" onMouseDown={startResizing}>
           <div className="resizer-line" />
-          <button className="collapse-toggle" onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}>
-            {isCollapsed ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
-          </button>
         </div>
 
         {/* Right Column — Synchronized Live Scheduling Aid Sidebar */}
-        <section className="column-right" style={{ flex: isCollapsed ? '1' : `0 0 ${100 - columnWidth}%` }}>
+        <section className="column-right" style={{ flex: `0 0 ${100 - columnWidth}%` }}>
           
           <div className="sidebar-calendar-container">
             
@@ -927,7 +976,7 @@ const ScheduleMeetingPremiumPage = () => {
                   </div>
                 ))}
 
-                {meetings.filter(m => m.date === dayjs(date).format('YYYY-MM-DD')).map(m => {
+                {meetings.filter(m => m.date === dayjs(date).format('YYYY-MM-DD') && String(m.id) !== String(editId)).map(m => {
                   const mStart = parseTimeToMinutes(m.time);
                   const mDuration = m.duration_minutes || 60;
                   return (
