@@ -1,43 +1,42 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/PrivateRoute';
-import ErrorBoundary from './components/ErrorBoundary';
+// Code splitting imports using React.lazy
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const PrivateRoute = React.lazy(() => import('./components/PrivateRoute'));
+const ErrorBoundary = React.lazy(() => import('./components/ErrorBoundary'));
 
-// Import modules for direct routing
-import ProjectDashboard from './pages/ProjectDashboard';
-import UploadTrackers from './pages/Trackers/UploadTrackers';
-import EmployeeMaster from './pages/Masters/EmployeeMaster';
-import ProjectMaster from './pages/Masters/ProjectMaster';
+const ProjectDashboard = React.lazy(() => import('./pages/ProjectDashboard'));
+const UploadTrackers = React.lazy(() => import('./pages/Trackers/UploadTrackers'));
+const EmployeeMaster = React.lazy(() => import('./pages/Masters/EmployeeMaster'));
+const ProjectMaster = React.lazy(() => import('./pages/Masters/ProjectMaster'));
 
-import BudgetMaster from './pages/Masters/BudgetMaster';
-import MOMModule from './pages/mom/MOMModule';
-import TranscriptViewer from './pages/mom/TranscriptViewer';
-import MeetingCapturePage from './pages/mom/MeetingCapturePage';
-import MOMViewPage from './pages/mom/MOMViewPage';
-import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
-import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
-import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
-import SavedMOMsPage from './pages/mom/SavedMOMsPage';
-import SystemSettings from './pages/Settings/SystemSettings';
-import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
-import ProjectDetail from './pages/ProjectDetail';
-import LandingPage from './pages/LandingPage';
+const BudgetMaster = React.lazy(() => import('./pages/Masters/BudgetMaster'));
+const MOMModule = React.lazy(() => import('./pages/mom/MOMModule'));
+const TranscriptViewer = React.lazy(() => import('./pages/mom/TranscriptViewer'));
+const MeetingCapturePage = React.lazy(() => import('./pages/mom/MeetingCapturePage'));
+const MOMViewPage = React.lazy(() => import('./pages/mom/MOMViewPage'));
+const MeetingsDashboardPage = React.lazy(() => import('./pages/mom/MeetingsDashboardPage'));
+const ScheduleMeetingPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPage'));
+const MeetingDetailsPage = React.lazy(() => import('./pages/mom/MeetingDetailsPage'));
+const SavedMOMsPage = React.lazy(() => import('./pages/mom/SavedMOMsPage'));
+const SystemSettings = React.lazy(() => import('./pages/Settings/SystemSettings'));
+const BudgetSummaryView = React.lazy(() => import('./pages/Budget/BudgetSummaryView'));
+const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 
-// Import new module pages
-import AnalyticsPage from './pages/modules/AnalyticsPage';
-import MeetingsPage from './pages/modules/MeetingsPage';
-import BudgetPage from './pages/modules/BudgetPage';
-import GovernancePage from './pages/modules/GovernancePage';
+const AnalyticsPage = React.lazy(() => import('./pages/modules/AnalyticsPage'));
+const MeetingsPage = React.lazy(() => import('./pages/modules/MeetingsPage'));
+const BudgetPage = React.lazy(() => import('./pages/modules/BudgetPage'));
+const GovernancePage = React.lazy(() => import('./pages/modules/GovernancePage'));
 
-import EnterprisePage from './pages/EnterprisePage';
-import CustomersPage from './pages/CustomersPage';
-import PricingPage from './pages/PricingPage';
-import CheckoutPage from './pages/CheckoutPage';
-import LoginPage from './pages/LoginPage';
-import WorkspaceDashboard from './pages/WorkspaceDashboard';
-import NotFound from './pages/NotFound';
+const EnterprisePage = React.lazy(() => import('./pages/EnterprisePage'));
+const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage'));
+const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage'));
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster, toast } from 'react-hot-toast';
@@ -46,6 +45,7 @@ import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
+import { useQuery } from '@tanstack/react-query';
 
 
 const CustomToast = ({ t, toast }) => {
@@ -148,42 +148,51 @@ function App() {
   // Initialize inactivity logout (30 minutes)
   useInactivityTimeout(30 * 60 * 1000);
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: exchangeRates } = useQuery({
+    queryKey: ['exchangeRates'],
+    queryFn: async () => {
+      const response = await API.get('/currency/rates');
+      return response.data || null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   React.useEffect(() => {
+    if (settings) {
+      const companyName = settings.find(s => s.key === 'company_name')?.value;
+      const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
+      const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
+      const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
+      const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
 
-    const initializeApp = async () => {
-      try {
-        // 1. Fetch System Settings (Company Name, Logo, Base Currency)
-        const settingsRes = await API.get('/settings/');
-        const settings = settingsRes.data || [];
-
-        const companyName = settings.find(s => s.key === 'company_name')?.value;
-        const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
-        const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
-        const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
-        const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
-
-        if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
-          dispatch(setBranding({
-            companyName,
-            companyLogo,
-            baseCurrency,
-            sidebarDashboardLimit,
-            sidebarDashboardMode
-          }));
-        }
-
-        // 2. Fetch Exchange Rates from local backend (which proxies to live source)
-        const ratesRes = await API.get('/currency/rates');
-        if (ratesRes.data) {
-          dispatch(setExchangeRates(ratesRes.data));
-        }
-
-      } catch (error) {
-        console.error('Failed to initialize app settings:', error);
+      if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
+        dispatch(setBranding({
+          companyName,
+          companyLogo,
+          baseCurrency,
+          sidebarDashboardLimit,
+          sidebarDashboardMode
+        }));
       }
-    };
+    }
+  }, [settings, dispatch]);
 
-    initializeApp();
+  React.useEffect(() => {
+    if (exchangeRates) {
+      dispatch(setExchangeRates(exchangeRates));
+    }
+  }, [exchangeRates, dispatch]);
+
+  React.useEffect(() => {
 
     // ── Global WebSocket Setup for Real-time Notifications ──
     let retryDelay = 5000;
@@ -274,6 +283,7 @@ function App() {
 
       <ErrorBoundary>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
@@ -323,6 +333,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </React.Suspense>
       </Router>
     </ErrorBoundary>
   </ThemeProvider>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import API from '../utils/api';
+import { useQuery } from '@tanstack/react-query';
 
 const ThemeContext = createContext();
 
@@ -14,34 +15,20 @@ export const ThemeProvider = ({ children }) => {
         companyLogo: ''
     });
 
-    const fetchTheme = async () => {
-        try {
+    const { data: settings, refetch: refreshTheme } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
             const response = await API.get('/settings/');
-            const settings = response.data;
-            
-            const newTheme = { ...themeSettings };
-            settings.forEach(s => {
-                if (s.key === 'primary_color') newTheme.primaryColor = s.value;
-                if (s.key === 'secondary_color') newTheme.secondaryColor = s.value;
-                if (s.key === 'display_mode') newTheme.displayMode = s.value;
-                if (s.key === 'company_name') newTheme.companyName = s.value;
-                if (s.key === 'company_logo') newTheme.companyLogo = s.value;
-            });
-            
-            setThemeSettings(newTheme);
-            applyTheme(newTheme);
-        } catch (error) {
-            console.error('Error fetching theme settings:', error);
-        }
-    };
+            return response.data || [];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
 
     const applyTheme = (theme) => {
         const root = document.documentElement;
         root.setAttribute('data-theme', theme.displayMode);
         root.classList.toggle('dark', theme.displayMode === 'dark');
         
-        // Keep primary/secondary color properties if they are still needed for dynamic JS styling
-        // but the main theme switching is now handled via [data-theme] in CSS
         root.style.setProperty('--primary-color', theme.primaryColor);
         root.style.setProperty('--secondary-color', theme.secondaryColor);
         
@@ -55,8 +42,20 @@ export const ThemeProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        fetchTheme();
-    }, []);
+        if (settings) {
+            const newTheme = { ...themeSettings };
+            settings.forEach(s => {
+                if (s.key === 'primary_color') newTheme.primaryColor = s.value;
+                if (s.key === 'secondary_color') newTheme.secondaryColor = s.value;
+                if (s.key === 'display_mode') newTheme.displayMode = s.value;
+                if (s.key === 'company_name') newTheme.companyName = s.value;
+                if (s.key === 'company_logo') newTheme.companyLogo = s.value;
+            });
+            
+            setThemeSettings(newTheme);
+            applyTheme(newTheme);
+        }
+    }, [settings]);
 
     const updateThemeLocally = (newSettings) => {
         const updated = { ...themeSettings, ...newSettings };
@@ -65,7 +64,7 @@ export const ThemeProvider = ({ children }) => {
     };
 
     return (
-        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme: fetchTheme }}>
+        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme }}>
             {children}
         </ThemeContext.Provider>
     );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import ReactDOM from 'react-dom';
 import {
@@ -76,21 +77,23 @@ const Dashboard = () => {
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
 
-  // Fetch settings on mount
+  // Fetch settings using React Query
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
   useEffect(() => {
-    const fetchCompanySettings = async () => {
-      try {
-        const response = await API.get('/settings/');
-        const settings = response.data;
-        const logo = settings.find(s => s.key === 'company_logo')?.value;
-        const name = settings.find(s => s.key === 'company_name')?.value;
-        dispatch(setBranding({ companyLogo: logo, companyName: name }));
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
-    fetchCompanySettings();
-  }, [dispatch]);
+    if (settings) {
+      const logo = settings.find(s => s.key === 'company_logo')?.value;
+      const name = settings.find(s => s.key === 'company_name')?.value;
+      dispatch(setBranding({ companyLogo: logo, companyName: name }));
+    }
+  }, [settings, dispatch]);
 
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -163,13 +166,21 @@ const Dashboard = () => {
   //   { project_id, project_name, modules: [{module_name, milestones_count}], uploads: [...] }
   // modules[] is flat & deduplicated across all uploads on the server side.
   // ==========================================================================  
-  const loadDynamicModules = async () => {
-    try {
+  const { data: structuresData, refetch: refetchStructures } = useQuery({
+    queryKey: ['structures'],
+    queryFn: async () => {
       const { default: APIInstance } = await import("../utils/api");
-      const structuresData = await APIInstance.get('/projects/all/structures');
+      const response = await APIInstance.get('/projects/all/structures');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-      const structures = Array.isArray(structuresData.data) ? structuresData.data : [];
-      console.log('[Dashboard] dynamic modules fetched:', structures.length);
+  useEffect(() => {
+    if (!structuresData) return;
+    try {
+      const structures = Array.isArray(structuresData) ? structuresData : [];
+      console.log('[Dashboard] dynamic modules processed:', structures.length);
 
       const dashProjectsMap = new Map();
 
@@ -222,13 +233,17 @@ const Dashboard = () => {
 
       const finalList = Array.from(dashProjectsMap.values());
 
-      // Auto-expand loaded projects
+      // Auto-expand loaded projects in both local state and Redux
       const initialExpanded = {};
       finalList.forEach(p => {
         initialExpanded[`project-dashboard-${p.id}`] = true;
         initialExpanded[`upload-trackers-${p.id}`] = true;
       });
       setExpandedProjects(prev => ({ ...prev, ...initialExpanded }));
+      // Sync to Redux so Sidebar can read upload-trackers group states
+      if (Object.keys(initialExpanded).length > 0) {
+        dispatch(setExpandedModules(initialExpanded));
+      }
 
       setProjectDashboardModules(finalList);
       setUploadTrackerModules(finalList);
@@ -237,8 +252,12 @@ const Dashboard = () => {
       localStorage.setItem('project_dashboard_modules', JSON.stringify(finalList));
 
     } catch (error) {
-      console.error('[Dashboard] Critical error in loadDynamicModules:', error);
+      console.error('[Dashboard] Critical error in processing structuresData:', error);
     }
+  }, [structuresData, dispatch]);
+
+  const loadDynamicModules = () => {
+    refetchStructures();
   };
 
 
@@ -247,21 +266,23 @@ const Dashboard = () => {
     dispatch(fetchNotifications());
   }, [dispatch]);
 
-  // Storage listeners with simple debounce
+  // Storage listeners with context-aware debounce
   const loadDynamicModulesRef = useRef(null);
 
   useEffect(() => {
-    const debouncedLoad = () => {
+    const debouncedLoad = (delay = 100) => {
       if (loadDynamicModulesRef.current) {
         clearTimeout(loadDynamicModulesRef.current);
       }
       loadDynamicModulesRef.current = setTimeout(() => {
         loadDynamicModules();
-      }, 100);
+      }, delay);
     };
 
-    const handleUploadTrackerUpdate = () => debouncedLoad();
-    const handleProjectDashboardUpdate = () => debouncedLoad();
+    // Backend processes Excel synchronously before firing this event, so a short delay is enough
+    const handleUploadTrackerUpdate = () => debouncedLoad(300);
+    // Project dashboard config changes are fast, respond quickly
+    const handleProjectDashboardUpdate = () => debouncedLoad(100);
     const handleStorageChange = (e) => {
       if (e.key === 'upload_tracker_modules' || e.key === 'project_dashboard_modules') {
         loadDynamicModules();
@@ -640,77 +661,32 @@ const Dashboard = () => {
   };
 
   // ==========================================================================
-  // FIXED: Enhanced project file click handler
+  // Clicking a tracker file from the Dashboard section opens it in the
+  // Dashboard's dedicated table view.
   // ==========================================================================
   const handleProjectFileClick = (fileModule) => {
-    // Set the project-specific selected file ID
-    const idToSelect = fileModule.trackerId || fileModule.id || fileModule.moduleId;
-    dispatch(setSelectedProjectFileId(idToSelect));
-
-    // Ensure we're on project dashboard
-    if (activeModule !== 'project-dashboard') {
-      dispatch(setActiveModule('project-dashboard'));
-    }
-
-    // Ensure project dashboard is expanded
-    dispatch(setExpandedModules({ 'project-dashboard': true }));
-
-    // Also expand the parent project module
-    let projectKey = null;
-    if (fileModule.projectName) {
-      const project = projectDashboardModules.find(p =>
-        p.name === fileModule.projectName ||
-        p.projectName === fileModule.projectName
-      );
-
-      if (project) {
-        projectKey = project.id || project.projectId || project.name;
-        dispatch(setExpandedModules({
-          [`project-dashboard-${projectKey}`]: true
-        }));
-      }
-    }
-
     if (fileModule.type === 'budget') {
+      // Budget files still navigate to the budget summary page
       navigate(`/dashboard/budget-summary/${encodeURIComponent(fileModule.projectName)}`);
-    } else {
-      // Find project ID for search params
-      let pId = fileModule.dbProjectId;
-      if (!pId && idToSelect && String(idToSelect).startsWith('module-')) {
-        pId = String(idToSelect).split('-')[1];
-      }
-      if (!pId && projectKey) pId = projectKey;
-
-      const searchParams = new URLSearchParams();
-      if (pId) searchParams.set('projectId', pId);
-      if (idToSelect) searchParams.set('submoduleId', idToSelect);
-
-      navigate({
-        pathname: '/dashboard/projects',
-        search: searchParams.toString()
-      });
+      return;
     }
 
-    // Dispatch event for ProjectDashboard to handle (legacy support)
-    window.dispatchEvent(new CustomEvent('openProjectDashboardFile', {
-      detail: {
-        trackerId: idToSelect,
-        fileModule: fileModule,
-        projectName: fileModule.projectName || 'Unknown'
-      }
-    }));
+    dispatch(setActiveModule('project-dashboard'));
+    dispatch(setSelectedProjectFileId(fileModule.trackerId || fileModule.id));
+    
+    // Construct the URL for project dashboard
+    const pid = fileModule.dbProjectId || fileModule.projectId || fileModule.projectName;
+    navigate(`/dashboard/projects?projectId=${encodeURIComponent(pid)}&submoduleId=${encodeURIComponent(fileModule.trackerId || fileModule.id)}`);
   };
 
   // ==========================================================================
-  // FIXED: Check selection based on context
+  // Check selection based on context
   // ==========================================================================
   const isFileSelected = (fileModule, context) => {
-    if (context === 'upload-trackers') {
-      return selectedUploadFileId === fileModule.trackerId;
-    } else if (context === 'project-dashboard') {
-      return selectedProjectFileId === fileModule.trackerId;
+    if (context === 'project-dashboard') {
+      return selectedProjectFileId === (fileModule.trackerId || fileModule.id);
     }
-    return false;
+    return selectedUploadFileId === fileModule.trackerId;
   };
 
   // ==========================================================================

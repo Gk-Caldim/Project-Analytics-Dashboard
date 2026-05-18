@@ -69,7 +69,7 @@ const PdfPreviewModal = ({
   // Sync section order with visible selections only when modal opens
   useEffect(() => {
     if (show) {
-      const allPossibleSections = ['charts', 'criticalIssues', 'budget', 'milestones', 'resource', 'quality'];
+      const allPossibleSections = ['charts', 'criticalIssues', 'budget', 'resource', 'quality'];
       const currentVisible = allPossibleSections.filter(key => {
         if (key === 'charts') {
           // Charts section is visible if explicitly enabled OR if any individual phase chart is selected
@@ -255,7 +255,6 @@ const PdfPreviewModal = ({
                     >
                       {sectionOrder.map((key, index) => {
                         const labels = {
-                          milestones: 'Milestones',
                           criticalIssues: 'Critical Issues',
                           budget: 'Budget Summary',
                           resource: 'Resource Summary',

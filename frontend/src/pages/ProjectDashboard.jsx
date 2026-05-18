@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
 import { setProjects, updateProjectConfig } from '../store/slices/projectSlice';
 import { setSelectedProjectFileId } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
-import ExcelTableViewer from '../components/ExcelTableViewer';
+const ExcelTableViewer = React.lazy(() => import('../components/ExcelTableViewer'));
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
@@ -14,15 +15,15 @@ import {
 import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
-import ReportDocument from '../components/ReportDocument';
-import PdfPreviewModal from '../components/PdfPreviewModal';
+const ReportDocument = React.lazy(() => import('../components/ReportDocument'));
+const PdfPreviewModal = React.lazy(() => import('../components/PdfPreviewModal'));
 import useCurrency from "../hooks/useCurrency";
-import PremiumProjectCard from '../components/project/PremiumProjectCard';
+const PremiumProjectCard = React.lazy(() => import('../components/project/PremiumProjectCard'));
 import { motion } from 'framer-motion';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { staggerContainer } from '../utils/animations';
-import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
-import VPProjectDashboard from './VPProjectDashboard';
+const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
+const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
 
 
 import { HotTable } from '@handsontable/react';
@@ -189,7 +190,6 @@ const ProjectTitleDashboard = () => {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [activeEmailField, setActiveEmailField] = useState('email');
   const [visibleSections, setVisibleSections] = useState({
-    milestones: true,
     criticalIssues: true,
     metricsSummary: true,
     budget: true
@@ -199,7 +199,6 @@ const ProjectTitleDashboard = () => {
     subject: 'Project Dashboard Report',
     message: '',
     selectedSections: {
-      milestones: true,
       criticalIssues: true,
       budget: true,
       resource: true,
@@ -381,11 +380,31 @@ const ProjectTitleDashboard = () => {
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    return activeProject.submodules?.find(s =>
+    
+    let match = activeProject.submodules?.find(s =>
       String(s.id) === String(submoduleId) ||
       String(s.trackerId) === String(submoduleId) ||
       `project-file-${s.trackerId}` === submoduleId
     );
+
+    if (!match && activeProject.uploads) {
+      const upload = activeProject.uploads.find(u => 
+        String(u.upload_id) === String(submoduleId) ||
+        `tracker-file-${u.upload_id}` === String(submoduleId)
+      );
+      if (upload) {
+        match = {
+          id: `tracker-file-${upload.upload_id}`,
+          trackerId: upload.upload_id,
+          name: upload.file_name ? upload.file_name.replace(/\.[^/.]+$/, '') : 'Dataset',
+          displayName: upload.file_name ? upload.file_name.replace(/\.[^/.]+$/, '') : 'Dataset',
+          projectName: activeProject.name,
+          type: 'tracker'
+        };
+      }
+    }
+    
+    return match;
   }, [activeProject, submoduleId]);
 
   const setShowSimulateModal = (show) => {
@@ -432,11 +451,20 @@ const ProjectTitleDashboard = () => {
 
   // parse hooks
 
+  const { data: structuresData, refetch: refetchStructures } = useQuery({
+    queryKey: ['structures'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/projects/all/structures');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const { default: API } = await import('../utils/api');
-        const { data: structures } = await API.get('/projects/all/structures');
+    if (!structuresData) return;
+    try {
+      const structures = structuresData;
 
         const newProjects = (() => {
           const uniqueProjectsMap = new Map();
@@ -446,29 +474,11 @@ const ProjectTitleDashboard = () => {
             projectName = projectName.replace(/tata\s+motors/ig, 'TATA');
             const capitalizedName = projectName.charAt(0).toUpperCase() + projectName.slice(1);
 
-            if (!uniqueProjectsMap.has(capitalizedName)) {
-              uniqueProjectsMap.set(capitalizedName, {
-                id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
-                name: capitalizedName,
-                dbProjectId: struct.project_id,
-                code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
-                status: 'In Progress', // Default status
-                submodules: [],
-                active: false,
-                dashboardConfig: struct.dashboard_config || null,
-                budget: struct.budget || 0,
-                utilized_budget: struct.utilized_budget || 0,
-                balance_budget: struct.balance_budget || 0,
-                project_manager: struct.project_manager || null,
-                originalName: struct.project_name || 'Uncategorized'
-              });
-            }
-
-            const existingProject = uniqueProjectsMap.get(capitalizedName);
+            let dashboardConfig = struct.dashboard_config || null;
 
             // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
-            if (struct.dashboard_config?.visibleSections) {
-              const sections = { ...struct.dashboard_config.visibleSections };
+            if (dashboardConfig?.visibleSections) {
+              const sections = { ...dashboardConfig.visibleSections };
               const uploads = struct.uploads || [];
               const defaultPhases = [
                 { id: 'design', aliases: ['design'] },
@@ -490,8 +500,31 @@ const ProjectTitleDashboard = () => {
                   }
                 }
               });
-              struct.dashboard_config.visibleSections = sections;
+              dashboardConfig = {
+                ...dashboardConfig,
+                visibleSections: sections
+              };
             }
+
+            if (!uniqueProjectsMap.has(capitalizedName)) {
+              uniqueProjectsMap.set(capitalizedName, {
+                id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+                name: capitalizedName,
+                dbProjectId: struct.project_id,
+                code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
+                status: 'In Progress', // Default status
+                submodules: [],
+                active: false,
+                dashboardConfig: dashboardConfig,
+                budget: struct.budget || 0,
+                utilized_budget: struct.utilized_budget || 0,
+                balance_budget: struct.balance_budget || 0,
+                project_manager: struct.project_manager || null,
+                originalName: struct.project_name || 'Uncategorized'
+              });
+            }
+
+            const existingProject = uniqueProjectsMap.get(capitalizedName);
 
             // MERGE logic instead of overwrite
             if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
@@ -512,7 +545,7 @@ const ProjectTitleDashboard = () => {
             existingProject.uploads.forEach(u => { if (!uploadMap.has(u.upload_id)) uploadMap.set(u.upload_id, u); });
             existingProject.uploads = Array.from(uploadMap.values());
 
-            existingProject.dashboardConfig = struct.dashboard_config || existingProject.dashboardConfig;
+            existingProject.dashboardConfig = dashboardConfig || existingProject.dashboardConfig;
             existingProject.budget = Math.max(existingProject.budget || 0, struct.budget || 0);
             existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
             existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
@@ -580,9 +613,12 @@ const ProjectTitleDashboard = () => {
       } catch (error) {
         console.error('[ProjectDashboard] Error loading project modules:', error);
       }
-    };
+  }, [structuresData, dispatch]);
 
-    loadProjects();
+  useEffect(() => {
+    const loadProjects = () => {
+      refetchStructures();
+    };
 
     window.addEventListener('projectDashboardUpdate', loadProjects);
     window.addEventListener('uploadTrackerUpdate', loadProjects);
@@ -673,55 +709,66 @@ const ProjectTitleDashboard = () => {
     };
   }, [projects, onClearSelection]);
 
+  const resolvedDashboardParams = useMemo(() => {
+    let resolvedProjectId = null;
+    let resolvedModule = null;
+
+    const idToResolve = submoduleId || selectedFileId;
+
+    if (idToResolve && String(idToResolve).startsWith('module-')) {
+      const parts = String(idToResolve).split('-');
+      resolvedProjectId = parts[1];
+      resolvedModule = parts.slice(2).join('-') || null;
+    } else if (activeProject?.dbProjectId) {
+      resolvedProjectId = activeProject.dbProjectId;
+      resolvedModule = null;
+    } else if (projectId && !isNaN(parseInt(projectId))) {
+      resolvedProjectId = projectId;
+      resolvedModule = null;
+    }
+
+    return { resolvedProjectId, resolvedModule };
+  }, [submoduleId, selectedFileId, activeProject?.dbProjectId, projectId]);
+
+  const { data: dashboardQueryData } = useQuery({
+    queryKey: ['dashboard', resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule],
+    queryFn: async () => {
+      const { getDashboard } = await import('../api/dashboard');
+      return getDashboard(resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule);
+    },
+    enabled: !!resolvedDashboardParams.resolvedProjectId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    import('../api/dashboard').then(({ getDashboard }) => {
-      let resolvedProjectId = null;
-      let resolvedModule = null;
-
-      // Prioritize URL submoduleId, then Redux selectedFileId
-      const idToResolve = submoduleId || selectedFileId;
-
-      if (idToResolve && String(idToResolve).startsWith('module-')) {
-        const parts = String(idToResolve).split('-');
-        resolvedProjectId = parts[1];
-        resolvedModule = parts.slice(2).join('-') || null;
-      } else if (activeProject?.dbProjectId) {
-        resolvedProjectId = activeProject.dbProjectId;
-        resolvedModule = null;
-      } else if (projectId && !isNaN(parseInt(projectId))) {
-        resolvedProjectId = projectId;
-        resolvedModule = null;
-      } else {
-        return;
+    if (dashboardQueryData) {
+      setDashboardData(dashboardQueryData);
+      if (dashboardQueryData.milestones) {
+        setMilestones(dashboardQueryData.milestones);
       }
+    }
+  }, [dashboardQueryData]);
 
-      getDashboard(resolvedProjectId, resolvedModule)
-        .then(res => {
-          setDashboardData(res);
-          if (res?.milestones) {
-            setMilestones(res.milestones);
-          }
-        })
-        .catch(console.error);
-    });
-  }, [selectedFileId, submoduleId, projectId]);
+  const { data: issuesData } = useQuery({
+    queryKey: ['issues', activeProject?.dbProjectId],
+    queryFn: async () => {
+      const { listIssues } = await import('../api/issues');
+      return listIssues({ project_id: activeProject.dbProjectId });
+    },
+    enabled: !!activeProject?.dbProjectId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   useEffect(() => {
-    if (!activeProject?.dbProjectId) return;
-
-    import('../api/issues').then(({ listIssues }) => {
-      listIssues({ project_id: activeProject.dbProjectId })
-        .then(issues => {
-          const momSpecific = Array.isArray(issues)
-            ? issues
-              .filter(i => (i.source || '').toUpperCase() === 'MOM')
-              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-            : [];
-          setCriticalIssues(momSpecific);
-        })
-        .catch(console.error);
-    });
-  }, [activeProject?.dbProjectId]);
+    if (issuesData) {
+      const momSpecific = Array.isArray(issuesData)
+        ? issuesData
+            .filter(i => (i.source || '').toUpperCase() === 'MOM')
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        : [];
+      setCriticalIssues(momSpecific);
+    }
+  }, [issuesData]);
 
 
 
@@ -1034,34 +1081,46 @@ const ProjectTitleDashboard = () => {
     }
   }, [activeProject]);
 
-  // Fetch budget table data when selectedBudgetProject changes
+  const targetBudgetProject = selectedBudgetProject || (activeProject ? activeProject.name : null);
+
+  const { data: budgetData } = useQuery({
+    queryKey: ['budget', targetBudgetProject],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get(`/budget/${encodeURIComponent(targetBudgetProject)}`);
+      return response.data || null;
+    },
+    enabled: !!targetBudgetProject,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
-    const fetchBudget = async () => {
-      const targetProject = selectedBudgetProject || (activeProject ? activeProject.name : null);
-      if (!targetProject) return;
-      try {
-        const { default: API } = await import('../utils/api');
-        const response = await API.get(`/budget/${encodeURIComponent(targetProject)}`);
-        if (response.data && Array.isArray(response.data.budget_data) && response.data.budget_data.length > 0) {
-          setBudgetTableData(response.data.budget_data);
-          setBudgetCurrency(response.data.currency || '$');
-        } else {
-          // Reset to default
-          setBudgetCurrency('$');
-          setBudgetTableData([
-            ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
-            ['CAPEX', '', '', '', '', '', '', ''],
-            ['Total CAPEX', '', '', '', '', '', '', ''],
-            ['Revenue', '', '', '', '', '', '', ''],
-            ['Total Revenue', '', '', '', '', '', '', '']
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching budget data:', error);
+    if (budgetData) {
+      if (budgetData.budget_data && Array.isArray(budgetData.budget_data) && budgetData.budget_data.length > 0) {
+        setBudgetTableData(budgetData.budget_data);
+        setBudgetCurrency(budgetData.currency || '$');
+      } else {
+        // Reset to default
+        setBudgetCurrency('$');
+        setBudgetTableData([
+          ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
+          ['CAPEX', '', '', '', '', '', '', ''],
+          ['Total CAPEX', '', '', '', '', '', '', ''],
+          ['Revenue', '', '', '', '', '', '', ''],
+          ['Total Revenue', '', '', '', '', '', '', '']
+        ]);
       }
-    };
-    fetchBudget();
-  }, [selectedBudgetProject, activeProject]);
+    } else if (budgetData === null) {
+      setBudgetCurrency('$');
+      setBudgetTableData([
+        ['Category', 'Department', 'Estimation', 'Approved', 'Utilized', 'Balance', 'Outlook Spend', 'Likely Cummulative Spend'],
+        ['CAPEX', '', '', '', '', '', '', ''],
+        ['Total CAPEX', '', '', '', '', '', '', ''],
+        ['Revenue', '', '', '', '', '', '', ''],
+        ['Total Revenue', '', '', '', '', '', '', '']
+      ]);
+    }
+  }, [budgetData]);
 
   // Load submodule data from API
   const loadSubmoduleData = async (trackerId) => {
@@ -1168,11 +1227,19 @@ const ProjectTitleDashboard = () => {
       const idToResolve = submoduleId;
       if (idToResolve) {
         // Find the submodule object
-        const sub = activeProject.submodules?.find(s =>
+        let sub = activeProject.submodules?.find(s =>
           String(s.id) === String(idToResolve) ||
           String(s.trackerId) === String(idToResolve) ||
           `project-file-${s.trackerId}` === String(idToResolve)
         );
+
+        if (!sub && activeProject.uploads) {
+          const upload = activeProject.uploads.find(u => 
+            String(u.upload_id) === String(idToResolve) ||
+            `tracker-file-${u.upload_id}` === String(idToResolve)
+          );
+          if (upload) sub = { trackerId: upload.upload_id };
+        }
 
         if (sub) {
           // Use the real numeric trackerId for the API call
@@ -1196,25 +1263,42 @@ const ProjectTitleDashboard = () => {
     if (selectedFileId && projects.length > 0) {
       // Find the project and submodule
       for (const project of projects) {
-        const fileMatch = project.submodules?.find(s =>
+        let fileMatch = project.submodules?.find(s =>
           s.trackerId === selectedFileId ||
           `project-file-${s.trackerId}` === selectedFileId ||
           s.id === selectedFileId
         );
 
+        if (!fileMatch && project.uploads) {
+          const upload = project.uploads.find(u => 
+            String(u.upload_id) === String(selectedFileId) ||
+            `tracker-file-${u.upload_id}` === String(selectedFileId)
+          );
+          if (upload) {
+            fileMatch = { id: `tracker-file-${upload.upload_id}`, trackerId: upload.upload_id };
+          }
+        }
+
         if (fileMatch) {
-          setSearchParams(prev => {
-            prev.set('projectId', project.id);
-            prev.set('submoduleId', fileMatch.id || fileMatch.trackerId);
-            prev.delete('configure');
-            prev.delete('preview');
-            return prev;
-          });
+          const newProjectId = project.id;
+          const newSubmoduleId = String(fileMatch.id || fileMatch.trackerId);
+          const currentProjectId = searchParams.get('projectId');
+          const currentSubmoduleId = searchParams.get('submoduleId');
+
+          if (currentProjectId !== newProjectId || currentSubmoduleId !== newSubmoduleId) {
+            setSearchParams(prev => {
+              prev.set('projectId', newProjectId);
+              prev.set('submoduleId', newSubmoduleId);
+              prev.delete('configure');
+              prev.delete('preview');
+              return prev;
+            });
+          }
           break;
         }
       }
     }
-  }, [selectedFileId, projects, setSearchParams]);
+  }, [selectedFileId, projects, searchParams, setSearchParams]);
 
   // Handle submodule click
   const handleSubmoduleClick = (submodule) => {
@@ -1668,7 +1752,7 @@ const ProjectTitleDashboard = () => {
           budgetCurrency={budgetCurrency}
           budgetStatus={budgetStatus}
           chartImages={capturedImages}
-          sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
+          sectionOrder={['criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
 
@@ -1728,7 +1812,7 @@ const ProjectTitleDashboard = () => {
           budgetCurrency={budgetCurrency}
           budgetStatus={budgetStatus}
           chartImages={capturedImages}
-          sectionOrder={['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'charts']}
+          sectionOrder={['criticalIssues', 'budget', 'resource', 'quality', 'charts']}
         />
       ).toBlob();
 
@@ -1928,12 +2012,6 @@ const ProjectTitleDashboard = () => {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              {hasMilestones && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? 'var(--blue-50)' : 'var(--surface)' }}>
-                  <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
-                  <span style={{ fontWeight: '600' }}>Milestone Progress Tracker</span>
-                </label>
-              )}
               {hasCriticalIssues && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
                   <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
@@ -2002,12 +2080,11 @@ const ProjectTitleDashboard = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                   {Object.entries(tempVisibleSections)
                     .filter(([section, selected]) => {
-                      const topLevelSections = ['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                      const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
                       return selected && topLevelSections.includes(section);
                     })
                     .map(([section]) => {
                       const labels = {
-                        milestones: 'Milestone Progress Tracker',
                         criticalIssues: 'MOM Issues',
                         budget: 'Budget Summary',
                         resource: 'Resource Summary',
@@ -2785,6 +2862,23 @@ const ProjectTitleDashboard = () => {
       );
     }
 
+    // ── Smart Data Sampling for Card View ──────────────────────────────────
+    // In card view (non-maximized), cap to CARD_MAX_ROWS for performance & clarity.
+    // In maximized view all rows are used for full analysis.
+    const CARD_MAX_ROWS = 500;
+    const totalRows = chartData.length;
+    const isSampled = !isMaximized && totalRows > CARD_MAX_ROWS;
+    if (isSampled) {
+      // Uniform stride sampling — picks evenly spaced rows
+      const stride = totalRows / CARD_MAX_ROWS;
+      const sampled = [];
+      for (let i = 0; i < CARD_MAX_ROWS; i++) {
+        sampled.push(chartData[Math.floor(i * stride)]);
+      }
+      chartData = sampled;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     // Process data based on selected axes
     // We group by xAxis, and aggregate yAxis (sum if numeric, count otherwise)
     const isGrouped = chartType === 'grouped-bar';
@@ -3415,8 +3509,13 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={size}>
-        <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
+        <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span><span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}</span>
+          {isSampled && (
+            <span style={{ backgroundColor: isDark ? 'rgba(251,191,36,0.15)' : '#fef9c3', color: isDark ? '#fbbf24' : '#854d0e', fontWeight: '700', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${isDark ? 'rgba(251,191,36,0.3)' : '#fde68a'}`, whiteSpace: 'nowrap' }}>
+              ⚡ Sample: {CARD_MAX_ROWS} of {totalRows} rows · Maximize for full analysis
+            </span>
+          )}
         </div>
         <ReactECharts
           ref={(e) => {
@@ -4339,7 +4438,6 @@ const ProjectTitleDashboard = () => {
       {renderSimulateModal()}
 
       {/* Edit Modals */}
-      {renderEditMilestonesModal()}
       {renderEditIssuesModal()}
       {renderEditSummaryModal()}
 
@@ -5233,7 +5331,6 @@ const EmailModal = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
               {/* Default Sections */}
               {[
-                { id: 'milestones', label: 'Milestones' },
                 { id: 'criticalIssues', label: 'Critical Issues' },
                 { id: 'budget', label: 'Budget Summary' },
                 { id: 'resource', label: 'Resource Summary' },

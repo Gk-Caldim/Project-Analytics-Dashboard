@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 # Use QueuePool for local, NullPool for Cloud/Supabase to avoid pooler conflicts
 from sqlalchemy.pool import QueuePool, NullPool
 from app.core.config import DATABASE_URL, IS_CLOUD_DB
@@ -19,19 +20,17 @@ else:
         "connect_timeout": 10
     }
 
-# Use NullPool for Cloud (Supabase) because it already uses PgBouncer (Transaction mode)
-# Using client-side pooling on top of PgBouncer can cause connection exhaustion or "prepared statement" errors.
-pool_class = NullPool if IS_CLOUD_DB else QueuePool
-pool_args = {}
-
-if not IS_CLOUD_DB:
-    pool_args = {
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_timeout": 30,
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-    }
+# Use QueuePool for both local and cloud when using direct connection (port 5432)
+# To handle higher scalability without PgBouncer, we increase pool size and max overflow,
+# while keeping pool_timeout reasonable to fail fast if connections are exhausted.
+pool_class = QueuePool
+pool_args = {
+    "pool_size": 20,          # Increased from 5: Allow more baseline concurrent connections per worker
+    "max_overflow": 30,       # Increased from 10: Allow temporary bursts
+    "pool_timeout": 15,       # Decreased from 30: Fail faster instead of hanging requests if pool is empty
+    "pool_recycle": 1800,     # Recycle connections every 30 mins to prevent stale/dropped connections by firewall
+    "pool_pre_ping": True,    # Essential for cloud DBs to check connection health before using
+}
 
 print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
 try:
@@ -60,6 +59,49 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
+# --- ASYNC DB SETUP ---
+ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://") if DATABASE_URL else None
+async_engine = None
+AsyncSessionLocal = None
+
+if ASYNC_DATABASE_URL:
+    try:
+        # Avoid passing `connect_args` specific to psycopg2 (like options search_path) if it fails in asyncpg, 
+        # but asyncpg accepts server_settings. We will simplify for now.
+        async_connect_args = {}
+        if IS_CLOUD_DB:
+            async_connect_args = {
+                "server_settings": {"search_path": "public", "statement_timeout": "15000"}
+            }
+        
+        async_kwargs = {
+            "connect_args": async_connect_args,
+            "pool_recycle": 1800,
+            "pool_pre_ping": True
+        }
+        
+        if pool_class == NullPool:
+            async_kwargs["poolclass"] = NullPool
+        else:
+            async_kwargs["pool_size"] = 20
+            async_kwargs["max_overflow"] = 30
+            async_kwargs["pool_timeout"] = 15
+
+        async_engine = create_async_engine(
+            ASYNC_DATABASE_URL,
+            **async_kwargs
+        )
+        AsyncSessionLocal = async_sessionmaker(
+            bind=async_engine,
+            class_=AsyncSession,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+        )
+        print(f"[DB] Async Engine created successfully.")
+    except Exception as e:
+        print(f"[DB] FAILED to create Async engine: {str(e)}")
+
 Base = declarative_base()
 
 # FastAPI dependency
@@ -69,3 +111,12 @@ def get_db():
         yield db
     finally:
         db.close()
+
+async def get_async_db():
+    if not AsyncSessionLocal:
+        raise Exception("Async DB is not configured.")
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()

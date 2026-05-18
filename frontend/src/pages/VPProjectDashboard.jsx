@@ -107,15 +107,7 @@ const VPProjectDashboard = ({
     };
   }, [activeProject?.dbProjectId, fetchMomIssues]);
 
-  const milestones = dashboardData?.milestones || [];
 
-  // Compute KPI exactly as requested
-  const totalMilestones = milestones.length;
-  const completed = milestones.filter(m => m.status === 'Completed' || m.status === 'Complete').length;
-  const delayed = milestones.filter(m => m.status === 'Delayed').length;
-  const pending = milestones.filter(m => m.status === 'In Progress' || m.status === 'On Track' || m.status === 'Pending' || m.status === 'Open').length;
-
-  const completedPct = totalMilestones > 0 ? Math.round((completed / totalMilestones) * 100) : 0;
 
   return (
     <div className="vppd-root" style={{ padding: 0 }}>
@@ -368,58 +360,7 @@ const VPProjectDashboard = ({
           </div>
         )}
 
-        {/* ── MILESTONE PROGRESS TRACKER ── */}
-        {visibleSections.milestones && (
-          <div className="vppd-section full">
-            <div className="vppd-section-header">
-              <Award size={18} color="var(--green)" />
-              Milestone Progress Tracker
-            </div>
-            {milestones.length === 0 ? (
-              <div className="vppd-empty" style={{ margin: '0 20px 20px', padding: '48px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
-                  <Award size={40} strokeWidth={1} />
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>No Milestones Defined</div>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '280px' }}>
-                  No explicit milestones have been mapped for this project yet.
-                </p>
-              </div>
-            ) : (
-              <div className="vppd-table-wrapper">
-                <table className="vppd-table">
-                  <thead>
-                    <tr>
-                      <th>Module</th>
-                      <th>Milestone</th>
-                      <th>Planned Date</th>
-                      <th>Actual Date</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {milestones.map((m, idx) => {
-                      const isDelayed = String(m.status).toLowerCase().includes('delay');
-                      return (
-                        <tr key={idx}>
-                          <td style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{m.module || 'General'}</td>
-                          <td>{m.milestone}</td>
-                          <td>{m.planned_date || '-'}</td>
-                          <td>{m.actual_date || '-'}</td>
-                          <td>
-                            <span className={`vppd-badge ${isDelayed ? 'red' : 'green'}`}>
-                              {m.status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+
 
 
       </div>
