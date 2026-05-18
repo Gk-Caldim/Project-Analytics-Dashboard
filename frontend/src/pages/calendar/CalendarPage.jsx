@@ -200,11 +200,24 @@ const CalendarPage = () => {
 
     const loadingToast = toast.loading('Scheduling...');
     try {
+      const formattedDate = quickData.date.format('YYYY-MM-DD');
+      const start = dayjs(`${formattedDate} ${quickData.startTime}`, 'YYYY-MM-DD h:mm A');
+      const end = dayjs(`${formattedDate} ${quickData.endTime}`, 'YYYY-MM-DD h:mm A');
+      
+      let durationMin = 30; // Default to 30 minutes
+      if (start.isValid() && end.isValid()) {
+        durationMin = end.diff(start, 'minute');
+        // Handle overnight/next-day wrap-around if any
+        if (durationMin < 0) {
+          durationMin += 24 * 60;
+        }
+      }
+
       const payload = {
         title: title.trim(),
-        date: quickData.date.format('YYYY-MM-DD'),
+        date: formattedDate,
         time: quickData.startTime,
-        duration_minutes: 60,
+        duration_minutes: durationMin,
         platform: quickData.platform || 'meet',
         attendees: quickData.attendees || [],
         agenda_text: 'Quickly scheduled from calendar.',

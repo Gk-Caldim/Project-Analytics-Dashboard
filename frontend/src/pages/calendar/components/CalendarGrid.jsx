@@ -453,32 +453,59 @@ const CalendarGrid = ({
     e.stopPropagation();
 
     const rect = e.currentTarget.getBoundingClientRect();
-    // y position within column, accounting for scroll offset
-    const y = e.clientY - rect.top + (scrollRef.current?.scrollTop || 0);
+    // y position within column is e.clientY - rect.top (rect.top dynamically includes scroll offset)
+    const y = e.clientY - rect.top;
     const clickedMins = Math.max(0, Math.floor(y));
     const startHour = Math.floor(clickedMins / 60);
     const startMin = Math.floor((clickedMins % 60) / 15) * 15; // snap to 15-min
 
     const startTime = dayjs(date).hour(startHour).minute(startMin);
-    const endTime = startTime.add(1, 'hour');
+    const endTime = startTime.add(30, 'minute'); // Default to half an hour schedule
 
-    // Zoho-style positioning logic
-    const popupWidth = 320;
-    const popupHeight = 360; // Max expected height
+    const popupWidth = 480; // Match .zoho-quick-popup CSS width
+    const popupHeight = 420; // Safe vertical height estimate
+
+    // 1. Accurate Horizontal Positioning:
+    // Finds the columns container to constrain positioning within grid boundaries
+    const container = e.currentTarget.parentElement;
+    const containerRect = container ? container.getBoundingClientRect() : null;
     
-    let popupX = e.clientX + 12;
-    let popupY = e.clientY - 20;
-
-    if (popupX + popupWidth > window.innerWidth) {
-      popupX = e.clientX - popupWidth - 12;
+    let popupX;
+    const isNarrowColumn = rect.width < 250;
+    
+    if (isNarrowColumn && containerRect) {
+      popupX = rect.right + 12;
+      // If it overflows the columns container on the right, place it to the left of the column
+      if (popupX + popupWidth > containerRect.right) {
+        popupX = rect.left - popupWidth - 12;
+      }
+    } else {
+      popupX = e.clientX + 16;
+      // If it overflows the viewport on the right, place it to the left of the click
+      if (popupX + popupWidth > window.innerWidth) {
+        popupX = e.clientX - popupWidth - 16;
+      }
     }
     
-    if (popupY + popupHeight > window.innerHeight) {
-      popupY = window.innerHeight - popupHeight - 20;
+    // Ensure it doesn't go off the left edge of the viewport
+    if (popupX < 16) {
+      popupX = 16;
     }
+
+    // 2. Accurate Vertical Positioning:
+    // Calculates the viewport Y coordinate of the snapped 30-minute block
+    const snappedMins = startHour * 60 + startMin;
+    const snappedY = rect.top + snappedMins;
     
-    if (popupY < 60) {
-      popupY = 60;
+    // Centers the popup vertically relative to the 30px snapped slot (15px is the center)
+    let popupY = snappedY + 15 - (popupHeight / 2);
+
+    // Enforce viewport boundaries
+    if (popupY + popupHeight > window.innerHeight - 16) {
+      popupY = window.innerHeight - popupHeight - 16;
+    }
+    if (popupY < 80) {
+      popupY = 80; // Avoid overlapping top headers
     }
 
     setQuickSchedule({
@@ -488,7 +515,7 @@ const CalendarGrid = ({
       startTime: startTime.format('h:mm A'),
       endTime: endTime.format('h:mm A'),
       rawStart: startTime,
-      gridY: startHour * 60 + startMin, // For ghost block
+      gridY: startHour * 60 + startMin, // Snapped minute position for ghost block
     });
 
     if (onEventSelect) onEventSelect(null);
@@ -617,7 +644,7 @@ const CalendarGrid = ({
                       className="ghost-event-block"
                       style={{
                         top: quickSchedule.gridY,
-                        height: 56, // 1 hour
+                        height: 26, // 30 mins (default)
                         width: '92%',
                         left: '4%',
                       }}
