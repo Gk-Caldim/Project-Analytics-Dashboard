@@ -529,12 +529,7 @@
 .mdp2-row-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
-.mdp2-agenda-row:hover .mdp2-row-actions {
+  gap: 12px;
   opacity: 1;
 }
 
@@ -588,12 +583,12 @@
 }
 
 .mdp2-time-input {
-  width: 20px;
+  width: 32px;
   border: none;
   background: transparent;
   font: inherit;
   color: inherit;
-  text-align: right;
+  text-align: center;
   outline: none;
 }
 
@@ -601,6 +596,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.mdp2-agenda-row:hover .mdp2-row-controls {
+  opacity: 1;
 }
 
 .mdp2-control-btn {
@@ -3805,15 +3806,16 @@
 .z-health-collapse-btn:hover { color: #5f6368; }
 
 .z-health-warning {
-  background: #fef7e0;
-  color: #f29900;
-  font-size: 13px;
-  border-radius: 6px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fef3c7;
+  font-size: 12px;
+  border-radius: 8px;
   padding: 10px 12px;
   margin: 0 20px 16px 20px;
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Readiness ring */
@@ -3883,9 +3885,9 @@
   font-weight: 700;
 }
 
-.z-hc-icon.check { background: #137333; color: #ffffff; }
-.z-hc-icon.warn  { background: #f29900; color: #ffffff; }
-.z-hc-icon.gray  { background: #e0e0e0; color: #9aa0a6; }
+.z-hc-icon.check { background: #10b981; color: #ffffff; }
+.z-hc-icon.warn  { background: #f59e0b; color: #ffffff; }
+.z-hc-icon.gray  { background: #e2e8f0; color: #94a3b8; }
 
 .z-hc-text { flex: 1; }
 .z-hc-label { font-size: 13px; font-weight: 500; color: #202124; }
@@ -3893,19 +3895,20 @@
 
 .z-hc-action {
   background: transparent;
-  border: 1px solid #f29900;
-  color: #f29900;
+  border: 1px solid #1a73e8;
+  color: #1a73e8;
   font-size: 11px;
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 3px 8px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: all 0.15s ease;
   white-space: nowrap;
   flex-shrink: 0;
   align-self: center;
+  font-weight: 600;
 }
 
-.z-hc-action:hover { background: #fef7e0; }
+.z-hc-action:hover { background: #e8f0fe; }
 
 /* MODALS & OVERLAYS */
 .z-modal-overlay {

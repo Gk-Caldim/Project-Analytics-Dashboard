@@ -178,6 +178,108 @@ const DateCell = ({ value, onSave }) => {
   );
 };
 
+// ─── Inline Editable: Function Tag ─────────────────────────────────────────
+
+const FUNCTION_OPTIONS = [
+  'General', 'Engineering', 'Design', 'Product', 'QA', 'DevOps',
+  'Marketing', 'Sales', 'Finance', 'HR', 'Operations', 'Management',
+];
+
+const FunctionCell = ({ value, onSave }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [localValue, setLocalValue] = useState(value || 'General');
+  const ref = useRef(null);
+
+  // Sync local state when parent value changes (optimistic update cascade)
+  useEffect(() => setLocalValue(value || 'General'), [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    if (isOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  const handleSelect = (opt) => {
+    setLocalValue(opt);
+    onSave(opt);
+    setIsOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
+      >
+        {localValue}
+        <ChevronDown size={10} className={isOpen ? 'rotate-180' : ''} />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
+          {FUNCTION_OPTIONS.map(opt => (
+            <button
+              key={opt}
+              onClick={() => handleSelect(opt)}
+              className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 rounded transition-colors ${
+                localValue === opt ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-700'
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Inline Editable: Criticality Pill ──────────────────────────────────────
+
+const CRITICALITY_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
+
+const CriticalityCell = ({ value, onSave }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+  const style = CRITICALITY_COLORS[value] || CRITICALITY_COLORS['Medium'];
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
+    if (isOpen) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [isOpen]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border cursor-pointer transition-all"
+        style={{ background: style.bg, color: style.color, borderColor: style.border }}
+      >
+        {value}
+        <ChevronDown size={9} className={isOpen ? 'rotate-180' : ''} />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[110px]">
+          {CRITICALITY_OPTIONS.map(opt => {
+            const s = CRITICALITY_COLORS[opt] || CRITICALITY_COLORS['Medium'];
+            return (
+              <button
+                key={opt}
+                onClick={() => { onSave(opt); setIsOpen(false); }}
+                className="w-full text-left px-2 py-1.5 text-[10px] font-bold uppercase rounded transition-colors hover:bg-slate-50"
+                style={{ color: s.color }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Mirror Table (The Action Items View) ────────────────────────────────────
 
 const ActionItemsTable = ({ syncId }) => {
@@ -238,21 +340,16 @@ const ActionItemsTable = ({ syncId }) => {
             <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
               <td className="px-4 py-4 text-xs font-mono text-slate-400 text-center">{idx + 1}</td>
               <td className="px-4 py-4">
-                <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                  {item.function}
-                </span>
+                <FunctionCell
+                  value={item.function || 'General'}
+                  onSave={val => handleUpdateItem(item.id, 'function', val)}
+                />
               </td>
               <td className="px-4 py-4">
-                <span 
-                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
-                  style={{ 
-                    background: (CRITICALITY_COLORS[item.criticality] || CRITICALITY_COLORS['Medium']).bg,
-                    color: (CRITICALITY_COLORS[item.criticality] || CRITICALITY_COLORS['Medium']).color,
-                    borderColor: (CRITICALITY_COLORS[item.criticality] || CRITICALITY_COLORS['Medium']).border
-                  }}
-                >
-                  {item.criticality}
-                </span>
+                <CriticalityCell
+                  value={item.criticality || 'Medium'}
+                  onSave={val => handleUpdateItem(item.id, 'criticality', val)}
+                />
               </td>
               <td className="px-4 py-4">
                 <EditableCell 
@@ -448,7 +545,7 @@ const SavedMOMsPage = () => {
               <div 
                 key={rec.sync_id} 
                 id={`sync-${rec.sync_id}`}
-                className={`smp-project-card ${expandedId === rec.sync_id ? 'ring-2 ring-blue-500/20' : ''} ${highlightSyncId === rec.sync_id ? 'pulse-highlight' : ''}`}
+                className={`smp-project-card ${expandedId === rec.sync_id ? 'ring-2 ring-blue-500/20' : ''} ${highlightSyncId === rec.sync_id ? 'ring-2 ring-blue-400' : ''}`}
                 style={{ borderLeftColor: getProjectAccent(rec.project_name) }}
               >
                 <div 
@@ -497,16 +594,7 @@ const SavedMOMsPage = () => {
         )}
       </div>
 
-      <style>{`
-        .pulse-highlight {
-          animation: highlightPulse 2s infinite;
-        }
-        @keyframes highlightPulse {
-          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
-      `}</style>
+
     </div>
   );
 };

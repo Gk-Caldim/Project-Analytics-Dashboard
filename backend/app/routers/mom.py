@@ -421,6 +421,8 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
         field_map = {
             "discussion_point": "title",
             "responsibility":   "owner",
+            "function":         "department",
+            "criticality":      "priority",
             "target":           "due_date",
             "status":           "status",
             "action_taken":     "action_taken"
@@ -454,6 +456,8 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
                 "id": issue.id,
                 "discussion_point": issue.title,
                 "responsibility": issue.owner,
+                "function": issue.department,
+                "criticality": issue.priority,
                 "target": str(issue.due_date) if issue.due_date else "TBD",
                 "status": issue.status,
                 "action_taken": issue.action_taken

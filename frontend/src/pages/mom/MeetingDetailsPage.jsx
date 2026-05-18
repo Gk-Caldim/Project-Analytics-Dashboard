@@ -311,50 +311,56 @@ const MeetingDetailsPage = () => {
       {
         id: 'link',
         label: 'Meet link configured',
-        desc: 'Attendees can join with one click',
-        status: meeting.join_url ? 'check' : 'info',
-        actionLabel: meeting.join_url ? null : 'Add →'
+        sub: meeting.join_url ? 'Attendees can join with one click' : 'No link configured',
+        status: meeting.join_url ? 'ok' : 'warn',
+        action: meeting.join_url ? null : 'Configure',
+        onAction: () => handleHealthFix('link')
       },
       {
         id: 'agenda',
         label: 'Agenda added',
-        desc: 'Meetings without agendas run 40% longer',
-        status: agenda.length > 0 ? 'check' : 'info',
-        actionLabel: agenda.length > 0 ? null : 'Add →'
+        sub: agenda.length > 0 ? `${agenda.length} items added` : 'Meetings without agendas run 40% longer',
+        status: agenda.length > 0 ? 'ok' : 'warn',
+        action: agenda.length > 0 ? null : 'Add',
+        onAction: () => handleHealthFix('agenda')
       },
       {
         id: 'invites',
         label: 'Attendees invited',
-        desc: meeting.invites_sent ? 'All invitations delivered' : `${attendees.length} people haven't received their invite`,
-        status: meeting.invites_sent ? 'check' : 'info',
-        actionLabel: meeting.invites_sent ? null : 'Send →'
+        sub: meeting.invites_sent ? 'All invitations delivered' : (attendees.length > 0 ? `${attendees.length} people haven't received their invite` : 'No attendees invited yet'),
+        status: meeting.invites_sent ? 'ok' : (attendees.length > 0 ? 'warn' : 'gray'),
+        action: meeting.invites_sent ? null : (attendees.length > 0 ? 'Send' : 'Add'),
+        onAction: () => handleHealthFix('invites')
       },
       {
         id: 'time',
         label: 'Time confirmed',
-        desc: 'Schedule is set',
-        status: meeting.date && meeting.time ? 'check' : 'info',
-        actionLabel: null
+        sub: meeting.date && meeting.time ? 'Schedule is set' : 'Time not set',
+        status: meeting.date && meeting.time ? 'ok' : 'warn',
+        action: meeting.date && meeting.time ? null : 'Set',
+        onAction: () => handleHealthFix('time')
       },
       {
         id: 'host',
         label: 'Host assigned',
-        desc: attendees.some(a => a.role === 'host') ? 'Host is designated' : 'No host is designated',
-        status: attendees.some(a => a.role === 'host') ? 'check' : 'info',
-        actionLabel: attendees.some(a => a.role === 'host') ? null : 'Assign →'
+        sub: attendees.some(a => a.role === 'host') ? 'Host is designated' : 'No host is designated',
+        status: attendees.some(a => a.role === 'host') ? 'ok' : 'warn',
+        action: attendees.some(a => a.role === 'host') ? null : 'Assign',
+        onAction: () => handleHealthFix('host')
       },
       {
         id: 'reminder',
         label: 'Reminder scheduled',
-        desc: meeting.reminder_minutes ? `Reminder set for ${meeting.reminder_minutes}m before` : 'Automatic reminders are off',
-        status: meeting.reminder_minutes ? 'check' : 'info',
-        actionLabel: meeting.reminder_minutes ? null : 'Set →'
+        sub: meeting.reminder_minutes ? `Reminder set for ${meeting.reminder_minutes}m before` : 'Automatic reminders are off',
+        status: meeting.reminder_minutes ? 'ok' : 'warn',
+        action: meeting.reminder_minutes ? null : 'Set',
+        onAction: () => handleHealthFix('reminder')
       }
     ];
     return checks;
   };
   const healthChecks = getHealthChecks();
-  const passedCount = healthChecks.filter(c => c.status === 'check').length;
+  const passedCount = healthChecks.filter(c => c.status === 'ok').length;
   const totalCount = healthChecks.length;
   const healthStatus = passedCount === totalCount ? 'ready' : (passedCount >= totalCount - 2 ? 'almost' : 'not-ready');
   const ringColor = healthStatus === 'ready' ? '#059669' : (healthStatus === 'almost' ? '#f59e0b' : '#ef4444');
@@ -421,9 +427,44 @@ const MeetingDetailsPage = () => {
         const m = resp.data.meeting;
         setMeeting(m);
         const ag = (m.agenda || []).map(parseAgendaItem);
-        const att = m.attendees || [];
+        
+        // Normalize attendees to a unified rich object structure
+        const rawAttendees = m.attendees || [];
+        const normalizedAttendees = rawAttendees.map(a => {
+          if (typeof a === 'string') {
+            return {
+              id: a,
+              email: a,
+              name: a.split('@')[0],
+              role: 'attendee',
+              rsvpStatus: 'PENDING',
+              invitedAt: new Date().toISOString(),
+              timezone: 'IST'
+            };
+          }
+          const email = a.email || '';
+          return {
+            id: a.id || email,
+            email: email,
+            name: a.name || email.split('@')[0] || 'Unknown',
+            role: a.role || 'attendee',
+            rsvpStatus: a.rsvpStatus || 'PENDING',
+            invitedAt: a.invitedAt || new Date().toISOString(),
+            timezone: a.timezone || 'IST'
+          };
+        });
+
+        // Enforce a strict single-host assignment: if no host is designated, the first attendee gets the host role
+        const hasHost = normalizedAttendees.some(a => a.role === 'host');
+        const finalAttendees = normalizedAttendees.map((a, i) => {
+          if (!hasHost && i === 0) {
+            return { ...a, role: 'host' };
+          }
+          return a;
+        });
+
         setAgenda(ag);
-        setAttendees(att);
+        setAttendees(finalAttendees);
         setMeetingStatus(getMeetingStatus(m));
         setMomContent(ag.map(a => `## ${a.title}\n\n- \n`).join('\n'));
 
@@ -791,15 +832,23 @@ const MeetingDetailsPage = () => {
 
   const handleAddAttendee = (contact) => {
     const email = typeof contact === 'string' ? contact : contact.email;
-    const exists = attendees.some(a => (typeof a === 'string' ? a : a.email) === email);
+    const exists = attendees.some(a => a.email === email);
     if (exists) {
       showToast(`${email} is already invited`);
       return;
     }
 
     const newAtt = typeof contact === 'string' 
-      ? { email, name: email.split('@')[0], role: 'attendee', rsvpStatus: 'PENDING', invitedAt: new Date().toISOString(), timezone: 'IST' }
-      : { ...contact, role: 'attendee', rsvpStatus: 'PENDING', invitedAt: new Date().toISOString() };
+      ? { id: email, email, name: email.split('@')[0], role: 'attendee', rsvpStatus: 'PENDING', invitedAt: new Date().toISOString(), timezone: 'IST' }
+      : { 
+          id: contact.id || contact.email, 
+          email: contact.email, 
+          name: contact.name || contact.email.split('@')[0] || 'Unknown', 
+          role: 'attendee', 
+          rsvpStatus: 'PENDING', 
+          invitedAt: new Date().toISOString(), 
+          timezone: contact.timezone || 'IST' 
+        };
 
     const newAtts = [...attendees, newAtt];
     saveAttendees(newAtts);
@@ -818,8 +867,8 @@ const MeetingDetailsPage = () => {
 
     const isConfirmed = await confirm({
       title: 'Transfer Host Role',
-      description: `Make ${att.name || att.email} the new host? You will become a regular attendee.`,
-      confirmText: 'Yes, Transfer',
+      description: `Are you sure you want to change the host to ${att.name || att.email}? There can only be one host per meeting.`,
+      confirmText: 'Yes, Change Host',
       variant: 'danger'
     });
 
@@ -871,7 +920,7 @@ const MeetingDetailsPage = () => {
         platform: duplicateData.platform ? meeting.platform : 'meet',
         duration_minutes: meeting.duration_minutes,
         organizer_email: meeting.organizer_email,
-        attendees: duplicateData.attendees ? attendees.map(a => typeof a === 'string' ? a : a.email) : [],
+        attendees: duplicateData.attendees ? attendees.map(a => a.email) : [],
         agenda_text: duplicateData.agenda ? meeting.agenda_text : '',
         project_id: meeting.project_id,
         timezone: meeting.timezone_name,
@@ -1364,10 +1413,8 @@ const MeetingDetailsPage = () => {
     if (meetingStatus === 'cancelled') return <span className="mdp2-status-badge cancelled">Cancelled</span>;
   };
 
-  const hostAtt = attendees[0];
-  const hostName = typeof hostAtt === 'string'
-    ? hostAtt.split('@')[0]
-    : hostAtt?.name || hostAtt?.email?.split('@')[0] || '—';
+  const hostAtt = attendees.find(a => a.role === 'host') || attendees[0];
+  const hostName = hostAtt?.name || hostAtt?.email?.split('@')[0] || '—';
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -1575,20 +1622,17 @@ const MeetingDetailsPage = () => {
                   </div>
                   <div className="mdp2-dropdown-list max-h-48 overflow-y-auto">
                     {attendees.map((att, idx) => {
-                      const name = typeof att === 'string' ? att.split('@')[0] : att.name || att.email.split('@')[0];
+                      const name = att.name || att.email.split('@')[0];
                       return (
                         <button
                           key={idx}
                           className="mdp2-dropdown-item w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between items-center"
                           onClick={() => {
-                            const newAtts = [...attendees];
-                            const [removed] = newAtts.splice(idx, 1);
-                            newAtts.unshift(removed);
-                            updateMeetingField('attendees', newAtts);
+                            handleHostReassignment(att.id || att.email);
                           }}
                         >
                           {name}
-                          {hostName === name && <Check size={14} className="text-blue-600" />}
+                          {att.role === 'host' && <Check size={14} className="text-blue-600" />}
                         </button>
                       );
                     })}
@@ -1817,7 +1861,7 @@ const MeetingDetailsPage = () => {
                                       <div className="mdp2-dropdown-list">
                                         <button className="mdp2-dropdown-item w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between items-center" onClick={() => updateAgendaItem(idx, 'assignee', null)}>Unassigned</button>
                                         {attendees.map((att, aidx) => {
-                                          const name = typeof att === 'string' ? att.split('@')[0] : att.name || att.email.split('@')[0];
+                                          const name = att.name || att.email.split('@')[0];
                                           return (
                                             <button key={aidx} className="mdp2-dropdown-item w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex justify-between items-center" onClick={() => updateAgendaItem(idx, 'assignee', name)}>
                                               {name}{item.assignee === name && <Check size={14} className="text-blue-600" />}
@@ -1966,8 +2010,8 @@ const MeetingDetailsPage = () => {
                           return statusOrder[a.rsvpStatus?.toLowerCase() || 'pending'] - statusOrder[b.rsvpStatus?.toLowerCase() || 'pending'];
                         })
                         .map((att) => {
-                          const email = typeof att === 'string' ? att : att.email;
-                          const id = att.id || email;
+                          const id = att.id || att.email;
+                          const email = att.email;
                           const name = att.name || email.split('@')[0];
                           const rsvp = (att.rsvpStatus || 'PENDING').toLowerCase();
                           const isRemoving = removingAttendeeId === id;
@@ -1978,7 +2022,7 @@ const MeetingDetailsPage = () => {
                               <div className="z-att-info">
                                 <span className="z-att-name">
                                   {name}
-                                  {att.role === 'host' && <span style={{ marginLeft: 6, fontSize: 11, color: '#1a73e8', background: '#e8f0fe', borderRadius: 4, padding: '1px 6px' }}>Host</span>}
+                                  {att.role === 'host' && <span style={{ marginLeft: 6, fontSize: 11, color: '#1a73e8', background: '#e8f0fe', borderRadius: 4, padding: '1px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Crown size={10} /> Host</span>}
                                   {att.role === 'organizer' && <span style={{ marginLeft: 6, fontSize: 11, color: '#5f6368', background: '#f1f3f4', borderRadius: 4, padding: '1px 6px' }}>Organizer</span>}
                                 </span>
                                 <span className="z-att-email">{email}</span>
@@ -2091,7 +2135,7 @@ const MeetingDetailsPage = () => {
                 const radius = 28;
                 const circumference = 2 * Math.PI * radius;
                 const offset = circumference - (score / 100) * circumference;
-                const ringColor = score >= 80 ? '#137333' : score >= 50 ? '#f29900' : '#c5221f';
+                const ringColor = score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
                 return (
                   <div className="z-ring-wrap">
                     <svg className="z-ring-svg" viewBox="0 0 72 72">

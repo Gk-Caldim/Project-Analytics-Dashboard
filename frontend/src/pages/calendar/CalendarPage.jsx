@@ -683,7 +683,17 @@ const CalendarPage = () => {
           platform: m.platform,
           rsvpStatus: m.rsvp_status,
           joinUrl: m.join_url || m.joinUrl,
-          attendees: m.attendees || []
+          attendees: m.attendees || [],
+          // Context fields — needed by Event Details panel
+          project_name: m.project_name || null,
+          project_id: m.project_id || null,
+          agenda: (() => {
+            // agenda may be a parsed array already, or a JSON string (agenda_text)
+            const raw = m.agenda || m.agenda_text;
+            if (!raw) return [];
+            if (Array.isArray(raw)) return raw;
+            try { return JSON.parse(raw); } catch { return []; }
+          })(),
         };
       });
   }, [meetings, calendars, filters.showDeclined, searchQuery, activeCalendarFilter]);
@@ -1150,154 +1160,295 @@ const CalendarPage = () => {
         <aside className="calendar-right-panel">
           
           {selectedEvent ? (
-            /* Selected Event View */
-            <div className="right-card flex-1">
-              <div className="flex justify-between items-center mb-4">
-                <div className="right-card-title m-0">EVENT DETAILS</div>
-                <button className="text-gray-400 hover:text-gray-600 cursor-pointer" onClick={() => setSelectedEvent(null)}>
-                  <X size={16} />
-                </button>
-              </div>
-              
-              <div className="event-details-content">
-                <h2 className="event-details-title">{selectedEvent.title}</h2>
-                
-                <div className="event-details-meta-row">
-                  <CalendarIcon size={14} className="text-gray-400" />
-                  <span>{dayjs(selectedEvent.start).format('dddd, MMMM D')}</span>
-                </div>
-                
-                <div className="event-details-meta-row">
-                  <Clock size={14} className="text-gray-400" />
-                  <span>{dayjs(selectedEvent.start).format('h:mm A')} – {dayjs(selectedEvent.end).format('h:mm A')}</span>
-                </div>
-                
-                <div className="event-details-meta-row">
-                  {selectedEvent.platform?.toLowerCase().includes('google') ? <Video size={14} className="text-blue-500" /> : <MapPin size={14} className="text-gray-400" />}
-                  <span>{selectedEvent.platform || 'General Meeting'}</span>
-                </div>
-                
-                {selectedEvent.joinUrl && dayjs(selectedEvent.start).isAfter(dayjs()) && (
-                  <button 
-                    className="btn-create-primary mt-2 w-full justify-center"
-                    onClick={() => window.open(selectedEvent.joinUrl, '_blank')}
-                  >
-                    Join Meeting
-                  </button>
-                )}
+          <div className="right-card flex-1" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {/* ── Header ── */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="right-card-title m-0">EVENT DETAILS</div>
+              <button className="text-gray-400 hover:text-gray-600 cursor-pointer" onClick={() => setSelectedEvent(null)}>
+                <X size={16} />
+              </button>
+            </div>
 
-                <div className="event-details-divider" />
-                
-                <div className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center justify-between">
-                  <span>Attendees</span>
-                  {selectedEvent.attendees && selectedEvent.attendees.length > 0 && (
-                    <span className="text-[10px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5">
-                      {selectedEvent.attendees.length} total
-                    </span>
+            <div className="event-details-content" style={{ flex: 1, overflowY: 'auto' }}>
+
+              {/* ── Title + Project chip ── */}
+              <h2 className="event-details-title" style={{ marginBottom: '8px' }}>{selectedEvent.title}</h2>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                {selectedEvent.project_name ? (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '2px 8px', borderRadius: '99px',
+                    background: `${selectedEvent.color}18`,
+                    border: `1px solid ${selectedEvent.color}40`,
+                    fontSize: '11px', fontWeight: 700, color: selectedEvent.color,
+                    letterSpacing: '0.01em', whiteSpace: 'nowrap'
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: selectedEvent.color, flexShrink: 0 }} />
+                    {selectedEvent.project_name}
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    padding: '2px 8px', borderRadius: '99px',
+                    background: '#f1f5f9', border: '1px solid #e2e8f0',
+                    fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+                    letterSpacing: '0.01em'
+                  }}>
+                    No project linked
+                  </span>
+                )}
+              </div>
+
+              {/* ── Date / Time / Platform ── */}
+              <div className="event-details-meta-row">
+                <CalendarIcon size={14} className="text-gray-400" />
+                <span>{dayjs(selectedEvent.start).format('dddd, MMMM D')}</span>
+              </div>
+
+              <div className="event-details-meta-row">
+                <Clock size={14} className="text-gray-400" />
+                <span>{dayjs(selectedEvent.start).format('h:mm A')} – {dayjs(selectedEvent.end).format('h:mm A')}</span>
+              </div>
+
+              <div className="event-details-meta-row">
+                {selectedEvent.platform?.toLowerCase().includes('google') ? <Video size={14} className="text-blue-500" /> : <MapPin size={14} className="text-gray-400" />}
+                <span>{selectedEvent.platform || 'General Meeting'}</span>
+              </div>
+
+              {selectedEvent.joinUrl && dayjs(selectedEvent.start).isAfter(dayjs()) && (
+                <button
+                  className="btn-create-primary mt-2 w-full justify-center"
+                  onClick={() => window.open(selectedEvent.joinUrl, '_blank')}
+                >
+                  Join Meeting
+                </button>
+              )}
+
+              {/* ── Agenda ── */}
+              <div className="event-details-divider" />
+
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{
+                  fontSize: '10px', fontWeight: 700, color: '#94a3b8',
+                  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px'
+                }}>
+                  Agenda
+                </div>
+
+                {selectedEvent.agenda && selectedEvent.agenda.length > 0 ? (() => {
+                  const items = selectedEvent.agenda.filter(a => a && (typeof a === 'string' ? a : a.title));
+                  const visible = items.slice(0, 4);
+                  const remaining = items.length - visible.length;
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {visible.map((item, idx) => {
+                        const title = typeof item === 'string' ? item : item.title;
+                        const duration = typeof item === 'object' ? item.duration : null;
+                        return (
+                          <div key={idx} style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '5px 8px', borderRadius: '6px', background: '#f8fafc',
+                            border: '1px solid #f1f5f9'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
+                              <span style={{
+                                width: 16, height: 16, borderRadius: '50%',
+                                background: '#e2e8f0', color: '#64748b',
+                                fontSize: '9px', fontWeight: 800, display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                              }}>{idx + 1}</span>
+                              <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+                            </div>
+                            {duration > 0 && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 700, color: '#64748b',
+                                background: '#e2e8f0', borderRadius: '4px',
+                                padding: '1px 5px', whiteSpace: 'nowrap', flexShrink: 0
+                              }}>{duration}m</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {remaining > 0 && (
+                        <button
+                          onClick={() => navigate(`/dashboard/meeting/${selectedEvent.id}`)}
+                          style={{
+                            background: 'none', border: '1px dashed #cbd5e1', borderRadius: '6px',
+                            padding: '4px 8px', fontSize: '11px', fontWeight: 600,
+                            color: '#3b82f6', cursor: 'pointer', textAlign: 'left',
+                            marginTop: '2px', transition: 'background 0.12s'
+                          }}
+                        >
+                          + {remaining} more · View all →
+                        </button>
+                      )}
+                    </div>
+                  );
+                })() : (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: '6px',
+                    background: '#fffbeb', border: '1px dashed #fde68a'
+                  }}>
+                    <span style={{ fontSize: '11px', color: '#92400e', fontWeight: 500 }}>No agenda set</span>
+                    <button
+                      onClick={() => navigate(`/dashboard/meeting/${selectedEvent.id}`)}
+                      style={{
+                        background: 'none', border: 'none', fontSize: '11px',
+                        fontWeight: 700, color: '#d97706', cursor: 'pointer', padding: 0
+                      }}
+                    >
+                      Add →
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Attendees ── */}
+              <div className="event-details-divider" />
+
+              <div className="text-[12px] font-semibold text-gray-500 uppercase tracking-wide mb-2 flex items-center justify-between">
+                <span>Attendees</span>
+                {selectedEvent.attendees && selectedEvent.attendees.length > 0 && (
+                  <span className="text-[10px] text-slate-400 font-bold bg-slate-50 border border-slate-100 rounded px-1.5 py-0.5">
+                    {selectedEvent.attendees.length} total
+                  </span>
+                )}
+              </div>
+
+              {(!selectedEvent.attendees || selectedEvent.attendees.length === 0) ? (
+                <div className="text-[12px] text-slate-400 italic">No attendees added.</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {selectedEvent.attendees.slice(0, 3).map((a, i) => {
+                    const det = getAttendeeDetails(a);
+                    const color = getAvatarColor(det.email);
+                    return (
+                      <div key={i} className="event-attendee-row flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50/80 transition-colors">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${color}`}>
+                          {det.initials}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-semibold text-slate-800 truncate">{det.name}</span>
+                          <span className="text-[10px] text-slate-400 truncate">{det.email}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {selectedEvent.attendees.length > 3 && (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <button className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border border-dashed border-blue-200 rounded-lg py-1.5 px-3 transition-all cursor-pointer text-center mt-1">
+                          + {selectedEvent.attendees.length - 3} more attendees
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <span>Meeting Attendees</span>
+                            <span className="text-xs font-bold text-blue-600 bg-blue-50 rounded px-2 py-0.5">
+                              {selectedEvent.attendees.length}
+                            </span>
+                          </DialogTitle>
+                          <DialogDescription>
+                            Full guest list for &ldquo;{selectedEvent.title}&rdquo;
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-2.5 my-4 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                          {selectedEvent.attendees.map((a, i) => {
+                            const det = getAttendeeDetails(a);
+                            const color = getAvatarColor(det.email);
+                            return (
+                              <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${color}`}>
+                                  {det.initials}
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span className="text-sm font-semibold text-slate-800 truncate">{det.name}</span>
+                                  <span className="text-xs text-slate-400 truncate">{det.email}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <button className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border-none">
+                              Close
+                            </button>
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   )}
                 </div>
-                
-                {(!selectedEvent.attendees || selectedEvent.attendees.length === 0) ? (
-                  <div className="text-[12px] text-slate-400 italic">No attendees added.</div>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {selectedEvent.attendees.slice(0, 3).map((a, i) => {
-                      const det = getAttendeeDetails(a);
-                      const color = getAvatarColor(det.email);
-                      return (
-                        <div key={i} className="event-attendee-row flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-50/80 transition-colors">
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${color}`}>
-                            {det.initials}
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-xs font-semibold text-slate-800 truncate">{det.name}</span>
-                            <span className="text-[10px] text-slate-400 truncate">{det.email}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {selectedEvent.attendees.length > 3 && (
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <button className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border border-dashed border-blue-200 rounded-lg py-1.5 px-3 transition-all cursor-pointer text-center mt-1">
-                            + {selectedEvent.attendees.length - 3} more attendees
-                          </button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                              <span>Meeting Attendees</span>
-                              <span className="text-xs font-bold text-blue-600 bg-blue-50 rounded px-2 py-0.5">
-                                {selectedEvent.attendees.length}
-                              </span>
-                            </DialogTitle>
-                            <DialogDescription>
-                              Full guest list for &ldquo;{selectedEvent.title}&rdquo;
-                            </DialogDescription>
-                          </DialogHeader>
-                          
-                          <div className="flex flex-col gap-2.5 my-4 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                            {selectedEvent.attendees.map((a, i) => {
-                              const det = getAttendeeDetails(a);
-                              const color = getAvatarColor(det.email);
-                              return (
-                                <div key={i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${color}`}>
-                                    {det.initials}
-                                  </div>
-                                  <div className="flex flex-col min-w-0 flex-1">
-                                    <span className="text-sm font-semibold text-slate-800 truncate">{det.name}</span>
-                                    <span className="text-xs text-slate-400 truncate">{det.email}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          <DialogFooter>
-                            <DialogClose asChild>
-                              <button className="w-full sm:w-auto px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer border-none">
-                                Close
-                              </button>
-                            </DialogClose>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
-                )}
+              )}
 
-                <div className="mt-auto pt-4 flex flex-col gap-2">
-                  <div className="flex gap-2">
-                    <button className="btn-outline-action flex-1" onClick={() => navigate(`/dashboard/schedule-meeting?edit=${selectedEvent.id}`)}>Edit</button>
-                    <button className="btn-outline-action flex-1" onClick={() => navigate(`/dashboard/meeting/${selectedEvent.id}`)}>Details</button>
-                  </div>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button className="w-full text-center py-2.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-all cursor-pointer mt-3 shadow-sm hover:shadow-md">
-                        Delete Event
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Meeting?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This will permanently remove "{selectedEvent.title}" from your calendar. This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDeleteEvent(selectedEvent.id)} className="bg-red-600 hover:bg-red-700 text-white border-none cursor-pointer">
-                          Confirm Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+              {/* ── Reminder (inline, contextual) ── */}
+              <div className="event-details-divider" />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: '7px',
+                    padding: '7px 10px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                    background: '#f8fafc', fontSize: '12px', fontWeight: 600, color: '#475569',
+                    cursor: 'pointer', transition: 'all 0.12s'
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                  >
+                    <Bell size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                    Set Reminder
+                    <svg style={{ marginLeft: 'auto', color: '#94a3b8' }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m6 9 6 6 6-6"/></svg>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  {[5, 10, 15, 30, 60].map(min => (
+                    <DropdownMenuItem
+                      key={min}
+                      onClick={() => toast.success(`Reminder set ${min < 60 ? `${min}m` : '1h'} before "${selectedEvent.title}"`)}
+                    >
+                      {min < 60 ? `${min} minutes before` : '1 hour before'}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* ── Footer actions ── */}
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <button className="btn-outline-action flex-1" onClick={() => navigate(`/dashboard/schedule-meeting?edit=${selectedEvent.id}`)}>Edit</button>
+                  <button className="btn-outline-action flex-1" onClick={() => navigate(`/dashboard/meeting/${selectedEvent.id}`)}>Details</button>
                 </div>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="w-full text-center py-2.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300 rounded-lg transition-all cursor-pointer mt-1 shadow-sm hover:shadow-md">
+                      Delete Event
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Meeting?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove "{selectedEvent.title}" from your calendar. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteEvent(selectedEvent.id)} className="bg-red-600 hover:bg-red-700 text-white border-none cursor-pointer">
+                        Confirm Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
+
             </div>
+          </div>
           ) : (
             /* Upcoming View */
             <div className="right-card flex-1">
@@ -1322,38 +1473,6 @@ const CalendarPage = () => {
               </div>
             </div>
           )}
-
-          {/* Quick Actions Card */}
-          <div className="right-card">
-            <div className="right-card-title">QUICK ACTIONS</div>
-            <div className="quick-actions-list">
-              <button className="btn-ghost-action" onClick={() => navigate('/dashboard/schedule-meeting')}>
-                <Plus size={16} /> New Event
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button 
-                    className={`btn-ghost-action ${!selectedEvent ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!selectedEvent}
-                    onClick={() => {
-                      if (!selectedEvent) toast.error('Please select an event first');
-                    }}
-                  >
-                    <Bell size={16} /> Reminder
-                  </button>
-                </DropdownMenuTrigger>
-                {selectedEvent && (
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => toast.success(`Reminder set 5m before ${selectedEvent.title}`)}>5 minutes before</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success(`Reminder set 10m before ${selectedEvent.title}`)}>10 minutes before</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success(`Reminder set 15m before ${selectedEvent.title}`)}>15 minutes before</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success(`Reminder set 30m before ${selectedEvent.title}`)}>30 minutes before</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toast.success(`Reminder set 1h before ${selectedEvent.title}`)}>1 hour before</DropdownMenuItem>
-                  </DropdownMenuContent>
-                )}
-              </DropdownMenu>
-            </div>
-          </div>
 
         </aside>
       </div>
