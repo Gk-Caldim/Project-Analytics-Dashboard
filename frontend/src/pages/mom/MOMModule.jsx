@@ -67,9 +67,9 @@ const MOMModule = () => {
             Dashboard
           </Link>
           <ChevronRight className="w-3 h-3" />
-          <Link to="/dashboard/meetings" className="hover:text-indigo-600 transition-colors flex items-center gap-1.5">
+          <Link to="/dashboard/calendar" className="hover:text-indigo-600 transition-colors flex items-center gap-1.5">
             <Layout className="w-3.5 h-3.5" />
-            Meetings
+            Calendar
           </Link>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-900 flex items-center gap-1.5">

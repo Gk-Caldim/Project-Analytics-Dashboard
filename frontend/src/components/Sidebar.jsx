@@ -154,7 +154,7 @@ const Sidebar = ({
     };
 
     const renderMOMModule = () => {
-        const isActive = activeModule === 'mom-module' || activeModule === 'meetings' || activeModule === 'schedule-meeting' || activeModule === 'saved-moms' || activeModule === 'calendar';
+        const isActive = activeModule === 'mom-module' || activeModule === 'schedule-meeting' || activeModule === 'saved-moms' || activeModule === 'calendar';
         const isExpanded = expandedModules['mom'];
 
         return (
@@ -188,12 +188,6 @@ const Sidebar = ({
                                     <div className="flex items-center justify-between w-full">
                                         <span>My Calendar</span>
                                     </div>
-                                </div>
-                                <div
-                                    onClick={() => handleModuleClick('meetings')}
-                                    className={`sidebar-sub-item ${activeModule === 'meetings' ? 'sidebar-sub-item-active' : ''}`}
-                                >
-                                    All Meetings
                                 </div>
                                 <div
                                     onClick={() => handleModuleClick('schedule-meeting')}

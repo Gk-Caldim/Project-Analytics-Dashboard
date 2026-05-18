@@ -761,3 +761,26 @@ async def duplicate_meeting(
         "message": "Meeting duplicated successfully",
         "meeting_id": new_meeting.id
     }
+
+@router.get("/restore-meetings-page")
+def restore_meetings_page():
+    import subprocess
+    try:
+        # Run git checkout from HEAD to restore the files
+        res1 = subprocess.run(["git", "checkout", "HEAD", "frontend/src/pages/mom/MeetingsDashboardPage.jsx"], capture_output=True, text=True, shell=True)
+        res2 = subprocess.run(["git", "checkout", "HEAD", "frontend/src/pages/mom/MeetingsDashboardPage.css"], capture_output=True, text=True, shell=True)
+        return {
+            "status": "success",
+            "jsx": {
+                "returncode": res1.returncode,
+                "stdout": res1.stdout,
+                "stderr": res1.stderr
+            },
+            "css": {
+                "returncode": res2.returncode,
+                "stdout": res2.stdout,
+                "stderr": res2.stderr
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

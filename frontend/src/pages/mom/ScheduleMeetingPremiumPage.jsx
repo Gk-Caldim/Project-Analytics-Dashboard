@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search } from 'lucide-react';
 import { Textarea } from "../../components/ui/textarea";
 import { useConfirm } from "../../hooks/use-confirm";
 import {
@@ -200,6 +200,14 @@ const ScheduleMeetingPremiumPage = () => {
     return '11:00';
   });
   const [platform, setPlatform] = useState('meet');
+  const [connectedPlatforms, setConnectedPlatforms] = useState(() => {
+    try {
+      const saved = localStorage.getItem('caldim_connected_platforms');
+      return saved ? JSON.parse(saved) : { meet: true, teams: false };
+    } catch {
+      return { meet: true, teams: false };
+    }
+  });
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
   const [agenda, setAgenda] = useState([]);
@@ -382,6 +390,69 @@ const ScheduleMeetingPremiumPage = () => {
       conflictTitle: conflict?.title
     };
   }, [startTime, endTime, date, meetings]);
+
+  const handleTimelineClick = (e) => {
+    // Find the relative Y coordinate of the click within the timeline-canvas
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top + e.currentTarget.scrollTop;
+    
+    // 1 hour = 60px -> 1 minute = 1px!
+    const clickedMinsFrom7AM = Math.max(0, y);
+    const clickedTotalMins = clickedMinsFrom7AM + 7 * 60; // 7:00 AM starts at 420 mins
+    
+    // Snap to the nearest 15-minute slot (0, 15, 30, 45)
+    const snappedMins = Math.floor(clickedTotalMins / 15) * 15;
+    
+    // Limit starting time to 11:45 PM
+    const finalStartMins = Math.min(snappedMins, 23 * 60 + 45);
+    
+    const startH = Math.floor(finalStartMins / 60);
+    const startM = finalStartMins % 60;
+    const newStartTimeStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+    
+    // Fetch currently selected event type's duration or fallback to current form duration or 60 mins
+    const activeType = customEventTypes.find(t => t.label === eventType);
+    let duration = 60;
+    if (activeType) {
+      duration = activeType.duration;
+    } else {
+      const currentStart = parseTimeToMinutes(startTime);
+      const currentEnd = parseTimeToMinutes(endTime);
+      duration = (currentEnd > currentStart) ? (currentEnd - currentStart) : 60;
+    }
+    
+    const finalEndMins = Math.min(finalStartMins + duration, 24 * 60);
+    const endH = Math.floor(finalEndMins / 60);
+    const endM = finalEndMins % 60;
+    const newEndTimeStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    
+    setStartTime(newStartTimeStr);
+    setEndTime(newEndTimeStr);
+  };
+
+  const handleConnectPlatform = (e, platformId) => {
+    e.stopPropagation();
+    const toastId = toast.loading(`Connecting to ${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'}...`);
+    
+    setTimeout(() => {
+      setConnectedPlatforms(prev => {
+        const next = { ...prev, [platformId]: true };
+        localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
+        return next;
+      });
+      toast.success(`${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'} connected!`, { id: toastId });
+    }, 1200);
+  };
+
+  const handleDisconnectPlatform = (e, platformId) => {
+    e.stopPropagation();
+    setConnectedPlatforms(prev => {
+      const next = { ...prev, [platformId]: false };
+      localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
+      return next;
+    });
+    toast.success(`${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'} disconnected.`);
+  };
 
   const handleCheckAvailability = () => {
     if (attendees.length === 0) {
@@ -804,11 +875,37 @@ const ScheduleMeetingPremiumPage = () => {
             <div className="platforms-grid">
               {PLATFORMS.map(p => {
                 const isSelected = platform === p.id;
+                const isConnected = !!connectedPlatforms[p.id];
                 return (
                   <div 
                     key={p.id} 
                     className={`hairline-card cursor-pointer p-4 ${isSelected ? 'active-surface' : ''}`}
-                    onClick={() => setPlatform(p.id)}
+                    onClick={async () => {
+                      if (!connectedPlatforms[p.id]) {
+                        const ok = await confirm({
+                          title: 'Connection Required',
+                          description: `To use ${p.name} for video calling, you must link your workspace account first. Would you like to connect now?`,
+                          confirmText: 'Connect Now',
+                          cancelText: 'Maybe Later',
+                          variant: 'primary'
+                        });
+                        
+                        if (ok) {
+                          const toastId = toast.loading(`Connecting to ${p.name}...`);
+                          setTimeout(() => {
+                            setConnectedPlatforms(prev => {
+                              const next = { ...prev, [p.id]: true };
+                              localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
+                              return next;
+                            });
+                            toast.success(`${p.name} connected!`, { id: toastId });
+                            setPlatform(p.id);
+                          }, 1200);
+                        }
+                      } else {
+                        setPlatform(p.id);
+                      }
+                    }}
                   >
                     <div className="platform-card-inner">
                       <div className="platform-card-header">
@@ -816,11 +913,16 @@ const ScheduleMeetingPremiumPage = () => {
                         <span className="text-[13px] font-semibold">{p.name}</span>
                       </div>
                       <div className="platform-status-strip">
-                        <div className={`status-dot-mini ${p.connected ? 'connected' : 'disconnected'}`} />
-                        {p.connected ? (
-                          <span className="text-emerald-600">Connected</span>
+                        <div className={`status-dot-mini ${isConnected ? 'connected' : 'disconnected'}`} />
+                        {isConnected ? (
+                          <span className="text-gray-400 text-[11px] font-medium">
+                            <span className="text-emerald-600 font-semibold mr-1">Connected</span>
+                            · <span className="hover:text-red-500 cursor-pointer font-bold hover:underline ml-1" onClick={(e) => handleDisconnectPlatform(e, p.id)}>Disconnect</span>
+                          </span>
                         ) : (
-                          <span className="text-gray-400">Not connected · <span className="text-blue-500 font-bold">Connect</span></span>
+                          <span className="text-gray-400 text-[11px] font-medium">
+                            Not connected · <span className="text-blue-500 font-bold hover:underline cursor-pointer ml-1" onClick={(e) => handleConnectPlatform(e, p.id)}>Connect</span>
+                          </span>
                         )}
                       </div>
                     </div>
@@ -833,10 +935,12 @@ const ScheduleMeetingPremiumPage = () => {
           {/* Section: Progressive Details Toggle — Encapsulated in Hairline Cards to match Look */}
           <div className="form-section">
             <button 
-              className="border-none bg-transparent font-semibold text-[12px] text-gray-500 hover:text-gray-900 cursor-pointer p-0 mb-2"
+              className={`btn-more-settings-sleek mb-4 ${isMoreOptionsOpen ? 'active' : ''}`}
               onClick={() => setIsMoreOptionsOpen(!isMoreOptionsOpen)}
             >
-              {isMoreOptionsOpen ? 'Less settings ↑' : 'More settings ↓'}
+              <Settings size={14} className={isMoreOptionsOpen ? 'animate-spin' : ''} style={{ animationDuration: '4s' }} />
+              <span>{isMoreOptionsOpen ? 'Less settings' : 'More settings'}</span>
+              {isMoreOptionsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
             
             <AnimatePresence>
@@ -968,7 +1072,11 @@ const ScheduleMeetingPremiumPage = () => {
                 </button>
               </div>
 
-              <div className="timeline-canvas custom-scrollbar" ref={rightGridRef}>
+              <div 
+                className="timeline-canvas custom-scrollbar" 
+                ref={rightGridRef}
+                onClick={handleTimelineClick}
+              >
                 {Array.from({ length: 15 }, (_, i) => i + 7).map(hour => (
                   <div key={hour} className="timeline-hour-row">
                     <span className="timeline-hour-label">{to12Hour(hour)}</span>
@@ -979,6 +1087,7 @@ const ScheduleMeetingPremiumPage = () => {
                 {meetings.filter(m => m.date === dayjs(date).format('YYYY-MM-DD') && String(m.id) !== String(editId)).map(m => {
                   const mStart = parseTimeToMinutes(m.time);
                   const mDuration = m.duration_minutes || 60;
+                  const cardColor = m.color || '#2563eb';
                   return (
                     <div 
                       key={m.id} 
@@ -986,33 +1095,39 @@ const ScheduleMeetingPremiumPage = () => {
                       style={{ 
                         top: (mStart - 7 * 60), 
                         height: mDuration,
-                        borderLeftColor: m.color || '#94a3b8',
-                        backgroundColor: `${m.color || '#94a3b8'}15`,
-                        color: m.color || '#475569'
+                        borderLeftColor: cardColor,
+                        backgroundColor: `${cardColor}1A`, // 10% opacity matching calendar grid
+                        color: cardColor
                       }}
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <span className="text-[11px] font-semibold text-gray-700 truncate">{m.title}</span>
-                      <span className="text-[9px] font-bold text-gray-400">{m.time}</span>
+                      <span className="event-title truncate" style={{ color: cardColor }}>{m.title}</span>
+                      {mDuration >= 30 && (
+                        <span className="event-time" style={{ color: cardColor, opacity: 0.75 }}>{m.time}</span>
+                      )}
                     </div>
                   );
                 })}
 
                 {previewBlock && (
                   <div 
-                    className={`timeline-event-floating live-preview ${previewBlock.hasConflict ? 'bg-amber-50/90 border-amber-500' : 'bg-blue-50/90'}`}
+                    className="timeline-event-floating live-preview"
                     style={{ 
                       top: previewBlock.top, 
                       height: previewBlock.height,
-                      borderLeftColor: previewBlock.hasConflict ? '#f59e0b' : eventColor 
+                      borderLeftColor: previewBlock.hasConflict ? '#f59e0b' : eventColor,
+                      backgroundColor: previewBlock.hasConflict ? '#fffbeb' : `${eventColor}1A`,
+                      color: previewBlock.hasConflict ? '#b45309' : eventColor
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold truncate" style={{ color: previewBlock.hasConflict ? '#b45309' : eventColor }}>
+                    <div className="flex items-center justify-between w-full min-w-0">
+                      <span className="event-title truncate" style={{ color: previewBlock.hasConflict ? '#b45309' : eventColor }}>
                         {title || 'Your new meeting'}
                       </span>
-                      {previewBlock.hasConflict ? <AlertCircle size={12} className="text-amber-600 flex-shrink-0" /> : <Check size={12} className="text-emerald-600 flex-shrink-0" />}
+                      {previewBlock.hasConflict ? <AlertCircle size={11} className="text-amber-600 flex-shrink-0 ml-1" /> : <Check size={11} className="flex-shrink-0 ml-1" style={{ color: eventColor }} />}
                     </div>
-                    <span className="text-[9px] font-semibold text-gray-500">
+                    <span className="event-time" style={{ opacity: 0.75 }}>
                       {previewBlock.hasConflict ? `⚠ Conflict detected` : `✓ Live scheduling space`}
                     </span>
                   </div>

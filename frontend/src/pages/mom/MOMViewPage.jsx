@@ -291,9 +291,9 @@ const MOMViewPage = () => {
                 <nav className="mvp-breadcrumb">
                   <Link to="/dashboard">Dashboard</Link>
                   <ChevronRight size={12} />
-                  <Link to="/dashboard/meetings">Meetings</Link>
+                  <Link to="/dashboard/calendar">Calendar</Link>
                   <ChevronRight size={12} />
-                  <Link to={`/dashboard/meetings?id=${meetingId}`}>{session.name}</Link>
+                  <span>{session.name}</span>
                   <ChevronRight size={12} />
                   <span className="active">MOM Output</span>
                 </nav>

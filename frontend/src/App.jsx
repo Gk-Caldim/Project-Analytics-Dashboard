@@ -16,7 +16,6 @@ import MOMModule from './pages/mom/MOMModule';
 import TranscriptViewer from './pages/mom/TranscriptViewer';
 import MeetingCapturePage from './pages/mom/MeetingCapturePage';
 import MOMViewPage from './pages/mom/MOMViewPage';
-import MeetingsDashboardPage from './pages/mom/MeetingsDashboardPage';
 import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
 import ScheduleMeetingPremiumPage from './pages/mom/ScheduleMeetingPremiumPage';
 import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
@@ -288,7 +287,6 @@ function App() {
             <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
             <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
             <Route path="mom/legacy" element={<MOMModule />} />
-            <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="saved-moms" element={<SavedMOMsPage />} />
             <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
             <Route path="calendar" element={<CalendarPage />} />

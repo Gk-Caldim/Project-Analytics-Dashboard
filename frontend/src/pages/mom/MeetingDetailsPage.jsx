@@ -1406,7 +1406,7 @@ const MeetingDetailsPage = () => {
             {projectName ? (
               <Link to="/dashboard/projects" className="z-bc-link">Projects</Link>
             ) : (
-              <Link to="/dashboard/meetings" className="z-bc-link">Meetings</Link>
+              <Link to="/dashboard/calendar" className="z-bc-link">Calendar</Link>
             )}
             {projectName && (
               <>
