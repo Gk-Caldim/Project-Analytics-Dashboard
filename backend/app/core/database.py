@@ -19,19 +19,17 @@ else:
         "connect_timeout": 10
     }
 
-# Use NullPool for Cloud (Supabase) because it already uses PgBouncer (Transaction mode)
-# Using client-side pooling on top of PgBouncer can cause connection exhaustion or "prepared statement" errors.
-pool_class = NullPool if IS_CLOUD_DB else QueuePool
-pool_args = {}
-
-if not IS_CLOUD_DB:
-    pool_args = {
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_timeout": 30,
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-    }
+# Use QueuePool for both local and cloud when using direct connection (port 5432)
+# To handle higher scalability without PgBouncer, we increase pool size and max overflow,
+# while keeping pool_timeout reasonable to fail fast if connections are exhausted.
+pool_class = QueuePool
+pool_args = {
+    "pool_size": 20,          # Increased from 5: Allow more baseline concurrent connections per worker
+    "max_overflow": 30,       # Increased from 10: Allow temporary bursts
+    "pool_timeout": 15,       # Decreased from 30: Fail faster instead of hanging requests if pool is empty
+    "pool_recycle": 1800,     # Recycle connections every 30 mins to prevent stale/dropped connections by firewall
+    "pool_pre_ping": True,    # Essential for cloud DBs to check connection health before using
+}
 
 print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
 try:

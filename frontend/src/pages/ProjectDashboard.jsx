@@ -5,7 +5,7 @@ import { setSelectedProjectFileId } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
-import ExcelTableViewer from '../components/ExcelTableViewer';
+const ExcelTableViewer = React.lazy(() => import('../components/ExcelTableViewer'));
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
@@ -14,15 +14,15 @@ import {
 import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
-import ReportDocument from '../components/ReportDocument';
-import PdfPreviewModal from '../components/PdfPreviewModal';
+const ReportDocument = React.lazy(() => import('../components/ReportDocument'));
+const PdfPreviewModal = React.lazy(() => import('../components/PdfPreviewModal'));
 import useCurrency from "../hooks/useCurrency";
-import PremiumProjectCard from '../components/project/PremiumProjectCard';
+const PremiumProjectCard = React.lazy(() => import('../components/project/PremiumProjectCard'));
 import { motion } from 'framer-motion';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { staggerContainer } from '../utils/animations';
-import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
-import VPProjectDashboard from './VPProjectDashboard';
+const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
+const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
 
 
 import { HotTable } from '@handsontable/react';
@@ -381,11 +381,31 @@ const ProjectTitleDashboard = () => {
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    return activeProject.submodules?.find(s =>
+    
+    let match = activeProject.submodules?.find(s =>
       String(s.id) === String(submoduleId) ||
       String(s.trackerId) === String(submoduleId) ||
       `project-file-${s.trackerId}` === submoduleId
     );
+
+    if (!match && activeProject.uploads) {
+      const upload = activeProject.uploads.find(u => 
+        String(u.upload_id) === String(submoduleId) ||
+        `tracker-file-${u.upload_id}` === String(submoduleId)
+      );
+      if (upload) {
+        match = {
+          id: `tracker-file-${upload.upload_id}`,
+          trackerId: upload.upload_id,
+          name: upload.file_name ? upload.file_name.replace(/\.[^/.]+$/, '') : 'Dataset',
+          displayName: upload.file_name ? upload.file_name.replace(/\.[^/.]+$/, '') : 'Dataset',
+          projectName: activeProject.name,
+          type: 'tracker'
+        };
+      }
+    }
+    
+    return match;
   }, [activeProject, submoduleId]);
 
   const setShowSimulateModal = (show) => {
@@ -1168,11 +1188,19 @@ const ProjectTitleDashboard = () => {
       const idToResolve = submoduleId;
       if (idToResolve) {
         // Find the submodule object
-        const sub = activeProject.submodules?.find(s =>
+        let sub = activeProject.submodules?.find(s =>
           String(s.id) === String(idToResolve) ||
           String(s.trackerId) === String(idToResolve) ||
           `project-file-${s.trackerId}` === String(idToResolve)
         );
+
+        if (!sub && activeProject.uploads) {
+          const upload = activeProject.uploads.find(u => 
+            String(u.upload_id) === String(idToResolve) ||
+            `tracker-file-${u.upload_id}` === String(idToResolve)
+          );
+          if (upload) sub = { trackerId: upload.upload_id };
+        }
 
         if (sub) {
           // Use the real numeric trackerId for the API call
@@ -1196,11 +1224,21 @@ const ProjectTitleDashboard = () => {
     if (selectedFileId && projects.length > 0) {
       // Find the project and submodule
       for (const project of projects) {
-        const fileMatch = project.submodules?.find(s =>
+        let fileMatch = project.submodules?.find(s =>
           s.trackerId === selectedFileId ||
           `project-file-${s.trackerId}` === selectedFileId ||
           s.id === selectedFileId
         );
+
+        if (!fileMatch && project.uploads) {
+          const upload = project.uploads.find(u => 
+            String(u.upload_id) === String(selectedFileId) ||
+            `tracker-file-${u.upload_id}` === String(selectedFileId)
+          );
+          if (upload) {
+            fileMatch = { id: `tracker-file-${upload.upload_id}`, trackerId: upload.upload_id };
+          }
+        }
 
         if (fileMatch) {
           setSearchParams(prev => {
@@ -2785,6 +2823,23 @@ const ProjectTitleDashboard = () => {
       );
     }
 
+    // ── Smart Data Sampling for Card View ──────────────────────────────────
+    // In card view (non-maximized), cap to CARD_MAX_ROWS for performance & clarity.
+    // In maximized view all rows are used for full analysis.
+    const CARD_MAX_ROWS = 500;
+    const totalRows = chartData.length;
+    const isSampled = !isMaximized && totalRows > CARD_MAX_ROWS;
+    if (isSampled) {
+      // Uniform stride sampling — picks evenly spaced rows
+      const stride = totalRows / CARD_MAX_ROWS;
+      const sampled = [];
+      for (let i = 0; i < CARD_MAX_ROWS; i++) {
+        sampled.push(chartData[Math.floor(i * stride)]);
+      }
+      chartData = sampled;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     // Process data based on selected axes
     // We group by xAxis, and aggregate yAxis (sum if numeric, count otherwise)
     const isGrouped = chartType === 'grouped-bar';
@@ -3415,8 +3470,13 @@ const ProjectTitleDashboard = () => {
 
     return (
       <div style={size}>
-        <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}
+        <div style={{ marginBottom: '6px', fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span><span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>X:</span> {humanizeLabel(axisConfig.xAxis)} <span style={{ margin: '0 8px', opacity: 0.5 }}>|</span> <span style={{ fontWeight: 'bold', color: isDark ? '#FFFFFF' : 'var(--accent)' }}>Y:</span> {humanizeLabel(axisConfig.yAxis)}</span>
+          {isSampled && (
+            <span style={{ backgroundColor: isDark ? 'rgba(251,191,36,0.15)' : '#fef9c3', color: isDark ? '#fbbf24' : '#854d0e', fontWeight: '700', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', border: `1px solid ${isDark ? 'rgba(251,191,36,0.3)' : '#fde68a'}`, whiteSpace: 'nowrap' }}>
+              ⚡ Sample: {CARD_MAX_ROWS} of {totalRows} rows · Maximize for full analysis
+            </span>
+          )}
         </div>
         <ReactECharts
           ref={(e) => {

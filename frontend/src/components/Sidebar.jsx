@@ -316,12 +316,56 @@ const Sidebar = ({
                             className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
+                                {/* Link to UploadTrackers page */}
                                 <div
                                     onClick={() => handleModuleClick('upload-trackers')}
                                     className={`sidebar-sub-item ${activeModule === 'upload-trackers' ? 'sidebar-sub-item-active' : ''}`}
                                 >
-                                    Trackers
+                                    Manage Trackers
                                 </div>
+
+                                {/* Per-project tracker file items */}
+                                {hasDynamicModules && uploadTrackerModules.map((pm, idx) => {
+                                    const projectKey = pm.id || pm.projectId || pm.name;
+                                    const uniqueId = `upload-trackers-${projectKey}`;
+                                    const isProjExpanded = expandedModules[uniqueId];
+
+                                    if (!pm.submodules || pm.submodules.length === 0) return null;
+
+                                    return (
+                                        <div key={pm.id || idx} className="py-0.5">
+                                            <div
+                                                className="flex items-center justify-between px-6 py-1.5 cursor-pointer group"
+                                                onClick={(e) => { e.stopPropagation(); toggleModuleExpansion(uniqueId, e); }}
+                                            >
+                                                <span className="text-[11px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
+                                                {isProjExpanded
+                                                    ? <ChevronDown size={11} className="text-white/50" />
+                                                    : <ChevronRight size={11} className="text-white/50" />
+                                                }
+                                            </div>
+
+                                            {isProjExpanded && (
+                                                <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                                    {pm.submodules.map(fileModule => {
+                                                        const isSelected = isFileSelected(fileModule, 'upload-trackers');
+                                                        return (
+                                                            <div
+                                                                key={fileModule.id}
+                                                                onClick={() => handleFileModuleClick({ ...fileModule, projectName: pm.name })}
+                                                                className={`sidebar-sub-item ${isSelected ? 'sidebar-sub-item-active' : ''}`}
+                                                            >
+                                                                <span className="truncate">
+                                                                    {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     )}
