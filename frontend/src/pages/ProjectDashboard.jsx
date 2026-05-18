@@ -474,29 +474,11 @@ const ProjectTitleDashboard = () => {
             projectName = projectName.replace(/tata\s+motors/ig, 'TATA');
             const capitalizedName = projectName.charAt(0).toUpperCase() + projectName.slice(1);
 
-            if (!uniqueProjectsMap.has(capitalizedName)) {
-              uniqueProjectsMap.set(capitalizedName, {
-                id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
-                name: capitalizedName,
-                dbProjectId: struct.project_id,
-                code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
-                status: 'In Progress', // Default status
-                submodules: [],
-                active: false,
-                dashboardConfig: struct.dashboard_config || null,
-                budget: struct.budget || 0,
-                utilized_budget: struct.utilized_budget || 0,
-                balance_budget: struct.balance_budget || 0,
-                project_manager: struct.project_manager || null,
-                originalName: struct.project_name || 'Uncategorized'
-              });
-            }
-
-            const existingProject = uniqueProjectsMap.get(capitalizedName);
+            let dashboardConfig = struct.dashboard_config || null;
 
             // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
-            if (struct.dashboard_config?.visibleSections) {
-              const sections = { ...struct.dashboard_config.visibleSections };
+            if (dashboardConfig?.visibleSections) {
+              const sections = { ...dashboardConfig.visibleSections };
               const uploads = struct.uploads || [];
               const defaultPhases = [
                 { id: 'design', aliases: ['design'] },
@@ -518,8 +500,31 @@ const ProjectTitleDashboard = () => {
                   }
                 }
               });
-              struct.dashboard_config.visibleSections = sections;
+              dashboardConfig = {
+                ...dashboardConfig,
+                visibleSections: sections
+              };
             }
+
+            if (!uniqueProjectsMap.has(capitalizedName)) {
+              uniqueProjectsMap.set(capitalizedName, {
+                id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+                name: capitalizedName,
+                dbProjectId: struct.project_id,
+                code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
+                status: 'In Progress', // Default status
+                submodules: [],
+                active: false,
+                dashboardConfig: dashboardConfig,
+                budget: struct.budget || 0,
+                utilized_budget: struct.utilized_budget || 0,
+                balance_budget: struct.balance_budget || 0,
+                project_manager: struct.project_manager || null,
+                originalName: struct.project_name || 'Uncategorized'
+              });
+            }
+
+            const existingProject = uniqueProjectsMap.get(capitalizedName);
 
             // MERGE logic instead of overwrite
             if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
@@ -540,7 +545,7 @@ const ProjectTitleDashboard = () => {
             existingProject.uploads.forEach(u => { if (!uploadMap.has(u.upload_id)) uploadMap.set(u.upload_id, u); });
             existingProject.uploads = Array.from(uploadMap.values());
 
-            existingProject.dashboardConfig = struct.dashboard_config || existingProject.dashboardConfig;
+            existingProject.dashboardConfig = dashboardConfig || existingProject.dashboardConfig;
             existingProject.budget = Math.max(existingProject.budget || 0, struct.budget || 0);
             existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
             existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
