@@ -84,6 +84,7 @@ class MeetingUpdateRequest(BaseModel):
     notes: Optional[str] = None
     intelligence_data: Optional[str] = None
     action_item_count: Optional[int] = None
+    project_id: Optional[Any] = None
 
 class CancelRequest(BaseModel):
     reason: Optional[str] = None
@@ -359,6 +360,12 @@ async def publish_meeting(
             logger.info(f"Skipping link generation for platform: {platform}")
 
         # ── Database Persistence ──────────────────────────────────────────
+        # Defensive session reset: GoogleTokenService may have committed inside
+        # this session (to persist a fresh access token). On Supabase PgBouncer
+        # transaction mode, calling expire_all() ensures the session is in a
+        # clean state before we start the Meeting insert transaction.
+        # This is a no-op when no prior commits occurred.
+        db.expire_all()
         meeting = Meeting(
             title=req.title,
             description=req.description,
@@ -527,6 +534,18 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if req.notes is not None: meeting.notes = req.notes  # type: ignore
     if req.intelligence_data is not None: meeting.intelligence_data = req.intelligence_data  # type: ignore
     if req.action_item_count is not None: meeting.action_item_count = req.action_item_count  # type: ignore
+    
+    # Handle linked workspace project updates safely
+    req_dict = req.dict(exclude_unset=True)
+    if "project_id" in req_dict:
+        val = req_dict["project_id"]
+        if val == "" or val is None:
+            meeting.project_id = None  # type: ignore
+        else:
+            try:
+                meeting.project_id = int(val)  # type: ignore
+            except ValueError:
+                meeting.project_id = None  # type: ignore
     
     # Handle platform change - regenerate link if platform is different
     if req.platform is not None and req.platform.lower() != meeting.platform:
@@ -733,6 +752,9 @@ async def duplicate_meeting(
         # We still proceed with DB creation but link might be missing
 
     # Create new meeting using the provided request data
+    # Defensive session reset (mirrors the same guard in /publish) — ensures
+    # the session is clean after GoogleTokenService may have committed inside it.
+    db.expire_all()
     new_meeting = Meeting(
         title=req.title,
         description=req.description,

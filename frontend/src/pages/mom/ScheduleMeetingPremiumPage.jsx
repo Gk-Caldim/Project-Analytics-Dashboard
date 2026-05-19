@@ -310,8 +310,16 @@ const ScheduleMeetingPremiumPage = () => {
             if (m.platform) setPlatform(m.platform);
             if (m.attendees) setAttendees(m.attendees);
             if (m.description) setDescription(m.description);
-            if (m.reminder_minutes !== undefined) setReminder(m.reminder_minutes);
-            if (m.project_id) setProjectId(m.project_id);
+            if (m.reminder_minutes !== undefined && m.reminder_minutes !== null) {
+              setReminder(m.reminder_minutes);
+            } else {
+              setReminder(15);
+            }
+            if (m.project_id) {
+              setProjectId(m.project_id);
+            } else {
+              setProjectId('');
+            }
             if (m.agenda && m.agenda.length > 0) setAgenda(m.agenda);
           }
         } catch (error) {
@@ -737,7 +745,7 @@ const ScheduleMeetingPremiumPage = () => {
                     />
                     <select 
                       className="bg-transparent border-none outline-none text-[11px] font-bold text-blue-600 cursor-pointer pr-1"
-                      value={customDuration}
+                      value={customDuration ?? 30}
                       onChange={(e) => setCustomDuration(Number(e.target.value))}
                     >
                       {[15, 30, 45, 60, 90, 120].map(m => (
@@ -952,7 +960,7 @@ const ScheduleMeetingPremiumPage = () => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="form-label">Reminder</label>
-                        <select className="ui-select-premium" value={reminder} onChange={(e) => setReminder(Number(e.target.value))}>
+                        <select className="ui-select-premium" value={reminder ?? 15} onChange={(e) => setReminder(Number(e.target.value))}>
                           <option value={0}>At event start</option>
                           <option value={5}>5 minutes before</option>
                           <option value={15}>15 minutes before</option>
@@ -962,7 +970,7 @@ const ScheduleMeetingPremiumPage = () => {
                       </div>
                       <div>
                         <label className="form-label">Link Workspace Project</label>
-                        <select className="ui-select-premium" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                        <select className="ui-select-premium" value={projectId ?? ''} onChange={(e) => setProjectId(e.target.value)}>
                           <option value="">No project linked</option>
                           {projects.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
                         </select>
