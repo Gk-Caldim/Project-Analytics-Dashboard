@@ -46,7 +46,21 @@ def get_settings(db: Session = Depends(get_db)):
         {"category": "Connections", "key": "smtp_host", "value": "smtp.gmail.com", "type": "text"},
         {"category": "Connections", "key": "smtp_port", "value": "587", "type": "number"},
         {"category": "Connections", "key": "smtp_user", "value": "", "type": "text"},
-        {"category": "Connections", "key": "smtp_pass", "value": "", "type": "text"}
+        {"category": "Connections", "key": "smtp_pass", "value": "", "type": "text"},
+        {"category": "Budget Analysis", "key": "inflation_rate_usd", "value": "3.4", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_inr", "value": "5.1", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_eur", "value": "2.4", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_gbp", "value": "2.0", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_jpy", "value": "2.5", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_cad", "value": "2.8", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_aud", "value": "3.6", "type": "number"},
+        {"category": "Budget Analysis", "key": "inflation_rate_default", "value": "3.0", "type": "number"},
+        {"category": "Budget Analysis", "key": "volatility_factor_stable", "value": "1.01", "type": "number"},
+        {"category": "Budget Analysis", "key": "volatility_factor_volatile", "value": "1.03", "type": "number"},
+        {"category": "Budget Analysis", "key": "contingency_rate_stable", "value": "5.0", "type": "number"},
+        {"category": "Budget Analysis", "key": "contingency_rate_volatile", "value": "8.0", "type": "number"},
+        {"category": "Budget Analysis", "key": "utilization_threshold", "value": "0.8", "type": "number"}
+
     ]
     
     existing_keys = {s.key for s in settings}

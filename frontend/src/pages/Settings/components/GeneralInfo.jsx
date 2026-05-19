@@ -126,6 +126,130 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
         </div>
       </div>
 
+      <div className="bg-app-surface border border-border p-8 rounded-none">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">Budget Analysis & Proposal Settings</h3>
+        
+        <div className="space-y-12">
+          {/* Inflation Rates Row */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Inflation Rates (%)</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">USD Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_usd') || '3.4'}
+                  onChange={(e) => onUpdate('inflation_rate_usd', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">INR Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_inr') || '5.1'}
+                  onChange={(e) => onUpdate('inflation_rate_inr', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">EUR Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_eur') || '2.4'}
+                  onChange={(e) => onUpdate('inflation_rate_eur', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">GBP Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_gbp') || '2.0'}
+                  onChange={(e) => onUpdate('inflation_rate_gbp', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Other Currencies</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_default') || '3.0'}
+                  onChange={(e) => onUpdate('inflation_rate_default', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="h-px bg-border w-full" />
+
+          {/* Volatility and Contingency Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            {/* Volatility Factors */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Volatility Buffers (Multiplier)</h4>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Stable Currency</label>
+                  <input
+                    type="number" step="0.01" min="1.0" max="2.0"
+                    value={getValue('volatility_factor_stable') || '1.01'}
+                    onChange={(e) => onUpdate('volatility_factor_stable', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                  />
+                  <p className="text-[10px] text-text-muted italic">e.g., 1.01 = 1% buffer</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Volatile Currency</label>
+                  <input
+                    type="number" step="0.01" min="1.0" max="2.0"
+                    value={getValue('volatility_factor_volatile') || '1.03'}
+                    onChange={(e) => onUpdate('volatility_factor_volatile', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                  />
+                  <p className="text-[10px] text-text-muted italic">e.g., 1.03 = 3% buffer</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contingency Rates & Threshold */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Contingency & Thresholds</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Stable Contingency (%)</label>
+                  <input
+                    type="number" step="0.1" min="0" max="100"
+                    value={getValue('contingency_rate_stable') || '5.0'}
+                    onChange={(e) => onUpdate('contingency_rate_stable', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Volatile Contingency (%)</label>
+                  <input
+                    type="number" step="0.1" min="0" max="100"
+                    value={getValue('contingency_rate_volatile') || '8.0'}
+                    onChange={(e) => onUpdate('contingency_rate_volatile', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">Util. Threshold (%)</label>
+                  <input
+                    type="number" step="1" min="1" max="100"
+                    value={Math.round(parseFloat(getValue('utilization_threshold') || '0.8') * 100)}
+                    onChange={(e) => onUpdate('utilization_threshold', (parseFloat(e.target.value) / 100).toString())}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {isCropModalOpen && (
         <ImageCropperModal 
           image={imageToCrop} 

@@ -50,20 +50,22 @@ const StatusBadge = ({ value }) => {
 
 // ─── Revision Status Badge ────────────────────────────────────────────────────
 const RevisionBadge = ({ status }) => {
-  const cfg = {
-    'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
-    'Declined': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
-    'Cancelled': 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
-    'In Waiting Period': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    'Pending Head': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Pending Finance': 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+  const dots = {
+    'Approved': 'bg-emerald-500 dark:bg-emerald-400',
+    'Declined': 'bg-rose-500 dark:bg-rose-400',
+    'Cancelled': 'bg-slate-400 dark:bg-slate-500',
+    'In Waiting Period': 'bg-amber-500 dark:bg-amber-400',
+    'Pending Head': 'bg-blue-500 dark:bg-blue-400',
+    'Pending Finance': 'bg-violet-500 dark:bg-violet-400',
   };
   return (
-    <span className={`px-2 py-1 rounded-md border text-xs font-semibold ${cfg[status] || 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm">
+      <span className={`h-1.5 w-1.5 rounded-full ${dots[status] || 'bg-slate-400'}`} />
       {status}
     </span>
   );
 };
+
 
 // ─── Summary Card (Static Aggregate View) ───────────────────────────────────
 const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
@@ -689,7 +691,7 @@ const BudgetMaster = () => {
     if (!selectedProject) { toast.success('Please select a project first', 'error'); return; }
     setFetchingMarket(true);
     try {
-      const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}`);
+      const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}?currency=${encodeURIComponent(code)}`);
       setMarketAnalysis(res.data);
       setShowMarketSuggestion(true);
       toast.success('Market analysis completed');
@@ -1531,14 +1533,14 @@ const BudgetMaster = () => {
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.95, y: 20 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
-                              className="bg-app-surface dark:bg-slate-900 border-2 border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden"
+                              className="bg-app-surface dark:bg-slate-900 border border-slate-250 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden"
                             >
-                              <div className="bg-amber-500 px-6 py-3 flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-white">
-                                  <Sparkles className="w-4 h-4" />
+                              <div className="bg-slate-50 dark:bg-slate-850 px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+                                <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                                  <Sparkles className="w-4 h-4 text-indigo-500" />
                                   <span className="text-[10px] font-black uppercase tracking-widest">Smart Market Analysis</span>
                                 </div>
-                                <span className="text-[10px] font-black text-amber-100 uppercase tracking-widest">
+                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                                   Confidence: High
                                 </span>
                               </div>
@@ -1547,39 +1549,70 @@ const BudgetMaster = () => {
                                 <div className="grid grid-cols-2 gap-4 mb-6">
                                   <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
                                     <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Utilization</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100 font-mono">
                                       {Math.round(marketAnalysis.utilization_ratio * 100)}%
                                     </p>
                                   </div>
                                   <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Remaining</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
+                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Remaining Balance</p>
+                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100 font-mono">
                                       {format(marketAnalysis.remaining_balance)}
                                     </p>
                                   </div>
                                 </div>
 
+                                {marketAnalysis.calculations && (
+                                  <div className="mb-6 overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <table className="w-full text-left border-collapse text-[11px]">
+                                      <thead>
+                                        <tr className="bg-slate-50/50 dark:bg-slate-850/50 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
+                                          <th className="py-2.5 px-4 font-black">Factor</th>
+                                          <th className="py-2.5 px-4 font-black">Formula / Rationale</th>
+                                          <th className="py-2.5 px-4 text-right font-black">Value ({code})</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 text-slate-600 dark:text-slate-300">
+                                        {marketAnalysis.calculations.map((c, idx) => {
+                                          const isTotal = c.step.includes("Total");
+                                          return (
+                                            <tr key={idx} className={`${isTotal ? 'font-black bg-slate-50/30 dark:bg-slate-850/20 text-slate-900 dark:text-slate-100' : ''} ${!c.applied ? 'opacity-40 line-through' : ''}`}>
+                                              <td className="py-2.5 px-4 flex items-center gap-1.5">
+                                                {!isTotal && <span className={`h-1.5 w-1.5 rounded-full ${c.applied ? 'bg-indigo-500' : 'bg-slate-300'}`} />}
+                                                {c.step}
+                                              </td>
+                                              <td className="py-2.5 px-4 text-slate-400 dark:text-slate-500">{c.formula}</td>
+                                              <td className="py-2.5 px-4 text-right font-mono font-bold">
+                                                {format(c.usd_val)}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+
                                 <div className="space-y-4">
                                   <div>
-                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Suggested Adjustment</p>
-                                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                                    <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1.5">Suggested Revision Amount</p>
+                                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-mono">
                                       +{format(marketAnalysis.delta)}
                                     </p>
                                   </div>
                                   
-                                  <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-100 leading-relaxed italic">
+                                  <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-350 leading-relaxed italic">
                                       "{marketAnalysis.reasoning}"
                                     </p>
                                   </div>
 
                                   <div className="flex gap-3 pt-2">
                                     <button type="button" onClick={handleAcceptSuggestion}
-                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-800 transition-all shadow-lg active:scale-95">
+                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all active:scale-95">
                                       Apply Suggestion
                                     </button>
                                     <button type="button" onClick={() => setShowMarketSuggestion(false)}
-                                      className="px-6 h-12 bg-app-surface dark:bg-slate-800 text-slate-500 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all border border-slate-200 dark:border-slate-700">
+                                      className="px-6 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
                                       Dismiss
                                     </button>
                                   </div>
@@ -1651,9 +1684,9 @@ const BudgetMaster = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                        {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Status', 'Attachment', 'Actions']
+                        {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Initiated', 'Approved', 'Status', 'Attachment', 'Actions']
                           .map(h => (
-                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
+                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-350 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
                               } ${h === 'Actions' ? 'text-center' : ''}`}>
                               {h}
                             </th>
@@ -1663,13 +1696,13 @@ const BudgetMaster = () => {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                       {fetchingRevisions ? (
                         <tr>
-                          <td colSpan={8} className="py-24 text-center">
+                          <td colSpan={10} className="py-24 text-center">
                             <p className="text-base font-bold text-blue-600 animate-pulse">Fetching revisions...</p>
                           </td>
                         </tr>
                       ) : revisions.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-24">
+                          <td colSpan={10} className="py-24">
                             <div className="flex flex-col items-center justify-center text-center px-4">
                               <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800 dark:border-slate-700">
                                 <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -1693,9 +1726,15 @@ const BudgetMaster = () => {
                             <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-100">{format(rev.previous_budget)}</td>
                             <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
                             <td className="py-4 px-6 text-right">
-                              <span className={`text-xs font-black ${delta >= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                              <span className={`text-xs font-black ${delta >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                 {delta >= 0 ? '+' : ''}{format(delta)}
                               </span>
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                              {rev.created_at ? new Date(rev.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                              {rev.approved_at ? new Date(rev.approved_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                             </td>
                             <td className="py-4 px-6"><RevisionBadge status={rev.status} /></td>
                             <td className="py-4 px-6">
@@ -1712,11 +1751,11 @@ const BudgetMaster = () => {
                                 {isHead && rev.status === 'Pending Head' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Pending Finance')} title="Send to Finance"
-                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Forward
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Cancelled')} title="Cancel"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Cancel
                                     </button>
                                   </>
@@ -1724,15 +1763,15 @@ const BudgetMaster = () => {
                                 {isFinance && rev.status === 'Pending Finance' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Approved')} title="Approve"
-                                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold hover:bg-emerald-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Approve
                                     </button>
                                     <button onClick={() => setShowWaitingModal(rev.id)} title="Set Waiting Period"
-                                      className="px-3 py-1.5 bg-amber-500 text-white rounded-md text-[10px] font-bold hover:bg-amber-600 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Wait
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Declined')} title="Decline"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Decline
                                     </button>
                                   </>

@@ -35,8 +35,8 @@ def test_proposal_engine_normal_utilization(client, override_dependencies, mock_
     assert data["total_utilized"] == 50000.0
     assert data["remaining_balance"] == 50000.0
     assert data["utilization_ratio"] == 0.5
-    assert data["delta"] == 2475.0
-    assert data["suggested_overall_budget"] == 102475.0
+    assert data["delta"] == 2200.0
+    assert data["suggested_overall_budget"] == 102200.0
 
 def test_proposal_engine_high_utilization_buffer(client, override_dependencies, mock_db):
     """
@@ -65,8 +65,8 @@ def test_proposal_engine_high_utilization_buffer(client, override_dependencies, 
     
     assert data["total_utilized"] == 85000.0
     assert data["utilization_ratio"] == 0.85
-    assert data["delta"] == 5742.5
-    assert data["suggested_overall_budget"] == 105742.5
+    assert data["delta"] == 5660.0
+    assert data["suggested_overall_budget"] == 105660.0
 
 def test_budget_revision_approval_and_project_sync(client, override_dependencies, mock_db):
     """

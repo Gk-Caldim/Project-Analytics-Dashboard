@@ -38,6 +38,7 @@ class BudgetRevisionBase(BaseModel):
     status: Optional[str] = "Pending Head"
     attachment_name: Optional[str] = None
     waiting_until: Optional[str] = None
+    approved_at: Optional[datetime] = None
 
 
 class BudgetRevisionCreate(BudgetRevisionBase):
@@ -53,5 +54,7 @@ class BudgetRevisionResponse(BudgetRevisionBase):
     id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
