@@ -1,44 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import Dashboard from './pages/Dashboard';
-import PrivateRoute from './components/PrivateRoute';
-import ErrorBoundary from './components/ErrorBoundary';
-
-// Import modules for direct routing
-import ProjectDashboard from './pages/ProjectDashboard';
-import UploadTrackers from './pages/Trackers/UploadTrackers';
-import EmployeeMaster from './pages/Masters/EmployeeMaster';
-import ProjectMaster from './pages/Masters/ProjectMaster';
-
-import BudgetMaster from './pages/Masters/BudgetMaster';
-import MOMModule from './pages/mom/MOMModule';
-import TranscriptViewer from './pages/mom/TranscriptViewer';
-import MeetingCapturePage from './pages/mom/MeetingCapturePage';
-import MOMViewPage from './pages/mom/MOMViewPage';
-import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
-import ScheduleMeetingPremiumPage from './pages/mom/ScheduleMeetingPremiumPage';
-import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
-import SavedMOMsPage from './pages/mom/SavedMOMsPage';
-import SystemSettings from './pages/Settings/SystemSettings';
-import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
-import ProjectDetail from './pages/ProjectDetail';
-import LandingPage from './pages/LandingPage';
-
-// Import new module pages
-import AnalyticsPage from './pages/modules/AnalyticsPage';
-import MeetingsPage from './pages/modules/MeetingsPage';
-import BudgetPage from './pages/modules/BudgetPage';
-import GovernancePage from './pages/modules/GovernancePage';
-
-import EnterprisePage from './pages/EnterprisePage';
-import CustomersPage from './pages/CustomersPage';
-import PricingPage from './pages/PricingPage';
-import CheckoutPage from './pages/CheckoutPage';
-import LoginPage from './pages/LoginPage';
-import WorkspaceDashboard from './pages/WorkspaceDashboard';
-import NotFound from './pages/NotFound';
-import CalendarPage from './pages/calendar/CalendarPage';
 // Code splitting imports using React.lazy
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const PrivateRoute = React.lazy(() => import('./components/PrivateRoute'));
@@ -56,6 +18,7 @@ const MeetingCapturePage = React.lazy(() => import('./pages/mom/MeetingCapturePa
 const MOMViewPage = React.lazy(() => import('./pages/mom/MOMViewPage'));
 const MeetingsDashboardPage = React.lazy(() => import('./pages/mom/MeetingsDashboardPage'));
 const ScheduleMeetingPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPage'));
+const ScheduleMeetingPremiumPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPremiumPage'));
 const MeetingDetailsPage = React.lazy(() => import('./pages/mom/MeetingDetailsPage'));
 const SavedMOMsPage = React.lazy(() => import('./pages/mom/SavedMOMsPage'));
 const SystemSettings = React.lazy(() => import('./pages/Settings/SystemSettings'));
@@ -75,6 +38,7 @@ const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
+const CalendarPage = React.lazy(() => import('./pages/calendar/CalendarPage'));
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ConfirmProvider } from './hooks/use-confirm';
@@ -85,7 +49,6 @@ import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
 import { useQuery } from '@tanstack/react-query';
-
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -206,36 +169,6 @@ function App() {
   });
 
   React.useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        const settingsRes = await API.get('/settings/');
-        const settings = settingsRes.data || [];
-
-        const companyName = settings.find(s => s.key === 'company_name')?.value;
-        const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
-        const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
-        const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
-        const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
-
-        if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
-          dispatch(setBranding({
-            companyName,
-            companyLogo,
-            baseCurrency,
-            sidebarDashboardLimit,
-            sidebarDashboardMode
-          }));
-        }
-
-        const ratesRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-        const ratesData = await ratesRes.json();
-
-        if (ratesData && ratesData.rates) {
-          dispatch(setExchangeRates(ratesData.rates));
-        }
-
-      } catch (error) {
-        console.error('Failed to initialize app settings:', error);
     if (settings) {
       const companyName = settings.find(s => s.key === 'company_name')?.value;
       const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
@@ -262,7 +195,6 @@ function App() {
   }, [exchangeRates, dispatch]);
 
   React.useEffect(() => {
-
     let retryDelay = 5000;
 
     const connectWebSocket = () => {
@@ -341,66 +273,61 @@ function App() {
       <ConfirmProvider>
         <ErrorBoundary>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ErrorBoundary>
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          >
-            <Route index element={<Navigate to="projects" replace />} />
-            <Route path="projects" element={<ProjectDashboard />} />
-            <Route path="trackers" element={<UploadTrackers />} />
-            <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
-            
-            <Route path="masters" element={<Navigate to="employees" replace />} />
-            <Route path="masters/employees" element={<EmployeeMaster />} />
-            <Route path="masters/project-master" element={<ProjectMaster />} />
-            <Route path="masters/budget-master" element={<BudgetMaster />} />
+            <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                
+                <Route
+                  path="/dashboard"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="projects" replace />} />
+                  <Route path="projects" element={<ProjectDashboard />} />
+                  <Route path="trackers" element={<UploadTrackers />} />
+                  <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
+                  
+                  <Route path="masters" element={<Navigate to="employees" replace />} />
+                  <Route path="masters/employees" element={<EmployeeMaster />} />
+                  <Route path="masters/project-master" element={<ProjectMaster />} />
+                  <Route path="masters/budget-master" element={<BudgetMaster />} />
 
-            <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
-            
-            <Route path="mom" element={<MeetingCapturePage />} />
-            <Route path="mom/view" element={<MOMViewPage />} />
-            <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
-            <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
-            <Route path="mom/legacy" element={<MOMModule />} />
-            <Route path="saved-moms" element={<SavedMOMsPage />} />
-            <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
-            <Route path="calendar" element={<CalendarPage />} />
-            <Route path="meeting/:id" element={<MeetingDetailsPage />} />
-            <Route path="settings/*" element={<SystemSettings />} />
-          </Route>
+                  <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
+                  
+                  <Route path="mom" element={<MeetingCapturePage />} />
+                  <Route path="mom/view" element={<MOMViewPage />} />
+                  <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
+                  <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
+                  <Route path="mom/legacy" element={<MOMModule />} />
+                  <Route path="saved-moms" element={<SavedMOMsPage />} />
+                  <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
+                  <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="meeting/:id" element={<MeetingDetailsPage />} />
+                  <Route path="settings/*" element={<SystemSettings />} />
+                </Route>
 
+                <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+                <Route path="/customers" element={<CustomersPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/enterprise" element={<EnterprisePage />} />
+                
+                <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/meetings" element={<MeetingsPage />} />
+                <Route path="/budget" element={<BudgetPage />} />
+                <Route path="/governance" element={<GovernancePage />} />
 
-          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
-          <Route path="/customers" element={<CustomersPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/enterprise" element={<EnterprisePage />} />
-          
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/meetings" element={<MeetingsPage />} />
-          <Route path="/budget" element={<BudgetPage />} />
-          <Route path="/governance" element={<GovernancePage />} />
-
-          <Route path="/" element={<LandingPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        </Router>
-      </ErrorBoundary>
-    </ConfirmProvider>
-        </React.Suspense>
-      </Router>
-    </ErrorBoundary>
-  </ThemeProvider>
-);
+                <Route path="/" element={<LandingPage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </React.Suspense>
+          </Router>
+        </ErrorBoundary>
+      </ConfirmProvider>
+    </ThemeProvider>
+  );
 }
 
 export default App;
