@@ -128,6 +128,10 @@ class GoogleTokenService:
         Exchange refresh_token for a new access_token.
         If db is provided and the token row exists, persists the new access_token.
         Returns the new access_token or None on failure.
+
+        IMPORTANT: The DB commit for persisting the token is isolated in its own
+        try/except with a rollback guard. This prevents poisoning the caller's
+        SQLAlchemy session (critical for Supabase PgBouncer transaction mode).
         """
         data = {
             "client_id": creds["client_id"],
@@ -140,16 +144,33 @@ class GoogleTokenService:
             if resp.status_code == 200:
                 new_token = resp.json().get("access_token")
                 if new_token:
-                    # Persist in-process
+                    # Persist in-process env var (always safe, no DB needed)
                     os.environ["GOOGLE_OAUTH_TOKEN"] = new_token
 
-                    # Persist in DB if we have a session
+                    # Persist the fresh token back to DB.
+                    # ISOLATION: Use a dedicated try/except + rollback so any
+                    # DB failure here never contaminates the caller's transaction.
                     if db:
-                        row = db.query(GoogleToken).filter_by(id="default").first()
-                        if row:
-                            row.access_token = new_token
-                            row.updated_at = datetime.now(timezone.utc)
-                            db.commit()
+                        try:
+                            row = db.query(GoogleToken).filter_by(id="default").first()
+                            if row:
+                                row.access_token = new_token
+                                row.updated_at = datetime.now(timezone.utc)
+                                db.commit()
+                                # Reset session state so the caller's next
+                                # db.add() / db.commit() starts from a clean slate.
+                                db.expire_all()
+                        except Exception as db_exc:
+                            logger.warning(
+                                f"Google token DB persist failed (non-fatal, token is still valid): {db_exc}"
+                            )
+                            # Roll back any partial state from this inner write
+                            # so the session is usable again for the caller.
+                            try:
+                                db.rollback()
+                            except Exception:
+                                pass
+
                     logger.info("Google access token refreshed successfully.")
                     return new_token
             logger.warning(

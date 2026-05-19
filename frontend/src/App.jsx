@@ -203,7 +203,7 @@ function App() {
       }
 
       try {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
         const wsBase = apiBase.replace(/^http/, 'ws');
         const wsUrl = `${wsBase}/ws/status/dashboard_${Date.now()}`;
 
