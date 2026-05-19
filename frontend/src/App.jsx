@@ -39,6 +39,42 @@ import LoginPage from './pages/LoginPage';
 import WorkspaceDashboard from './pages/WorkspaceDashboard';
 import NotFound from './pages/NotFound';
 import CalendarPage from './pages/calendar/CalendarPage';
+// Code splitting imports using React.lazy
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const PrivateRoute = React.lazy(() => import('./components/PrivateRoute'));
+const ErrorBoundary = React.lazy(() => import('./components/ErrorBoundary'));
+
+const ProjectDashboard = React.lazy(() => import('./pages/ProjectDashboard'));
+const UploadTrackers = React.lazy(() => import('./pages/Trackers/UploadTrackers'));
+const EmployeeMaster = React.lazy(() => import('./pages/Masters/EmployeeMaster'));
+const ProjectMaster = React.lazy(() => import('./pages/Masters/ProjectMaster'));
+
+const BudgetMaster = React.lazy(() => import('./pages/Masters/BudgetMaster'));
+const MOMModule = React.lazy(() => import('./pages/mom/MOMModule'));
+const TranscriptViewer = React.lazy(() => import('./pages/mom/TranscriptViewer'));
+const MeetingCapturePage = React.lazy(() => import('./pages/mom/MeetingCapturePage'));
+const MOMViewPage = React.lazy(() => import('./pages/mom/MOMViewPage'));
+const MeetingsDashboardPage = React.lazy(() => import('./pages/mom/MeetingsDashboardPage'));
+const ScheduleMeetingPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPage'));
+const MeetingDetailsPage = React.lazy(() => import('./pages/mom/MeetingDetailsPage'));
+const SavedMOMsPage = React.lazy(() => import('./pages/mom/SavedMOMsPage'));
+const SystemSettings = React.lazy(() => import('./pages/Settings/SystemSettings'));
+const BudgetSummaryView = React.lazy(() => import('./pages/Budget/BudgetSummaryView'));
+const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
+const LandingPage = React.lazy(() => import('./pages/LandingPage'));
+
+const AnalyticsPage = React.lazy(() => import('./pages/modules/AnalyticsPage'));
+const MeetingsPage = React.lazy(() => import('./pages/modules/MeetingsPage'));
+const BudgetPage = React.lazy(() => import('./pages/modules/BudgetPage'));
+const GovernancePage = React.lazy(() => import('./pages/modules/GovernancePage'));
+
+const EnterprisePage = React.lazy(() => import('./pages/EnterprisePage'));
+const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage'));
+const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage'));
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ConfirmProvider } from './hooks/use-confirm';
@@ -47,6 +83,9 @@ import { useDispatch } from 'react-redux';
 import { Sparkles, X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
+import useInactivityTimeout from './hooks/useInactivityTimeout';
+import { useQuery } from '@tanstack/react-query';
+
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -145,6 +184,27 @@ function App() {
   const wsRef = React.useRef(null);
   const reconnectTimerRef = React.useRef(null);
 
+  // Initialize inactivity logout (30 minutes)
+  useInactivityTimeout(30 * 60 * 1000);
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: exchangeRates } = useQuery({
+    queryKey: ['exchangeRates'],
+    queryFn: async () => {
+      const response = await API.get('/currency/rates');
+      return response.data || null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   React.useEffect(() => {
     const initializeApp = async () => {
       try {
@@ -176,10 +236,32 @@ function App() {
 
       } catch (error) {
         console.error('Failed to initialize app settings:', error);
-      }
-    };
+    if (settings) {
+      const companyName = settings.find(s => s.key === 'company_name')?.value;
+      const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
+      const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
+      const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
+      const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
 
-    initializeApp();
+      if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
+        dispatch(setBranding({
+          companyName,
+          companyLogo,
+          baseCurrency,
+          sidebarDashboardLimit,
+          sidebarDashboardMode
+        }));
+      }
+    }
+  }, [settings, dispatch]);
+
+  React.useEffect(() => {
+    if (exchangeRates) {
+      dispatch(setExchangeRates(exchangeRates));
+    }
+  }, [exchangeRates, dispatch]);
+
+  React.useEffect(() => {
 
     let retryDelay = 5000;
 
@@ -259,6 +341,9 @@ function App() {
       <ConfirmProvider>
         <ErrorBoundary>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ErrorBoundary>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           
@@ -311,6 +396,9 @@ function App() {
         </Router>
       </ErrorBoundary>
     </ConfirmProvider>
+        </React.Suspense>
+      </Router>
+    </ErrorBoundary>
   </ThemeProvider>
 );
 }

@@ -12,13 +12,12 @@
   --brand-navy: #1e293b;
   --brand-primary-bg: #F8FAFC;
 
-  /* Redesign Specs */
+  /* Redesign Specs - Light Theme (Default) */
   --secondary: #0F172A;
-  /* Brand black for text (headers/body) */
   --sidebar-bg: #1e293b;
-  /* Premium Navy for sidebar */
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --active-menu: rgba(13, 148, 136, 0.15);
   --primary: #F8FAFC;
-  /* Light Gray for surfaces and background */
 
   /* Typography */
   --font-inter: 'Inter', -apple-system, sans-serif;
@@ -34,6 +33,11 @@
   --surface: #FFFFFF;
   --bg: #F8FAFC;
   --elevated-card: #F1F5F9;
+  --table-hover: rgba(0, 0, 0, 0.02);
+
+  /* Header & Glassmorphism */
+  --glass-header-bg: rgba(255, 255, 255, 0.85);
+  --glass-header-blur: blur(12px);
 
   /* New Theme Variables */
   --accent: #1e293b;
@@ -41,9 +45,61 @@
   --accent-analytics: #0891B2;
   --text-tertiary: #475569;
   --blue-50: #eff6ff;
+  --blue-900: #1e3a8a;
+  --green-50: #f0fdf4;
+  --green-900: #166534;
+  --purple-50: #f5f3ff;
+  --purple-900: #5b21b6;
+  --red-50: #fef2f2;
+  --red-900: #991b1b;
   --amber: #f59e0b;
   --green: #10b981;
   --red: #ef4444;
+}
+
+[data-theme='dark'] {
+  /* Industrial Analytics Brand Colors - Dark Theme */
+  --brand-navy: #16313E;
+  --brand-primary-bg: #1E242B;
+
+  /* Redesign Specs - Dark Theme */
+  --secondary: #FFFFFF;
+  --sidebar-bg: #1E242B;
+  --sidebar-hover: #214454;
+  --active-menu: #4A8FA1;
+  --primary: #16313E;
+
+  /* Layout Variables - STRICT WHITE FOR DARK MODE */
+  --text-primary: #FFFFFF;
+  --text-secondary: #F1F5F9;
+  --text-muted: #E2E8F0;
+  --border-subtle: #727b7e;
+  --border-strong: #aababe;
+  --surface: #0f172a;
+  --bg: #1E242B;
+  --elevated-card: #32414C;
+  --table-hover: rgba(74, 143, 161, 0.15);
+
+  /* Header & Glassmorphism */
+  --glass-header-bg: rgba(30, 36, 43, 0.85);
+  --glass-header-blur: blur(12px);
+
+  /* Overrides for dynamic elements */
+  --accent: #647e83;
+  --accent-hover: #5FB0C4;
+  --text-tertiary: #F1F5F9;
+  --blue-50: rgba(74, 143, 161, 0.15);
+  --blue-900: #FFFFFF;
+  --green-50: rgba(16, 185, 129, 0.1);
+  --green-900: #10b981;
+  --purple-50: rgba(139, 92, 246, 0.1);
+  --purple-900: #a78bfa;
+  --red-50: rgba(239, 68, 68, 0.1);
+  --red-900: #f87171;
+}
+
+[data-theme='dark'] body {
+  color: var(--text-primary);
 }
 
 /* Utils */
@@ -132,7 +188,7 @@
   }
 
   .master-table-container {
-    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80;
+    @apply flex flex-col h-full bg-white dark:bg-slate-900 flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80 dark:border-slate-800;
   }
 
   .master-table-inner {
@@ -145,6 +201,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    @apply bg-slate-50/50 dark:bg-slate-950/50;
   }
 
   /* INNER scroll container — flex child that fills outer, then scrolls */
@@ -197,7 +254,7 @@
   }
 
   .master-table td {
-    @apply border-b border-slate-100/80 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700;
+    @apply border-b border-slate-100/80 dark:border-slate-700/50 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-100;
   }
 
   .master-table tbody tr {
@@ -205,7 +262,7 @@
   }
 
   .master-table tbody tr:hover td {
-    @apply bg-slate-50/50;
+    background-color: var(--table-hover);
   }
 
   .master-table-checkbox-cell {
@@ -220,17 +277,17 @@
 
   /* Freeze styles */
   .master-table .frozen-row {
-    @apply !sticky !bg-sky-50 border-b-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-b-2 border-sky-600 dark:border-sky-500;
     z-index: 20 !important;
   }
 
   .master-table .frozen-column {
-    @apply !sticky !bg-sky-50 border-r-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-r-2 border-sky-600 dark:border-sky-500;
     z-index: 15 !important;
   }
 
   .master-table .frozen-row .frozen-column {
-    @apply !bg-sky-100;
+    @apply bg-sky-100 dark:bg-sky-900/50;
     z-index: 25 !important;
   }
 
@@ -264,7 +321,13 @@
     background-color: var(--sidebar-bg);
     width: 280px;
     flex-shrink: 0;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-right: 1px solid var(--border-subtle);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .sidebar-collapsed {
+    width: 72px !important;
   }
 
   .sidebar-section-label {
@@ -285,13 +348,14 @@
   }
 
   .sidebar-nav-item:hover {
+    background-color: var(--sidebar-hover);
     color: #ffffff;
   }
 
   .sidebar-nav-item-active {
-    background: rgba(13, 148, 136, 0.15); /* Teal accent background */
+    background: var(--active-menu);
     color: #ffffff !important;
-    border-left-color: #0D9488 !important; /* Teal accent border */
+    border-left-color: var(--accent) !important;
     font-weight: 600;
   }
 
@@ -320,9 +384,9 @@
     transform: translateY(-50%);
     width: 6px;
     height: 6px;
-    background: #14b8a6; /* Brighter teal */
+    background: var(--accent);
     border-radius: 50%;
-    box-shadow: 0 0 10px rgba(20, 184, 166, 0.8);
+    box-shadow: 0 0 10px var(--accent);
   }
 
   .sidebar-tree-container {
@@ -375,7 +439,7 @@
     font-family: var(--font-primary);
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
     letter-spacing: -0.025em;
   }
 

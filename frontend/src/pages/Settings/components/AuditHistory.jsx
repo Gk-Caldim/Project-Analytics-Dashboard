@@ -50,19 +50,19 @@ const AuditHistory = () => {
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
 
   const getActionColor = (action) => {
-    if (!action) return 'text-gray-500 bg-gray-50 border-gray-100';
+    if (!action) return 'text-text-muted bg-app-bg border-border';
     const act = action.toLowerCase();
-    if (act.includes('created') || act.includes('added')) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-    if (act.includes('deleted') || act.includes('removed')) return 'text-red-600 bg-red-50 border-red-100';
-    if (act.includes('updated') || act.includes('synced')) return 'text-[#0004ab] bg-[#0004ab]/5 border-[#0004ab]/20';
-    return 'text-gray-500 bg-gray-50 border-gray-100';
+    if (act.includes('created') || act.includes('added')) return 'text-status-success bg-status-success/10 border-status-success/20';
+    if (act.includes('deleted') || act.includes('removed')) return 'text-status-error bg-status-error/10 border-status-error/20';
+    if (act.includes('updated') || act.includes('synced')) return 'text-brand-accent bg-brand-accent/10 border-brand-accent/20';
+    return 'text-text-muted bg-app-bg border-border';
   };
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0004ab]" />
-        <p className="text-gray-400 text-xs font-bold tracking-widest uppercase">Fetching immutable ledger...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-brand-accent" />
+        <p className="text-text-muted text-xs font-bold tracking-widest uppercase">Fetching immutable ledger...</p>
       </div>
     );
   }
@@ -71,24 +71,24 @@ const AuditHistory = () => {
     <div className="space-y-12">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-[#000000] tracking-tight">System Audit Log</h2>
-          <p className="text-sm text-gray-500 mt-2">Historical record of all administrative actions, data mutations, and security events.</p>
+          <h2 className="text-3xl font-bold text-text-primary tracking-tight">System Audit Log</h2>
+          <p className="text-sm text-text-secondary mt-2">Historical record of all administrative actions, data mutations, and security events.</p>
         </div>
-        <button className="h-11 px-6 border border-gray-100 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors flex items-center gap-3 rounded-full">
+        <button className="h-11 px-6 border border-border text-brand-accent font-bold text-[10px] tracking-widest uppercase hover:bg-app-surface transition-colors flex items-center gap-3 rounded-full">
           <Download className="h-4 w-4" />
           Export Ledger
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white border border-gray-200 p-6 rounded-none">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-app-surface border border-border p-6 rounded-none">
         <div className="md:col-span-2 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
           <input
             type="text"
             placeholder="SEARCH BY ACTIVITY OR USER..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-12 pr-4 bg-gray-50 border border-gray-200 focus:border-[#000000] outline-none text-[10px] font-bold tracking-widest uppercase rounded-md"
+            className="w-full h-11 pl-12 pr-4 bg-app-bg border border-border focus:border-brand-accent outline-none text-[10px] font-bold tracking-widest uppercase rounded-md text-text-primary"
           />
         </div>
         
@@ -96,54 +96,54 @@ const AuditHistory = () => {
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="w-full h-11 px-4 bg-gray-50 border border-gray-200 focus:border-[#000000] outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md"
+            className="w-full h-11 px-4 bg-app-bg border border-border focus:border-brand-accent outline-none text-[10px] font-bold tracking-widest uppercase appearance-none cursor-pointer rounded-md text-text-primary"
           >
-            <option value="ALL">ALL CATEGORIES</option>
-            <option value="SECURITY">SECURITY</option>
-            <option value="DATA">DATA MUTATION</option>
-            <option value="SYSTEM">SYSTEM CONFIG</option>
+            <option value="ALL" className="bg-app-surface">ALL CATEGORIES</option>
+            <option value="SECURITY" className="bg-app-surface">SECURITY</option>
+            <option value="DATA" className="bg-app-surface">DATA MUTATION</option>
+            <option value="SYSTEM" className="bg-app-surface">SYSTEM CONFIG</option>
           </select>
         </div>
 
         <button 
            onClick={() => { setSearchTerm(''); setActiveFilter('ALL'); }}
-           className="h-11 border border-gray-200 text-gray-400 font-bold text-[10px] tracking-widest uppercase hover:text-[#0004ab] transition-colors rounded-full"
+           className="h-11 border border-border text-text-muted font-bold text-[10px] tracking-widest uppercase hover:text-brand-accent transition-colors rounded-full"
         >
           Reset Filters
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-none overflow-hidden">
+      <div className="bg-app-surface border border-border rounded-none overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Timestamp</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Principal</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Operation</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Module</th>
-                <th className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Identifier</th>
+              <tr className="bg-app-panel border-b border-border">
+                <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Timestamp</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Principal</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Operation</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Module</th>
+                <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest text-right">Identifier</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-border">
               {paginatedLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                <tr key={log.id} className="hover:bg-app-panel transition-colors">
                   <td className="px-8 py-5">
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-[#000000]">
+                      <p className="text-xs font-bold text-text-primary">
                         {dayjs(log.timestamp).format('DD MMM, YYYY').toUpperCase()}
                       </p>
-                      <p className="text-[10px] text-gray-400 font-bold tracking-tighter uppercase">
+                      <p className="text-[10px] text-text-muted font-bold tracking-tighter uppercase">
                         {dayjs(log.timestamp).format('hh:mm:ss A')}
                       </p>
                     </div>
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gray-100 border border-gray-200 flex items-center justify-center text-[#000000] font-bold text-[10px]">
+                      <div className="w-8 h-8 bg-app-panel border border-border flex items-center justify-center text-text-primary font-bold text-[10px]">
                         {log.user_name?.charAt(0).toUpperCase() || '?'}
                       </div>
-                      <p className="text-xs font-bold text-gray-600 uppercase tracking-tight">{log.user_name || 'System'}</p>
+                      <p className="text-xs font-bold text-text-secondary uppercase tracking-tight">{log.user_name || 'System'}</p>
                     </div>
                   </td>
                   <td className="px-8 py-5">
@@ -152,10 +152,10 @@ const AuditHistory = () => {
                     </span>
                   </td>
                   <td className="px-8 py-5">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{log.module}</p>
+                    <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">{log.module}</p>
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <code className="text-[10px] bg-gray-50 px-2 py-1 border border-gray-100 text-gray-400 font-mono font-bold">
+                    <code className="text-[10px] bg-app-panel px-2 py-1 border border-border text-text-muted font-mono font-bold">
                       {log.entity_id?.substring(0, 8) || 'N/A'}
                     </code>
                   </td>
@@ -164,7 +164,7 @@ const AuditHistory = () => {
               {filteredLogs.length === 0 && (
                 <tr>
                    <td colSpan="5" className="px-8 py-20 text-center">
-                      <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.3em]">No audit entries match the current filters</p>
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">No audit entries match the current filters</p>
                    </td>
                 </tr>
               )}
@@ -173,16 +173,16 @@ const AuditHistory = () => {
         </div>
       </div>
 
-      {totalPages > 1 && (
+       {totalPages > 1 && (
         <div className="flex items-center justify-between px-2">
-           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+           <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
              Showing {paginatedLogs.length} of {filteredLogs.length} events
            </p>
            <div className="flex gap-2">
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0004ab] hover:border-[#0004ab] transition-colors disabled:opacity-30"
+                className="h-8 w-8 border border-border flex items-center justify-center text-text-muted hover:text-brand-accent hover:border-brand-accent transition-colors disabled:opacity-30"
               >
                  ◀
               </button>
@@ -190,7 +190,7 @@ const AuditHistory = () => {
                 <button 
                   key={i}
                   onClick={() => setCurrentPage(i + 1)}
-                  className={`h-8 w-8 border ${currentPage === i + 1 ? 'border-[#0004ab] bg-[#0004ab] text-white' : 'border-gray-200 text-gray-400'} flex items-center justify-center text-[10px] font-bold`}
+                  className={`h-8 w-8 border ${currentPage === i + 1 ? 'border-brand-accent bg-brand-accent text-white' : 'border-border text-text-muted'} flex items-center justify-center text-[10px] font-bold`}
                 >
                    {i + 1}
                 </button>
@@ -198,7 +198,7 @@ const AuditHistory = () => {
               <button 
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="h-8 w-8 border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#0004ab] hover:border-[#0004ab] transition-colors disabled:opacity-30"
+                className="h-8 w-8 border border-border flex items-center justify-center text-text-muted hover:text-brand-accent hover:border-brand-accent transition-colors disabled:opacity-30"
               >
                  ▶
               </button>

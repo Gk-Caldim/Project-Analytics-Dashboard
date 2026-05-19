@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import ReactDOM from 'react-dom';
 import {
@@ -12,7 +13,10 @@ import {
   setSidebarCollapsed,
   setBranding,
   setActiveView,
-  markNotificationsRead
+  markNotificationsRead,
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead
 } from '../store/slices/navSlice';
 import { logout } from '../store/slices/authSlice';
 import Sidebar from '../components/Sidebar';
@@ -73,21 +77,23 @@ const Dashboard = () => {
   // MOM context for sidebar label
   const momMeetingName = useSelector(state => state.mom?.meetingName);
 
-  // Fetch settings on mount
+  // Fetch settings using React Query
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await API.get('/settings/');
+      return response.data;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
   useEffect(() => {
-    const fetchCompanySettings = async () => {
-      try {
-        const response = await API.get('/settings/');
-        const settings = response.data;
-        const logo = settings.find(s => s.key === 'company_logo')?.value;
-        const name = settings.find(s => s.key === 'company_name')?.value;
-        dispatch(setBranding({ companyLogo: logo, companyName: name }));
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
-    fetchCompanySettings();
-  }, [dispatch]);
+    if (settings) {
+      const logo = settings.find(s => s.key === 'company_logo')?.value;
+      const name = settings.find(s => s.key === 'company_name')?.value;
+      dispatch(setBranding({ companyLogo: logo, companyName: name }));
+    }
+  }, [settings, dispatch]);
 
   const [currentTime, setCurrentTime] = useState('');
   const [currentDate, setCurrentDate] = useState('');
@@ -99,28 +105,14 @@ const Dashboard = () => {
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notificationMenuOpen, setNotificationMenuOpen] = useState(false);
+  const notifications = useSelector(state => state.nav.notifications);
   const unreadNotifications = useSelector(state => state.nav.unreadNotifications);
   const profileMenuRef = useRef(null);
   const notificationMenuRef = useRef(null);
   const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
   const [notificationMenuPosition, setNotificationMenuPosition] = useState({ top: 0, right: 0 });
 
-  const HARDCODED_NOTIFICATIONS = [
-    {
-      id: 1,
-      title: "Project Alpha Updated",
-      description: "The milestone 'Development Finish' has been marked as complete.",
-      time: "2 hours ago",
-      type: "project"
-    },
-    {
-      id: 2,
-      title: "New Meeting Scheduled",
-      description: "Q2 Strategy Review meeting has been scheduled for tomorrow at 10:00 AM.",
-      time: "5 hours ago",
-      type: "meeting"
-    }
-  ];
+  // Remove HARDCODED_NOTIFICATIONS
 
   // Masters submodules
   const mastersSubmodules = useMemo(() => [
@@ -174,13 +166,21 @@ const Dashboard = () => {
   //   { project_id, project_name, modules: [{module_name, milestones_count}], uploads: [...] }
   // modules[] is flat & deduplicated across all uploads on the server side.
   // ==========================================================================  
-  const loadDynamicModules = async () => {
-    try {
+  const { data: structuresData, refetch: refetchStructures } = useQuery({
+    queryKey: ['structures'],
+    queryFn: async () => {
       const { default: APIInstance } = await import("../utils/api");
-      const structuresData = await APIInstance.get('/projects/all/structures');
+      const response = await APIInstance.get('/projects/all/structures');
+      return response.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
-      const structures = Array.isArray(structuresData.data) ? structuresData.data : [];
-      console.log('[Dashboard] dynamic modules fetched:', structures.length);
+  useEffect(() => {
+    if (!structuresData) return;
+    try {
+      const structures = Array.isArray(structuresData) ? structuresData : [];
+      console.log('[Dashboard] dynamic modules processed:', structures.length);
 
       const dashProjectsMap = new Map();
 
@@ -233,13 +233,17 @@ const Dashboard = () => {
 
       const finalList = Array.from(dashProjectsMap.values());
 
-      // Auto-expand loaded projects
+      // Auto-expand loaded projects in both local state and Redux
       const initialExpanded = {};
       finalList.forEach(p => {
         initialExpanded[`project-dashboard-${p.id}`] = true;
         initialExpanded[`upload-trackers-${p.id}`] = true;
       });
       setExpandedProjects(prev => ({ ...prev, ...initialExpanded }));
+      // Sync to Redux so Sidebar can read upload-trackers group states
+      if (Object.keys(initialExpanded).length > 0) {
+        dispatch(setExpandedModules(initialExpanded));
+      }
 
       setProjectDashboardModules(finalList);
       setUploadTrackerModules(finalList);
@@ -248,30 +252,37 @@ const Dashboard = () => {
       localStorage.setItem('project_dashboard_modules', JSON.stringify(finalList));
 
     } catch (error) {
-      console.error('[Dashboard] Critical error in loadDynamicModules:', error);
+      console.error('[Dashboard] Critical error in processing structuresData:', error);
     }
+  }, [structuresData, dispatch]);
+
+  const loadDynamicModules = () => {
+    refetchStructures();
   };
 
 
   useEffect(() => {
     loadDynamicModules();
-  }, []);
+    dispatch(fetchNotifications());
+  }, [dispatch]);
 
-  // Storage listeners with simple debounce
+  // Storage listeners with context-aware debounce
   const loadDynamicModulesRef = useRef(null);
 
   useEffect(() => {
-    const debouncedLoad = () => {
+    const debouncedLoad = (delay = 100) => {
       if (loadDynamicModulesRef.current) {
         clearTimeout(loadDynamicModulesRef.current);
       }
       loadDynamicModulesRef.current = setTimeout(() => {
         loadDynamicModules();
-      }, 100);
+      }, delay);
     };
 
-    const handleUploadTrackerUpdate = () => debouncedLoad();
-    const handleProjectDashboardUpdate = () => debouncedLoad();
+    // Backend processes Excel synchronously before firing this event, so a short delay is enough
+    const handleUploadTrackerUpdate = () => debouncedLoad(300);
+    // Project dashboard config changes are fast, respond quickly
+    const handleProjectDashboardUpdate = () => debouncedLoad(100);
     const handleStorageChange = (e) => {
       if (e.key === 'upload_tracker_modules' || e.key === 'project_dashboard_modules') {
         loadDynamicModules();
@@ -657,77 +668,32 @@ const Dashboard = () => {
   };
 
   // ==========================================================================
-  // FIXED: Enhanced project file click handler
+  // Clicking a tracker file from the Dashboard section opens it in the
+  // Dashboard's dedicated table view.
   // ==========================================================================
   const handleProjectFileClick = (fileModule) => {
-    // Set the project-specific selected file ID
-    const idToSelect = fileModule.trackerId || fileModule.id || fileModule.moduleId;
-    dispatch(setSelectedProjectFileId(idToSelect));
-
-    // Ensure we're on project dashboard
-    if (activeModule !== 'project-dashboard') {
-      dispatch(setActiveModule('project-dashboard'));
-    }
-
-    // Ensure project dashboard is expanded
-    dispatch(setExpandedModules({ 'project-dashboard': true }));
-
-    // Also expand the parent project module
-    let projectKey = null;
-    if (fileModule.projectName) {
-      const project = projectDashboardModules.find(p =>
-        p.name === fileModule.projectName ||
-        p.projectName === fileModule.projectName
-      );
-
-      if (project) {
-        projectKey = project.id || project.projectId || project.name;
-        dispatch(setExpandedModules({
-          [`project-dashboard-${projectKey}`]: true
-        }));
-      }
-    }
-
     if (fileModule.type === 'budget') {
+      // Budget files still navigate to the budget summary page
       navigate(`/dashboard/budget-summary/${encodeURIComponent(fileModule.projectName)}`);
-    } else {
-      // Find project ID for search params
-      let pId = fileModule.dbProjectId;
-      if (!pId && idToSelect && String(idToSelect).startsWith('module-')) {
-        pId = String(idToSelect).split('-')[1];
-      }
-      if (!pId && projectKey) pId = projectKey;
-
-      const searchParams = new URLSearchParams();
-      if (pId) searchParams.set('projectId', pId);
-      if (idToSelect) searchParams.set('submoduleId', idToSelect);
-
-      navigate({
-        pathname: '/dashboard/projects',
-        search: searchParams.toString()
-      });
+      return;
     }
 
-    // Dispatch event for ProjectDashboard to handle (legacy support)
-    window.dispatchEvent(new CustomEvent('openProjectDashboardFile', {
-      detail: {
-        trackerId: idToSelect,
-        fileModule: fileModule,
-        projectName: fileModule.projectName || 'Unknown'
-      }
-    }));
+    dispatch(setActiveModule('project-dashboard'));
+    dispatch(setSelectedProjectFileId(fileModule.trackerId || fileModule.id));
+    
+    // Construct the URL for project dashboard
+    const pid = fileModule.dbProjectId || fileModule.projectId || fileModule.projectName;
+    navigate(`/dashboard/projects?projectId=${encodeURIComponent(pid)}&submoduleId=${encodeURIComponent(fileModule.trackerId || fileModule.id)}`);
   };
 
   // ==========================================================================
-  // FIXED: Check selection based on context
+  // Check selection based on context
   // ==========================================================================
   const isFileSelected = (fileModule, context) => {
-    if (context === 'upload-trackers') {
-      return selectedUploadFileId === fileModule.trackerId;
-    } else if (context === 'project-dashboard') {
-      return selectedProjectFileId === fileModule.trackerId;
+    if (context === 'project-dashboard') {
+      return selectedProjectFileId === (fileModule.trackerId || fileModule.id);
     }
-    return false;
+    return selectedUploadFileId === fileModule.trackerId;
   };
 
   // ==========================================================================
@@ -764,8 +730,15 @@ const Dashboard = () => {
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
             ? 'bg-black border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
-            {/* Left - Title */}
+            {/* Left - Title & Back Button */}
             <div className="flex items-center gap-4 flex-1">
+              <button 
+                onClick={() => navigate(-1)}
+                className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
+                title="Go Back"
+              >
+                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-text-secondary group-hover:text-text-primary'}`} />
+              </button>
               <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
                 {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
               </h1>
@@ -854,7 +827,7 @@ const Dashboard = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          dispatch(markNotificationsRead());
+                          dispatch(markAllNotificationsRead());
                         }}
                         className={`text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity ${activeView === 'agent' ? 'text-white/40' : 'text-brand-primary'}`}
                       >
@@ -862,27 +835,44 @@ const Dashboard = () => {
                       </button>
                     </div>
                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                      {HARDCODED_NOTIFICATIONS.map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${activeView === 'agent'
-                            ? 'border-white/5 hover:bg-white/5'
-                            : 'border-border hover:bg-app-surface'}`}
-                        >
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary/10'}`}>
-                            {notif.type === 'project' ? <FolderKanban className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start gap-2">
-                              <p className="text-body-sm font-semibold truncate">{notif.title}</p>
-                              <span className="text-[10px] opacity-40 shrink-0 font-medium">{notif.time}</span>
+                      {notifications.length > 0 ? (
+                        notifications.map((notif) => (
+                          <div
+                            key={notif.id}
+                            onClick={() => {
+                              if (!notif.is_read) {
+                                dispatch(markNotificationRead(notif.id));
+                              }
+                            }}
+                            className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${notif.is_read ? 'opacity-60' : 'opacity-100'} ${activeView === 'agent'
+                              ? 'border-white/5 hover:bg-white/5'
+                              : 'border-border hover:bg-app-surface'}`}
+                          >
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary/10'}`}>
+                              {notif.type === 'project' ? <FolderKanban className="h-4 w-4" /> : 
+                               notif.type === 'meeting' ? <Calendar className="h-4 w-4" /> :
+                               notif.type === 'issue' ? <Shield className="h-4 w-4" /> :
+                               <Bell className="h-4 w-4" />}
                             </div>
-                            <p className="text-body-xs opacity-60 mt-1 leading-relaxed line-clamp-2">
-                              {notif.description}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-2">
+                                <p className="text-body-sm font-semibold truncate">{notif.title}</p>
+                                <span className="text-[10px] opacity-40 shrink-0 font-medium">
+                                  {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-body-xs opacity-60 mt-1 leading-relaxed line-clamp-2">
+                                {notif.description}
+                              </p>
+                            </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="px-4 py-8 text-center opacity-40">
+                          <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                          <p className="text-body-xs font-medium">No notifications yet</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                     <div className="p-2">
                       <button className={`w-full py-2 text-center text-body-xs font-bold uppercase tracking-widest transition-colors duration-fast rounded-md ${activeView === 'agent'
@@ -924,24 +914,14 @@ const Dashboard = () => {
                         <div className="flex-1 min-w-0">
                           <p className={`text-body font-semibold truncate ${activeView === 'agent' ? 'text-white' : 'text-text-primary'}`}>{user?.full_name || 'User'}</p>
                           <p className={`text-caption truncate ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`}>{user?.email || 'user@example.com'}</p>
+                          {user?.employee_id && (
+                            <p className={`text-[10px] font-mono mt-1 ${activeView === 'agent' ? 'text-white/30' : 'text-text-muted'}`}>ID: {user.employee_id}</p>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="py-1">
-                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
-                        ? 'text-white/60 hover:text-white hover:bg-white/5'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
-                        <UserIcon className="h-4 w-4" />
-                        <span>Profile</span>
-                      </button>
-                      <button className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
-                        ? 'text-white/60 hover:text-white hover:bg-white/5'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-app-surface'}`}>
-                        <Settings className="h-4 w-4" />
-                        <span>Settings</span>
-                      </button>
-                    </div>
+
 
                     <div className={`border-t py-1 ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
                       <button

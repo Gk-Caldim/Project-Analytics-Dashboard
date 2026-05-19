@@ -14,30 +14,30 @@ export default {
       colors: {
         // Industrial Design System Colors
         app: {
-          bg: '#F8FAFC',
-          surface: '#FFFFFF',
-          panel: '#F1F5F9',
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          panel: 'var(--elevated-card)',
         },
         brand: {
-          primary: '#1e293b',
-          accent: '#0891B2',
-          hover: '#3B82F6',
+          primary: 'var(--brand-navy)',
+          accent: 'var(--accent)',
+          hover: 'var(--accent-hover)',
         },
         text: {
-          primary: '#0F172A',
-          secondary: '#475569',
-          muted: '#64748B',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
         },
         border: {
-          DEFAULT: '#CBD5E1',
-          strong: '#94A3B8',
+          DEFAULT: 'var(--border-subtle)',
+          strong: 'var(--border-strong)',
         },
         status: {
-          success: '#10B981',
-          warning: '#F59E0B',
-          error: '#EF4444',
-          info: '#1e293b',
-          neutral: '#64748B',
+          success: 'var(--green)',
+          warning: 'var(--amber)',
+          error: 'var(--red)',
+          info: 'var(--brand-navy)',
+          neutral: 'var(--text-muted)',
         },
         // Legacy maroon colors for backward compatibility
         maroon: {

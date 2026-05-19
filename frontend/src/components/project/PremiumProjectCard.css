@@ -1,6 +1,6 @@
 .executive-project-card {
   background: var(--surface, #FFFFFF);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 2px;
   padding: 16px;
   /* Reduced from 24px */
@@ -17,7 +17,7 @@
 }
 
 .executive-project-card:hover {
-  border-color: rgba(46, 124, 246, 0.3);
+  border-color: var(--border-strong);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
@@ -301,7 +301,7 @@
   border: none;
   box-shadow: none;
   height: auto;
-  background: white;
+  background: var(--surface);
   transition: background-color 0.2s ease;
 }
 
@@ -310,7 +310,7 @@
 }
 
 .executive-project-card.list-view:hover {
-  background-color: #f8fafc;
+  background-color: var(--bg);
   transform: none;
   box-shadow: none;
 }
@@ -337,7 +337,7 @@
   text-overflow: ellipsis;
   font-size: 15px;
   font-weight: 700;
-  color: var(--brand-navy);
+  color: var(--text-primary);
   min-width: 120px;
 }
 

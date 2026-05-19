@@ -373,56 +373,51 @@ async def bulk_delete_uploads(request: BulkDeleteRequest, db: Session = Depends(
     if not ids:
         return {"message": "No IDs provided"}
 
-    # 1. Find all uploads that match these IDs (either upload.id or upload.dataset_id)
+    # 1. Identify all uploads and datasets to be removed
+    # We look for matches in Upload.id OR Upload.dataset_id
     uploads = db.query(Upload).filter(
         (Upload.id.in_(ids)) | (Upload.dataset_id.in_(ids))
     ).all()
     
     upload_ids = [u.id for u in uploads]
-    dataset_ids = [u.dataset_id for u in uploads if u.dataset_id]
+    dataset_ids_from_uploads = [u.dataset_id for u in uploads if u.dataset_id]
     
-    # 2. Also look for standalone datasets that are in the ID list but not linked to these uploads
-    # This covers cases where a dataset exists but no upload record is linked
-    found_dataset_ids = set(dataset_ids)
-    standalone_dataset_ids = [id for id in ids if id not in upload_ids and id not in found_dataset_ids]
-    
-    all_datasets_to_delete = db.query(Dataset).filter(
-        (Dataset.id.in_(dataset_ids)) | (Dataset.id.in_(standalone_dataset_ids))
-    ).all()
+    # 2. Find all unique datasets to delete (linked or standalone)
+    all_potential_dataset_ids = set(dataset_ids_from_uploads) | set(ids)
+    datasets_to_delete = db.query(Dataset).filter(Dataset.id.in_(list(all_potential_dataset_ids))).all()
+    actual_dataset_ids = [ds.id for ds in datasets_to_delete]
 
-    # 3. Cleanup Datasets (Tables and Columns)
-    for ds in all_datasets_to_delete:
-        # Delete columns metadata
-        db.query(DatasetColumn).filter(DatasetColumn.dataset_id == ds.id).delete(synchronize_session=False)
-        
-        # Drop physical table if it exists
+    # 3. Drop physical tables (immediate execution)
+    for ds in datasets_to_delete:
         if ds.table_name:
             try:
                 # Strictly validate table_name to prevent SQL injection
-                if not re.match(r'^[a-zA-Z0-9_]+$', ds.table_name):
-                    logger.error(f"Invalid table name detected: {ds.table_name}")
-                    continue
-                db.execute(text(f'DROP TABLE IF EXISTS "{ds.table_name}"'))
+                if re.match(r'^[a-zA-Z0-9_]+$', ds.table_name):
+                    db.execute(text(f'DROP TABLE IF EXISTS "{ds.table_name}"'))
             except Exception as e:
                 logger.error(f"Error dropping table {ds.table_name} during bulk delete: {e}")
 
-        
-        # Delete Dataset record
-        db.delete(ds)
+    # 4. Perform bulk deletions using direct queries
+    # Using direct query delete is faster and avoids session synchronization issues
+    
+    # Delete Dataset system first
+    if actual_dataset_ids:
+        db.query(DatasetColumn).filter(DatasetColumn.dataset_id.in_(actual_dataset_ids)).delete(synchronize_session=False)
+        db.query(Dataset).filter(Dataset.id.in_(actual_dataset_ids)).delete(synchronize_session=False)
 
-    # 4. Cleanup TrackerIngestion and ImportError for found uploads
+    # Delete Tracker system
     if upload_ids:
+        # Manual deletion of children ensures no FK constraint issues even if cascades are missing
         db.query(TrackerIngestion).filter(TrackerIngestion.upload_id.in_(upload_ids)).delete(synchronize_session=False)
         db.query(ImportErrorModel).filter(ImportErrorModel.upload_id.in_(upload_ids)).delete(synchronize_session=False)
-        
-        # Delete Upload records
         db.query(Upload).filter(Upload.id.in_(upload_ids)).delete(synchronize_session=False)
 
     db.commit()
     
-    logger.info("[TrackerAPI] Bulk delete completed for %d items", len(ids))
+    logger.info("[TrackerAPI] Bulk delete completed: %d uploads, %d datasets", len(upload_ids), len(actual_dataset_ids))
     return {
-        "message": f"Successfully deleted {len(upload_ids)} upload(s) and {len(all_datasets_to_delete)} dataset(s).",
+        "message": f"Successfully deleted {len(upload_ids)} upload(s) and {len(actual_dataset_ids)} dataset(s).",
         "deleted_ids": ids
     }
+
 

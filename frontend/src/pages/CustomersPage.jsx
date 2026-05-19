@@ -43,17 +43,17 @@ const CustomersPage = () => {
 
   return (
     <div className="module-page-root">
-      
+
       <PublicNavbar />
 
-      <LeadModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         initialUseCase={modalUseCase}
       />
 
       {/* ── HERO ── */}
-      <section className="mod-hero" style={{paddingBottom: '40px', paddingTop: '120px' }}>
+      <section className="mod-hero" style={{ paddingBottom: '40px', paddingTop: '120px' }}>
         <div className="mod-hero-inner">
           <div className="mod-hero-content">
             <div className="mod-breadcrumb"><span>Global</span> Reach</div>
@@ -63,35 +63,35 @@ const CustomersPage = () => {
             </p>
           </div>
           <div className="mod-hero-visual">
-             <div className="mod-mockup" style={{padding: '40px', background: 'var(--navy)', color: '#fff'}}>
-                <h3 style={{fontFamily: 'var(--font-serif)', fontSize: '24px', marginBottom: '20px'}}>Industry Pulse</h3>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
-                   <div style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px'}}>
-                      <span>Active Workspaces</span>
-                      <span style={{color: 'var(--brand-red)', fontWeight: '700'}}>2,408</span>
-                   </div>
-                   <div style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px'}}>
-                      <span>Global Regions</span>
-                      <span style={{color: 'var(--brand-red)', fontWeight: '700'}}>34</span>
-                   </div>
-                   <div style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px'}}>
-                      <span>Enterprise SLM Status</span>
-                      <span style={{color: '#10b981', fontWeight: '700'}}>99.99%</span>
-                   </div>
+            <div className="mod-mockup" style={{ padding: '40px', background: 'var(--navy)', color: '#fff' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', marginBottom: '20px' }}>Industry Pulse</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                  <span>Active Workspaces</span>
+                  <span style={{ color: 'var(--brand-red)', fontWeight: '700' }}>2,408</span>
                 </div>
-             </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                  <span>Global Regions</span>
+                  <span style={{ color: 'var(--brand-red)', fontWeight: '700' }}>34</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                  <span>Enterprise SLM Status</span>
+                  <span style={{ color: '#10b981', fontWeight: '700' }}>99.99%</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── CASE STUDIES ── */}
-      <section className="mod-features" style={{backgroundColor: '#fff'}}>
+      <section className="mod-features" style={{ backgroundColor: '#fff' }}>
         <div className="mod-features-inner">
           {caseStudies.map((study, i) => (
-            <div key={i} className="mod-feature" style={{padding: '32px', background: 'var(--surface)', borderRadius: '12px'}}>
-              <h4 style={{color: study.color, fontSize: '12px', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase'}}>{study.sector}</h4>
-              <h3 className="mod-feat-title" style={{fontSize: '24px', marginBottom: '16px'}}>{study.company}</h3>
-              <div style={{fontSize: '32px', fontWeight: '700', color: study.color, marginBottom: '12px'}}>{study.stat}</div>
+            <div key={i} className="mod-feature" style={{ padding: '32px', background: 'var(--surface)', borderRadius: '12px' }}>
+              <h4 style={{ color: study.color, fontSize: '12px', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase' }}>{study.sector}</h4>
+              <h3 className="mod-feat-title" style={{ fontSize: '24px', marginBottom: '16px' }}>{study.company}</h3>
+              <div style={{ fontSize: '32px', fontWeight: '700', color: study.color, marginBottom: '12px' }}>{study.stat}</div>
               <p className="mod-feat-desc">{study.desc}</p>
             </div>
           ))}
@@ -106,19 +106,19 @@ const CustomersPage = () => {
           </div>
           <div className="mod-how-steps">
             <div className="mod-step">
-              <Factory className="mod-step-num" style={{backgroundColor: 'transparent'}} />
+              <Factory className="mod-step-num" style={{ backgroundColor: 'transparent' }} />
               <p className="mod-step-text">Manufacturing</p>
             </div>
             <div className="mod-step">
-              <Landmark className="mod-step-num" style={{backgroundColor: 'transparent'}} />
+              <Landmark className="mod-step-num" style={{ backgroundColor: 'transparent' }} />
               <p className="mod-step-text">Financial Services</p>
             </div>
             <div className="mod-step">
-              <Truck className="mod-step-num" style={{backgroundColor: 'transparent'}} />
+              <Truck className="mod-step-num" style={{ backgroundColor: 'transparent' }} />
               <p className="mod-step-text">Logistics & Supply</p>
             </div>
             <div className="mod-step">
-              <Building2 className="mod-step-num" style={{backgroundColor: 'transparent'}} />
+              <Building2 className="mod-step-num" style={{ backgroundColor: 'transparent' }} />
               <p className="mod-step-text">Energy & Infrastructure</p>
             </div>
           </div>
@@ -126,11 +126,11 @@ const CustomersPage = () => {
       </section>
 
       {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial" style={{backgroundColor: '#fff'}}>
+      <section className="mod-testimonial" style={{ backgroundColor: '#fff' }}>
         <div className="mod-test-inner">
-          <Quote size={48} className="mod-feat-icon" style={{opacity: 0.2, margin: '0 auto 32px'}} />
+          <Quote size={48} className="mod-feat-icon" style={{ opacity: 0.2, margin: '0 auto 32px' }} />
           <p className="mod-test-quote">"The level of transparency we have now across our APAC portfolio is unprecedented. It's not just a dashboard; it's a strategic advantage."</p>
-          <div className="mod-test-author">Gokulakrishnan S.</div>
+          <div className="mod-test-author">Your name</div>
           <div className="mod-test-role">Managing Director, Global Operations</div>
         </div>
       </section>

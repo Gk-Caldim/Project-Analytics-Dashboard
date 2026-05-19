@@ -32,7 +32,7 @@
 /* ── 1. Section Cards ── */
 .vppd-section {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   padding: 24px;
   display: flex;
@@ -43,7 +43,7 @@
 
 .vppd-section:hover {
   box-shadow: var(--shadow-md);
-  border-color: #cbd5e1;
+  border-color: var(--accent);
 }
 
 .vppd-section.full {
@@ -75,31 +75,32 @@
   letter-spacing: 0.02em;
 }
 
-.vppd-badge.green { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.vppd-badge.yellow { background: #fffbeb; color: #92400e; border: 1px solid #fef3c7; }
-.vppd-badge.red { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
-.vppd-badge.gray { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.vppd-badge.green { background: var(--green-50); color: var(--green-900); border: 1px solid var(--green-200); }
+.vppd-badge.yellow { background: var(--amber-50); color: var(--amber-900); border: 1px solid var(--amber-200); }
+.vppd-badge.red { background: var(--red-50); color: var(--red-900); border: 1px solid var(--red-200); }
+.vppd-badge.gray { background: var(--elevated-card); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
 
 /* ── 3. Table System ── */
 .vppd-table-wrapper {
   overflow-x: auto;
   border-radius: 8px;
   border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .vppd-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  background: white;
+  background: transparent;
 }
 
 .vppd-table th {
   padding: 14px 20px;
-  background: #f8fafc;
+  background: var(--elevated-card);
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   border-bottom: 2px solid var(--border);
   letter-spacing: 0.05em;
@@ -108,14 +109,14 @@
 .vppd-table td {
   padding: 16px 20px;
   font-size: 13px;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
   font-weight: 500;
   transition: background 0.15s ease;
 }
 
 .vppd-table tr:hover td {
-  background: #f1f5f9;
+  background: var(--table-hover);
 }
 
 .vppd-table tr:last-child td {
@@ -128,7 +129,7 @@
   padding: 48px 24px;
   color: var(--text-muted);
   font-size: 14px;
-  background: #f8fafc;
+  background: var(--bg);
   border-radius: var(--radius-md);
   border: 1px dashed var(--border);
   font-weight: 500;
@@ -157,22 +158,20 @@
 .vppd-btn-primary:hover {
   background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .vppd-btn-secondary {
-  background: white;
-  color: #334155;
+  background: var(--surface);
+  color: var(--text-primary);
   border: 1px solid var(--border);
 }
 
 .vppd-btn-secondary:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: var(--elevated-card);
+  border-color: var(--border-strong);
 }
-table tr:hover td {
-  background: #f8fafc;
-}
+
 /* ── 6. MOM Form Table Styles ── */
 .vppd-mom-table-container {
   padding: 12px 0;
@@ -186,14 +185,14 @@ table tr:hover td {
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 2px solid #0D9488;
+  border-bottom: 2px solid var(--accent);
   margin-bottom: 4px;
 }
 
 .vppd-mom-form-title {
   font-size: 11px;
   font-weight: 800;
-  color: #64748B;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.15em;
   margin: 0;
@@ -203,7 +202,7 @@ table tr:hover td {
 .vppd-mom-form-meta {
   font-size: 10px;
   font-weight: 700;
-  color: #94A3B8;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -212,19 +211,19 @@ table tr:hover td {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  background: white;
+  background: var(--surface);
 }
 
 .vppd-mom-table th {
   padding: 12px 16px;
-  background: #F8FAFC;
+  background: var(--elevated-card);
   font-size: 11px;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid #E2E8F0;
-  border-right: 1px solid #F1F5F9;
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
   text-align: left;
 }
 
@@ -235,9 +234,9 @@ table tr:hover td {
 .vppd-mom-table td {
   padding: 12px 16px;
   font-size: 13px;
-  color: #1E293B;
-  border-bottom: 1px solid #F1F5F9;
-  border-right: 1px solid #F1F5F9;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 
@@ -246,9 +245,10 @@ table tr:hover td {
 }
 
 .vppd-mom-table tr:hover td {
-  background: #FAFCFF;
+  background: var(--table-hover);
 }
 
 .vppd-mom-table tr:last-child td {
   border-bottom: none;
 }
+

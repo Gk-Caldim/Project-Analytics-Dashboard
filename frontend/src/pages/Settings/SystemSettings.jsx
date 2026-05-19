@@ -151,13 +151,13 @@ const SystemSettings = () => {
   // Routes are handled in the return JSX now
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F4F6F9] font-['Inter']">
+    <div className="flex h-screen overflow-hidden bg-app-bg font-['Inter']">
       {/* ── Settings Sidebar — mirrors main Sidebar style, light palette ── */}
       <aside style={{
         width: '220px',
         flexShrink: 0,
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid rgba(0,0,0,0.07)',
+        backgroundColor: 'var(--surface)',
+        borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 20,
@@ -167,11 +167,11 @@ const SystemSettings = () => {
           height: '56px',
           display: 'flex',
           alignItems: 'center',
-          borderBottom: '1px solid rgba(0,0,0,0.06)',
+          borderBottom: '1px solid var(--border-subtle)',
           paddingLeft: '16px',
           flexShrink: 0,
         }}>
-          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', color: '#0F172A', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-primary)', textTransform: 'uppercase' }}>
             Settings
           </span>
         </div>
@@ -190,7 +190,7 @@ const SystemSettings = () => {
                 fontSize: '9px',
                 textTransform: 'uppercase',
                 letterSpacing: '0.1em',
-                color: 'rgba(0,0,0,0.28)',
+                color: 'var(--text-muted)',
                 padding: '12px 16px 6px',
                 fontWeight: 500,
               }}>
@@ -218,15 +218,15 @@ const SystemSettings = () => {
                       transition: 'background 0.15s, color 0.15s',
                       fontSize: '13px',
                       fontWeight: isActive ? 500 : 400,
-                      backgroundColor: isActive ? 'rgba(0, 4, 171, 0.08)' : 'transparent',
-                      color: isActive ? '#0004ab' : 'rgba(0,0,0,0.52)',
+                      backgroundColor: isActive ? 'var(--active-menu)' : 'transparent',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                     }}
-                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = 'rgba(0,0,0,0.8)'; } }}
-                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'rgba(0,0,0,0.52)'; } }}
+                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
                   >
                     <span>{item.label}</span>
                     {isActive && (
-                      <div style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: '#0004ab', flexShrink: 0 }} />
+                      <div style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: 'var(--text-primary)', flexShrink: 0 }} />
                     )}
                   </button>
                 );
@@ -243,7 +243,7 @@ const SystemSettings = () => {
             style={{
               width: '100%',
               height: '40px',
-              backgroundColor: '#0004ab',
+              backgroundColor: 'var(--accent)',
               color: '#ffffff',
               border: 'none',
               borderRadius: '6px',
@@ -261,7 +261,7 @@ const SystemSettings = () => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-[#F4F6F9] p-16">
+      <main className="flex-1 overflow-y-auto bg-app-bg p-16">
         <div className="max-w-5xl mx-auto pb-24">
           <Routes>
             <Route index element={<Navigate to="general" replace />} />

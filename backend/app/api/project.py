@@ -3,6 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List, Any, Dict, Optional
 import re
 from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from cachetools import TTLCache
+
+# Cache for heavy read operations
+structure_cache = TTLCache(maxsize=20, ttl=300) # 5 minutes ttl
 
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.project_column import ProjectColumnCreate, ProjectColumnUpdate, ProjectColumnOut
@@ -472,118 +477,79 @@ def get_all_project_structures(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Returns structure for ALL projects that have tracker data.
-    Each project entry contains a flat deduplicated module list
-    (across all uploads) so the sidebar can render without any hardcoding.
+    Returns lightweight structure for ALL projects that have uploads.
+    Used exclusively by the sidebar — only needs file metadata, never row data.
+
+    Each project entry contains the list of uploaded files (name, id, counts).
+    Module-level breakdown is intentionally excluded here to avoid loading
+    10,000-row JSONB fields just for sidebar rendering.
     """
-    from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
-    from app.models.tracker_ingestion import TrackerIngestion
-    from app.utils.analytics_utils import standardize_records
 
+    # Check cache first
+    cache_key = "all_structures"
+    if cache_key in structure_cache:
+        print(f"[CACHE HIT] Serving /all/structures from memory instantly!")
+        return structure_cache[cache_key]
+
+    print(f"[CACHE MISS] Fetching /all/structures from database...")
+    # Single query: projects joined with their uploads (metadata only, no JSONB)
     projects = db.query(crud_project.Project).all()
-    all_uploads = db.query(Upload).all()
-    all_ingestions = db.query(TrackerIngestion).all()
+    all_uploads = (
+        db.query(
+            Upload.id,
+            Upload.project_id,
+            Upload.file_name,
+            Upload.uploaded_at,
+            Upload.status,
+            Upload.row_count,
+            Upload.valid_row_count,
+            Upload.invalid_row_count,
+        )
+        .all()
+    )
 
-    # Build maps from ingestions
-    upload_modules_map = {}
-    project_flat_modules = {}
-
-    for ing in all_ingestions:
-        u_id = ing.upload_id
-        p_id = ing.project_id
-        
-        if u_id not in upload_modules_map:
-            upload_modules_map[u_id] = {}
-        if p_id not in project_flat_modules:
-            project_flat_modules[p_id] = {}
-            
-        std_records = standardize_records(ing.data)
-        for r in std_records:
-            m_name = r.get("module") or "Unknown"
-            # Per upload
-            upload_modules_map[u_id][m_name] = upload_modules_map[u_id].get(m_name, 0) + 1
-            # Per project
-            project_flat_modules[p_id][m_name] = project_flat_modules[p_id].get(m_name, 0) + 1
-
-    # Convert maps to list of dicts for the final results
-    upload_modules = {
-        u_id: [{"module_name": name, "milestones_count": count} for name, count in mods.items()]
-        for u_id, mods in upload_modules_map.items()
-    }
-    
-    project_flat_modules_out = {
-        p_id: [{"module_name": name, "milestones_count": count} for name, count in mods.items()]
-        for p_id, mods in project_flat_modules.items()
-    }
-    project_flat_modules = project_flat_modules_out
+    # Group uploads by project_id (no JSONB reads needed)
+    uploads_by_project = {}
+    for u in all_uploads:
+        uploads_by_project.setdefault(u.project_id, []).append(u)
 
     result = []
     for p in projects:
-        proj_uploads = [u for u in all_uploads if u.project_id == p.id]
-        flat_mods = []
-        module_names_seen = set()
+        proj_uploads = uploads_by_project.get(p.id, [])
 
-        # 1. Add modules from TrackerData (preferred/validated)
-        tracker_mods = project_flat_modules.get(p.id, [])
-        for m in tracker_mods:
-            if m["module_name"] not in module_names_seen:
-                flat_mods.append(m.copy())
-                module_names_seen.add(m["module_name"])
-
-        # Filter: Only bring projects that have data present in uploads or ingestions
-        if not proj_uploads and not flat_mods:
+        # Skip projects with no uploads at all
+        if not proj_uploads:
             continue
 
         uploads_out = []
         for u in proj_uploads:
-            u_mods = upload_modules.get(u.id, [])
-            
-            # Fallback for generic uploads without TrackerData records
-            if not u_mods and (getattr(u, 'row_count') or 0) > 0:
-                fallback_name = u.file_name.split('.')[0] if u.file_name else f"Dataset_{u.id}"
-                u_mods = [{"module_name": fallback_name, "milestones_count": u.row_count, "trackerId": u.id}]
-            
-            for m in u_mods:
-                m_name = m["module_name"]
-                if m_name not in module_names_seen:
-                    # Ensure trackerId is present
-                    m_copy = m.copy()
-                    if "trackerId" not in m_copy:
-                        m_copy["trackerId"] = u.id
-                    flat_mods.append(m_copy)
-                    module_names_seen.add(m_name)
-                else:
-                    # If already seen, still try to attach trackerId if missing
-                    for existing in flat_mods:
-                        if existing["module_name"] == m_name and "trackerId" not in existing:
-                            existing["trackerId"] = u.id
-                            break
-
             uploads_out.append({
                 "upload_id":         u.id,
-                "dataset_id":        getattr(u, "dataset_id", None),
+                "dataset_id":        None,          # not needed for sidebar
                 "file_name":         u.file_name,
                 "uploaded_at":       u.uploaded_at.strftime("%Y-%m-%d") if u.uploaded_at else None,
                 "status":            u.status,
                 "row_count":         u.row_count,
                 "valid_row_count":   u.valid_row_count,
                 "invalid_row_count": u.invalid_row_count,
-                "modules":           u_mods,
+                "modules":           [],             # not needed for sidebar
             })
 
         result.append({
-            "project_id":   p.id,
-            "project_name": p.name,
+            "project_id":       p.id,
+            "project_name":     p.name,
             "dashboard_config": p.dashboard_config,
-            "budget": p.budget,
-            "utilized_budget": p.utilized_budget,
-            "balance_budget": p.balance_budget,
-            "project_manager": p.project_manager,
-            "modules":      flat_mods,      # ← flat deduplicated module list
-            "uploads":      uploads_out,
+            "budget":           p.budget,
+            "utilized_budget":  p.utilized_budget,
+            "balance_budget":   p.balance_budget,
+            "project_manager":  p.project_manager,
+            "modules":          [],         # sidebar uses uploads[], not modules[]
+            "uploads":          uploads_out,
         })
 
+    # Save to cache
+    structure_cache[cache_key] = result
     return result
 
 

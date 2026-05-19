@@ -7,8 +7,8 @@ load_dotenv()
 # ------------------------
 # API & Frontend Settings
 # ------------------------
-API_PREFIX = os.getenv("API_PREFIX", "/api")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+API_PREFIX = os.getenv("API_PREFIX", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # ------------------------
 # Auth / JWT Settings
@@ -22,6 +22,11 @@ REFRESH_TOKEN_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", 7))
 # Database Settings
 # ------------------------
 DB_TYPE = os.getenv("DB_TYPE", "cloud").lower()
+
+# Force cloud mode if running on Render
+if os.getenv("RENDER") == "true":
+    DB_TYPE = "cloud"
+
 
 # Cloud Database URL (Supabase)
 CLOUD_DATABASE_URL = os.getenv("CLOUD_DATABASE_URL") or os.getenv("DATABASE_URL")
@@ -44,7 +49,10 @@ if DB_TYPE == "local":
     print("\n[DB CONFIG] Mode: LOCAL (PostgreSQL)")
 else:
     DATABASE_URL = CLOUD_DATABASE_URL
-    print("\n[DB CONFIG] Mode: CLOUD (Supabase)")
+    # Fix for SQLAlchemy 2.0: replaces 'postgres://' with 'postgresql://'
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    print("\n[DB CONFIG] Mode: CLOUD (Supabase/Render)")
 
 # Flag for database-specific engine configurations (like SSL for Supabase)
 IS_CLOUD_DB = (DB_TYPE == "cloud")

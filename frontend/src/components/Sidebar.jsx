@@ -10,13 +10,23 @@ import {
     Settings,
     ChevronDown,
     ChevronRight,
-    Star
+    ChevronLeft,
+    Menu
 } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { setSidebarCollapsed } from '../store/slices/navSlice';
 
 // ─── Logo Block ─────────────────────────────────────────────────────────────
-const LogoBlock = () => (
-    <div className="h-[72px] flex items-center px-6 border-b border-white/5">
-        <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>
+const LogoBlock = ({ collapsed, onToggle }) => (
+    <div className={`h-[72px] flex items-center border-b border-white/5 transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'px-6 justify-between'}`}>
+        {!collapsed && <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>}
+        <button 
+            onClick={onToggle}
+            className={`p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
+            title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
     </div>
 );
 
@@ -35,11 +45,17 @@ const Sidebar = ({
     handleProjectFileClick,
     hasAccess
 }) => {
+    const dispatch = useDispatch();
     const { 
         sidebarDashboardLimit = 10, 
         sidebarDashboardMode = 'custom',
-        navigationHistory = []
+        navigationHistory = [],
+        sidebarCollapsed = false
     } = useSelector(state => state.nav);
+
+    const toggleSidebar = () => {
+        dispatch(setSidebarCollapsed(!sidebarCollapsed));
+    };
 
     const renderProjectDashboardModule = () => {
         const isActive = activeModule === 'project-dashboard';
@@ -50,13 +66,14 @@ const Sidebar = ({
             <div key="project-dashboard">
                 <div
                     onClick={() => handleModuleClick('project-dashboard')}
-                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
+                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed ? 'Dashboard' : ''}
                 >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <LayoutIcon size={20} />
-                        <span className="text-[16px] font-medium tracking-tight">Dashboard</span>
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Dashboard</span>}
                     </div>
-                    {hasDynamicModules && (
+                    {!sidebarCollapsed && hasDynamicModules && (
                         <div onClick={(e) => { e.stopPropagation(); toggleModuleExpansion('project-dashboard', e); }}>
                             {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
@@ -64,7 +81,7 @@ const Sidebar = ({
                 </div>
                 
                 <AnimatePresence>
-                    {isExpanded && (
+                    {!sidebarCollapsed && isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -161,19 +178,22 @@ const Sidebar = ({
             <div key="mom">
                 <div
                     onClick={() => toggleModuleExpansion('mom')}
-                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
+                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed ? 'Meetings' : ''}
                 >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <Calendar size={20} />
-                        <span className="text-[16px] font-medium tracking-tight">Meetings</span>
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Meetings</span>}
                     </div>
-                    <div>
-                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
-                    </div>
+                    {!sidebarCollapsed && (
+                        <div>
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
+                        </div>
+                    )}
                 </div>
                 
                 <AnimatePresence>
-                    {isExpanded && (
+                    {!sidebarCollapsed && isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -223,19 +243,22 @@ const Sidebar = ({
             <div key="masters">
                 <div
                     onClick={() => toggleModuleExpansion('masters')}
-                    className={`sidebar-nav-item ${isAnyMasterActive ? 'sidebar-nav-item-active' : ''}`}
+                    className={`sidebar-nav-item ${isAnyMasterActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed ? 'Master' : ''}
                 >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <Database size={20} />
-                        <span className="text-[16px] font-medium tracking-tight">Master</span>
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Master</span>}
                     </div>
-                    <div>
-                        {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
-                    </div>
+                    {!sidebarCollapsed && (
+                        <div>
+                            {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
+                        </div>
+                    )}
                 </div>
                 
                 <AnimatePresence>
-                    {isExpanded && (
+                    {!sidebarCollapsed && isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -272,13 +295,14 @@ const Sidebar = ({
             <div key="upload-trackers">
                 <div
                     onClick={() => toggleModuleExpansion('upload-trackers')}
-                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
+                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed ? 'Uploads' : ''}
                 >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <FileUp size={20} />
-                        <span className="text-[16px] font-medium tracking-tight">Uploads</span>
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Uploads</span>}
                     </div>
-                    {hasDynamicModules && (
+                    {!sidebarCollapsed && hasDynamicModules && (
                         <div>
                             {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
@@ -286,7 +310,7 @@ const Sidebar = ({
                 </div>
                 
                 <AnimatePresence>
-                    {isExpanded && (
+                    {!sidebarCollapsed && isExpanded && (
                         <motion.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
@@ -294,12 +318,56 @@ const Sidebar = ({
                             className="overflow-hidden"
                         >
                             <div className="sidebar-tree-container">
+                                {/* Link to UploadTrackers page */}
                                 <div
                                     onClick={() => handleModuleClick('upload-trackers')}
                                     className={`sidebar-sub-item ${activeModule === 'upload-trackers' ? 'sidebar-sub-item-active' : ''}`}
                                 >
-                                    Trackers
+                                    Manage Trackers
                                 </div>
+
+                                {/* Per-project tracker file items */}
+                                {hasDynamicModules && uploadTrackerModules.map((pm, idx) => {
+                                    const projectKey = pm.id || pm.projectId || pm.name;
+                                    const uniqueId = `upload-trackers-${projectKey}`;
+                                    const isProjExpanded = expandedModules[uniqueId];
+
+                                    if (!pm.submodules || pm.submodules.length === 0) return null;
+
+                                    return (
+                                        <div key={pm.id || idx} className="py-0.5">
+                                            <div
+                                                className="flex items-center justify-between px-6 py-1.5 cursor-pointer group"
+                                                onClick={(e) => { e.stopPropagation(); toggleModuleExpansion(uniqueId, e); }}
+                                            >
+                                                <span className="text-[11px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
+                                                {isProjExpanded
+                                                    ? <ChevronDown size={11} className="text-white/50" />
+                                                    : <ChevronRight size={11} className="text-white/50" />
+                                                }
+                                            </div>
+
+                                            {isProjExpanded && (
+                                                <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                                    {pm.submodules.map(fileModule => {
+                                                        const isSelected = isFileSelected(fileModule, 'upload-trackers');
+                                                        return (
+                                                            <div
+                                                                key={fileModule.id}
+                                                                onClick={() => handleFileModuleClick({ ...fileModule, projectName: pm.name })}
+                                                                className={`sidebar-sub-item ${isSelected ? 'sidebar-sub-item-active' : ''}`}
+                                                            >
+                                                                <span className="truncate">
+                                                                    {fileModule.displayName || fileModule.name.replace(/\.[^/.]+$/, "")}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     )}
@@ -316,11 +384,12 @@ const Sidebar = ({
                 <div
                     key={module.id}
                     onClick={() => handleModuleClick(module.id)}
-                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''}`}
+                    className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    title={sidebarCollapsed ? module.name : ''}
                 >
-                    <div className="flex items-center gap-3 flex-1">
+                    <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <Settings size={20} />
-                        <span className="text-[16px] font-medium tracking-tight">{module.name}</span>
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">{module.name}</span>}
                     </div>
                 </div>
             );
@@ -328,25 +397,22 @@ const Sidebar = ({
     };
 
     return (
-        <motion.div
-            className="app-sidebar h-screen sticky top-0"
-            variants={slideInLeft}
-            initial="hidden"
-            animate="visible"
+        <div
+            className={`app-sidebar h-screen sticky top-0 ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
         >
-            <LogoBlock />
+            <LogoBlock collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
             <div className="sidebar-scroll scrollbar-hide py-4">
-                <div className="sidebar-section-label">WORKSPACE</div>
+                {!sidebarCollapsed && <div className="sidebar-section-label">WORKSPACE</div>}
                 {(!hasAccess || hasAccess('Dashboard')) && renderProjectDashboardModule()}
                 {(!hasAccess || hasAccess('MOM')) && renderMOMModule()}
 
-                <div className="sidebar-section-label" style={{ marginTop: '16px' }}>CONFIGURATION</div>
+                {!sidebarCollapsed && <div className="sidebar-section-label" style={{ marginTop: '16px' }}>CONFIGURATION</div>}
                 {renderMastersModule()}
                 {(!hasAccess || hasAccess('Upload Trackers')) && renderUploadTrackersModule()}
                 {renderOtherModules()}
             </div>
-        </motion.div>
+        </div>
     );
 };
 

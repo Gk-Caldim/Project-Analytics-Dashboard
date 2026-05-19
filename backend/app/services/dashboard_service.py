@@ -8,6 +8,9 @@ from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project import Project
 from app.services.issue_service import compute_analytics
 from app.utils.analytics_utils import standardize_records
+from cachetools import TTLCache
+
+dashboard_cache = TTLCache(maxsize=100, ttl=300) # 5 mins cache
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +57,12 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     Main entry point for analytics.
     Sources data from TrackerIngestion table (JSONB).
     """
+    cache_key = f"dashboard_{project_id}_{module_filter}"
+    if cache_key in dashboard_cache:
+        print(f"[CACHE HIT] Serving dashboard data for project {project_id} from memory.")
+        return dashboard_cache[cache_key]
+
+    print(f"[CACHE MISS] Calculating dashboard data for project {project_id} from DB...")
     # 1. Fetch project meta
     project = db.query(Project).filter(Project.id == project_id).first()
     project_name = project.name if project else f"Project {project_id}"
@@ -128,24 +137,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     delay_pct          = _safe_pct(delayed,   total)
     pending_pct        = _safe_pct(pending,   total)
 
-    # 8. Per-milestone list
-    status_order = {STATUS_DELAYED: 0, STATUS_PENDING: 1, STATUS_ON_TRACK: 2}
-
-    milestones = sorted(
-        [
-            {
-                "id":           idx, # Dummy ID for frontend
-                "module":       r["module"] or "",
-                "milestone":    r["milestone_name"] or "",
-                "planned_date": _format_date(r["planned_date"]),
-                "actual_date":  _format_date(r["actual_date"]),
-                "delay_days":   r["delay_days"] or 0,
-                "status":       r["status"] or STATUS_PENDING,
-            }
-            for idx, r in enumerate(records)
-        ],
-        key=lambda m: (status_order.get(m["status"], 99), -(m["delay_days"] or 0)),
-    )
+    milestones = []
 
     # 9. Module-level breakdown
     module_map: dict[str, dict] = {}
@@ -164,7 +156,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     modules = list(module_map.values())
 
     # 10. Final response
-    return {
+    result = {
         "project_id":     project_id,
         "project_name":   project_name,
         "project_health": health,
@@ -183,12 +175,20 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
             "max_delay_days":      max_delay,
         },
     }
+    dashboard_cache[cache_key] = result
+    return result
 
 
 def get_all_projects_summary(db: Session) -> list[dict]:
     """
     Returns a lightweight health card for EVERY project that has tracker data.
     """
+    cache_key = "all_projects_summary"
+    if cache_key in dashboard_cache:
+        print(f"[CACHE HIT] Serving all projects summary from memory.")
+        return dashboard_cache[cache_key]
+
+    print(f"[CACHE MISS] Calculating all projects summary...")
     # Distinct project_ids that have ingestions
     rows = db.query(TrackerIngestion.project_id).distinct().all()
     project_ids = [r[0] for r in rows]
@@ -208,5 +208,6 @@ def get_all_projects_summary(db: Session) -> list[dict]:
             "delay_pct":        data["summary"]["delay_percentage"],
         })
 
+    dashboard_cache[cache_key] = summary
     return summary
 

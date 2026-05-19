@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import API from '../utils/api';
+import { useQuery } from '@tanstack/react-query';
 
 const ThemeContext = createContext();
 
@@ -14,11 +15,34 @@ export const ThemeProvider = ({ children }) => {
         companyLogo: ''
     });
 
-    const fetchTheme = async () => {
-        try {
+    const { data: settings, refetch: refreshTheme } = useQuery({
+        queryKey: ['settings'],
+        queryFn: async () => {
             const response = await API.get('/settings/');
-            const settings = response.data;
-            
+            return response.data || [];
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const applyTheme = (theme) => {
+        const root = document.documentElement;
+        root.setAttribute('data-theme', theme.displayMode);
+        root.classList.toggle('dark', theme.displayMode === 'dark');
+        
+        root.style.setProperty('--primary-color', theme.primaryColor);
+        root.style.setProperty('--secondary-color', theme.secondaryColor);
+        
+        if (theme.primaryColor && theme.primaryColor.startsWith('#')) {
+            const hex = theme.primaryColor.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            root.style.setProperty('--primary-color-rgb', `${r}, ${g}, ${b}`);
+        }
+    };
+
+    useEffect(() => {
+        if (settings) {
             const newTheme = { ...themeSettings };
             settings.forEach(s => {
                 if (s.key === 'primary_color') newTheme.primaryColor = s.value;
@@ -30,30 +54,8 @@ export const ThemeProvider = ({ children }) => {
             
             setThemeSettings(newTheme);
             applyTheme(newTheme);
-        } catch (error) {
-            console.error('Error fetching theme settings:', error);
         }
-    };
-
-    const applyTheme = (theme) => {
-        const root = document.documentElement;
-        root.style.setProperty('--primary-color', theme.primaryColor);
-        root.style.setProperty('--secondary-color', theme.secondaryColor);
-        
-        // Update other colors based on primary
-        // For example, generating a lighter version for backgrounds
-        if (theme.primaryColor.startsWith('#')) {
-            const hex = theme.primaryColor.replace('#', '');
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            root.style.setProperty('--primary-color-rgb', `${r}, ${g}, ${b}`);
-        }
-    };
-
-    useEffect(() => {
-        fetchTheme();
-    }, []);
+    }, [settings]);
 
     const updateThemeLocally = (newSettings) => {
         const updated = { ...themeSettings, ...newSettings };
@@ -62,7 +64,7 @@ export const ThemeProvider = ({ children }) => {
     };
 
     return (
-        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme: fetchTheme }}>
+        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme }}>
             {children}
         </ThemeContext.Provider>
     );

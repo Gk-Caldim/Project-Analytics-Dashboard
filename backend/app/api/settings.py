@@ -10,8 +10,25 @@ from app.schemas.settings import SystemSetting as SystemSettingSchema, SystemSet
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
+import time
+
+# Cache for settings to reduce database load on app startup
+_settings_cache = {
+    "data": None,
+    "timestamp": 0
+}
+# Cache TTL in seconds (e.g., 5 minutes = 300 seconds)
+SETTINGS_CACHE_TTL = 300
+
 @router.get("/", response_model=List[SystemSettingSchema])
 def get_settings(db: Session = Depends(get_db)):
+    global _settings_cache
+    current_time = time.time()
+    
+    # Return cached data if valid
+    if _settings_cache["data"] and (current_time - _settings_cache["timestamp"] < SETTINGS_CACHE_TTL):
+        return _settings_cache["data"]
+
     settings = db.query(SystemSettingModel).all()
     
     # Initial setup / ensure all default settings exist
@@ -44,10 +61,15 @@ def get_settings(db: Session = Depends(get_db)):
         db.commit()
         settings = db.query(SystemSettingModel).all()
         
+    # Update cache
+    _settings_cache["data"] = settings
+    _settings_cache["timestamp"] = current_time
+        
     return settings
 
 @router.patch("/bulk", response_model=List[SystemSettingSchema])
 def update_bulk_settings(update_data: BulkSettingsUpdate, db: Session = Depends(get_db)):
+    global _settings_cache
     for setting in update_data.settings:
         db_setting = db.query(SystemSettingModel).filter(SystemSettingModel.key == setting.key).first()
         if db_setting:
@@ -58,10 +80,14 @@ def update_bulk_settings(update_data: BulkSettingsUpdate, db: Session = Depends(
             db.add(db_setting)
     
     db.commit()
+    # Invalidate cache
+    _settings_cache["data"] = None
+    
     return db.query(SystemSettingModel).all()
 
 @router.post("/upload-logo")
 async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    global _settings_cache
     # Read file content
     contents = await file.read()
     file_extension = os.path.splitext(file.filename)[1].replace('.', '')
@@ -86,5 +112,7 @@ async def upload_logo(file: UploadFile = File(...), db: Session = Depends(get_db
         db.add(db_setting)
         
     db.commit()
+    # Invalidate cache
+    _settings_cache["data"] = None
     
     return {"url": data_url}

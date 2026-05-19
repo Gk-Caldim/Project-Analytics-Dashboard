@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { fadeUp } from '../utils/animations';
 
@@ -11,6 +12,7 @@ const Header = ({
     currentDate,
     userInitial
 }) => {
+    const navigate = useNavigate();
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const profileMenuRef = useRef(null);
     const [profileMenuPosition, setProfileMenuPosition] = useState({ top: 0, right: 0 });
@@ -61,8 +63,16 @@ const Header = ({
             animate="visible"
         >
             <div className="px-6 py-4 flex items-center justify-between relative z-10 w-full">
-                {/* Left side - Empty for centering */}
-                <div className="w-48"></div>
+                {/* Left side - Back Button */}
+                <div className="w-48 flex items-center">
+                    <button 
+                        onClick={() => navigate(-1)}
+                        className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+                        title="Go Back"
+                    >
+                        <ChevronLeft className="w-6 h-6 text-slate-600 group-hover:text-slate-900" />
+                    </button>
+                </div>
 
                 {/* Center - Title */}
                 <div className="flex-1 flex justify-center items-center">
@@ -106,6 +116,9 @@ const Header = ({
                                         <div className="flex-1 min-w-0">
                                             <p className="font-bold text-black text-lg truncate">{user?.full_name || 'User'}</p>
                                             <p className="text-sm text-gray-500 mt-1 truncate">{user?.email || 'user@example.com'}</p>
+                                            {user?.employee_id && (
+                                                <p className="text-[10px] font-mono mt-1 text-gray-400">ID: {user.employee_id}</p>
+                                            )}
                                             <span className="inline-block mt-2 px-2.5 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700 capitalize">
                                                 {user?.role || 'User'}
                                             </span>
@@ -113,17 +126,7 @@ const Header = ({
                                     </div>
                                 </div>
 
-                                {/* Menu Items */}
-                                <div className="py-2 border-t border-gray-100">
-                                    <button className="w-full px-5 py-3 text-left text-sm text-black hover:bg-gray-50 flex items-center space-x-3">
-                                        <User className="h-5 w-5 text-gray-500" />
-                                        <span className="font-medium">Profile Settings</span>
-                                    </button>
-                                    <button className="w-full px-5 py-3 text-left text-sm text-black hover:bg-gray-50 flex items-center space-x-3">
-                                        <Settings className="h-5 w-5 text-gray-500" />
-                                        <span className="font-medium">Account Settings</span>
-                                    </button>
-                                </div>
+
 
                                 <div className="border-t border-gray-100 py-2">
                                     <button

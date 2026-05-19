@@ -13,6 +13,4 @@ from app.models.application_access import ApplicationAccess
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project_sub_category import ProjectSubCategory
-from app.models.tracker import TrackerData
 from app.models.upload import Upload
-

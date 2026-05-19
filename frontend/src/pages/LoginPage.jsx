@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
+import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import './LoginPage.css';
@@ -9,7 +9,7 @@ import './LoginPage.css';
 const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading } = useSelector((state) => state.auth);
+  const { loading, isAuthenticated } = useSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,6 +29,13 @@ const LoginPage = () => {
   useEffect(() => {
     API.get('/roles/').then(res => setRoles(res.data)).catch(err => console.error(err));
   }, []);
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSignIn = async (e) => {
     e.preventDefault();

@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import logging
@@ -41,7 +42,6 @@ from app.models import employee_project # noqa: F401
 from app.models import project_permission # noqa: F401
 from app.models import audit_log # noqa: F401
 from app.models.department import Department # noqa: F401
-from app.models.tracker import TrackerData # noqa: F401
 from app.models.upload import Upload # noqa: F401
 from app.models.import_error import ImportError  # noqa: F401
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation  # noqa: F401
@@ -50,6 +50,7 @@ from app.models.mom import MOMSession  # noqa: F401
 from app.models.mom_sync_history import MomSyncHistory # noqa: F401
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
+from app.models.notification import Notification # noqa: F401
  # noqa: F401
 
 # Import routers
@@ -71,6 +72,7 @@ from app.api.teams import router as teams_router
 from app.api.application_access import router as application_access_router
 from app.api.chats import router as chat_router
 from app.api.enterprise import router as enterprise_router
+from app.api.currency import router as currency_router
 from app.crud.role import seed_default_roles
 
 app = FastAPI(
@@ -93,7 +95,45 @@ async def set_secure_headers(request: Request, call_next):
     secure_headers.framework.fastapi(response)
     # Additional manual headers for industrial security
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' ws: wss:;"
+    # Updated CSP to allow connections to Render backend and Vercel frontend subdomains
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' ws: wss: https://project-analytics-dashboard.onrender.com https://project-analytics-dashboard.vercel.app https://*.vercel.app;"
+    )
+    return response
+
+# CORS configuration
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://project-analytics-dashboard.vercel.app",
+    "https://project-analytics-dashboard-n64saa9hk.vercel.app", # Added current preview URL
+]
+if FRONTEND_URL and FRONTEND_URL not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append(FRONTEND_URL)
+
+def add_cors_headers(response: JSONResponse, request: Request):
+    """Helper to add CORS headers to manual responses (like exception handlers)"""
+    origin = request.headers.get("origin")
+    # Check if origin matches allowed list or vercel pattern
+    is_allowed = False
+    if origin in ALLOWED_ORIGINS:
+        is_allowed = True
+    elif origin and (origin.endswith(".vercel.app") and "project-analytics-dashboard" in origin):
+        is_allowed = True
+        
+    if is_allowed:
+        response.headers["Access-Control-Allow-Origin"] = origin
+    else:
+        response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
+    
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
     return response
 
 
@@ -136,11 +176,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"detail": exc.errors()}
     )
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
+    return add_cors_headers(response, request)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -152,33 +188,17 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal Server Error", "error": str(exc)}
     )
-    # Re-apply CORS headers manually because middleware might be skipped on crash
-    response.headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    
-    return response
-
-# CORS
-# CORS - Restrict origins in production
-if FRONTEND_URL and FRONTEND_URL != "*":
-    origins = [FRONTEND_URL]
-    # Also allow common dev origins if local
-    if "localhost" in FRONTEND_URL:
-        origins.append("http://127.0.0.1:5173")
-else:
-    origins = ["http://localhost:5173"] # Strict default for safety
-
-
+    return add_cors_headers(response, request)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://project-analytics-dashboard-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Include routers
 
@@ -192,7 +212,7 @@ app.include_router(budget_router.router, prefix=f"{API_PREFIX}/budget", tags=["B
 app.include_router(sub_category_router, prefix=API_PREFIX)
 app.include_router(settings_router, prefix=API_PREFIX)
 app.include_router(role_router, prefix=API_PREFIX)
-app.include_router(meetings_router, prefix="/api/meetings", tags=["Meetings"])
+app.include_router(meetings_router, prefix=f"{API_PREFIX}/meetings", tags=["Meetings"])
 app.include_router(project_team_router, prefix=API_PREFIX)
 app.include_router(audit_logs_router, prefix=API_PREFIX)
 app.include_router(teams_router)  # prefix already set to /api/teams inside the router
@@ -201,6 +221,7 @@ app.include_router(chat_router, prefix=API_PREFIX)
 from app.api.departments import router as departments_router
 app.include_router(departments_router, prefix=API_PREFIX)
 app.include_router(enterprise_router, prefix=API_PREFIX)
+app.include_router(currency_router, prefix=API_PREFIX)
 
 from app.api.transcript import router as transcript_router
 app.include_router(transcript_router, prefix=f"{API_PREFIX}/transcript", tags=["Transcript"])
@@ -222,6 +243,9 @@ app.include_router(mom_router, prefix=f"{API_PREFIX}/mom", tags=["MOM"])
 
 from app.api.websockets import router as websockets_router
 app.include_router(websockets_router, prefix=API_PREFIX)
+
+from app.api.notifications import router as notifications_router
+app.include_router(notifications_router, prefix=API_PREFIX)
 
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"

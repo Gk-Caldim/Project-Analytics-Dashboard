@@ -311,41 +311,7 @@ const ReportDocument = ({
 
         {/* Content Sections based on sectionOrder */}
         {sectionOrder.map((key) => {
-          // 1. Milestones
-          if (key === 'milestones' && visibleSections?.milestones && milestones?.length > 0) {
-            return (
-              <View key={key} style={styles.section}>
-                <Text style={[styles.sectionTitle, { borderBottomColor: '#1e3a5f', color: '#1e3a5f' }]}>Milestone Progress Tracker</Text>
 
-                <View style={styles.table}>
-                  <View style={styles.tableHeader}>
-                    <Text style={[styles.tableCellHeader, { width: '20%' }]}>Module</Text>
-                    <Text style={[styles.tableCellHeader, { width: '30%' }]}>Milestone</Text>
-                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>Planned</Text>
-                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>Actual</Text>
-                    <Text style={[styles.tableCellHeader, { width: '20%' }]}>Status</Text>
-                  </View>
-                  {milestones.map((m, idx) => {
-                    const isDelayed = String(m.status).toLowerCase().includes('delay');
-                    return (
-                      <View key={idx} style={styles.tableRow}>
-                        <Text style={[styles.tableCell, { width: '20%', fontWeight: 'bold' }]}>{m.module || 'General'}</Text>
-                        <Text style={[styles.tableCell, { width: '30%' }]}>{m.milestone}</Text>
-                        <Text style={[styles.tableCell, { width: '15%' }]}>{m.planned_date || '-'}</Text>
-                        <Text style={[styles.tableCell, { width: '15%' }]}>{m.actual_date || '-'}</Text>
-                        <View style={[styles.tableCell, { width: '20%' }]}>
-                          <Text style={[styles.statusPill, { 
-                            backgroundColor: isDelayed ? '#fee2e2' : '#d1fae5', 
-                            color: isDelayed ? '#991b1b' : '#065f46' 
-                          }]}>{m.status}</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            );
-          }
 
           // 2. Critical Issues
           if (key === 'criticalIssues' && visibleSections?.criticalIssues && criticalIssues?.length > 0) {
