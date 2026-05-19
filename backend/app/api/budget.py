@@ -212,225 +212,72 @@ def get_market_analysis():
 @router.get("/proposal/{project_name}")
 async def generate_budget_proposal(
     project_name: str,
+    industry: Optional[str] = "Manufacturing",
+    procurement_categories: Optional[str] = "steel materials, wiring harness",
+    currency: Optional[str] = "USD",
     inflation_rate: Optional[float] = None,
     currency_factor: Optional[float] = None,
-    currency: Optional[str] = "USD",
     db: Session = Depends(get_db)
 ):
     """
-    Generate a sophisticated, currency-aware budget revision suggestion.
-    Analyzes Estimation, Utilization, and Balance to provide a practical recommendation.
+    Generate an AI-powered procurement and market intelligence budget revision suggestion.
+    Analyzes historical indices, risk factors, and forecasting trend data.
     """
-    # 1. Get latest budget
+    from app.services.market_service import seed_source_registry
+    from app.services.procurement_service import analyze_procurement_budget
+    
+    seed_source_registry(db)
+    
+    result = analyze_procurement_budget(
+        project_name=project_name,
+        industry=industry or "Manufacturing",
+        raw_categories_input=procurement_categories or "steel materials",
+        currency=currency or "USD",
+        db=db
+    )
+    
+    # Extract total utilized & remaining balance from the budget rows
+    total_utilized = 0.0
+    budget_data = []
+    
+    from app.models.budget import BudgetSummary
     budget = db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
     ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
-
-    if not budget:
-        return {
-            "project_name": project_name,
-            "overall_budget": 0.0,
-            "budget_data": [],
-            "message": "No previous budget found."
-        }
-
-    # 2. Get Live Currency Exchange Rates
-    from app.api.currency import get_exchange_rates
-    try:
-        rates = await get_exchange_rates()
-    except Exception as e:
-        logger.error(f"[budget proposal] Failed to fetch exchange rates: {e}")
-        rates = { "USD": 1.0, "INR": 95.43, "EUR": 0.92, "GBP": 0.80, "JPY": 155.0 }
-
-    target_currency = (currency or "USD").upper()
-    rate = float(rates.get(target_currency, 1.0))
-
-    # 3. Determine Dynamic Parameters based on Currency and Settings
-    from app.models.settings import SystemSetting as SystemSettingModel
-
-    # Helper to get dynamic float setting from database
-    def get_setting_val(key: str, default: float) -> float:
-        try:
-            setting = db.query(SystemSettingModel).filter(SystemSettingModel.key == key).first()
-            if setting and hasattr(setting, "key") and getattr(setting, "key") == key and hasattr(setting, "value") and getattr(setting, "value") is not None:
-                return float(getattr(setting, "value"))
-        except Exception:
-            pass
-        return default
-
-    # Stable vs Emerging currencies
-    stable_currencies = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
-    is_stable = target_currency in stable_currencies
-
-    # Real-time/Current inflation rates
-    if inflation_rate is None:
-        setting_key = f"inflation_rate_{target_currency.lower()}"
-        inflation_map = {
-            "USD": 3.4, "INR": 5.1, "EUR": 2.4, "GBP": 2.0, "JPY": 2.5, "CAD": 2.8, "AUD": 3.6
-        }
-        fallback_val = inflation_map.get(target_currency, 3.0)
-        
-        # Try target currency setting first
-        inflation_setting = db.query(SystemSettingModel).filter(SystemSettingModel.key == setting_key).first()
-        if (inflation_setting and hasattr(inflation_setting, "key") and getattr(inflation_setting, "key") == setting_key 
-                and hasattr(inflation_setting, "value") and getattr(inflation_setting, "value") is not None):
-            try:
-                inflation_rate = float(getattr(inflation_setting, "value"))
-            except ValueError:
-                inflation_rate = fallback_val
-        else:
-            # Fallback to default inflation rate setting
-            default_setting = db.query(SystemSettingModel).filter(SystemSettingModel.key == "inflation_rate_default").first()
-            if (default_setting and hasattr(default_setting, "key") and getattr(default_setting, "key") == "inflation_rate_default"
-                    and hasattr(default_setting, "value") and getattr(default_setting, "value") is not None):
-                try:
-                    inflation_rate = float(getattr(default_setting, "value"))
-                except ValueError:
-                    inflation_rate = fallback_val
-            else:
-                inflation_rate = fallback_val
-
-    # Volatility / Exchange Risk factor
-    if currency_factor is None:
-        if is_stable:
-            currency_factor = get_setting_val("volatility_factor_stable", 1.01)
-        else:
-            currency_factor = get_setting_val("volatility_factor_volatile", 1.03)
-
-    # Contingency buffer rate
-    if is_stable:
-        contingency_rate = get_setting_val("contingency_rate_stable", 5.0)
-    else:
-        contingency_rate = get_setting_val("contingency_rate_volatile", 8.0)
-
-    utilization_threshold = get_setting_val("utilization_threshold", 0.8)
-
-    # 4. Extract Metrics from Budget Master Data robustly
-    total_estimated = float(budget.overall_budget or 0.0)
-    total_utilized = 0.0
-    total_balance = 0.0
-
-    for row in (budget.budget_data or []):
-        try:
-            # Robustly parse utilization and balance from multiple potential keys
+    
+    if budget:
+        budget_data = budget.budget_data or []
+        for row in budget_data:
             util = clean_float(row.get('Total utilization') or row.get('total_utilization') or row.get('Utilized') or row.get('utilized') or 0.0)
             if not row.get('Total utilization') and not row.get('total_utilization') and (row.get('Commitment') or row.get('commitment')):
                 comm = clean_float(row.get('Commitment') or row.get('commitment') or 0.0)
                 total_utilized += (util + comm)
             else:
                 total_utilized += util
-
-            bal = clean_float(row.get('Balance') or row.get('balance') or 0.0)
-            total_balance += bal
-        except Exception as e:
-            logger.warning(f"[budget proposal] Row parsing error: {e}")
-            continue
-
-    # Fallback/sanity check for balance if it wasn't summed correctly
-    if total_balance == 0.0 and total_estimated > 0.0:
-        total_balance = max(0.0, total_estimated - total_utilized)
-
-    remaining_balance = max(0.0, total_estimated - total_utilized)
-    utilization_ratio = (total_utilized / total_estimated) if total_estimated > 0 else 0
-
-    # 5. Step-by-Step Calculations in USD
-    inflation_usd = remaining_balance * (inflation_rate / 100.0)
-    volatility_usd = remaining_balance * (currency_factor - 1.0)
-
-    # Risk-based Contingency Buffer
-    contingency_usd = 0.0
-    contingency_applied = False
-    if utilization_ratio > utilization_threshold:
-        contingency_usd = total_estimated * (contingency_rate / 100.0)
-        contingency_applied = True
-
-    suggested_additional_usd = inflation_usd + volatility_usd + contingency_usd
-
-    # 6. Format currency symbol for reasoning text
-    currency_symbols = {
-        "USD": "$", "INR": "₹", "EUR": "€", "GBP": "£", "JPY": "¥"
-    }
-    symbol = currency_symbols.get(target_currency, target_currency + " ")
-
-    # Localized display values
-    remaining_local = remaining_balance * rate
-    inflation_local = inflation_usd * rate
-    volatility_local = volatility_usd * rate
-    contingency_local = contingency_usd * rate
-    suggested_additional_local = suggested_additional_usd * rate
-
-    # 7. Generate Step-by-Step Calculations List
-    calculations = [
-        {
-            "step": "Remaining Balance",
-            "formula": "Total Budget - Total Utilized",
-            "usd_val": round(remaining_balance, 2),
-            "local_val": round(remaining_local, 2),
-            "applied": True
-        },
-        {
-            "step": "Inflation Adjustment",
-            "formula": f"Remaining Balance * Inflation Rate ({inflation_rate}%)",
-            "usd_val": round(inflation_usd, 2),
-            "local_val": round(inflation_local, 2),
-            "applied": True
-        },
-        {
-            "step": "Currency Volatility Buffer",
-            "formula": f"Remaining Balance * Volatility ({round((currency_factor - 1.0) * 100.0, 1)}%)",
-            "usd_val": round(volatility_usd, 2),
-            "local_val": round(volatility_local, 2),
-            "applied": True
-        },
-        {
-            "step": "Contingency Buffer",
-            "formula": f"Total Budget * Contingency ({contingency_rate}%) if Utilization > {int(utilization_threshold * 100)}%",
-            "usd_val": round(contingency_usd, 2),
-            "local_val": round(contingency_local, 2),
-            "applied": contingency_applied
-        },
-        {
-            "step": "Total Revision Suggested",
-            "formula": "Sum of Adjustments",
-            "usd_val": round(suggested_additional_usd, 2),
-            "local_val": round(suggested_additional_local, 2),
-            "applied": True
-        }
-    ]
-
-    # 8. Detailed reasoning text
-    reasoning = (
-        f"Smart Market Analysis Suggestion for {project_name} (Currency: {target_currency}): "
-        f"1. Inflation rate of {inflation_rate}% applied to the remaining balance of {symbol}{round(remaining_local, 2):,} {target_currency} "
-        f"(${round(remaining_balance, 2):,} USD) adds {symbol}{round(inflation_local, 2):,} {target_currency}. "
-        f"2. Currency volatility risk of {round((currency_factor - 1.0) * 100.0, 1)}% adds {symbol}{round(volatility_local, 2):,} {target_currency}. "
+                
+    overall_budget = float(budget.overall_budget or 0.0) if budget else 0.0
+    remaining_balance = max(0.0, overall_budget - total_utilized)
+    utilization_ratio = (total_utilized / overall_budget) if overall_budget > 0 else 0.0
+    
+    # Merge backward-compatible keys
+    result["current_overall_budget"] = overall_budget
+    result["total_utilized"] = total_utilized
+    result["remaining_balance"] = remaining_balance
+    result["utilization_ratio"] = round(utilization_ratio, 4)
+    result["delta"] = result["overrun_usd"]
+    result["suggested_overall_budget"] = result["suggested_budget_usd"]
+    
+    # Reasoning fallback
+    symbol_map = {"USD": "$", "INR": "₹", "EUR": "€", "GBP": "£"}
+    sym = symbol_map.get((currency or "USD").upper(), "$")
+    result["reasoning"] = (
+        f"Procurement Intelligence Revision proposal for {project_name} ({industry} Industry):\n"
+        f"- Target Currency: {currency} (Exchange Rate: {result['exchange_rate']})\n"
+        f"- Overall revision suggestion is +{sym}{round(result['overrun_local'], 2):,} {currency} "
+        f"(+${round(result['overrun_usd'], 2):,} USD) driven by commodity escalation and supply chain risk buffers."
     )
-    if contingency_applied:
-        reasoning += (
-            f"3. High utilization ratio of {round(utilization_ratio * 100.0, 1)}% (exceeding {int(utilization_threshold * 100)}%) "
-            f"triggers a {contingency_rate}% contingency buffer of {symbol}{round(contingency_local, 2):,} {target_currency} "
-            f"(${round(contingency_usd, 2):,} USD). "
-        )
-    else:
-        reasoning += f"3. Utilization ratio of {round(utilization_ratio * 100.0, 1)}% is within normal limits. "
-
-    reasoning += f"Total suggested budget revision is +{symbol}{round(suggested_additional_local, 2):,} {target_currency} (+${round(suggested_additional_usd, 2):,} USD)."
-
-    return {
-        "project_name": project_name,
-        "currency": target_currency,
-        "exchange_rate": rate,
-        "current_overall_budget": round(total_estimated, 2),
-        "total_utilized": round(total_utilized, 2),
-        "remaining_balance": round(remaining_balance, 2),
-        "utilization_ratio": round(utilization_ratio, 4),
-        "suggested_overall_budget": round(total_estimated + suggested_additional_usd, 2),
-        "delta": round(suggested_additional_usd, 2),
-        "inflation_rate": inflation_rate,
-        "currency_factor": currency_factor,
-        "calculations": calculations,
-        "reasoning": reasoning
-    }
+    
+    return result
 
 
 

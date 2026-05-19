@@ -31,6 +31,7 @@ from app.models import employee_column  # noqa: F401
 from app.models import project  # noqa: F401
 from app.models import upload_tracker # noqa: F401
 from app.models import budget # noqa: F401  ← registers budget_summaries + budget_revisions tables
+from app.models import procurement_intelligence # noqa: F401
 from app.models import project_sub_category # noqa: F401
 from app.models import meeting # noqa: F401
 from app.models import user_session # noqa: F401
@@ -163,6 +164,10 @@ async def startup_event():
         # Adds the join_code column + backfills existing projects if not done yet.
         from app.scripts.join_code_migration import run_join_code_migration
         run_join_code_migration(db)
+        
+        # Start background procurement scheduler
+        from app.services.scheduler_service import init_scheduler
+        init_scheduler()
     finally:
         db.close()
 
