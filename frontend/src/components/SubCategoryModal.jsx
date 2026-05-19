@@ -6,11 +6,11 @@ const SubCategoryModal = ({ isOpen, onClose, project, showNotification }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
+    <div className="app-modal-overlay z-[60]">
+      <div className="app-modal-container max-w-6xl w-full max-h-[92vh]">
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-20">
+        <div className="app-modal-header">
           <div className="flex items-center gap-4">
             <div className="bg-blue-600 p-2 rounded-lg text-white">
                 <Settings className="h-6 w-6" />
@@ -24,12 +24,12 @@ const SubCategoryModal = ({ isOpen, onClose, project, showNotification }) => {
                 </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all text-slate-500 hover:text-slate-800 dark:hover:text-white border border-transparent hover:border-slate-300">
+          <button onClick={onClose} className="app-modal-close-btn">
             <X className="h-6 w-6" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-hidden p-6 bg-slate-50/50 dark:bg-slate-900/50">
+        <div className="app-modal-body overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
             <ProjectTrackerManagement 
                 project={project}
                 showNotification={showNotification}

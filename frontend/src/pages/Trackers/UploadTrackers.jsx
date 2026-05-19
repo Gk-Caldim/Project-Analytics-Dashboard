@@ -1150,19 +1150,21 @@ const UploadTrackers = () => {
 
       {/* Delete Tracker Modal */}
       {showDeletePrompt && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-4 sm:p-6 max-w-sm w-full mx-4 shadow-2xl border border-border dark:border-slate-800">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="font-bold text-text-primary dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
-              <button onClick={cancelDelete} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"><X className="h-4 w-4 sm:h-5 sm:w-5" /></button>
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Delete</h3>
+              <button onClick={cancelDelete} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div className="mb-6">
-              <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300">Delete upload record <span className="font-bold text-text-primary dark:text-white underline">{showDeletePrompt.name}</span>?</p>
+            <div className="app-modal-body">
+              <p className="text-sm text-text-secondary dark:text-slate-350">Delete upload record <span className="font-bold text-text-primary dark:text-white underline">{showDeletePrompt.name}</span>?</p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-2 italic font-medium">This action cannot be undone.</p>
             </div>
-            <div className="flex justify-end space-x-2">
-              <button onClick={cancelDelete} className="px-4 py-2 text-xs sm:text-sm border border-border dark:border-slate-700 rounded-lg text-text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-              <button onClick={confirmDeleteTracker} className="px-4 py-2 text-xs sm:text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Delete Record</button>
+            <div className="app-modal-footer">
+              <button onClick={cancelDelete} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">Cancel</button>
+              <button onClick={confirmDeleteTracker} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Delete Record</button>
             </div>
           </div>
         </div>
@@ -1170,23 +1172,23 @@ const UploadTrackers = () => {
 
       {/* Bulk Delete Prompt */}
       {showBulkDeletePrompt.show && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-4 sm:p-6 max-w-sm w-full mx-4 shadow-2xl border border-border dark:border-slate-800">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="font-bold text-text-primary dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
-              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Bulk Delete</h3>
+              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mb-6">
-              <p className="text-xs sm:text-sm text-text-secondary dark:text-slate-300">
+            <div className="app-modal-body">
+              <p className="text-sm text-text-secondary dark:text-slate-350">
                 Are you sure you want to delete <span className="font-bold text-text-primary dark:text-white underline">{showBulkDeletePrompt.count}</span> selected upload{showBulkDeletePrompt.count > 1 ? 's' : ''}?
               </p>
               <p className="text-xs text-red-600 dark:text-red-400 mt-2 italic font-medium">This action cannot be undone.</p>
             </div>
-            <div className="flex justify-end space-x-2">
-              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-4 py-2 text-xs sm:text-sm border border-border dark:border-slate-700 rounded-lg text-text-primary dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-              <button onClick={confirmBulkDelete} className="px-4 py-2 text-xs sm:text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Bulk Delete</button>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">Cancel</button>
+              <button onClick={confirmBulkDelete} className="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all">Bulk Delete</button>
             </div>
           </div>
         </div>
@@ -1194,25 +1196,25 @@ const UploadTrackers = () => {
 
       {/* Export Confirmation Prompt */}
       {showExportConfirmPrompt?.show && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="font-medium text-gray-900 text-sm sm:text-base">Confirm Export</h3>
-              <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Export</h3>
+              <button onClick={() => setShowExportConfirmPrompt(null)} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mb-4">
-              <p className="text-xs sm:text-sm text-gray-600">
+            <div className="app-modal-body">
+              <p className="text-sm text-text-secondary dark:text-slate-350">
                 Export {showExportConfirmPrompt.count} upload{showExportConfirmPrompt.count > 1 ? 's' : ''} as {showExportConfirmPrompt.format.toUpperCase()}?
               </p>
             </div>
-            <div className="flex justify-end space-x-2">
-              <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowExportConfirmPrompt(null)} className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">Cancel</button>
               <button onClick={() => {
                 handleExport(showExportConfirmPrompt.format);
                 setShowExportConfirmPrompt(null);
-              }} className="px-4 py-1.5 text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-all shadow-md active:scale-95">Export</button>
+              }} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded font-bold transition-all shadow-md active:scale-95">Export</button>
             </div>
           </div>
         </div>
@@ -1220,27 +1222,19 @@ const UploadTrackers = () => {
 
       {/* Upload Form Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4 border border-border dark:border-slate-800">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-sm sm:text-base">
-                <span className="bg-slate-100 dark:bg-slate-800 text-text-primary dark:text-slate-100 px-2 py-1 rounded">
-                  Upload Details
-                </span>
-              </h3>
-
-              <button
-                onClick={() => setShowUploadModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Upload Details</h3>
+              <button onClick={() => setShowUploadModal(false)} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="app-modal-body space-y-4">
               {/* Project */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Project *</label>
+                <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Project *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={projectList.map(p => p.name)}
@@ -1270,7 +1264,7 @@ const UploadTrackers = () => {
 
               {/* Department */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Department *</label>
+                <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Department *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
@@ -1291,7 +1285,7 @@ const UploadTrackers = () => {
 
               {/* Employee Name */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">Employee Name *</label>
+                <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Employee Name *</label>
                 {isAdmin ? (
                   <SearchableDropdown
                     options={employeeList.map(e => e.name)}
@@ -1312,7 +1306,7 @@ const UploadTrackers = () => {
 
               {/* File Upload */}
               <div>
-                <label className="block text-xs sm:text-sm font-medium text-text-secondary dark:text-slate-300 mb-1">File *</label>
+                <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">File *</label>
                 <div className="border-2 border-dashed border-border dark:border-slate-700 rounded-lg p-4 hover:border-slate-400 dark:hover:border-slate-500 transition-colors bg-slate-50/50 dark:bg-slate-800/50">
                   <label className="cursor-pointer block">
                     <input
@@ -1335,9 +1329,9 @@ const UploadTrackers = () => {
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 mt-6">
+            <div className="app-modal-footer">
               <button onClick={() => setShowUploadModal(false)} className="px-3 py-1.5 text-xs sm:text-sm border border-border dark:border-slate-700 rounded text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancel</button>
-              <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-black dark:bg-white text-white dark:text-black rounded hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors font-medium">Upload File</button>
+              <button onClick={handleUploadSubmit} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors font-medium">Upload File</button>
             </div>
           </div>
         </div>
@@ -1345,8 +1339,8 @@ const UploadTrackers = () => {
 
       {/* Excel Viewer Modal - FIXED to pass headers and data at root level */}
       {excelViewerData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-lg w-full max-w-7xl h-[95vh] flex flex-col border border-border dark:border-slate-800 shadow-2xl">
+        <div className="app-modal-overlay">
+          <div className="bg-app-surface dark:bg-slate-900 rounded-lg w-full max-w-7xl h-[95vh] flex flex-col border border-border dark:border-slate-800 shadow-2xl overflow-hidden m-4">
             <div className="flex-1 overflow-auto p-2 sm:p-4">
               <FileContentViewer
                 fileData={excelViewerData.fileData || {

@@ -15,6 +15,8 @@ const ApplicationAccess = () => {
   const [showRequestsDrawer, setShowRequestsDrawer] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -80,12 +82,19 @@ const ApplicationAccess = () => {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
     try {
-      await API.delete(`/application-access/${id}`);
+      await API.delete(`/application-access/${userToDelete.id}`);
       await fetchUsersAndRoles();
       showNotification('User deleted successfully');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
     } catch (error) {
       console.error('Error deleting user:', error);
       showNotification('Failed to delete user', 'error');
@@ -195,7 +204,7 @@ const ApplicationAccess = () => {
                         <Edit className="h-4 w-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteUser(user.id)}
+                        onClick={() => handleDeleteClick(user)}
                         className="text-[var(--text-muted)] hover:text-red-600 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -210,25 +219,25 @@ const ApplicationAccess = () => {
       </div>
 
       {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[250] flex items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-[var(--surface)] w-full max-w-lg border border-[var(--border-subtle)]/50 flex flex-col shadow-2xl">
-            <div className="p-8 border-b border-[var(--border-subtle)]/30 flex items-center justify-between bg-[var(--elevated-card)] text-[var(--text-primary)]">
-               <h3 className="text-xl font-bold uppercase tracking-tight">
+        <div className="app-modal-overlay z-[250]">
+          <div className="app-modal-container max-w-lg w-full mx-4">
+            <div className="app-modal-header bg-[var(--elevated-card)] text-[var(--text-primary)]">
+               <h3 className="app-modal-title">
                  Manage Credentials
                </h3>
-               <button onClick={() => setShowEditModal(false)} className="text-[var(--text-muted)] hover:text-[var(--accent-hover)] w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--bg)]">
-                 <X className="h-6 w-6" />
+               <button onClick={() => setShowEditModal(false)} className="app-modal-close-btn">
+                 <X className="h-5 w-5" />
                </button>
             </div>
             
-            <div className="p-8 space-y-8">
+            <div className="app-modal-body space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Email Address</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full h-12 px-5 border border-[var(--border-subtle)]/50 bg-[var(--bg)] focus:border-[var(--accent-hover)] outline-none text-sm font-medium text-[var(--text-primary)] rounded-md"
+                  className="w-full h-12 px-5 border border-[var(--border-subtle)] bg-[var(--bg)] focus:border-[var(--accent-hover)] outline-none text-sm font-medium text-[var(--text-primary)] rounded-md"
                   placeholder="e.g. user@enterprise.com"
                 />
               </div>
@@ -258,14 +267,14 @@ const ApplicationAccess = () => {
                     type={showPassword ? "text" : "password"}
                     value={formData.confirm_password}
                     onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
-                    className="w-full h-12 px-5 border border-[var(--border-subtle)]/50 bg-[var(--bg)] focus:border-[var(--accent-hover)] outline-none text-sm font-medium text-[var(--text-primary)] rounded-md"
+                    className="w-full h-12 px-5 border border-[var(--border-subtle)] bg-[var(--bg)] focus:border-[var(--accent-hover)] outline-none text-sm font-medium text-[var(--text-primary)] rounded-md"
                     placeholder="••••••••"
                   />
                 </div>
               )}
             </div>
 
-            <div className="p-8 bg-[var(--elevated-card)] border-t border-[var(--border-subtle)]/30 flex gap-4">
+            <div className="app-modal-footer bg-[var(--elevated-card)] border-t border-[var(--border-subtle)]/30 flex gap-4">
               <button
                 onClick={() => setShowEditModal(false)}
                 className="flex-1 h-12 font-bold text-[var(--text-muted)] hover:text-[var(--accent-hover)] uppercase tracking-widest text-[10px] transition-all rounded-full"
@@ -286,7 +295,7 @@ const ApplicationAccess = () => {
 
       {/* Incoming Requests Drawer */}
       {showRequestsDrawer && (
-        <div className="fixed inset-0 z-[300] bg-black/40 backdrop-blur-sm animate-in fade-in flex justify-end">
+        <div className="app-modal-overlay z-[300] justify-end p-0 items-stretch">
           <div className="bg-[var(--surface)] w-full max-w-2xl h-full shadow-2xl animate-in slide-in-from-right flex flex-col border-l border-[var(--border-subtle)]/30">
             <div className="p-8 border-b border-[var(--border-subtle)]/30 flex items-center justify-between bg-[var(--elevated-card)]">
               <div>
@@ -357,6 +366,35 @@ const ApplicationAccess = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="app-modal-overlay z-[350]">
+          <div className="app-modal-container max-w-sm w-full mx-4 p-8 text-center">
+            <div className="w-20 h-20 bg-red-500/10 text-red-600 flex items-center justify-center mx-auto mb-6 rounded-full border border-red-500/20">
+              <Trash2 className="h-10 w-10" />
+            </div>
+            <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-tight">Delete User Access?</h3>
+            <p className="text-[11px] text-[var(--text-muted)] font-medium uppercase tracking-widest leading-relaxed">
+               The user <span className="text-red-600 font-bold">"{userToDelete?.username}"</span> will be permanently removed.
+            </p>
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => { setShowDeleteModal(false); setUserToDelete(null); }}
+                className="flex-1 h-11 font-bold text-[var(--text-muted)] hover:text-[var(--accent-hover)] hover:bg-[var(--bg)] uppercase tracking-widest text-[10px] rounded-full transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteUser}
+                className="flex-[2] h-11 bg-red-600 text-white font-bold uppercase tracking-widest text-[10px] rounded-full hover:bg-red-700 transition-all"
+              >
+                Delete User
+              </button>
             </div>
           </div>
         </div>

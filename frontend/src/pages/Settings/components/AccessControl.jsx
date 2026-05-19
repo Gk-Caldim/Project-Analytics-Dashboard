@@ -168,21 +168,33 @@ const AccessControl = () => {
     let currentPermissions = role?.permissions || [];
     let updatedPermissions;
     const moduleObj = permissionsGroups.flatMap(g => g.permissions).find(p => p.name === moduleName);
-    const moduleSubPermIds = moduleObj?.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${moduleName}:${sp.id}`) || [];
+    // Include both flat and prefixed IDs for subpermissions to handle legacy clean-up properly
+    const moduleSubPermIds = moduleObj?.subPermissions?.flatMap(sp => [sp.id, `${moduleName}:${sp.id}`]) || [];
 
     if (subPermId) {
-      const fullSubPerm = subPermId.includes('_') ? subPermId : `${moduleName}:${subPermId}`;
-      updatedPermissions = currentPermissions.includes(fullSubPerm)
-        ? currentPermissions.filter(p => p !== fullSubPerm)
-        : [...currentPermissions, fullSubPerm];
-    } else {
-      const isEnabled = currentPermissions.includes(moduleName);
+      const fullSubPerm = `${moduleName}:${subPermId}`;
+      const flatSubPerm = subPermId;
+      const isEnabled = currentPermissions.includes(fullSubPerm) || currentPermissions.includes(flatSubPerm);
+      
       if (isEnabled) {
+        // Toggle OFF: remove both versions
+        updatedPermissions = currentPermissions.filter(p => p !== fullSubPerm && p !== flatSubPerm);
+      } else {
+        // Toggle ON: save the prefixed version
+        updatedPermissions = [...currentPermissions, fullSubPerm];
+      }
+    } else {
+      const isEnabled = currentPermissions.includes(moduleName) || 
+                        (moduleName === 'Budget Master' && currentPermissions.includes('Budget Upload'));
+      if (isEnabled) {
+        // Toggle OFF: remove module name, legacy budget name, and all its sub-permissions
         updatedPermissions = currentPermissions.filter(p =>
-          p !== moduleName && !moduleSubPermIds.includes(p)
+          p !== moduleName && p !== 'Budget Upload' && !moduleSubPermIds.includes(p)
         );
       } else {
-        updatedPermissions = [...new Set([...currentPermissions, moduleName, ...moduleSubPermIds])];
+        // Toggle ON: save module name and all its prefixed sub-permissions
+        const toAdd = [moduleName, ...(moduleObj?.subPermissions?.map(sp => `${moduleName}:${sp.id}`) || [])];
+        updatedPermissions = [...new Set([...currentPermissions, ...toAdd])];
       }
     }
     
@@ -286,11 +298,15 @@ const AccessControl = () => {
             <div className="space-y-2">
               {group.permissions.map((perm) => {
                 const isActive = activeModuleId === perm.id;
-                const isEnabled = (currentPermissions || []).includes(perm.name);
+                const isEnabled = (currentPermissions || []).includes(perm.name) || 
+                                  (perm.name === 'Budget Master' && (currentPermissions || []).includes('Budget Upload'));
                 
-                // Calculate selection count
-                const moduleSubPermIds = perm.subPermissions?.map(sp => sp.id.includes('_') ? sp.id : `${perm.name}:${sp.id}`) || [];
-                const enabledCount = (currentPermissions || []).filter(p => p === perm.name || moduleSubPermIds.includes(p)).length;
+                // Calculate selection count correctly without double counting
+                const enabledCount = (perm.subPermissions || []).filter(sub => {
+                  const fullId = `${perm.name}:${sub.id}`;
+                  const flatId = sub.id;
+                  return (currentPermissions || []).includes(fullId) || (currentPermissions || []).includes(flatId);
+                }).length + (isEnabled ? 1 : 0);
                 const totalOptions = 1 + (perm.subPermissions?.length || 0);
 
                 return (
@@ -336,8 +352,9 @@ const AccessControl = () => {
                              <h5 className="text-[10px] font-bold text-[var(--text-primary)] uppercase tracking-widest">Sub-Level Access Control</h5>
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {perm.subPermissions.map(sub => {
-                                  const fullId = sub.id.includes('_') ? sub.id : `${perm.name}:${sub.id}`;
-                                  const isSubEnabled = (currentPermissions || []).includes(fullId);
+                                  const fullId = `${perm.name}:${sub.id}`;
+                                  const flatId = sub.id;
+                                  const isSubEnabled = (currentPermissions || []).includes(fullId) || (currentPermissions || []).includes(flatId);
                                   return (
                                     <div 
                                       key={sub.id} 
@@ -443,26 +460,26 @@ const AccessControl = () => {
 
       {/* Configuration Modal */}
       {showConfigModal && selectedRole && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[450] flex items-center justify-center p-6 animate-in fade-in duration-200 font-['Inter']">
-          <div className="bg-[var(--surface)] w-full max-w-2xl border border-[var(--border-subtle)] rounded-none shadow-2xl flex flex-col max-h-[90vh]">
-             <div className="p-6 border-b border-[var(--border-subtle)]/50 flex items-center justify-between bg-[var(--elevated-card)]">
+        <div className="app-modal-overlay z-[450]">
+          <div className="app-modal-container max-w-2xl w-full mx-4">
+             <div className="app-modal-header bg-[var(--elevated-card)]">
                 <div className="flex flex-col">
-                   <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">{selectedRole.name}</h3>
+                   <h3 className="app-modal-title">{selectedRole.name}</h3>
                    <p className="text-[9px] text-[var(--text-muted)] uppercase tracking-[0.2em] font-bold mt-1">Permission Settings</p>
                 </div>
-                <button onClick={() => setShowConfigModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--bg)] transition-colors">
-                   <X className="h-5 w-5 text-[var(--text-muted)]" />
+                <button onClick={() => setShowConfigModal(false)} className="app-modal-close-btn">
+                   <X className="h-5 w-5" />
                 </button>
              </div>
 
-             <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
+             <div className="app-modal-body">
                 <PermissionsAccordion 
                   currentPermissions={selectedRole.permissions || []} 
                   onToggle={(name, sub) => handleTogglePermission(selectedRole, name, sub)} 
                 />
              </div>
 
-             <div className="p-6 bg-[var(--elevated-card)] flex gap-4 border-t border-[var(--border-subtle)]/50">
+             <div className="app-modal-footer bg-[var(--elevated-card)]">
                 <button
                   onClick={() => {
                     fetchRoles();
@@ -487,19 +504,19 @@ const AccessControl = () => {
 
       {/* Creation Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[500] flex items-center justify-center p-6 animate-in fade-in duration-200 font-['Inter']">
-          <div className="bg-[var(--surface)] w-full max-w-2xl border border-[var(--border-subtle)] rounded-none shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-[var(--border-subtle)]/50 flex items-center justify-between bg-[var(--elevated-card)] text-[var(--text-primary)]">
+        <div className="app-modal-overlay z-[500]">
+          <div className="app-modal-container max-w-2xl w-full mx-4">
+            <div className="app-modal-header bg-[var(--elevated-card)] text-[var(--text-primary)]">
                <div>
-                  <h3 className="text-xl font-bold uppercase tracking-tight">Provision Role</h3>
+                  <h3 className="app-modal-title">Provision Role</h3>
                   <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Create system access profile</p>
                </div>
-               <button onClick={() => setShowCreateModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[var(--bg)] transition-colors">
+               <button onClick={() => setShowCreateModal(false)} className="app-modal-close-btn">
                   <X className="h-5 w-5" />
                </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+            <div className="app-modal-body space-y-8">
                <div className="space-y-3">
                  <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest px-1 block">Role Name</label>
                  <input
@@ -520,7 +537,7 @@ const AccessControl = () => {
                </div>
             </div>
 
-             <div className="p-6 bg-[var(--elevated-card)] flex gap-4 border-t border-[var(--border-subtle)]/50">
+             <div className="app-modal-footer bg-[var(--elevated-card)]">
               <button 
                 onClick={() => setShowCreateModal(false)}
                 className="flex-1 h-11 font-bold text-[var(--text-muted)] hover:text-[var(--accent-hover)] hover:bg-[var(--surface)] uppercase tracking-widest text-[10px] rounded-full transition-all"
@@ -541,16 +558,16 @@ const AccessControl = () => {
 
       {/* Delete Confirmation */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[550] flex items-center justify-center p-6 animate-in fade-in duration-200 font-['Inter']">
-          <div className="bg-[var(--surface)] w-full max-w-sm border border-[var(--border-subtle)] p-10 text-center rounded-none shadow-2xl">
-            <div className="w-20 h-20 bg-red-500/10 text-red-600 flex items-center justify-center mx-auto mb-8 rounded-full border border-red-500/20">
+        <div className="app-modal-overlay z-[550]">
+          <div className="app-modal-container max-w-sm w-full mx-4 p-8 text-center">
+            <div className="w-20 h-20 bg-red-500/10 text-red-600 flex items-center justify-center mx-auto mb-6 rounded-full border border-red-500/20">
               <Trash2 className="h-10 w-10" />
             </div>
             <h3 className="text-xl font-bold text-[var(--text-primary)] mb-2 uppercase tracking-tight">Delete Role?</h3>
             <p className="text-[11px] text-[var(--text-muted)] font-medium uppercase tracking-widest leading-relaxed">
                The profile <span className="text-red-600 font-bold">"{roleToDelete?.name}"</span> will be permanently removed.
             </p>
-            <div className="mt-10 flex gap-3">
+            <div className="mt-8 flex gap-3">
               <button 
                 onClick={() => { setShowDeleteModal(false); setRoleToDelete(null); }}
                 className="flex-1 h-11 font-bold text-[var(--text-muted)] hover:text-[var(--accent-hover)] hover:bg-[var(--bg)] uppercase tracking-widest text-[10px] rounded-full transition-all"

@@ -103,6 +103,7 @@ def add_project(
     if current_user.get("role") not in ["Admin", "Super Admin", "Project Manager", "Finance", "Head"]:
         raise HTTPException(status_code=403, detail="Only Admins can create projects")
     db_project = crud_project.create_project(db, project)
+    structure_cache.clear()
     
     # Audit Log
     log_activity(
@@ -155,6 +156,7 @@ def update_project(
     diff_summary = generate_diff_summary(db_project, project)
     
     updated_project = crud_project.update_project(db, project_id, project)
+    structure_cache.clear()
     
     # Audit Log
     log_activity(
@@ -189,9 +191,8 @@ def delete_project(
     try:
         project_id_str = db_project.project_id
         success = crud_project.delete_project(db, project_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Project not found")
-            
+        structure_cache.clear()
+        
         # Cleanup orphaned budget summary if exists
         try:
             db.query(BudgetSummary).filter(BudgetSummary.project_name == db_project.name).delete()
@@ -248,6 +249,7 @@ def bulk_delete_projects(
 
     try:
         success = crud_project.bulk_delete_projects(db, project_ids)
+        structure_cache.clear()
         if not success:
             raise HTTPException(status_code=404, detail="One or more projects not found")
             
@@ -466,6 +468,7 @@ def get_project_structure(
         "utilized_budget": project.utilized_budget,
         "balance_budget": project.balance_budget,
         "project_manager": project.project_manager,
+        "employee_name": project.employee_name,
         "modules":      flat_modules,   # ← flat list — sidebar uses this
         "uploads":      uploads_out,
     }
@@ -544,6 +547,7 @@ def get_all_project_structures(
             "utilized_budget":  p.utilized_budget,
             "balance_budget":   p.balance_budget,
             "project_manager":  p.project_manager,
+            "employee_name":    p.employee_name,
             "modules":          [],         # sidebar uses uploads[], not modules[]
             "uploads":          uploads_out,
         })

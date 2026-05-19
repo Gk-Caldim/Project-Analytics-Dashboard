@@ -6,7 +6,7 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
@@ -186,13 +186,13 @@ const BudgetMaster = () => {
   // ─── Permission helper ─────────────────────────────────────────────────────
   // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
   const userPerms = user?.permissions || [];
-  const hasBudgetModule = userPerms.includes('Budget Master');
+  const hasBudgetModule = userPerms.includes('Budget Master') || userPerms.includes('Budget Upload');
   const hasBudgetPerm = (sub) => {
     // Admins and Super Admins bypass all checks
     if (['Admin', 'Super Admin'].includes(userRole)) return true;
     // Must have the parent module enabled first
     if (!hasBudgetModule) return false;
-    return userPerms.includes(`Budget Master:${sub}`);
+    return userPerms.includes(`Budget Master:${sub}`) || userPerms.includes(sub);
   };
 
   // ─── Fetch helpers ──────────────────────────────────────────────────────────
@@ -835,23 +835,25 @@ const BudgetMaster = () => {
 
       {/* ── Delete Row Prompt ────────────────────────────────────────────────── */}
       {showDeletePrompt && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Confirm Delete</h3>
-              <button onClick={() => setShowDeletePrompt(null)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                Close
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Delete</h3>
+              <button onClick={() => setShowDeletePrompt(null)} className="app-modal-close-btn">
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
-            <p className="text-sm text-red-600 mb-6 font-medium">This action cannot be undone.</p>
-            <div className="flex justify-end gap-4">
+            <div className="app-modal-body py-4">
+              <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
+              <p className="text-sm text-red-600 font-medium">This action cannot be undone.</p>
+            </div>
+            <div className="app-modal-footer">
               <button onClick={() => setShowDeletePrompt(null)}
-                className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
                 Cancel
               </button>
               <button onClick={confirmDeleteRow}
-                className="h-10 px-6 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
                 Delete
               </button>
             </div>
@@ -863,16 +865,16 @@ const BudgetMaster = () => {
 
       {/* ── Add Column Modal ────────────────────────────────────────────────── */}
       {showAddColumnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add New Column</h3>
-              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                <ChevronDown className="w-5 h-5 rotate-180" />
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Add New Column</h3>
+              <button onClick={() => setShowAddColumnModal(false)} className="app-modal-close-btn">
+                <X className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="space-y-6">
+            <div className="app-modal-body space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Column Label</label>
                 <input 
@@ -880,7 +882,7 @@ const BudgetMaster = () => {
                   value={newColumnData.label}
                   onChange={e => setNewColumnData({ ...newColumnData, label: e.target.value })}
                   placeholder="e.g., Tax Rate"
-                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100 placeholder-slate-400"
                 />
               </div>
 
@@ -889,7 +891,7 @@ const BudgetMaster = () => {
                 <select 
                   value={newColumnData.type}
                   onChange={e => setNewColumnData({ ...newColumnData, type: e.target.value })}
-                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100"
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -897,17 +899,17 @@ const BudgetMaster = () => {
                   <option value="status">Status</option>
                 </select>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-4 mt-8">
-                <button onClick={() => setShowAddColumnModal(false)}
-                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
-                  Cancel
-                </button>
-                <button onClick={addColumn}
-                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
-                  Add Column
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowAddColumnModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button onClick={addColumn}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                Add Column
+              </button>
             </div>
           </div>
         </div>
@@ -915,35 +917,37 @@ const BudgetMaster = () => {
 
       {/* ── Waiting Period Modal ─────────────────────────────────────────────── */}
       {showWaitingModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Set Waiting Period</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">Defer revision until a specific date</p>
+                <h3 className="app-modal-title">Set Waiting Period</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Defer revision until a specific date</p>
               </div>
               <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-8">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 uppercase tracking-widest mb-2">Defer Until</label>
-              <input type="date" min={new Date().toISOString().split('T')[0]}
-                value={waitingDate}
-                onChange={e => setWaitingDate(e.target.value)}
-                className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none mb-8 transition-all" />
-              <div className="flex gap-4">
-                <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold text-slate-600 border border-slate-300 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all">
-                  Cancel
-                </button>
-                <button disabled={!waitingDate}
-                  onClick={() => { handleStatusUpdate(showWaitingModal, 'In Waiting Period', { waiting_until: waitingDate }); setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-40">
-                  Set Period
-                </button>
+            <div className="app-modal-body space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Defer Until</label>
+                <input type="date" min={new Date().toISOString().split('T')[0]}
+                  value={waitingDate}
+                  onChange={e => setWaitingDate(e.target.value)}
+                  className="w-full px-4 py-2.5 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100" />
               </div>
+            </div>
+            <div className="app-modal-footer">
+              <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button disabled={!waitingDate}
+                onClick={() => { handleStatusUpdate(showWaitingModal, 'In Waiting Period', { waiting_until: waitingDate }); setShowWaitingModal(null); setWaitingDate(''); }}
+                className="px-4 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors disabled:opacity-40">
+                Set Period
+              </button>
             </div>
           </div>
         </div>
@@ -2121,25 +2125,25 @@ const BudgetMaster = () => {
 
       {/* ── Budget Audit Modal ────────────────────────────────────────────────── */}
       {showAuditModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-md bg-indigo-100 flex items-center justify-center">
                   <ClipboardList className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Audit Trail</h3>
+                  <h3 className="app-modal-title">Budget Audit Trail</h3>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
                 </div>
               </div>
               <button onClick={() => setShowAuditModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400 dark:text-slate-500">
-                <span className="text-lg font-bold">✕</span>
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="app-modal-body flex-1 overflow-y-auto">
               {fetchingAudit ? (
                 <div className="flex items-center justify-center py-24">
                   <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
@@ -2211,10 +2215,10 @@ const BudgetMaster = () => {
               )}
             </div>
 
-            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+            <div className="app-modal-footer flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <span className="text-xs font-bold text-slate-400 dark:text-slate-500">{auditLogs.length} total entries</span>
               <button onClick={() => { setShowAuditModal(false); }}
-                className="px-6 py-2 text-xs font-black text-slate-600 bg-app-surface border border-slate-200 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all uppercase tracking-widest">
+                className="px-4 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200 uppercase tracking-widest">
                 Close
               </button>
             </div>
@@ -2224,22 +2228,22 @@ const BudgetMaster = () => {
 
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Upload Template</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Required format for excel uploads</p>
+                <h3 className="app-modal-title">Budget Upload Template</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Required format for excel uploads</p>
               </div>
               <button onClick={() => setShowTemplateModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-none p-8 border border-slate-200 dark:border-slate-700 mb-8">
-                <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-6">
+            <div className="app-modal-body flex-1 overflow-y-auto space-y-6">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-6 border border-slate-200 dark:border-slate-700 mb-6">
+                <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-4">
                   Standard Column Headers
                 </h4>
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -2247,14 +2251,14 @@ const BudgetMaster = () => {
                     "Category", "Item Name", "Unit Type", "Unit count",
                     "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
                   ].map(header => (
-                    <div key={header} className="px-4 py-3 bg-app-surface dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
+                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
                       {header}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-none border border-slate-200 dark:border-slate-700">
+              <div className="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
@@ -2267,7 +2271,7 @@ const BudgetMaster = () => {
                     </tr>
                   </thead>
                   <tbody className="text-slate-600 dark:text-slate-100">
-                    <tr className="border-b border-slate-100 dark:border-slate-800 dark:border-slate-800">
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">CAPEX</td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Laptop Dell XPS</td>
                       <td className="px-6 py-4">Nos</td>
@@ -2288,13 +2292,13 @@ const BudgetMaster = () => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex justify-end gap-4">
+            <div className="app-modal-footer flex-shrink-0 bg-slate-50/50 dark:bg-slate-800/50 justify-end gap-4">
               <button onClick={() => setShowTemplateModal(false)}
-                className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
+                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-colors bg-transparent border-none">
                 Close
               </button>
               <button onClick={handleDownloadTemplate}
-                className="h-12 px-12 text-sm font-black bg-emerald-600 text-white rounded-md hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
+                className="px-6 py-2 text-sm font-black bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">
                 Download Template
               </button>
             </div>
@@ -2304,79 +2308,79 @@ const BudgetMaster = () => {
 
       {/* ── Budget Date Modal ────────────────────────────────────────────────── */}
       {showDateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Date</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Effective date for this version</p>
+                <h3 className="app-modal-title">Budget Date</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Effective date for this version</p>
               </div>
               <button onClick={() => setShowDateModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="mb-8">
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Effective Date</label>
+            <div className="app-modal-body space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 font-bold"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100 font-bold"
                 />
               </div>
+            </div>
 
-              <div className="flex gap-4">
-                <button onClick={() => setShowDateModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
-                  Cancel
-                </button>
-                <button onClick={executeSave} disabled={saving}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest">
-                  {saving ? 'Saving...' : 'Confirm'}
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowDateModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button onClick={executeSave} disabled={saving}
+                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {saving ? 'Saving...' : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
       )}
       {/* ── Excel Upload Modal ────────────────────────────────────────────────── */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Import Budget</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Upload new budget snapshot</p>
+                <h3 className="app-modal-title">Import Budget</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Upload new budget snapshot</p>
               </div>
               <button onClick={() => setShowUploadModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8 space-y-8">
+            <div className="app-modal-body space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Project Name</label>
-                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Project Name</label>
+                <div className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-350">
                   {selectedProject || 'NONE SELECTED'}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Budget Effective Date</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Budget Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Select Excel File</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Select Excel File</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -2384,32 +2388,32 @@ const BudgetMaster = () => {
                     onChange={(e) => setTempFile(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className={`w-full px-4 py-4 bg-app-surface dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
-                    <span className="text-xs font-black uppercase tracking-widest">
+                  <div className={`w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                    <span className="text-xs font-bold uppercase tracking-widest">
                       {tempFile ? tempFile.name : 'Click to select file'}
                     </span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-4 pt-4">
-                <button onClick={() => setShowUploadModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (!tempFile) { toast.error('Please select a file'); return; }
-                    const targetDate = String(budgetDate || '').trim();
-                    const historyArray = Array.isArray(historyData) ? historyData : [];
-                    const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
-                    if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
-                  }}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest"
-                >
-                  Confirm Upload
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowUploadModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!tempFile) { toast.error('Please select a file'); return; }
+                  const targetDate = String(budgetDate || '').trim();
+                  const historyArray = Array.isArray(historyData) ? historyData : [];
+                  const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
+                  if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
+                }}
+                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Confirm Upload
+              </button>
             </div>
           </div>
         </div>
@@ -2417,25 +2421,25 @@ const BudgetMaster = () => {
 
       {/* ── Overwrite Warning Modal ─────────────────────────────────────────── */}
       {showOverwriteWarning && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-red-200 dark:border-red-900/30 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-none flex items-center justify-center mx-auto mb-8">
-                <span className="text-red-600 font-black text-2xl">!</span>
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="p-8 text-center">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-red-600 font-black text-xl">!</span>
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
-              <p className="text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 mb-8 leading-relaxed uppercase tracking-widest">
-                A budget snapshot for <span className="text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
-                Uploading again will <span className="text-red-600 underline">REPLACE</span> previous data.
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 mb-2 uppercase tracking-widest">Overwrite Budget?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-455 mb-6 leading-relaxed">
+                A budget snapshot for <span className="font-bold text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="font-bold text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
+                Uploading again will <span className="text-red-600 underline font-semibold">REPLACE</span> previous data.
               </p>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 justify-center">
                 <button onClick={() => setShowOverwriteWarning(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
                   Cancel
                 </button>
                 <button onClick={executeUpload}
-                  className="flex-1 h-12 text-sm font-black bg-red-600 text-white rounded-md hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
                   Overwrite
                 </button>
               </div>
