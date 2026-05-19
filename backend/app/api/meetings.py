@@ -425,15 +425,17 @@ async def publish_meeting(
 @router.get("/{meeting_id}")
 async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
     # Handle placeholder IDs from frontend to prevent DB errors and 404 logs
-    if meeting_id in ("unscheduled", "unscheduled-session"):
+    if meeting_id in ("unscheduled", "unscheduled-session") or meeting_id.startswith("sync-"):
+        from app.models.mom import MOMSession
+        session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id).first()
         return {
             "success": True,
             "meeting": {
                 "id": meeting_id,
-                "title": "Unscheduled Session",
-                "description": "This meeting was captured without a schedule.",
-                "date": str(datetime.now().date()),
-                "time": datetime.now().strftime("%I:%M %p"),
+                "title": session.meeting_name if session else "Unscheduled Session",
+                "description": "This meeting was captured without a schedule." if not meeting_id.startswith("sync-") else "This standalone meeting was saved and captured.",
+                "date": str(session.created_at.date()) if session and session.created_at else str(datetime.now().date()),
+                "time": session.created_at.strftime("%I:%M %p") if session and session.created_at else datetime.now().strftime("%I:%M %p"),
                 "duration": 0,
                 "platform": "manual",
                 "join_url": None,
@@ -444,7 +446,8 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
                 "agenda": [],
                 "agenda_text": "",
                 "status": "completed",
-                "project_id": None,
+                "project_id": session.project_id if session else None,
+                "project_name": session.project_name if session else "No Project",
                 "transcript": [],
                 "intelligence_data": None,
             }

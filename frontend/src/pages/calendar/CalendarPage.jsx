@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
-import { ChevronLeft, ChevronRight, Plus, Search, MoreHorizontal, X, Video, MapPin, PlusCircle, Bell, Calendar as CalendarIcon, Clock, Trash2, Palette, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search, MoreHorizontal, X, Video, MapPin, PlusCircle, Bell, Calendar as CalendarIcon, Clock, Trash2, Palette, Eye, EyeOff, Archive, CalendarDays, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import './CalendarPage.css';
@@ -166,6 +166,8 @@ const CalendarPage = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null); // New state for Right Panel
+  // Right-panel temporal filter: 'upcoming' | 'all' | 'past'
+  const [rightPanelFilter, setRightPanelFilter] = useState('upcoming');
 
   const getUserInitial = () => {
     if (user?.full_name) {
@@ -199,7 +201,7 @@ const CalendarPage = () => {
         setProjects(fetchedProjects);
         
         setCalendars(prev => {
-          const personal = prev.find(c => c.id === 'personal') || { id: 'personal', name: 'My Meetings', color: EVENT_COLOR_HEXES[0], visible: true };
+          const personal = prev.find(c => c.id === 'personal') || { id: 'personal', name: 'Personal', color: EVENT_COLOR_HEXES[0], visible: true };
           const projectCals = fetchedProjects.map(p => ({
             id: p.id,
             name: p.name,
@@ -354,7 +356,8 @@ const CalendarPage = () => {
         attendees: quickData.attendees || [],
         agenda_text: 'Quickly scheduled from calendar.',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        project_id: null,
+        // Bonus: inherit active project when user is viewing a project calendar
+        project_id: activeCalendarFilter && activeCalendarFilter !== 'personal' ? activeCalendarFilter : null,
       };
 
       // Save color mapping locally to persist the color aesthetic
@@ -530,6 +533,8 @@ const CalendarPage = () => {
   // Used by MiniMonthPicker to show a dot under days that have matching events.
   const filteredEventDays = useMemo(() => {
     const rawMeetings = Array.isArray(meetings) ? meetings : [];
+    const now = dayjs();
+    
     const filtered = rawMeetings.filter(m => {
       // 1. Sidebar calendar filter
       if (activeCalendarFilter) {
@@ -558,11 +563,21 @@ const CalendarPage = () => {
         if (!matchTitle && !matchProj && !matchPlatform && !matchAttendees) return false;
       }
       
+      // 3. Temporal Tab Filter
+      const start = dayjs(`${m.date} ${m.time}`, ['YYYY-MM-DD h:mm A', 'YYYY-MM-DD HH:mm']);
+      if (rightPanelFilter === 'upcoming') {
+        // Hide events older than 30 mins ago
+        if (start.isBefore(now.subtract(30, 'minute'))) return false;
+      } else if (rightPanelFilter === 'past') {
+        // Hide events in the future
+        if (start.isAfter(now)) return false;
+      }
+      
       return true;
     });
 
     return new Set(filtered.map(m => m.date));
-  }, [meetings, activeCalendarFilter, searchQuery]);
+  }, [meetings, activeCalendarFilter, searchQuery, rightPanelFilter]);
 
   // Filter MY CALENDARS list by search query if any.
   // A calendar is shown if its name matches the search OR if it has any matching events.
@@ -685,7 +700,8 @@ const CalendarPage = () => {
           joinUrl: m.join_url || m.joinUrl,
           attendees: m.attendees || [],
           // Context fields — needed by Event Details panel
-          project_name: m.project_name || null,
+          // Resolve project_name from fetched projects (API only returns project_id)
+          project_name: m.project_name || projects.find(p => p.id === m.project_id)?.name || null,
           project_id: m.project_id || null,
           agenda: (() => {
             // agenda may be a parsed array already, or a JSON string (agenda_text)
@@ -696,7 +712,7 @@ const CalendarPage = () => {
           })(),
         };
       });
-  }, [meetings, calendars, filters.showDeclined, searchQuery, activeCalendarFilter]);
+  }, [meetings, calendars, projects, filters.showDeclined, searchQuery, activeCalendarFilter]);
 
   const upcomingEvents = useMemo(() => {
     return [...processedEvents]
@@ -704,6 +720,19 @@ const CalendarPage = () => {
       .sort((a, b) => dayjs(a.start).diff(dayjs(b.start)))
       .slice(0, 5);
   }, [processedEvents]);
+
+  // Right-panel event list — driven by the temporal filter tab
+  const rightPanelEvents = useMemo(() => {
+    const now = dayjs();
+    const sorted = [...processedEvents].sort((a, b) => dayjs(a.start).diff(dayjs(b.start)));
+    if (rightPanelFilter === 'upcoming') {
+      return sorted.filter(e => dayjs(e.end || e.start).isAfter(now.subtract(30, 'minute'))).slice(0, 12);
+    }
+    if (rightPanelFilter === 'past') {
+      return [...sorted].reverse().filter(e => dayjs(e.end || e.start).isBefore(now)).slice(0, 15);
+    }
+    return sorted; // 'all'
+  }, [processedEvents, rightPanelFilter]);
 
   return (
     <div className="calendar-page">
@@ -759,31 +788,30 @@ const CalendarPage = () => {
           </div>
 
           <div className="sidebar-section">
-            <div className="section-label-row">
-              <div className="section-label" style={{ marginBottom: 0 }}>MY CALENDARS</div>
-              {/* Show All pill — only visible when a filter is active */}
-              {activeCalendarFilter && (
-                <button
-                  className="cal-show-all-pill"
-                  onClick={() => setActiveCalendarFilter(null)}
-                  title="Clear filter and show all calendars"
-                >
-                  Show All ×
-                </button>
-              )}
-            </div>
+            <div className="section-label" style={{ marginBottom: 8 }}>MY CALENDARS</div>
 
-            {/* Active filter context banner */}
-            {activeCalendarFilter && (() => {
-              const filtered = calendars.find(c => c.id === activeCalendarFilter);
-              return filtered ? (
-                <div className="cal-filter-banner" style={{ borderLeftColor: filtered.color }}>
-                  <div className="cal-filter-dot" style={{ backgroundColor: filtered.color }} />
-                  <span className="cal-filter-name">{filtered.name}</span>
-                  <span className="cal-filter-hint">only</span>
+            {/* Static 'All Meetings' Item - Styled identically to standard calendars */}
+            <div className="calendar-list">
+              <div 
+                className={[
+                  'calendar-list-row',
+                  !activeCalendarFilter ? 'cal-row-active' : ''
+                ].filter(Boolean).join(' ')}
+                onClick={() => setActiveCalendarFilter(null)}
+              >
+                <div className="cal-row-filter-zone">
+                  <div className="cal-color-dot" style={{ backgroundColor: '#64748b' }} />
+                  <span className="cal-name" style={{ fontWeight: !activeCalendarFilter ? 600 : 500, color: !activeCalendarFilter ? '#1e293b' : '#475569' }}>
+                    All Meetings
+                  </span>
                 </div>
-              ) : null;
-            })()}
+                {!activeCalendarFilter && (
+                  <div className="cal-toggle" style={{ color: '#4f46e5' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="calendar-list">
               {visibleCalendars.map(cal => {
@@ -802,9 +830,6 @@ const CalendarPage = () => {
                       !cal.visible ? 'cal-row-hidden' : '',
                     ].filter(Boolean).join(' ')}
                   >
-                    {/* ── Left click-zone: filter + jump ─────────────────────
-                        Clicking the name/dot area sets this calendar as the
-                        active filter and jumps to its nearest upcoming event. */}
                     <div
                       className="cal-row-filter-zone"
                       onClick={() => handleCalendarFilterClick(cal.id)}
@@ -816,9 +841,9 @@ const CalendarPage = () => {
                       />
                       <span
                         className="cal-name"
-                        style={{ opacity: cal.visible ? 1 : 0.5 }}
+                        style={{ opacity: cal.visible ? 1 : 0.5, fontWeight: isActive || isFiltered ? 600 : 500 }}
                       >
-                        {cal.name}
+                        {cal.id === 'personal' ? 'Personal' : cal.name}
                       </span>
                       {count > 0 && (
                         <span
@@ -830,7 +855,6 @@ const CalendarPage = () => {
                       )}
                     </div>
 
-                    {/* ── Context menu (⋯) — stopPropagation prevents row click */}
                     <div
                       className="cal-row-actions"
                       onClick={e => e.stopPropagation()}
@@ -839,7 +863,6 @@ const CalendarPage = () => {
                         open={isPickerOpen}
                         onOpenChange={open => {
                           setColorPickerOpenFor(open ? cal.id : null);
-                          // Clean cleanup: reset the animation state back to 'Get Share Code' when menu closes.
                           if (!open) {
                             setRevealedCode(null);
                           }
@@ -885,18 +908,12 @@ const CalendarPage = () => {
                             </div>
                           </div>
 
-                          {/* ── Dynamic Get Share Code (Admin/PM only) ──────────────────
-                              Transforms smoothly: Label -> Loading -> Monospace Code.
-                              Clicks copy code directly. Closing menu resets layout. */}
                           {['Admin', 'Super Admin', 'Project Manager'].includes(user?.role) && cal.id !== 'personal' && (
                             <>
                               <div style={{ margin: '4px 0', borderTop: '1px solid #F1F5F9' }} />
                               <DropdownMenuItem
                                 onClick={async (e) => {
-                                  // CRITICAL: Prevent dropdown from closing on click
                                   e.preventDefault();
-
-                                  // If already loaded, re-copy it to clipboard and toast
                                   if (revealedCode?.id === cal.id && revealedCode.code) {
                                     await navigator.clipboard.writeText(revealedCode.code);
                                     toast.success('Passcode copied to clipboard again!');
@@ -963,8 +980,6 @@ const CalendarPage = () => {
                       </DropdownMenu>
                     </div>
 
-                    {/* ── Checkmark: toggles visibility (separate click zone) ──
-                        stopPropagation prevents the filter from activating. */}
                     {!isPickerOpen && (
                       <div
                         className="cal-toggle"
@@ -1450,25 +1465,176 @@ const CalendarPage = () => {
             </div>
           </div>
           ) : (
-            /* Upcoming View */
-            <div className="right-card flex-1">
-              <div className="right-card-title">UPCOMING</div>
-              <div className="upcoming-list custom-scrollbar">
-                {upcomingEvents.length === 0 ? (
-                  <div className="text-[13px] text-gray-500 text-center mt-10">No upcoming events.</div>
-                ) : (
-                  upcomingEvents.map(ev => (
-                    <div 
-                      key={ev.id} 
-                      className="upcoming-row"
-                      onClick={() => setSelectedEvent(ev)}
+            /* ── Smart Event Browser — Zoho-style tabbed right panel ── */
+            <div className="right-card flex-1" style={{ display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden' }}>
+
+              {/* ── Tab bar ── */}
+              <div style={{
+                display: 'flex', alignItems: 'stretch', gap: 0,
+                padding: '0 12px', borderBottom: '1px solid #f1f5f9',
+                background: '#fafbfc', flexShrink: 0
+              }}>
+                {[
+                  { key: 'upcoming', label: 'Upcoming', icon: Clock }, 
+                  { key: 'all', label: 'All', icon: CalendarDays }, 
+                  { key: 'past', label: 'Past', icon: Archive }
+                ].map(({ key, label, icon: Icon }) => {
+                  const isActive = rightPanelFilter === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setRightPanelFilter(key)}
+                      style={{
+                        position: 'relative',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '12px 14px 10px',
+                        fontSize: '12px',
+                        fontWeight: isActive ? 600 : 500,
+                        color: isActive ? '#4f46e5' : '#64748b',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'color 0.15s, background 0.15s',
+                        letterSpacing: '0.01em',
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = '#334155'; }}
+                      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = '#64748b'; }}
                     >
-                      <div className="upcoming-title">{ev.title}</div>
-                      <div className="upcoming-meta">
-                        {dayjs(ev.start).format('h:mm A')} · {ev.platform || 'Meeting'}
-                      </div>
+                      <Icon size={13} style={{ opacity: isActive ? 1 : 0.7 }} />
+                      {label}
+                      {key === 'upcoming' && upcomingEvents.length > 0 && (
+                        <span style={{
+                          marginLeft: 2, fontSize: '9px', fontWeight: 700,
+                          background: isActive ? '#ede9fe' : '#f1f5f9',
+                          color: isActive ? '#4f46e5' : '#94a3b8',
+                          borderRadius: '99px', padding: '1px 6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          {upcomingEvents.length}
+                        </span>
+                      )}
+                      {isActive && (
+                        <motion.div
+                          layoutId="activeTabUnderline"
+                          style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: '2px',
+                            background: '#4f46e5',
+                            borderTopLeftRadius: '2px',
+                            borderTopRightRadius: '2px'
+                          }}
+                          initial={false}
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* ── Event list ── */}
+              <div className="upcoming-list custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '6px 4px' }}>
+                {rightPanelEvents.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '36px 16px 24px' }}>
+                    <div style={{ fontSize: '26px', marginBottom: 10 }}>
+                      {rightPanelFilter === 'past' ? '📂' : '📅'}
                     </div>
-                  ))
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                      {rightPanelFilter === 'upcoming' ? 'No upcoming meetings' :
+                       rightPanelFilter === 'past' ? 'No past meetings' : 'No meetings yet'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      {rightPanelFilter === 'upcoming' ? 'Your schedule is clear.' : 'Nothing to show here.'}
+                    </div>
+                  </div>
+                ) : (
+                  rightPanelEvents.map(ev => {
+                    const isToday = dayjs(ev.start).isSame(dayjs(), 'day');
+                    const isTomorrow = dayjs(ev.start).isSame(dayjs().add(1, 'day'), 'day');
+                    const dateLabel = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dayjs(ev.start).format('MMM D');
+                    const isPast = dayjs(ev.end || ev.start).isBefore(dayjs());
+
+                    return (
+                      <div
+                        key={ev.id}
+                        className="upcoming-card"
+                        onClick={() => setSelectedEvent(ev)}
+                        style={{
+                          background: '#ffffff',
+                          border: `1px solid ${isPast ? '#f1f5f9' : '#e2e8f0'}`,
+                          borderRadius: '8px',
+                          padding: '12px',
+                          margin: '0 8px 10px',
+                          cursor: 'pointer',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                          transition: 'all 0.15s ease',
+                          opacity: isPast ? 0.6 : 1,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          minHeight: 'min-content'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)';
+                          e.currentTarget.style.borderColor = isPast ? '#f1f5f9' : '#e2e8f0';
+                        }}
+                      >
+                        {/* Colored left strip indicating project color */}
+                        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', backgroundColor: isPast ? '#cbd5e1' : ev.color }} />
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '4px' }}>
+                          {/* Top Row: Title + Project Chip */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {ev.title}
+                            </div>
+                            {ev.project_name && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 600,
+                                color: isPast ? '#64748b' : ev.color,
+                                background: isPast ? '#f8fafc' : `${ev.color}15`,
+                                padding: '2px 8px', borderRadius: '4px',
+                                whiteSpace: 'nowrap', flexShrink: 0,
+                                border: `1px solid ${isPast ? '#e2e8f0' : ev.color + '30'}`
+                              }}>
+                                {ev.project_name}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Bottom Row: Time and Meta */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: isToday ? 600 : 500, color: isToday ? '#4f46e5' : '#475569', background: isToday ? '#e0e7ff' : 'transparent', padding: isToday ? '1px 6px' : 0, borderRadius: '4px' }}>
+                                {dateLabel}
+                              </span>
+                              <span style={{ color: '#cbd5e1' }}>•</span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '3px', flexShrink: 0 }}>
+                                <Clock size={10} style={{ opacity: 0.5 }} />
+                                {dayjs(ev.start).format('h:mm A')}
+                              </span>
+                            </div>
+                            
+                            {ev.attendees?.length > 0 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px', border: '1px solid #f1f5f9', flexShrink: 0 }}>
+                                <Users size={10} style={{ opacity: 0.6 }} />
+                                <span>{ev.attendees.length}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

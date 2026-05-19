@@ -183,6 +183,7 @@ class IssueOut(BaseModel):
     health_status:  str          # dynamic: Overdue / At Risk / On Track
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
+    sync_id:        Optional[str] = None
     milestone_name: Optional[str] = None
     created_at:     datetime
     updated_at:     datetime

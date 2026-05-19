@@ -9,6 +9,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 import uuid
 from app.models.mom import MOMSession
+from app.api.websockets import manager
 
 router = APIRouter()
 
@@ -54,8 +55,29 @@ async def sync_mom_issues(
     print(f"\n[DEBUG] Incoming MOM Sync Request for Project ID: {req.project_id}")
     print(f"[DEBUG] Actions count: {len(req.actions)}")
 
-    # Part 1 — Generate sync_id immediately
-    sync_id = str(uuid.uuid4())
+    # Determine the status of the meeting
+    is_scheduled_meeting = (
+        req.meeting_id and 
+        req.meeting_id not in ("unscheduled", "null", "undefined", "") and 
+        not req.meeting_id.startswith("sync-")
+    )
+    
+    is_existing_standalone = (
+        req.meeting_id and 
+        req.meeting_id.startswith("sync-")
+    )
+    
+    if is_existing_standalone:
+        meeting_id_for_session = req.meeting_id
+        # Extract sync_id from the existing meeting_id (e.g. sync-uuid -> uuid)
+        sync_id = req.meeting_id.replace("sync-", "")
+    elif is_scheduled_meeting:
+        meeting_id_for_session = req.meeting_id
+        sync_id = str(uuid.uuid4())
+    else:
+        # Brand new unscheduled standalone meeting
+        sync_id = str(uuid.uuid4())
+        meeting_id_for_session = f"sync-{sync_id}"
     
     try:
         from app.models.project import Project
@@ -63,18 +85,18 @@ async def sync_mom_issues(
         project_name = project.name if project else "Unknown Project"
 
         # Step 1: Cleanup existing MOM issues and history for this project+meeting
-        if req.meeting_id:
+        if is_scheduled_meeting or is_existing_standalone:
             # Delete old history
             db.query(MomSyncHistory).filter(
                 MomSyncHistory.project_id == req.project_id,
-                MomSyncHistory.meeting_id == req.meeting_id
+                MomSyncHistory.meeting_id == meeting_id_for_session
             ).delete(synchronize_session=False)
             
             # Delete old issues
             db.query(Issue).filter(
                 Issue.project_id == req.project_id,
                 Issue.source == "MOM",
-                Issue.meeting_id == req.meeting_id
+                Issue.meeting_id == meeting_id_for_session
             ).delete(synchronize_session=False)
 
         db.flush()
@@ -85,7 +107,7 @@ async def sync_mom_issues(
             status="processing",
             project_id=req.project_id,
             project_name=project_name,
-            meeting_id=req.meeting_id,
+            meeting_id=meeting_id_for_session,
             meeting_name=req.meeting_name,
             date=req.date,
             row_count=len(req.actions),
@@ -123,7 +145,7 @@ async def sync_mom_issues(
                 status=normalize_status(action.status),
                 sync_id=sync_id,
                 action_taken=action.action_taken or "",
-                meeting_id=req.meeting_id,
+                meeting_id=meeting_id_for_session,
                 source="MOM",
                 created_at=datetime.now(timezone.utc)
             )
@@ -145,8 +167,6 @@ async def sync_mom_issues(
                 "status": normalize_status(action.status),
                 "action_taken": action.action_taken
             })
-
-        meeting_id_for_session = req.meeting_id or f"sync-{sync_id}"
         
         existing_session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id_for_session).first()
         
@@ -174,6 +194,26 @@ async def sync_mom_issues(
         history.row_count = len(created)
         
         db.commit()
+
+        # Step 6: Broadcast WebSocket Events for Auto-Refresh
+        try:
+            # Tell the Dashboard to refresh its issues list
+            await manager.broadcast({
+                "type": "ISSUE_SYNCED",
+                "project_id": req.project_id,
+                "project_name": project_name,
+                "sync_id": sync_id,
+                "meeting_id": meeting_id_for_session
+            })
+            # Tell listeners that a MOM was saved
+            await manager.broadcast({
+                "type": "MOM_SAVED",
+                "project_id": req.project_id,
+                "project_name": project_name,
+                "meeting_id": meeting_id_for_session
+            })
+        except Exception as e:
+            print(f"[WARN] Failed to broadcast websocket events: {e}")
 
         return {
             "success": True,
@@ -470,20 +510,96 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/syncs/{sync_id}")
-async def delete_sync(sync_id: str, db: Session = Depends(get_db)):
-    """Atomic deletion of a sync event across all tables."""
+async def delete_sync(
+    sync_id: str, 
+    history_id: Optional[int] = None, 
+    meeting_id: Optional[str] = None, 
+    db: Session = Depends(get_db)
+):
+    """Atomic hard deletion of a sync event and all of its references across all tables."""
     try:
-        # 1. Delete issues
-        db.query(Issue).filter(Issue.sync_id == sync_id).delete(synchronize_session=False)
+        # Resolve target syncs and meetings thoroughly to guarantee complete hard delete
+        sync_ids = set()
+        meeting_ids = set()
+        history_ids = set()
+
+        if sync_id and sync_id not in ("null", "undefined", ""):
+            sync_ids.add(sync_id)
+        if meeting_id and meeting_id not in ("null", "undefined", "unscheduled", ""):
+            meeting_ids.add(meeting_id)
+        if history_id is not None:
+            history_ids.add(history_id)
+
+        # 1. Query MomSyncHistory to find matching sync_id or meeting_id
+        history_queries = []
+        if sync_ids:
+            history_queries.append(MomSyncHistory.sync_id.in_(sync_ids))
+        if meeting_ids:
+            history_queries.append(MomSyncHistory.meeting_id.in_(meeting_ids))
+        if history_ids:
+            history_queries.append(MomSyncHistory.id.in_(history_ids))
+
+        if history_queries:
+            from sqlalchemy import or_
+            histories = db.query(MomSyncHistory).filter(or_(*history_queries)).all()
+            for h in histories:
+                if h.sync_id:
+                    sync_ids.add(h.sync_id)
+                if h.meeting_id:
+                    meeting_ids.add(h.meeting_id)
+                history_ids.add(h.id)
+
+        # 2. Hard delete issues
+        issue_queries = []
+        if sync_ids:
+            issue_queries.append(Issue.sync_id.in_(sync_ids))
+        if meeting_ids:
+            issue_queries.append((Issue.meeting_id.in_(meeting_ids)) & (Issue.source == "MOM"))
         
-        # 2. Delete MOM sessions
-        db.query(MOMSession).filter(MOMSession.sync_id == sync_id).delete(synchronize_session=False)
+        if issue_queries:
+            from sqlalchemy import or_
+            db.query(Issue).filter(or_(*issue_queries)).delete(synchronize_session=False)
+
+        # 3. Hard delete MOM Sessions
+        mom_session_queries = []
+        if sync_ids:
+            mom_session_queries.append(MOMSession.sync_id.in_(sync_ids))
+            # Also support meeting_id formatted as sync-{sync_id}
+            sync_formatted_meetings = [f"sync-{sid}" for sid in sync_ids]
+            mom_session_queries.append(MOMSession.meeting_id.in_(sync_formatted_meetings))
+        if meeting_ids:
+            mom_session_queries.append(MOMSession.meeting_id.in_(meeting_ids))
         
-        # 3. Delete History
-        db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).delete(synchronize_session=False)
-        
+        if mom_session_queries:
+            from sqlalchemy import or_
+            db.query(MOMSession).filter(or_(*mom_session_queries)).delete(synchronize_session=False)
+
+        # 4. Hard delete from MomSyncHistory
+        history_delete_queries = []
+        if history_ids:
+            history_delete_queries.append(MomSyncHistory.id.in_(history_ids))
+        if sync_ids:
+            history_delete_queries.append(MomSyncHistory.sync_id.in_(sync_ids))
+        if meeting_ids:
+            history_delete_queries.append(MomSyncHistory.meeting_id.in_(meeting_ids))
+
+        if history_delete_queries:
+            from sqlalchemy import or_
+            db.query(MomSyncHistory).filter(or_(*history_delete_queries)).delete(synchronize_session=False)
+
+        # 5. Reset meeting mom_generated and action_item_count flags in Meetings
+        if meeting_ids:
+            from app.models.meeting import Meeting
+            # Reset meeting flags
+            db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).update({
+                "mom_generated": False,
+                "action_item_count": 0
+            }, synchronize_session=False)
+
         db.commit()
-        return {"success": True, "message": f"Sync {sync_id} deleted successfully"}
+        return {"success": True, "message": "Sync completely and permanently deleted"}
     except Exception as e:
         db.rollback()
+        import traceback
+        print(f"[HARD DELETE MOM ERROR] {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))

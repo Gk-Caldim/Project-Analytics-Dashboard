@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X } from 'lucide-react';
 import { useRef } from 'react';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import TopRisksPanel from '../components/issues/TopRisksPanel';
@@ -20,6 +20,49 @@ const VPProjectDashboard = ({
   const [recentMeetings, setRecentMeetings] = useState([]);
   const [momIssues, setMomIssues] = useState([]);
   const [syncHistory, setSyncHistory] = useState([]);
+
+  // --- Pinned Issues State ---
+  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [pinnedIssueIds, setPinnedIssueIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`caldim_pinned_issues_${activeProject?.dbProjectId}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [tempPinnedIds, setTempPinnedIds] = useState([]);
+
+  // Sync pinned issues if project changes
+  useEffect(() => {
+    if (activeProject?.dbProjectId) {
+      try {
+        const stored = localStorage.getItem(`caldim_pinned_issues_${activeProject.dbProjectId}`);
+        setPinnedIssueIds(stored ? JSON.parse(stored) : []);
+      } catch (e) {
+        setPinnedIssueIds([]);
+      }
+    }
+  }, [activeProject?.dbProjectId]);
+
+  const filteredMomIssues = useMemo(() => {
+    if (syncHistory.length === 0) {
+      return momIssues;
+    }
+    const latestSync = syncHistory[0];
+    return momIssues.filter(i => 
+      (i.sync_id && i.sync_id === latestSync.sync_id) || 
+      (i.meeting_id && (i.meeting_id === latestSync.session_id || i.meeting_id === latestSync.meeting_id))
+    );
+  }, [momIssues, syncHistory]);
+
+  const displayIssues = useMemo(() => {
+    if (pinnedIssueIds.length > 0) {
+      const pinned = filteredMomIssues.filter(i => pinnedIssueIds.includes(i.id));
+      if (pinned.length > 0) return pinned;
+    }
+    return filteredMomIssues.slice(0, 5);
+  }, [filteredMomIssues, pinnedIssueIds]);
 
   const [loadingMom, setLoadingMom] = useState(false);
 
@@ -129,26 +172,100 @@ const VPProjectDashboard = ({
         {/* ── MOM ISSUES ── */}
         {visibleSections.criticalIssues && (
           <div className="vppd-section full">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px 12px' }}>
-              <span style={{ fontSize: '16px', fontWeight: 500, color: 'var(--accent)' }}>Critical Issues</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>TOTAL: {momIssues.length}</span>
-                <span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: 500 }}>
-                  PENDING: {momIssues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved').length}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '18px 24px', 
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'linear-gradient(to right, var(--elevated-card), var(--surface))'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+                  CRITICAL ISSUES
                 </span>
-                <span style={{ fontSize: '13px', color: 'var(--green)', fontWeight: 500 }}>
-                  RESOLVED: {momIssues.filter(i => i.status === 'Closed' || i.status === 'Resolved').length}
-                </span>
+                
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Total Pill */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  background: 'var(--elevated-card)', 
+                  border: '1px solid var(--border-subtle)', 
+                  borderRadius: '6px', 
+                  padding: '4px 10px',
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--text-secondary)'
+                }}>
+                  <ClipboardList size={12} color="var(--text-muted)" />
+                  TOTAL: <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.length}</span>
+                </div>
+                
+                {/* Pending Pill */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  background: 'var(--amber-50)', 
+                  border: '1px solid var(--amber-200)', 
+                  borderRadius: '6px', 
+                  padding: '4px 10px',
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--amber-900)'
+                }}>
+                  <AlertCircle size={12} color="var(--amber)" />
+                  PENDING: <span style={{ color: 'var(--amber-900)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved').length}</span>
+                </div>
+
+                {/* Resolved Pill */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  background: 'var(--green-50)', 
+                  border: '1px solid var(--green-200)', 
+                  borderRadius: '6px', 
+                  padding: '4px 10px',
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: 'var(--green-900)'
+                }}>
+                  <CheckCircle2 size={12} color="var(--green)" />
+                  RESOLVED: <span style={{ color: 'var(--green-900)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.filter(i => i.status === 'Closed' || i.status === 'Resolved').length}</span>
+                </div>
+
+                {/* Vertical Divider */}
+                <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+                {/* Premium Refresh Button */}
                 <button
                   onClick={() => {
-                    fetchingRef.current = false;  // reset guard
+                    fetchingRef.current = false;
                     fetchMomIssues();
                   }}
                   disabled={loadingMom}
-                  style={{ fontSize: '13px', color: 'var(--accent)', background: 'none', border: 'none', cursor: loadingMom ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 700,
+                    color: 'var(--accent)', 
+                    background: 'var(--elevated-card)', 
+                    border: '1px solid var(--border-subtle)', 
+                    borderRadius: '6px',
+                    padding: '5px 12px',
+                    cursor: loadingMom ? 'default' : 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    transition: 'all 0.2s',
+                  }}
                 >
-                  <RefreshCw size={14} style={{ animation: loadingMom ? 'spin 1s linear infinite' : 'none' }} />
-                  Refresh
+                  <RefreshCw size={12} style={{ animation: loadingMom ? 'spin 1s linear infinite' : 'none' }} />
+                  REFRESH
                 </button>
               </div>
             </div>
@@ -178,13 +295,15 @@ const VPProjectDashboard = ({
               ) : (
                 <div className="vppd-mom-table-container animate-fadeIn">
                   {/* Form Style Header */}
-                  <div className="vppd-mom-form-header">
-                    <div style={{ flex: 1 }} />
-                    <h2 className="vppd-mom-form-title">Minutes of Meeting (Issues)</h2>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-                      <div className="vppd-mom-form-meta">
-                        FORM NO: MOM/DB/2026 <span className="mx-2" style={{ color: 'var(--border-subtle)' }}>|</span> REV: 0.1
-                      </div>
+                  <div className="vppd-mom-form-header" style={{ padding: '16px 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={16} color="var(--accent)" />
+                      <h2 className="vppd-mom-form-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Minutes of Meeting (MOM Action Items)
+                      </h2>
+                    </div>
+                    <div className="vppd-mom-form-meta" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                      FORM NO: MOM/DB/2026 <span className="mx-2" style={{ color: 'var(--border-subtle)' }}>|</span> REV: 0.1
                     </div>
                   </div>
 
@@ -204,7 +323,7 @@ const VPProjectDashboard = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {momIssues.map((issue, idx) => {
+                        {displayIssues.map((issue, idx) => {
                             const priority = issue.priority || 'Medium';
                             const critStyles = {
                               'High': { bg: 'var(--red-50)', color: 'var(--red-900)', border: 'var(--red-200)' },
@@ -285,6 +404,25 @@ const VPProjectDashboard = ({
                       </tbody>
                     </table>
                   </div>
+                  {filteredMomIssues.length > displayIssues.length && (
+                    <div style={{ padding: '12px 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'center' }}>
+                      <button
+                        onClick={() => {
+                          setTempPinnedIds(pinnedIssueIds.length > 0 ? [...pinnedIssueIds] : displayIssues.map(i => i.id));
+                          setIsIssueModalOpen(true);
+                        }}
+                        style={{
+                          background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '6px',
+                          padding: '6px 16px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
+                          cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px'
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                      >
+                        + {filteredMomIssues.length - displayIssues.length} more issues
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -364,6 +502,127 @@ const VPProjectDashboard = ({
 
 
       </div>
+
+      {/* ── PINNED ISSUES MODAL ── */}
+      {isIssueModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '24px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'var(--surface)', borderRadius: '12px', width: '100%', maxWidth: '600px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+            animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Select Critical Issues</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Pin exactly 5 issues to your project dashboard. ({tempPinnedIds.length}/5 selected)
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsIssueModalOpen(false)}
+                style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {filteredMomIssues.map(issue => {
+                const isSelected = tempPinnedIds.includes(issue.id);
+                const isMaxReached = tempPinnedIds.length >= 5 && !isSelected;
+                return (
+                  <div 
+                    key={issue.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setTempPinnedIds(prev => prev.filter(id => id !== issue.id));
+                      } else if (!isMaxReached) {
+                        setTempPinnedIds(prev => [...prev, issue.id]);
+                      }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '12px',
+                      padding: '12px 16px', borderRadius: '8px',
+                      background: isSelected ? 'var(--blue-50)' : 'var(--elevated-card)',
+                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                      cursor: isMaxReached ? 'not-allowed' : 'pointer',
+                      opacity: isMaxReached ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{ 
+                      width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, marginTop: '2px',
+                      border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--text-muted)'}`,
+                      background: isSelected ? 'var(--accent)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      opacity: isMaxReached ? 0.5 : 1
+                    }}>
+                      {isSelected && <CheckCircle2 size={12} color="#fff" strokeWidth={3} />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        {issue.title}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <AlertTriangle size={10} color={issue.priority === 'High' || issue.priority === 'Critical' ? 'var(--red)' : 'var(--amber)'} />
+                          {issue.priority || 'Medium'}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Users size={10} />
+                          {issue.owner || 'Unassigned'}
+                        </span>
+                        <span>{issue.status || 'Pending'}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface)' }}>
+              <button 
+                onClick={() => setIsIssueModalOpen(false)}
+                style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setPinnedIssueIds(tempPinnedIds);
+                  if (activeProject?.dbProjectId) {
+                    localStorage.setItem(`caldim_pinned_issues_${activeProject.dbProjectId}`, JSON.stringify(tempPinnedIds));
+                  }
+                  setIsIssueModalOpen(false);
+                }}
+                disabled={tempPinnedIds.length === 0}
+                style={{ 
+                  padding: '8px 20px', fontSize: '13px', fontWeight: 600, color: '#fff', 
+                  background: tempPinnedIds.length > 0 ? 'var(--accent)' : 'var(--border-subtle)', 
+                  border: 'none', borderRadius: '6px', 
+                  cursor: tempPinnedIds.length > 0 ? 'pointer' : 'not-allowed',
+                  boxShadow: tempPinnedIds.length > 0 ? '0 4px 12px rgba(79, 70, 229, 0.2)' : 'none'
+                }}
+              >
+                Save View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
