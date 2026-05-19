@@ -54,3 +54,6 @@ uvicorn==0.41.0
 watchfiles==1.1.1
 websockets==16.0
 cachetools==7.1.2
+apscheduler==3.11.2
+tzlocal==5.3.1
+

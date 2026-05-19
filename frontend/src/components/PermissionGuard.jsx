@@ -20,8 +20,11 @@ const PermissionGuard = ({ permission, children, fallback = null }) => {
         return <>{children}</>;
     }
 
-    // Check if user has the specific permission
-    const hasPermission = permissions.includes(permission);
+    // Check if user has the specific permission (exact match, prefixed format suffix match, or flat format prefix match)
+    const hasPermission = 
+        permissions.includes(permission) || 
+        permissions.some(p => p.endsWith(`:${permission}`)) ||
+        (permission.includes(':') && permissions.includes(permission.split(':').pop()));
 
     if (hasPermission) {
         return <>{children}</>;

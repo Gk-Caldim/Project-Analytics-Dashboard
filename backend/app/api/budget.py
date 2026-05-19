@@ -134,6 +134,8 @@ def update_revision_status(
 
     # Auto-update project budget when approved
     if payload.status == "Approved":
+        from datetime import datetime
+        revision.approved_at = datetime.utcnow()
         budget = db.query(BudgetSummary).filter(
             BudgetSummary.project_name == revision.project_name
         ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
@@ -157,6 +159,7 @@ def update_revision_status(
     db.commit()
     db.refresh(revision)
     return revision
+
 
 
 @router.get("/revisions/{revision_id}/attachment")
@@ -207,91 +210,75 @@ def get_market_analysis():
 
 
 @router.get("/proposal/{project_name}")
-def generate_budget_proposal(
+async def generate_budget_proposal(
     project_name: str,
+    industry: Optional[str] = "Manufacturing",
+    procurement_categories: Optional[str] = "steel materials, wiring harness",
+    currency: Optional[str] = "USD",
     inflation_rate: Optional[float] = None,
     currency_factor: Optional[float] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Generate a sophisticated budget revision suggestion.
-    Analyzes Estimation, Utilization, and Balance to provide a practical recommendation.
+    Generate an AI-powered procurement and market intelligence budget revision suggestion.
+    Analyzes historical indices, risk factors, and forecasting trend data.
     """
-    # 1. Get latest budget
+    from app.services.market_service import seed_source_registry
+    from app.services.procurement_service import analyze_procurement_budget
+    
+    seed_source_registry(db)
+    
+    result = analyze_procurement_budget(
+        project_name=project_name,
+        industry=industry or "Manufacturing",
+        raw_categories_input=procurement_categories or "steel materials",
+        currency=currency or "USD",
+        db=db
+    )
+    
+    # Extract total utilized & remaining balance from the budget rows
+    total_utilized = 0.0
+    budget_data = []
+    
+    from app.models.budget import BudgetSummary
     budget = db.query(BudgetSummary).filter(
         BudgetSummary.project_name == project_name
     ).order_by(BudgetSummary.budget_date.desc().nulls_last(), BudgetSummary.updated_at.desc()).first()
-
-    if not budget:
-        return {
-            "project_name": project_name,
-            "overall_budget": 0.0,
-            "budget_data": [],
-            "message": "No previous budget found."
-        }
-
-    # Use defaults if not provided (from market analysis)
-    if inflation_rate is None:
-        inflation_rate = 4.95
-    if currency_factor is None:
-        currency_factor = 1.0  # Default to no change if not specified
-
-    # 2. Extract Metrics
-    total_estimated = float(budget.overall_budget or 0.0)
-    total_utilized = 0.0
     
-    for row in (budget.budget_data or []):
-        try:
-            util = float(row.get('Utilized') or 0.0)
-            comm = float(row.get('Commitment') or 0.0)
-            total_utilized += (util + comm)
-        except (ValueError, TypeError):
-            continue
-
-    remaining_balance = max(0, total_estimated - total_utilized)
-    utilization_ratio = (total_utilized / total_estimated) if total_estimated > 0 else 0
-
-    # 3. Sophisticated Calculation
-    # We apply inflation and currency factors ONLY to the remaining balance (future costs)
-    # Because utilized costs are already locked in at past rates.
-    suggested_additional = remaining_balance * (inflation_rate / 100)
+    if budget:
+        budget_data = budget.budget_data or []
+        for row in budget_data:
+            util = clean_float(row.get('Total utilization') or row.get('total_utilization') or row.get('Utilized') or row.get('utilized') or 0.0)
+            if not row.get('Total utilization') and not row.get('total_utilization') and (row.get('Commitment') or row.get('commitment')):
+                comm = clean_float(row.get('Commitment') or row.get('commitment') or 0.0)
+                total_utilized += (util + comm)
+            else:
+                total_utilized += util
+                
+    overall_budget = float(budget.overall_budget or 0.0) if budget else 0.0
+    remaining_balance = max(0.0, overall_budget - total_utilized)
+    utilization_ratio = (total_utilized / overall_budget) if overall_budget > 0 else 0.0
     
-    # Currency adjustment (if currency_factor is e.g. 1.05, it adds 5% for exchange risk)
-    if currency_factor != 1.0:
-        suggested_additional += (remaining_balance * (currency_factor - 1))
-
-    # Risk-based buffer
-    risk_reason = ""
-    if utilization_ratio > 0.8:
-        # High utilization risk -> add 5% contingency on the whole budget
-        contingency = total_estimated * 0.05
-        suggested_additional += contingency
-        risk_reason = " High utilization (>80%) detected; added 5% contingency buffer."
-
-    # 4. Generate Reasoning
-    reasoning = (
-        f"Market Analysis Suggestion: Based on current inflation of {inflation_rate}% "
-        f"applied to the remaining balance of {round(remaining_balance, 2)}. "
+    # Merge backward-compatible keys
+    result["current_overall_budget"] = overall_budget
+    result["total_utilized"] = total_utilized
+    result["remaining_balance"] = remaining_balance
+    result["utilization_ratio"] = round(utilization_ratio, 4)
+    result["delta"] = result["overrun_usd"]
+    result["suggested_overall_budget"] = result["suggested_budget_usd"]
+    
+    # Reasoning fallback
+    symbol_map = {"USD": "$", "INR": "₹", "EUR": "€", "GBP": "£"}
+    sym = symbol_map.get((currency or "USD").upper(), "$")
+    result["reasoning"] = (
+        f"Procurement Intelligence Revision proposal for {project_name} ({industry} Industry):\n"
+        f"- Target Currency: {currency} (Exchange Rate: {result['exchange_rate']})\n"
+        f"- Overall revision suggestion is +{sym}{round(result['overrun_local'], 2):,} {currency} "
+        f"(+${round(result['overrun_usd'], 2):,} USD) driven by commodity escalation and supply chain risk buffers."
     )
-    if currency_factor != 1.0:
-        reasoning += f"Adjusted for currency fluctuation factor of {currency_factor}x. "
     
-    reasoning += f"Total suggested revision: {round(suggested_additional, 2)}."
-    if risk_reason:
-        reasoning += risk_reason
+    return result
 
-    return {
-        "project_name": project_name,
-        "current_overall_budget": round(total_estimated, 2),
-        "total_utilized": round(total_utilized, 2),
-        "remaining_balance": round(remaining_balance, 2),
-        "utilization_ratio": round(utilization_ratio, 4),
-        "suggested_overall_budget": round(total_estimated + suggested_additional, 2),
-        "delta": round(suggested_additional, 2),
-        "inflation_rate": inflation_rate,
-        "currency_factor": currency_factor,
-        "reasoning": reasoning
-    }
 
 
 @router.get("/history/{project_name}", response_model=List[BudgetSummaryResponse])

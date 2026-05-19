@@ -6,7 +6,7 @@ import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList } from 'lucide-react';
+import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
 
@@ -50,43 +50,43 @@ const StatusBadge = ({ value }) => {
 
 // ─── Revision Status Badge ────────────────────────────────────────────────────
 const RevisionBadge = ({ status }) => {
-  const cfg = {
-    'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
-    'Declined': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
-    'Cancelled': 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
-    'In Waiting Period': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    'Pending Head': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Pending Finance': 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+  const dots = {
+    'Approved': 'bg-emerald-500 dark:bg-emerald-400',
+    'Declined': 'bg-rose-500 dark:bg-rose-400',
+    'Cancelled': 'bg-slate-400 dark:bg-slate-500',
+    'In Waiting Period': 'bg-amber-500 dark:bg-amber-400',
+    'Pending Head': 'bg-blue-500 dark:bg-blue-400',
+    'Pending Finance': 'bg-violet-500 dark:bg-violet-400',
   };
   return (
-    <span className={`px-2 py-1 rounded-md border text-xs font-semibold ${cfg[status] || 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm">
+      <span className={`h-1.5 w-1.5 rounded-full ${dots[status] || 'bg-slate-400'}`} />
       {status}
     </span>
   );
 };
+
 
 // ─── Summary Card (Static Aggregate View) ───────────────────────────────────
 const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
   return (
     <div className="bg-app-surface dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
       {/* Decorative vertical accent */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 ${
-        color === 'red' ? 'bg-red-500' :
-        color === 'blue' ? 'bg-blue-500' :
-        'bg-emerald-500'
-      } opacity-20`}></div>
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${color === 'red' ? 'bg-red-500' :
+          color === 'blue' ? 'bg-blue-500' :
+            'bg-emerald-500'
+        } opacity-20`}></div>
 
       <div className="flex-1">
         <div className="flex flex-col mb-6">
           <p className="text-xs font-black text-slate-400 dark:text-slate-100 uppercase tracking-[0.2em] mb-1">{label}</p>
           <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 italic uppercase tracking-wider">{subLabel}</p>
         </div>
-        <p className={`text-3xl font-black tracking-tighter ${
-          color === 'red' ? 'text-red-600 dark:text-red-400' :
-          color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-          color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
-          'text-slate-900 dark:text-slate-100'
-        }`}>
+        <p className={`text-3xl font-black tracking-tighter ${color === 'red' ? 'text-red-600 dark:text-red-400' :
+            color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+              color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
+                'text-slate-900 dark:text-slate-100'
+          }`}>
           {format(value)}
         </p>
       </div>
@@ -170,6 +170,8 @@ const BudgetMaster = () => {
   const [marketAnalysis, setMarketAnalysis] = useState(null);
   const [fetchingMarket, setFetchingMarket] = useState(false);
   const [showMarketSuggestion, setShowMarketSuggestion] = useState(false);
+  const [revisionIndustry, setRevisionIndustry] = useState('Manufacturing');
+  const [rawCategoriesInput, setRawCategoriesInput] = useState('');
 
   // Custom Column State
   const [showAddColumnModal, setShowAddColumnModal] = useState(false);
@@ -186,13 +188,13 @@ const BudgetMaster = () => {
   // ─── Permission helper ─────────────────────────────────────────────────────
   // Permissions are stored as ["Budget Master", "Budget Master:view_budget", ...]
   const userPerms = user?.permissions || [];
-  const hasBudgetModule = userPerms.includes('Budget Master');
+  const hasBudgetModule = userPerms.includes('Budget Master') || userPerms.includes('Budget Upload');
   const hasBudgetPerm = (sub) => {
     // Admins and Super Admins bypass all checks
     if (['Admin', 'Super Admin'].includes(userRole)) return true;
     // Must have the parent module enabled first
     if (!hasBudgetModule) return false;
-    return userPerms.includes(`Budget Master:${sub}`);
+    return userPerms.includes(`Budget Master:${sub}`) || userPerms.includes(sub);
   };
 
   // ─── Fetch helpers ──────────────────────────────────────────────────────────
@@ -238,7 +240,7 @@ const BudgetMaster = () => {
       ]);
       setProjects(projRes.data || []);
       setEmployees(empRes.data || []);
-      
+
       const latestBudgets = {};
       (budgetRes?.data || []).forEach(b => {
         if (!latestBudgets[b.project_name] || new Date(b.updated_at) > new Date(latestBudgets[b.project_name].updated_at)) {
@@ -367,7 +369,7 @@ const BudgetMaster = () => {
     if (col?.type === 'number' || col?.type === 'currency') {
       const parsed = parseFloat(value);
       val = isNaN(parsed) ? (value === '' ? '' : value) : parsed;
-      
+
       // If it's a monetary column, convert from current currency to USD for storage
       if (col?.type === 'currency' && val !== '') {
         val = convert(val, code, 'USD');
@@ -462,13 +464,13 @@ const BudgetMaster = () => {
             columns.forEach(col => {
               const idx = headers.indexOf(col.label.toLowerCase());
               let val = idx !== -1 && rv[idx] !== undefined ? rv[idx] : '';
-              
+
               // If it's a monetary column, assume the Excel has values in the current currency
               // and convert them to USD for internal storage.
               if (col.type === 'currency' && val !== '' && !isNaN(parseFloat(val))) {
                 val = convert(parseFloat(val), code, 'USD');
               }
-              
+
               row[col.label] = val;
             });
             rows.push(recalc(row));
@@ -686,10 +688,12 @@ const BudgetMaster = () => {
   };
 
   const handleFetchMarketAnalysis = async () => {
-    if (!selectedProject) { toast.success('Please select a project first', 'error'); return; }
+    if (!selectedProject) { toast.error('Please select a project first'); return; }
     setFetchingMarket(true);
     try {
-      const res = await API.get(`/budget/proposal/${encodeURIComponent(selectedProject)}`);
+      const res = await API.get(
+        `/budget/proposal/${encodeURIComponent(selectedProject)}?currency=${encodeURIComponent(code)}&industry=${encodeURIComponent(revisionIndustry)}&procurement_categories=${encodeURIComponent(rawCategoriesInput)}`
+      );
       setMarketAnalysis(res.data);
       setShowMarketSuggestion(true);
       toast.success('Market analysis completed');
@@ -702,8 +706,8 @@ const BudgetMaster = () => {
 
   const handleAcceptSuggestion = () => {
     if (!marketAnalysis) return;
-    setRevisionData({ 
-      ...revisionData, 
+    setRevisionData({
+      ...revisionData,
       revised_budget: marketAnalysis.delta.toString(),
       reasons: marketAnalysis.reasoning
     });
@@ -714,7 +718,7 @@ const BudgetMaster = () => {
   const handleExportPDF = () => {
     try {
       if (tableData.length === 0) { toast.error('No data to export'); return; }
-      
+
       // Initialize landscape A4 document
       const doc = new jsPDF({
         orientation: 'landscape',
@@ -726,7 +730,7 @@ const BudgetMaster = () => {
       doc.setFontSize(20);
       doc.setTextColor(15, 23, 42); // slate-900
       doc.text("Project Budget Plan", 14, 20);
-      
+
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139); // slate-500
       doc.text(`Project: ${selectedProject || 'Not Selected'}`, 14, 28);
@@ -740,7 +744,7 @@ const BudgetMaster = () => {
       // Data Preparation
       const visibleCols = columns.filter(c => c.visible);
       const tableHeaders = [visibleCols.map(c => c.label)];
-      const tableRows = tableData.map(row => 
+      const tableRows = tableData.map(row =>
         visibleCols.map(c => {
           const val = row[c.label];
           if (val === undefined || val === null) return '-';
@@ -814,7 +818,7 @@ const BudgetMaster = () => {
   const totalBalance = tableData.reduce((s, r) => s + (parseFloat(r['Balance']) || 0), 0);
   const totalUtilized = tableData.reduce((s, r) => s + (parseFloat(r['Utilized']) || 0), 0);
   const totalCommitment = tableData.reduce((s, r) => s + (parseFloat(r['Commitment']) || 0), 0);
-  
+
   const estimatedBreakdown = Object.entries(
     tableData.reduce((acc, r) => {
       const cat = r.Category || 'Other';
@@ -822,8 +826,8 @@ const BudgetMaster = () => {
       return acc;
     }, {})
   ).map(([label, value]) => ({ label, value }))
-   .sort((a, b) => b.value - a.value)
-   .slice(0, 4); // Show top 4 categories
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4); // Show top 4 categories
 
   const isOverBudget = totalUtilization > parseFloat(overallBudget);
   const visibleColumns = columns.filter(c => c.visible);
@@ -835,23 +839,25 @@ const BudgetMaster = () => {
 
       {/* ── Delete Row Prompt ────────────────────────────────────────────────── */}
       {showDeletePrompt && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Confirm Delete</h3>
-              <button onClick={() => setShowDeletePrompt(null)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                Close
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Delete</h3>
+              <button onClick={() => setShowDeletePrompt(null)} className="app-modal-close-btn">
+                <X className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
-            <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
-            <p className="text-sm text-red-600 mb-6 font-medium">This action cannot be undone.</p>
-            <div className="flex justify-end gap-4">
+            <div className="app-modal-body py-4">
+              <p className="text-base text-slate-600 dark:text-slate-100 mb-2">Remove this budget entry?</p>
+              <p className="text-sm text-red-600 font-medium">This action cannot be undone.</p>
+            </div>
+            <div className="app-modal-footer">
               <button onClick={() => setShowDeletePrompt(null)}
-                className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
                 Cancel
               </button>
               <button onClick={confirmDeleteRow}
-                className="h-10 px-6 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-all">
+                className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
                 Delete
               </button>
             </div>
@@ -863,33 +869,33 @@ const BudgetMaster = () => {
 
       {/* ── Add Column Modal ────────────────────────────────────────────────── */}
       {showAddColumnModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-app-surface dark:bg-slate-800 rounded-none p-8 max-w-sm w-full mx-4 shadow-2xl border border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Add New Column</h3>
-              <button onClick={() => setShowAddColumnModal(false)} className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                <ChevronDown className="w-5 h-5 rotate-180" />
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Add New Column</h3>
+              <button onClick={() => setShowAddColumnModal(false)} className="app-modal-close-btn">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <div className="space-y-6">
+
+            <div className="app-modal-body space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Column Label</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={newColumnData.label}
                   onChange={e => setNewColumnData({ ...newColumnData, label: e.target.value })}
                   placeholder="e.g., Tax Rate"
-                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100 placeholder-slate-400"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Data Type</label>
-                <select 
+                <select
                   value={newColumnData.type}
                   onChange={e => setNewColumnData({ ...newColumnData, type: e.target.value })}
-                  className="w-full px-4 py-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100"
                 >
                   <option value="text">Text</option>
                   <option value="number">Number</option>
@@ -897,17 +903,17 @@ const BudgetMaster = () => {
                   <option value="status">Status</option>
                 </select>
               </div>
+            </div>
 
-              <div className="flex justify-end gap-4 mt-8">
-                <button onClick={() => setShowAddColumnModal(false)}
-                  className="h-10 px-6 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-md hover:bg-app-bg dark:bg-slate-800/80 transition-all">
-                  Cancel
-                </button>
-                <button onClick={addColumn}
-                  className="h-10 px-6 text-sm font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
-                  Add Column
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowAddColumnModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button onClick={addColumn}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+                Add Column
+              </button>
             </div>
           </div>
         </div>
@@ -915,35 +921,37 @@ const BudgetMaster = () => {
 
       {/* ── Waiting Period Modal ─────────────────────────────────────────────── */}
       {showWaitingModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-sm w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Set Waiting Period</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-300 mt-1">Defer revision until a specific date</p>
+                <h3 className="app-modal-title">Set Waiting Period</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Defer revision until a specific date</p>
               </div>
               <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                className="p-2 text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-colors">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-8">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 uppercase tracking-widest mb-2">Defer Until</label>
-              <input type="date" min={new Date().toISOString().split('T')[0]}
-                value={waitingDate}
-                onChange={e => setWaitingDate(e.target.value)}
-                className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none mb-8 transition-all" />
-              <div className="flex gap-4">
-                <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold text-slate-600 border border-slate-300 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all">
-                  Cancel
-                </button>
-                <button disabled={!waitingDate}
-                  onClick={() => { handleStatusUpdate(showWaitingModal, 'In Waiting Period', { waiting_until: waitingDate }); setShowWaitingModal(null); setWaitingDate(''); }}
-                  className="flex-1 h-12 text-sm font-bold bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-40">
-                  Set Period
-                </button>
+            <div className="app-modal-body space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Defer Until</label>
+                <input type="date" min={new Date().toISOString().split('T')[0]}
+                  value={waitingDate}
+                  onChange={e => setWaitingDate(e.target.value)}
+                  className="w-full px-4 py-2.5 text-base bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100" />
               </div>
+            </div>
+            <div className="app-modal-footer">
+              <button onClick={() => { setShowWaitingModal(null); setWaitingDate(''); }}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button disabled={!waitingDate}
+                onClick={() => { handleStatusUpdate(showWaitingModal, 'In Waiting Period', { waiting_until: waitingDate }); setShowWaitingModal(null); setWaitingDate(''); }}
+                className="px-4 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors disabled:opacity-40">
+                Set Period
+              </button>
             </div>
           </div>
         </div>
@@ -1090,8 +1098,8 @@ const BudgetMaster = () => {
                     format={format}
                     subLabel="Summation of (Utilized + Commitment)"
                     count={tableData.length}
-                    extraStat={{ 
-                      label: 'Budget Limit', 
+                    extraStat={{
+                      label: 'Budget Limit',
                       value: format(parseFloat(overallBudget)),
                       color: isOverBudget ? 'text-red-500' : 'text-slate-500 dark:text-slate-300'
                     }}
@@ -1103,8 +1111,8 @@ const BudgetMaster = () => {
                     format={format}
                     subLabel="Summation of Balance Remaining"
                     count={tableData.length}
-                    extraStat={{ 
-                      label: 'Approved Revisions', 
+                    extraStat={{
+                      label: 'Approved Revisions',
                       value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
                       color: 'text-slate-500 dark:text-slate-300 dark:text-slate-100'
                     }}
@@ -1117,96 +1125,96 @@ const BudgetMaster = () => {
                 <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center gap-4">
                   {/* Add Item — needs add_row OR add_column permission */}
                   {(hasBudgetPerm('add_row') || hasBudgetPerm('add_column')) && (
-                  <div className="relative">
-                    <button onClick={() => setShowAddDropdown(!showAddDropdown)}
-                      className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
-                      Add Item
-                      <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
-                    </button>
+                    <div className="relative">
+                      <button onClick={() => setShowAddDropdown(!showAddDropdown)}
+                        className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
+                        Add Item
+                        <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
+                      </button>
 
-                    {showAddDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-48 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden">
-                          {hasBudgetPerm('add_row') && (
-                          <button onClick={() => { addRow(); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors">
-                            <Plus className="w-4 h-4 text-blue-500" />
-                            <span>Add Row</span>
-                          </button>
-                          )}
-                          {hasBudgetPerm('add_column') && (
-                          <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
-                            className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
-                            <Columns className="w-4 h-4 text-emerald-500" />
-                            <span>Add Column</span>
-                          </button>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      {showAddDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
+                          <div className="absolute top-full left-0 mt-2 w-48 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden">
+                            {hasBudgetPerm('add_row') && (
+                              <button onClick={() => { addRow(); setShowAddDropdown(false); }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors">
+                                <Plus className="w-4 h-4 text-blue-500" />
+                                <span>Add Row</span>
+                              </button>
+                            )}
+                            {hasBudgetPerm('add_column') && (
+                              <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
+                                <Columns className="w-4 h-4 text-emerald-500" />
+                                <span>Add Column</span>
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
 
                   {/* Save — needs save_budget permission */}
                   {hasBudgetPerm('save_budget') && (
-                  <div className="relative">
-                    <div className="flex items-stretch h-10">
-                      <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
-                        className="flex items-center gap-2 px-6 text-sm font-bold bg-blue-600 text-white rounded-l-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 border-r border-blue-500/30">
-                        <span>{saving ? 'Saving...' : 'Save'}</span>
-                      </button>
-                      <button onClick={() => setShowSaveDropdown(!showSaveDropdown)} disabled={saving || !selectedProject}
-                        className="px-4 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center">
-                        <span className="text-xs">▼</span>
-                      </button>
-                    </div>
+                    <div className="relative">
+                      <div className="flex items-stretch h-10">
+                        <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
+                          className="flex items-center gap-2 px-6 text-sm font-bold bg-blue-600 text-white rounded-l-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 border-r border-blue-500/30">
+                          <span>{saving ? 'Saving...' : 'Save'}</span>
+                        </button>
+                        <button onClick={() => setShowSaveDropdown(!showSaveDropdown)} disabled={saving || !selectedProject}
+                          className="px-4 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center">
+                          <span className="text-xs">▼</span>
+                        </button>
+                      </div>
 
-                    {showSaveDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
-                        <div className="absolute top-full left-0 mt-2 w-72 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                          <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors">
-                            <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-600 font-bold">
-                              <Save className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 dark:text-slate-100">Save Budget</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Save changes to budget master</p>
-                            </div>
-                          </button>
-                          <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
-                            className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
-                            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md text-emerald-600 font-bold">
-                              <RefreshCw className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900 dark:text-slate-100">Save & Sync to Project Master</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Updates project's budget summary</p>
-                            </div>
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                      {showSaveDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
+                          <div className="absolute top-full left-0 mt-2 w-72 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
+                              className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors">
+                              <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-600 font-bold">
+                                <Save className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 dark:text-slate-100">Save Budget</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Save changes to budget master</p>
+                              </div>
+                            </button>
+                            <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
+                              className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
+                              <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md text-emerald-600 font-bold">
+                                <RefreshCw className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 dark:text-slate-100">Save & Sync to Project Master</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Updates project's budget summary</p>
+                              </div>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
 
                   <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
 
                   {/* Upload Budget — needs upload_budget permission */}
                   {hasBudgetPerm('upload_budget') && (
-                  <div className="relative group">
-                    <button
-                      onClick={() => {
-                        if (!selectedProject) { toast.error('Please select a project first'); return; }
-                        setShowUploadModal(true);
-                      }}
-                      className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
-                    >
-                      {isParsing ? 'Parsing...' : 'Upload Budget'}
-                    </button>
-                  </div>
+                    <div className="relative group">
+                      <button
+                        onClick={() => {
+                          if (!selectedProject) { toast.error('Please select a project first'); return; }
+                          setShowUploadModal(true);
+                        }}
+                        className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
+                      >
+                        {isParsing ? 'Parsing...' : 'Upload Budget'}
+                      </button>
+                    </div>
                   )}
 
                   <div className="relative">
@@ -1232,7 +1240,7 @@ const BudgetMaster = () => {
                             <div className="px-4 py-2 mb-2 border-b border-slate-50 dark:border-slate-800">
                               <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Options</p>
                             </div>
-                            
+
                             <button onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
                               className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
                               <Download className="w-4 h-4 text-blue-500" />
@@ -1392,17 +1400,17 @@ const BudgetMaster = () => {
                                   </>
                                 ) : (
                                   hasBudgetPerm('edit_row') && (
-                                  <button onClick={() => startEdit(row)}
-                                    className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md text-xs font-bold transition-all" title="Edit">
-                                    Edit
-                                  </button>
+                                    <button onClick={() => startEdit(row)}
+                                      className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md text-xs font-bold transition-all" title="Edit">
+                                      Edit
+                                    </button>
                                   )
                                 )}
                                 {hasBudgetPerm('delete_row') && (
-                                <button onClick={() => setShowDeletePrompt(row.id)}
-                                  className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-xs font-bold transition-all" title="Delete">
-                                  Delete
-                                </button>
+                                  <button onClick={() => setShowDeletePrompt(row.id)}
+                                    className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-xs font-bold transition-all" title="Delete">
+                                    Delete
+                                  </button>
                                 )}
                               </div>
                             </td>
@@ -1436,16 +1444,16 @@ const BudgetMaster = () => {
                 {/* Pagination */}
                 {sortedData.length > 0 && (
                   <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
-                  <div className="flex items-center gap-6">
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">Rows per page:</span>
-                    <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                      className="px-4 py-1.5 text-xs font-bold bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none transition-all focus:ring-4 focus:ring-slate-500/10 text-slate-900 dark:text-slate-100">
-                      {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
-                    </select>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">
-                      {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-6">
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">Rows per page:</span>
+                      <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                        className="px-4 py-1.5 text-xs font-bold bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none transition-all focus:ring-4 focus:ring-slate-500/10 text-slate-900 dark:text-slate-100">
+                        {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
+                      </select>
+                      <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">
+                        {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
                         className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
@@ -1499,11 +1507,38 @@ const BudgetMaster = () => {
                       <form onSubmit={handleRevisionSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
                           <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Industry Sector</label>
+                            <select
+                              value={revisionIndustry}
+                              onChange={e => setRevisionIndustry(e.target.value)}
+                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base font-bold text-slate-700 dark:text-slate-100"
+                            >
+                              <option value="Manufacturing">Manufacturing</option>
+                              <option value="Automotive">Automotive</option>
+                              <option value="Electrical">Electrical</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
+                              Enter procurement categories for market analysis
+                            </label>
+                            <input
+                              type="text"
+                              value={rawCategoriesInput}
+                              onChange={e => setRawCategoriesInput(e.target.value)}
+                              placeholder="e.g. chassis steel materials, imported ecu chips, copper transformer wiring..."
+                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base font-bold text-slate-750 dark:text-slate-100"
+                            />
+                          </div>
+
+                          <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Current Project Budget</label>
                             <div className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md font-bold text-lg text-slate-700 dark:text-slate-100">
                               {format(overallBudget)}
                             </div>
                           </div>
+
                           <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                               Additional Budget Required
@@ -1514,7 +1549,7 @@ const BudgetMaster = () => {
                                 onChange={e => setRevisionData({ ...revisionData, revised_budget: convert(parseFloat(e.target.value) || 0, code, 'USD') })}
                                 placeholder="0.00"
                                 className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
-                              
+
                               <button type="button" onClick={handleFetchMarketAnalysis} disabled={fetchingMarket}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-amber-200 shadow-sm disabled:opacity-50">
                                 {fetchingMarket ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
@@ -1524,61 +1559,274 @@ const BudgetMaster = () => {
                           </div>
 
                           {showMarketSuggestion && marketAnalysis && (
-                            <motion.div 
-                              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.98, y: 10 }}
                               animate={{ opacity: 1, scale: 1, y: 0 }}
-                              className="bg-app-surface dark:bg-slate-900 border-2 border-amber-500/30 rounded-2xl shadow-2xl overflow-hidden"
+                              className="md:col-span-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden p-6 space-y-6"
                             >
-                              <div className="bg-amber-500 px-6 py-3 flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-white">
-                                  <Sparkles className="w-4 h-4" />
-                                  <span className="text-[10px] font-black uppercase tracking-widest">Smart Market Analysis</span>
+                              {/* Dashboard Header */}
+                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-slate-200 dark:border-slate-800">
+                                <div>
+                                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                                    Procurement Intelligence Dashboard
+                                  </h3>
+                                  <p className="text-[11px] text-slate-505 dark:text-slate-400 font-medium">Real-time risk & escalation analysis for {marketAnalysis.project_name}</p>
                                 </div>
-                                <span className="text-[10px] font-black text-amber-100 uppercase tracking-widest">
-                                  Confidence: High
-                                </span>
+                                <div className="mt-2 md:mt-0 flex gap-2">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750">
+                                    Exchange Rate: 1 USD = {marketAnalysis.exchange_rate} {marketAnalysis.currency}
+                                  </span>
+                                </div>
                               </div>
-                              
-                              <div className="p-6">
-                                <div className="grid grid-cols-2 gap-4 mb-6">
-                                  <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Utilization</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
-                                      {Math.round(marketAnalysis.utilization_ratio * 100)}%
-                                    </p>
-                                  </div>
-                                  <div className="p-3 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 dark:border-slate-700">
-                                    <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Remaining</p>
-                                    <p className="text-sm font-black text-slate-700 dark:text-slate-100">
-                                      {format(marketAnalysis.remaining_balance)}
-                                    </p>
+
+                              {/* Section 1: Detected Categories & Real-time Commodity Indices */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Detected Categories List */}
+                                <div className="space-y-3">
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Detected Categories</h4>
+                                  <div className="space-y-2">
+                                    {marketAnalysis.detected_categories && marketAnalysis.detected_categories.map((det, idx) => (
+                                      <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700">
+                                        <div>
+                                          <p className="text-xs font-bold text-slate-700 dark:text-slate-100">"{det.raw_input}"</p>
+                                          <p className="text-[10px] text-slate-400 dark:text-slate-505 font-semibold font-bold">Normalized: {det.normalized.toUpperCase()}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${det.confidence >= 0.85 ? 'bg-emerald-50 text-emerald-705 dark:bg-emerald-950/30 dark:text-emerald-405' :
+                                              det.confidence >= 0.70 ? 'bg-blue-50 text-blue-705 dark:bg-blue-950/30 dark:text-blue-405' :
+                                                'bg-amber-50 text-amber-705 dark:bg-amber-950/30 dark:text-amber-405'
+                                            }`}>
+                                            {Math.round(det.confidence * 100)}% Confidence
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                  <div>
-                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Suggested Adjustment</p>
-                                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
-                                      +{format(marketAnalysis.delta)}
-                                    </p>
-                                  </div>
-                                  
-                                  <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-100 leading-relaxed italic">
-                                      "{marketAnalysis.reasoning}"
-                                    </p>
-                                  </div>
+                                {/* Commodity Index Snapshots */}
+                                <div className="space-y-3">
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Commodity Indices & Pricing</h4>
+                                  <div className="space-y-2">
+                                    {marketAnalysis.market_indicators && Object.entries(marketAnalysis.market_indicators).map(([cat, data], idx) => {
+                                      const isRelevant = marketAnalysis.detected_categories?.some(d => d.normalized === cat) || cat === 'steel';
+                                      if (!isRelevant) return null;
 
-                                  <div className="flex gap-3 pt-2">
-                                    <button type="button" onClick={handleAcceptSuggestion}
-                                      className="flex-1 h-12 bg-slate-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-800 transition-all shadow-lg active:scale-95">
-                                      Apply Suggestion
-                                    </button>
-                                    <button type="button" onClick={() => setShowMarketSuggestion(false)}
-                                      className="px-6 h-12 bg-app-surface dark:bg-slate-800 text-slate-500 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all border border-slate-200 dark:border-slate-700">
-                                      Dismiss
-                                    </button>
+                                      const pct = data.percentage_change;
+                                      const isUp = pct >= 0;
+                                      return (
+                                        <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 flex justify-between items-center">
+                                          <div>
+                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-100 uppercase">{cat}</p>
+                                            <p className="text-[10px] text-slate-400 dark:text-slate-505 font-semibold">{data.source} • Volatility: {data.volatility_index}</p>
+                                          </div>
+                                          <div className="text-right">
+                                            <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100">
+                                              {format(data.current_price)}
+                                            </p>
+                                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${isUp ? 'text-rose-600' : 'text-emerald-605'}`}>
+                                              {isUp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                              {isUp ? '+' : ''}{pct}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
+                                </div>
+                              </div>
+
+                              {/* Section 2: Procurement Risk Metrics */}
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Risk Assessment Profile</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => (
+                                    <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 space-y-3">
+                                      <div className="flex justify-between items-center pb-2 border-b border-slate-150 dark:border-slate-750">
+                                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">{cat} Risks</span>
+                                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${res.risks.risk_level === 'Critical' ? 'bg-red-50 text-red-705 dark:bg-red-950/30 dark:text-red-405' :
+                                            res.risks.risk_level === 'High' ? 'bg-orange-50 text-orange-705 dark:bg-orange-950/30 dark:text-orange-405' :
+                                              res.risks.risk_level === 'Medium' ? 'bg-amber-50 text-amber-705 dark:bg-amber-950/30 dark:text-amber-405' :
+                                                'bg-emerald-50 text-emerald-705 dark:bg-emerald-950/30 dark:text-emerald-405'
+                                          }`}>
+                                          {res.risks.risk_level} Risk ({res.risks.overall_risk_score}%)
+                                        </span>
+                                      </div>
+
+                                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+                                        <div>
+                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                                            <span>Commodity Price</span>
+                                            <span className="font-bold">{res.risks.commodity_escalation}%</span>
+                                          </div>
+                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.commodity_escalation}%` }} />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                                            <span>Logistics Delay</span>
+                                            <span className="font-bold">{res.risks.logistics_risk}%</span>
+                                          </div>
+                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.logistics_risk}%` }} />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                                            <span>Supplier Sourcing</span>
+                                            <span className="font-bold">{res.risks.supplier_dependency}%</span>
+                                          </div>
+                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.supplier_dependency}%` }} />
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                                            <span>Forex Fluctuations</span>
+                                            <span className="font-bold">{res.risks.forex_exposure}%</span>
+                                          </div>
+                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.forex_exposure}%` }} />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Section 3: Live Warning Alerts Feed */}
+                              {marketAnalysis.alerts && marketAnalysis.alerts.length > 0 && (
+                                <div className="space-y-3">
+                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Live Warning Alerts Feed</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {marketAnalysis.alerts.map((alert, idx) => (
+                                      <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold ${alert.severity === 'Critical' ? 'bg-red-50 text-red-800 border-red-250 dark:bg-red-950/20 dark:text-red-300 dark:border-red-900' :
+                                          'bg-amber-50 text-amber-800 border-amber-250 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900'
+                                        }`}>
+                                        <span>{alert.message}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm">
+                                          {alert.metric}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Section 4: Forecast Pricing Trends */}
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Forecasting Trend Visualizer (30, 60, 90 Days)</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => {
+                                    if (!res.forecasts || !res.forecasts.forecast) return null;
+                                    const currentVal = res.forecasts.current_price || 100.0;
+                                    return (
+                                      <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 space-y-4">
+                                        <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-200">
+                                          <span className="uppercase">{cat} Price Outlook</span>
+                                          <span className="text-[10px] font-semibold text-slate-400">Baseline: {format(currentVal)}</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-3">
+                                          {res.forecasts.forecast.map((val, fIdx) => {
+                                            const pctChange = ((val - currentVal) / currentVal) * 100.0;
+                                            const day = (fIdx + 1) * 30;
+                                            return (
+                                              <div key={fIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700 text-center">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{day} Days</p>
+                                                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
+                                                  {format(val)}
+                                                </p>
+                                                <span className={`text-[9px] font-bold ${pctChange >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                  {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Section 5: Affected Items & Granular Calculations Breakdown */}
+                              <div className="space-y-3">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Affected Procurement Items & Calculations</h4>
+                                <div className="overflow-hidden border border-slate-205 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+                                  <table className="w-full text-left border-collapse text-[11px]">
+                                    <thead>
+                                      <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-205 dark:border-slate-700 text-slate-505 dark:text-slate-400 font-bold">
+                                        <th className="py-2.5 px-4 font-black">Budget Row Description</th>
+                                        <th className="py-2.5 px-4 font-black">Matched Category</th>
+                                        <th className="py-2.5 px-4 text-right font-black">Original Budget</th>
+                                        <th className="py-2.5 px-4 text-right font-black">Suggested Revision</th>
+                                        <th className="py-2.5 px-4 text-right font-black">Suggested Additional</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-750">
+                                      {marketAnalysis.affected_rows && marketAnalysis.affected_rows.map((row, rIdx) => (
+                                        <React.Fragment key={rIdx}>
+                                          <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30">
+                                            <td className="py-2.5 px-4 font-bold text-slate-700 dark:text-slate-200">{row.description}</td>
+                                            <td className="py-2.5 px-4 uppercase text-slate-505 dark:text-slate-400 font-semibold">{row.category} ({Math.round(row.confidence_score * 100)}%)</td>
+                                            <td className="py-2.5 px-4 text-right font-mono text-slate-650 dark:text-slate-350">{format(row.original_budget_usd)}</td>
+                                            <td className="py-2.5 px-4 text-right font-mono font-bold text-blue-600">{format(row.suggested_budget_usd)}</td>
+                                            <td className="py-2.5 px-4 text-right font-mono font-black text-rose-600">+{format(row.overrun_usd)}</td>
+                                          </tr>
+                                          {row.calculations && (
+                                            <tr>
+                                              <td colSpan={5} className="py-2 px-6 bg-slate-50/50 dark:bg-slate-900/30">
+                                                <div className="space-y-1 py-1">
+                                                  <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1">Applied Buffers:</p>
+                                                  {row.calculations.map((calc, cIdx) => (
+                                                    <div key={cIdx} className={`flex justify-between items-center text-[10px] ${!calc.applied ? 'opacity-40 line-through' : ''}`}>
+                                                      <span className="text-slate-505 dark:text-slate-400">• {calc.step} ({calc.formula})</span>
+                                                      <span className="font-mono text-slate-600 dark:text-slate-300">+{format(calc.usd_val)}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </React.Fragment>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+
+                              {/* Section 6: Action Controls */}
+                              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                                <div>
+                                  <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Suggested Revision Overrun</p>
+                                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-mono">
+                                    +{format(marketAnalysis.delta)}
+                                  </p>
+                                  <p className="text-xs text-slate-450 dark:text-slate-500 font-semibold mt-1">
+                                    Proposed new project total: <span className="font-bold text-slate-650 dark:text-slate-350">{format(marketAnalysis.suggested_overall_budget)}</span>
+                                  </p>
+                                </div>
+
+                                <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">System Rationale</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                                    "{marketAnalysis.reasoning}"
+                                  </p>
+                                </div>
+
+                                <div className="flex gap-3">
+                                  <button type="button" onClick={handleAcceptSuggestion}
+                                    className="flex-1 h-12 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all active:scale-95 shadow-md shadow-indigo-500/10">
+                                    Apply Suggestion
+                                  </button>
+                                  <button type="button" onClick={() => setShowMarketSuggestion(false)}
+                                    className="px-6 h-12 bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 text-slate-505 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                                    Dismiss
+                                  </button>
                                 </div>
                               </div>
                             </motion.div>
@@ -1647,9 +1895,9 @@ const BudgetMaster = () => {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                        {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Status', 'Attachment', 'Actions']
+                        {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Initiated', 'Approved', 'Status', 'Attachment', 'Actions']
                           .map(h => (
-                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
+                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-350 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
                               } ${h === 'Actions' ? 'text-center' : ''}`}>
                               {h}
                             </th>
@@ -1659,13 +1907,13 @@ const BudgetMaster = () => {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                       {fetchingRevisions ? (
                         <tr>
-                          <td colSpan={8} className="py-24 text-center">
+                          <td colSpan={10} className="py-24 text-center">
                             <p className="text-base font-bold text-blue-600 animate-pulse">Fetching revisions...</p>
                           </td>
                         </tr>
                       ) : revisions.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-24">
+                          <td colSpan={10} className="py-24">
                             <div className="flex flex-col items-center justify-center text-center px-4">
                               <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800 dark:border-slate-700">
                                 <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -1689,9 +1937,15 @@ const BudgetMaster = () => {
                             <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-100">{format(rev.previous_budget)}</td>
                             <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
                             <td className="py-4 px-6 text-right">
-                              <span className={`text-xs font-black ${delta >= 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                              <span className={`text-xs font-black ${delta >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                                 {delta >= 0 ? '+' : ''}{format(delta)}
                               </span>
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                              {rev.created_at ? new Date(rev.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                            </td>
+                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                              {rev.approved_at ? new Date(rev.approved_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                             </td>
                             <td className="py-4 px-6"><RevisionBadge status={rev.status} /></td>
                             <td className="py-4 px-6">
@@ -1708,11 +1962,11 @@ const BudgetMaster = () => {
                                 {isHead && rev.status === 'Pending Head' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Pending Finance')} title="Send to Finance"
-                                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-[10px] font-bold hover:bg-blue-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Forward
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Cancelled')} title="Cancel"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Cancel
                                     </button>
                                   </>
@@ -1720,15 +1974,15 @@ const BudgetMaster = () => {
                                 {isFinance && rev.status === 'Pending Finance' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Approved')} title="Approve"
-                                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-md text-[10px] font-bold hover:bg-emerald-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Approve
                                     </button>
                                     <button onClick={() => setShowWaitingModal(rev.id)} title="Set Waiting Period"
-                                      className="px-3 py-1.5 bg-amber-500 text-white rounded-md text-[10px] font-bold hover:bg-amber-600 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Wait
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Declined')} title="Decline"
-                                      className="px-3 py-1.5 bg-red-600 text-white rounded-md text-[10px] font-bold hover:bg-red-700 transition-all shadow-sm">
+                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
                                       Decline
                                     </button>
                                   </>
@@ -1900,7 +2154,7 @@ const BudgetMaster = () => {
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest">By Category</span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-6">
                     {estimatedBreakdown.map((cat, idx) => {
                       const percentage = totalEstimated > 0 ? (cat.value / totalEstimated) * 100 : 0;
@@ -1911,15 +2165,14 @@ const BudgetMaster = () => {
                             <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">{format(cat.value)} ({Math.round(percentage)}%)</span>
                           </div>
                           <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                            <motion.div 
+                            <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
                               transition={{ duration: 1, delay: idx * 0.1 }}
-                              className={`h-full rounded-full ${
-                                idx === 0 ? 'bg-blue-600' : 
-                                idx === 1 ? 'bg-emerald-600' : 
-                                idx === 2 ? 'bg-indigo-600' : 'bg-slate-600'
-                              }`}
+                              className={`h-full rounded-full ${idx === 0 ? 'bg-blue-600' :
+                                  idx === 1 ? 'bg-emerald-600' :
+                                    idx === 2 ? 'bg-indigo-600' : 'bg-slate-600'
+                                }`}
                             />
                           </div>
                         </div>
@@ -1939,7 +2192,7 @@ const BudgetMaster = () => {
                 {/* Utilization Health */}
                 <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
                   <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-8">Utilization Health</h3>
-                  
+
                   <div className="flex items-center justify-center py-4">
                     <div className="relative w-48 h-48 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90">
@@ -1993,8 +2246,8 @@ const BudgetMaster = () => {
                   <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Budget History & Snapshots</h2>
                 </div>
                 <div className="flex items-center gap-3">
-                  <select 
-                    value={historyFilter} 
+                  <select
+                    value={historyFilter}
                     onChange={e => { setHistoryFilter(e.target.value); setHistoryCurrentPage(1); }}
                     className="px-3 py-1.5 text-xs font-bold bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none cursor-pointer text-slate-700 dark:text-slate-100">
                     <option value="All">All Types</option>
@@ -2121,25 +2374,25 @@ const BudgetMaster = () => {
 
       {/* ── Budget Audit Modal ────────────────────────────────────────────────── */}
       {showAuditModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl w-full max-w-5xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-md bg-indigo-100 flex items-center justify-center">
                   <ClipboardList className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Audit Trail</h3>
+                  <h3 className="app-modal-title">Budget Audit Trail</h3>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{selectedProject} — Complete activity log</p>
                 </div>
               </div>
               <button onClick={() => setShowAuditModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-400 dark:text-slate-500">
-                <span className="text-lg font-bold">✕</span>
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="app-modal-body flex-1 overflow-y-auto">
               {fetchingAudit ? (
                 <div className="flex items-center justify-center py-24">
                   <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
@@ -2176,13 +2429,12 @@ const BudgetMaster = () => {
                           {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
                         </td>
                         <td className="py-3 px-5">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
-                            log.action === 'UPLOAD'
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${log.action === 'UPLOAD'
                               ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                               : log.action === 'SAVE'
-                              ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200'
-                          }`}>{log.action}</span>
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-app-bg dark:bg-slate-800/50 text-slate-600 border-slate-200'
+                            }`}>{log.action}</span>
                         </td>
                         <td className="py-3 px-5 text-sm font-bold text-slate-800 dark:text-slate-100 dark:text-slate-200">
                           {log.user_name || log.details?.uploaded_by || '—'}
@@ -2211,10 +2463,10 @@ const BudgetMaster = () => {
               )}
             </div>
 
-            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+            <div className="app-modal-footer flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <span className="text-xs font-bold text-slate-400 dark:text-slate-500">{auditLogs.length} total entries</span>
               <button onClick={() => { setShowAuditModal(false); }}
-                className="px-6 py-2 text-xs font-black text-slate-600 bg-app-surface border border-slate-200 rounded-md hover:bg-app-bg dark:bg-slate-800/50 transition-all uppercase tracking-widest">
+                className="px-4 py-2 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200 uppercase tracking-widest">
                 Close
               </button>
             </div>
@@ -2224,22 +2476,22 @@ const BudgetMaster = () => {
 
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-4xl w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Upload Template</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Required format for excel uploads</p>
+                <h3 className="app-modal-title">Budget Upload Template</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Required format for excel uploads</p>
               </div>
               <button onClick={() => setShowTemplateModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-none p-8 border border-slate-200 dark:border-slate-700 mb-8">
-                <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-6">
+            <div className="app-modal-body flex-1 overflow-y-auto space-y-6">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-6 border border-slate-200 dark:border-slate-700 mb-6">
+                <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-4">
                   Standard Column Headers
                 </h4>
                 <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
@@ -2247,14 +2499,14 @@ const BudgetMaster = () => {
                     "Category", "Item Name", "Unit Type", "Unit count",
                     "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
                   ].map(header => (
-                    <div key={header} className="px-4 py-3 bg-app-surface dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
+                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
                       {header}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-none border border-slate-200 dark:border-slate-700">
+              <div className="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
@@ -2267,7 +2519,7 @@ const BudgetMaster = () => {
                     </tr>
                   </thead>
                   <tbody className="text-slate-600 dark:text-slate-100">
-                    <tr className="border-b border-slate-100 dark:border-slate-800 dark:border-slate-800">
+                    <tr className="border-b border-slate-100 dark:border-slate-800">
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">CAPEX</td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Laptop Dell XPS</td>
                       <td className="px-6 py-4">Nos</td>
@@ -2288,13 +2540,13 @@ const BudgetMaster = () => {
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 dark:border-slate-800 flex justify-end gap-4">
+            <div className="app-modal-footer flex-shrink-0 bg-slate-50/50 dark:bg-slate-800/50 justify-end gap-4">
               <button onClick={() => setShowTemplateModal(false)}
-                className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
+                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-colors bg-transparent border-none">
                 Close
               </button>
               <button onClick={handleDownloadTemplate}
-                className="h-12 px-12 text-sm font-black bg-emerald-600 text-white rounded-md hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]">
+                className="px-6 py-2 text-sm font-black bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">
                 Download Template
               </button>
             </div>
@@ -2304,79 +2556,79 @@ const BudgetMaster = () => {
 
       {/* ── Budget Date Modal ────────────────────────────────────────────────── */}
       {showDateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Date</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Effective date for this version</p>
+                <h3 className="app-modal-title">Budget Date</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Effective date for this version</p>
               </div>
               <button onClick={() => setShowDateModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="mb-8">
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Effective Date</label>
+            <div className="app-modal-body space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 font-bold"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100 font-bold"
                 />
               </div>
+            </div>
 
-              <div className="flex gap-4">
-                <button onClick={() => setShowDateModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
-                  Cancel
-                </button>
-                <button onClick={executeSave} disabled={saving}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest">
-                  {saving ? 'Saving...' : 'Confirm'}
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowDateModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button onClick={executeSave} disabled={saving}
+                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {saving ? 'Saving...' : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
       )}
       {/* ── Excel Upload Modal ────────────────────────────────────────────────── */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="app-modal-header">
               <div>
-                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Import Budget</h3>
-                <p className="text-xs font-black text-slate-500 dark:text-slate-300 mt-1 uppercase tracking-widest">Upload new budget snapshot</p>
+                <h3 className="app-modal-title">Import Budget</h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Upload new budget snapshot</p>
               </div>
               <button onClick={() => setShowUploadModal(false)}
-                className="text-xs font-black text-slate-400 dark:text-slate-500 hover:text-slate-600 transition-all uppercase tracking-widest">
-                Close
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-8 space-y-8">
+            <div className="app-modal-body space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Project Name</label>
-                <div className="w-full px-4 py-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Project Name</label>
+                <div className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-350">
                   {selectedProject || 'NONE SELECTED'}
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Budget Effective Date</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Budget Effective Date</label>
                 <input
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-3">Select Excel File</label>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Select Excel File</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -2384,32 +2636,32 @@ const BudgetMaster = () => {
                     onChange={(e) => setTempFile(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className={`w-full px-4 py-4 bg-app-surface dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
-                    <span className="text-xs font-black uppercase tracking-widest">
+                  <div className={`w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                    <span className="text-xs font-bold uppercase tracking-widest">
                       {tempFile ? tempFile.name : 'Click to select file'}
                     </span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-4 pt-4">
-                <button onClick={() => setShowUploadModal(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (!tempFile) { toast.error('Please select a file'); return; }
-                    const targetDate = String(budgetDate || '').trim();
-                    const historyArray = Array.isArray(historyData) ? historyData : [];
-                    const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
-                    if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
-                  }}
-                  className="flex-1 h-12 text-sm font-black bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center uppercase tracking-widest"
-                >
-                  Confirm Upload
-                </button>
-              </div>
+            <div className="app-modal-footer">
+              <button onClick={() => setShowUploadModal(false)}
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!tempFile) { toast.error('Please select a file'); return; }
+                  const targetDate = String(budgetDate || '').trim();
+                  const historyArray = Array.isArray(historyData) ? historyData : [];
+                  const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
+                  if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
+                }}
+                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Confirm Upload
+              </button>
             </div>
           </div>
         </div>
@@ -2417,25 +2669,25 @@ const BudgetMaster = () => {
 
       {/* ── Overwrite Warning Modal ─────────────────────────────────────────── */}
       {showOverwriteWarning && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-none shadow-2xl max-w-md w-full border border-red-200 dark:border-red-900/30 overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-12 text-center">
-              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-none flex items-center justify-center mx-auto mb-8">
-                <span className="text-red-600 font-black text-2xl">!</span>
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4">
+            <div className="p-8 text-center">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-red-600 font-black text-xl">!</span>
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 mb-3 uppercase tracking-widest">Overwrite Budget?</h3>
-              <p className="text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100 mb-8 leading-relaxed uppercase tracking-widest">
-                A budget snapshot for <span className="text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
-                Uploading again will <span className="text-red-600 underline">REPLACE</span> previous data.
+              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 mb-2 uppercase tracking-widest">Overwrite Budget?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-455 mb-6 leading-relaxed">
+                A budget snapshot for <span className="font-bold text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="font-bold text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
+                Uploading again will <span className="text-red-600 underline font-semibold">REPLACE</span> previous data.
               </p>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 justify-center">
                 <button onClick={() => setShowOverwriteWarning(false)}
-                  className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
                   Cancel
                 </button>
                 <button onClick={executeUpload}
-                  className="flex-1 h-12 text-sm font-black bg-red-600 text-white rounded-md hover:bg-red-700 shadow-lg shadow-red-500/20 transition-all uppercase tracking-widest">
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
                   Overwrite
                 </button>
               </div>

@@ -24,6 +24,7 @@ import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import { staggerContainer } from '../utils/animations';
 const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
 const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
+import Modal from '../components/ui/Modal';
 
 
 import { HotTable } from '@handsontable/react';
@@ -458,7 +459,7 @@ const ProjectTitleDashboard = () => {
       const response = await API.get('/projects/all/structures');
       return response.data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
   });
 
   useEffect(() => {
@@ -520,6 +521,7 @@ const ProjectTitleDashboard = () => {
                 utilized_budget: struct.utilized_budget || 0,
                 balance_budget: struct.balance_budget || 0,
                 project_manager: struct.project_manager || null,
+                employee_name: struct.employee_name || null,
                 originalName: struct.project_name || 'Uncategorized'
               });
             }
@@ -550,6 +552,7 @@ const ProjectTitleDashboard = () => {
             existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
             existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
             existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
+            existingProject.employee_name = struct.employee_name || existingProject.employee_name || null;
 
             const moduleMap = new Map();
 
@@ -1933,217 +1936,21 @@ const ProjectTitleDashboard = () => {
     const allSelected = availableSectionKeys.every(key => tempVisibleSections[key]);
 
 
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 2000,
-        padding: '20px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--surface)',
-          borderRadius: '8px',
-          width: '600px',
-          maxWidth: '100%',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--accent)',
-            color: 'white',
-            padding: '15px 20px',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            borderBottom: '1px solid rgba(0,0,0,0.1)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-            borderRadius: '8px 8px 0 0'
-          }}>
-            <span>Configure Dashboard - {activeProject?.name}</span>
+       return (
+      <Modal
+        isOpen={showSimulateModal}
+        onClose={handleCancelConfig}
+        title={`Configure Dashboard - ${activeProject?.name}`}
+        description="Select which sections to display in the dashboard. Unchecked sections will be hidden."
+        size="2xl"
+        footer={
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', width: '100%' }}>
             <button
               onClick={handleCancelConfig}
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'white',
-                fontSize: '20px',
-                cursor: 'pointer',
-                padding: '0 5px'
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          <div style={{ padding: '20px' }}>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '15px' }}>
-              Select which sections to display in the {activeProject?.name} dashboard. Unchecked sections will be hidden.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Sections:</h3>
-              <button
-                onClick={handleSelectAllVisibility}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--accent)',
-                  backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
-                  color: allSelected ? 'white' : 'var(--accent)',
-                  cursor: 'pointer',
-                  fontWeight: 'bold'
-                }}
-              >
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
-              {hasCriticalIssues && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
-                  <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
-                  <span style={{ fontWeight: '600' }}>Critical Issues</span>
-                </label>
-              )}
-              {hasBudgetData && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? 'var(--blue-50)' : 'var(--surface)' }}>
-                  <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
-                  <span style={{ fontWeight: '600' }}>Budget Summary</span>
-                </label>
-              )}
-
-              <div style={{
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                background: tempVisibleSections.metricsSummary ? 'var(--blue-50)' : 'var(--surface)',
-                overflow: 'hidden'
-              }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <input type="checkbox" checked={tempVisibleSections.metricsSummary || false} onChange={() => handleSectionVisibilityToggle('metricsSummary')} />
-                  <span style={{ fontWeight: '600' }}>Project Metrics Summary</span>
-                </label>
-
-                {tempVisibleSections.metricsSummary && (
-                  <div style={{
-                    padding: '12px 12px 12px 40px',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '8px',
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    borderTop: '1px solid var(--border-subtle)'
-                  }}>
-                    {allPossibleCharts.map(chart => {
-                      const hasData = submoduleData[chart.trackerId]?.rows?.length > 0;
-                      return (
-                        <label key={chart.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', position: 'relative' }}>
-                          <input
-                            type="checkbox"
-                            checked={tempVisibleSections[chart.id] || false}
-                            onChange={() => handleSectionVisibilityToggle(chart.id)}
-                          />
-                          <span style={{ color: hasData ? 'inherit' : 'var(--text-muted)' }}>{chart.title}</span>
-                          {!hasData && (
-                            <span style={{ fontSize: '9px', backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', padding: '1px 4px', borderRadius: '4px', fontWeight: 'bold' }}>
-                              NO DATA
-                            </span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Preview of visible sections */}
-            <div style={{
-              marginTop: '20px',
-              backgroundColor: 'var(--bg)',
-              padding: '15px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-subtle)'
-            }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Preview:</h4>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {Object.entries(tempVisibleSections)
-                    .filter(([section, selected]) => {
-                      const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
-                      return selected && topLevelSections.includes(section);
-                    })
-                    .map(([section]) => {
-                      const labels = {
-                        criticalIssues: 'MOM Issues',
-                        budget: 'Budget Summary',
-                        resource: 'Resource Summary',
-                        quality: 'Quality Summary',
-                        metricsSummary: 'Project Metrics Summary'
-                      };
-
-                      let displayLabel = labels[section] || section;
-
-                      if (section === 'metricsSummary') {
-                        const chartCount = allPossibleCharts.filter(c => tempVisibleSections[c.id]).length;
-                        displayLabel = `Project Metrics Summary (${chartCount} charts)`;
-                      }
-
-                      return (
-                        <span key={section} style={{
-                          padding: '4px 10px',
-                          backgroundColor: 'var(--blue-50)',
-                          color: 'var(--blue-900)',
-                          borderRadius: '16px',
-                          fontSize: '12px',
-                          fontWeight: 'bold'
-                        }}>
-                          {displayLabel}
-                        </span>
-                      );
-                    })}
-
-                </div>
-                {Object.values(tempVisibleSections).filter(v => v).length === 0 && (
-                  <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>
-                    No sections selected - dashboard will be empty
-                  </div>
-                )}
-              </div>
-              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--accent)', fontWeight: 'bold' }}>
-                Total visible sections: {availableSectionKeys.filter(key => tempVisibleSections[key]).length}
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '10px',
-            padding: '15px 20px',
-            borderTop: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg)',
-            borderRadius: '0 0 8px 8px',
-            position: 'sticky',
-            bottom: 0,
-            zIndex: 1
-          }}>
-            <button
-              onClick={handleCancelConfig}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                borderRadius: '6px',
                 border: '1px solid var(--border-subtle)',
                 backgroundColor: 'var(--surface)',
                 color: 'var(--text-primary)',
@@ -2156,9 +1963,9 @@ const ProjectTitleDashboard = () => {
             <button
               onClick={handleApplyDashboardConfig}
               style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                borderRadius: '6px',
                 border: 'none',
                 backgroundColor: 'var(--accent)',
                 color: 'white',
@@ -2169,8 +1976,141 @@ const ProjectTitleDashboard = () => {
               Apply to {activeProject?.name}
             </button>
           </div>
+        }
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Sections:</h3>
+          <button
+            onClick={handleSelectAllVisibility}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              borderRadius: '4px',
+              border: '1px solid var(--accent)',
+              backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
+              color: allSelected ? 'white' : 'var(--accent)',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {allSelected ? 'Deselect All' : 'Select All'}
+          </button>
         </div>
-      </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
+          {hasCriticalIssues && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
+              <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
+              <span style={{ fontWeight: '600' }}>Critical Issues</span>
+            </label>
+          )}
+          {hasBudgetData && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.budget ? 'var(--blue-50)' : 'var(--surface)' }}>
+              <input type="checkbox" checked={tempVisibleSections.budget || false} onChange={() => handleSectionVisibilityToggle('budget')} />
+              <span style={{ fontWeight: '600' }}>Budget Summary</span>
+            </label>
+          )}
+
+          <div style={{
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '8px',
+            background: tempVisibleSections.metricsSummary ? 'var(--blue-50)' : 'var(--surface)',
+            overflow: 'hidden'
+          }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <input type="checkbox" checked={tempVisibleSections.metricsSummary || false} onChange={() => handleSectionVisibilityToggle('metricsSummary')} />
+              <span style={{ fontWeight: '600' }}>Project Metrics Summary</span>
+            </label>
+
+            {tempVisibleSections.metricsSummary && (
+              <div style={{
+                padding: '12px 12px 12px 40px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '8px',
+                backgroundColor: 'rgba(255,255,255,0.5)',
+                borderTop: '1px solid var(--border-subtle)'
+              }}>
+                {allPossibleCharts.map(chart => {
+                  const hasData = submoduleData[chart.trackerId]?.rows?.length > 0;
+                  return (
+                    <label key={chart.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', position: 'relative' }}>
+                      <input
+                        type="checkbox"
+                        checked={tempVisibleSections[chart.id] || false}
+                        onChange={() => handleSectionVisibilityToggle(chart.id)}
+                      />
+                      <span style={{ color: hasData ? 'inherit' : 'var(--text-muted)' }}>{chart.title}</span>
+                      {!hasData && (
+                        <span style={{ fontSize: '9px', backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', padding: '1px 4px', borderRadius: '4px', fontWeight: 'bold' }}>
+                          NO DATA
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Preview of visible sections */}
+        <div style={{
+          marginTop: '20px',
+          backgroundColor: 'var(--bg)',
+          padding: '15px',
+          borderRadius: '6px',
+          border: '1px solid var(--border-subtle)'
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Dashboard Preview:</h4>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {Object.entries(tempVisibleSections)
+                .filter(([section, selected]) => {
+                  const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                  return selected && topLevelSections.includes(section);
+                })
+                .map(([section]) => {
+                  const labels = {
+                    criticalIssues: 'MOM Issues',
+                    budget: 'Budget Summary',
+                    resource: 'Resource Summary',
+                    quality: 'Quality Summary',
+                    metricsSummary: 'Project Metrics Summary'
+                  };
+
+                  let displayLabel = labels[section] || section;
+
+                  if (section === 'metricsSummary') {
+                    const chartCount = allPossibleCharts.filter(c => tempVisibleSections[c.id]).length;
+                    displayLabel = `Project Metrics Summary (${chartCount} charts)`;
+                  }
+
+                  return (
+                    <span key={section} style={{
+                      padding: '4px 10px',
+                      backgroundColor: 'var(--blue-50)',
+                      color: 'var(--blue-900)',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: 'bold'
+                    }}>
+                      {displayLabel}
+                    </span>
+                  );
+                })}
+
+            </div>
+            {Object.values(tempVisibleSections).filter(v => v).length === 0 && (
+              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>
+                No sections selected - dashboard will be empty
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--accent)', fontWeight: 'bold' }}>
+            Total visible sections: {availableSectionKeys.filter(key => tempVisibleSections[key]).length}
+          </div>
+        </div>
+      </Modal>
     );
   };
 
@@ -3841,89 +3781,45 @@ const ProjectTitleDashboard = () => {
 
     const text = `Analyzing ${humanizeLabel(chartId)} for ${activeProject.name}. This visualization explores the distribution of ${humanizeLabel(config.yAxis)} across different ${humanizeLabel(config.xAxis)} categories. By aggregating ${rows.length} records using a ${isNumeric ? 'Summation' : 'Frequency Count'} logic, we can clearly identify how ${humanizeLabel(config.yAxis)} varies across the project scope. This breakdown highlights primary drivers and helps focus management attention where it matters most.`;
     return (
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-        backdropFilter: 'blur(12px)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          style={{
-            maxWidth: '750px',
-            width: '100%',
-            backgroundColor: 'var(--surface)',
-            borderRadius: '24px',
-            padding: '50px',
-            position: 'relative',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}
-        >
+      <Modal
+        isOpen={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        title="AI Insights"
+        size="2xl"
+        footer={
           <button
             onClick={() => setShowExplanation(false)}
             style={{
-              position: 'absolute',
-              top: '24px',
-              right: '24px',
+              padding: '10px 24px',
+              backgroundColor: 'var(--accent)',
+              color: 'white',
               border: 'none',
-              background: 'var(--bg)',
+              borderRadius: '8px',
+              fontWeight: '800',
+              fontSize: '13px',
               cursor: 'pointer',
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-muted)'
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
             }}
           >
-            <X size={18} />
+            Close Insights
           </button>
-
-          <div style={{ marginBottom: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-              <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
-                <SparklesIcon size={20} />
-              </div>
-              <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>AI Insights</h2>
-            </div>
-            <div style={{ height: '2px', width: '40px', backgroundColor: 'var(--accent)', borderRadius: '2px', marginBottom: '16px' }}></div>
+        }
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ backgroundColor: 'var(--accent)', color: 'white', padding: '8px', borderRadius: '10px' }}>
+            <SparklesIcon size={20} />
           </div>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>
+            {humanizeLabel(chartId)} Analysis
+          </h2>
+        </div>
 
-          <TextGenerateEffect
-            words={text}
-            className="text-[19px] leading-[1.6] font-medium text-slate-700 tracking-tight"
-          />
-
-          <div style={{ marginTop: '48px', display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => setShowExplanation(false)}
-              style={{
-                padding: '12px 32px',
-                backgroundColor: 'var(--accent)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                fontWeight: '800',
-                fontSize: '13px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-            >
-              Close Insights
-            </button>
-          </div>
-        </motion.div>
-      </div>
+        <TextGenerateEffect
+          words={text}
+          className="text-[17px] leading-[1.6] font-medium text-slate-700 dark:text-slate-300 tracking-tight"
+        />
+      </Modal>
     );
   };
 
@@ -4002,7 +3898,6 @@ const ProjectTitleDashboard = () => {
                 cursor: metricsPage === totalPages ? 'not-allowed' : 'pointer',
                 fontSize: '13px',
                 fontWeight: '700',
-                color: metricsPage === totalPages ? 'var(--text-muted)' : 'var(--accent)',
                 boxShadow: metricsPage === totalPages ? 'none' : '0 2px 4px rgba(0,0,0,0.05)',
                 transition: 'all 0.2s'
               }}
@@ -4034,68 +3929,24 @@ const ProjectTitleDashboard = () => {
       maximizedChart;
 
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-        padding: '30px'
-      }}>
-        <div style={{
-          backgroundColor: 'var(--surface)',
-          borderRadius: '4px',
-          width: '98%',
-          maxWidth: '1400px',
-          maxHeight: '95vh',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.1), 0 20px 40px rgba(0,0,0,0.2)',
-          overflow: 'hidden',
-          fontFamily: 'Inter, sans-serif'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--bg)',
-            color: 'var(--accent)',
-            padding: '16px 24px',
-            fontSize: '16px',
-            fontWeight: '900',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: '2px solid var(--border-subtle)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.02em'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ backgroundColor: 'var(--accent)', width: '3px', height: '20px' }} />
-              <span>{humanizeLabel(phaseLabel)} Analysis</span>
+      <div className="app-modal-overlay z-[10000]">
+        <div className="app-modal-container max-w-[1400px] w-[98%] max-h-[95vh]">
+          {/* Header */}
+          <div className="app-modal-header bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+              <h3 className="app-modal-title">{humanizeLabel(phaseLabel)} Analysis</h3>
             </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <div style={{ position: 'relative' }}>
+            
+            <div className="flex items-center gap-3">
+              <div className="relative">
                 <button
                   onClick={() => toggleAxisSelector(maximizedChart)}
-                  style={{
-                    width: '120px',
-                    height: '34px',
-                    fontSize: '12px',
-                    borderRadius: '4px',
-                    border: '1px solid #cbd5e1',
-                    backgroundColor: showAxisSelector === maximizedChart ? 'var(--accent)' : 'var(--surface)',
-                    color: showAxisSelector === maximizedChart ? 'white' : 'var(--accent)',
-                    cursor: 'pointer',
-                    fontWeight: '800',
-                    transition: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
+                  className={`px-3 py-1.5 text-xs font-bold border rounded-md transition-colors flex items-center justify-center cursor-pointer ${
+                    showAxisSelector === maximizedChart 
+                      ? 'bg-blue-600 border-blue-600 text-white' 
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-350 dark:border-slate-650 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`}
                 >
                   AXES CONFIG
                 </button>
@@ -4116,19 +3967,7 @@ const ProjectTitleDashboard = () => {
               <select
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
                 onChange={(e) => handleChartTypeChange(maximizedChart, e.target.value)}
-                style={{
-                  width: '120px',
-                  height: '34px',
-                  padding: '0 12px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #cbd5e1',
-                  backgroundColor: 'var(--surface)',
-                  color: 'var(--accent)',
-                  cursor: 'pointer',
-                  fontWeight: '800',
-                  outline: 'none'
-                }}
+                className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-350 dark:border-slate-650 rounded-md outline-none cursor-pointer"
               >
                 <option value="bar">Bar Chart</option>
                 <option value="line">Line Chart</option>
@@ -4140,33 +3979,21 @@ const ProjectTitleDashboard = () => {
                 <option value="timeline">Timeline</option>
               </select>
 
-              <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
 
               <button
                 onClick={handleCloseMaximize}
-                style={{
-                  width: '120px',
-                  height: '34px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--accent)',
-                  backgroundColor: 'var(--surface)',
-                  color: 'var(--accent)',
-                  cursor: 'pointer',
-                  fontWeight: '900',
-                  letterSpacing: '0.05em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
+                className="px-3 py-1.5 text-xs font-bold text-red-600 hover:text-white border border-red-500 hover:bg-red-500 rounded-md transition-colors flex items-center justify-center cursor-pointer"
               >
                 CLOSE
               </button>
             </div>
           </div>
-          <div style={{ padding: '30px', flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg)' }}>
-            <div style={{ backgroundColor: 'var(--surface)', padding: '25px', borderRadius: '4px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid var(--border-subtle)', marginBottom: '30px' }}>
-              <div style={{ height: '550px' }}>
+
+          {/* Modal Body */}
+          <div className="app-modal-body bg-slate-50/30 dark:bg-slate-900/30 p-6 space-y-6">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+              <div className="h-[500px]">
                 {renderChart(maximizedChart, chartTypes[activeProject.id]?.[maximizedChart] || 'bar', true, getTrackerForPhase(maximizedChart)?.trackerId)}
               </div>
             </div>
@@ -4226,79 +4053,46 @@ const ProjectTitleDashboard = () => {
               });
 
               return (
-                <div style={{
-                  backgroundColor: 'var(--elevated-card)',
-                  padding: '24px',
-                  borderRadius: '0',
-                  border: '1px solid var(--border-subtle)',
-                  marginBottom: '30px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '20px'
-                }}>
-                  <div style={{
-                    backgroundColor: 'var(--accent)',
-                    color: 'white',
-                    padding: '10px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}>
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-start gap-4">
+                  <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2.5 rounded-lg flex items-center justify-center">
                     <SparklesIcon size={22} />
                   </div>
-                  <div style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <h5 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Analysis Summary</h5>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', backgroundColor: 'var(--elevated-card)', padding: '2px 8px', borderRadius: '4px' }}>
+                  <div className="w-full">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-3">
+                        <h5 className="m-0 text-[14px] font-extrabold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Analysis Summary</h5>
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-750 px-2 py-0.5 rounded">
                           {isNumeric ? 'SUMMATION' : 'COUNT'} LOGIC
                         </span>
                       </div>
                       <button
                         onClick={() => setShowExplanation(true)}
-                        style={{
-                          backgroundColor: 'var(--accent)',
-                          color: 'white',
-                          border: 'none',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: '800',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em'
-                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wider cursor-pointer"
                       >
                         <MessageSquare size={14} />
                         Explain Analysis
                       </button>
                     </div>
-                    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '0', overflow: 'hidden', backgroundColor: 'var(--surface)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-850">
+                      <table className="w-full text-left border-collapse text-xs">
                         <thead>
-                          <tr style={{ backgroundColor: 'var(--elevated-card)', textAlign: 'left' }}>
-                            <th style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontWeight: '800' }}>{humanizeLabel(config.xAxis)}</th>
-                            <th style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontWeight: '800' }}>{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
+                          <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <th className="p-3 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">{humanizeLabel(config.xAxis)}</th>
+                            <th className="p-3 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">{isNumeric ? 'Total' : 'Frequency'} of {humanizeLabel(config.yAxis)}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {sortedEntries.slice(0, 10).map(([x, y]) => (
-                            <tr key={x} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                              <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: '600' }}>{x}</td>
-                              <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: '900', fontSize: '13px' }}>
+                            <tr key={x} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                              <td className="p-3 text-slate-700 dark:text-slate-250 font-medium">{x}</td>
+                              <td className="p-3 text-slate-900 dark:text-slate-100 font-extrabold text-[13px]">
                                 {isNumeric ? (Math.round(y * 100) / 100).toLocaleString() : y}
                               </td>
                             </tr>
                           ))}
                           {sortedEntries.length > 10 && (
-                            <tr style={{ backgroundColor: 'var(--bg)' }}>
-                              <td colSpan="2" style={{ padding: '10px 16px', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', fontSize: '11px' }}>
+                            <tr className="bg-slate-50/50 dark:bg-slate-800/20">
+                              <td colSpan="2" className="p-3 text-slate-400 dark:text-slate-550 italic text-center text-[11px]">
                                 Showing top 10 categories. Total {sortedEntries.length} categories analyzed.
                               </td>
                             </tr>
@@ -4312,9 +4106,9 @@ const ProjectTitleDashboard = () => {
             })()}
 
             {/* Detailed Data View Table */}
-            <div style={{ backgroundColor: 'var(--surface)', borderRadius: '0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>Detailed Data View</h4>
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h4 className="m-0 text-sm font-bold text-slate-900 dark:text-slate-100">Detailed Data View</h4>
                 <button
                   onClick={() => {
                     const tid = getTrackerForPhase(maximizedChart)?.trackerId;
@@ -4336,47 +4130,35 @@ const ProjectTitleDashboard = () => {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '12px',
-                    backgroundColor: '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
+                  className="px-3.5 py-1.5 text-xs bg-emerald-650 hover:bg-emerald-700 text-white rounded-md font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Download size={14} /> Export CSV
                 </button>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr style={{ backgroundColor: 'var(--elevated-card)', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>#</th>
-                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
-                      <th style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontWeight: '800', borderBottom: '2px solid var(--border-subtle)' }}>{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                      <th className="p-3 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px] w-12">#</th>
+                      <th className="p-3 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.xAxis || 'X Axis')}</th>
+                      <th className="p-3 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">{humanizeLabel(axisConfigs[activeProject.id]?.[maximizedChart]?.yAxis || 'Y Axis')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows || []).slice(0, 50).map((row, idx) => {
                       const config = axisConfigs[activeProject.id]?.[maximizedChart];
                       return (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--elevated-card)', backgroundColor: idx % 2 === 0 ? 'var(--surface)' : 'var(--bg)' }}>
-                          <td style={{ padding: '10px 20px', color: 'var(--text-muted)', fontWeight: '600' }}>{idx + 1}</td>
-                          <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: '700' }}>{formatXAxisValue(row[config?.xAxis])}</td>
-                          <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: '800' }}>{row[config?.yAxis]}</td>
+                        <tr key={idx} className={`border-b border-slate-100 dark:border-slate-800 last:border-0 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50/30 dark:bg-slate-850/20'} hover:bg-slate-50/50 dark:hover:bg-slate-800/30`}>
+                          <td className="p-3 text-slate-400 dark:text-slate-500 font-semibold">{idx + 1}</td>
+                          <td className="p-3 text-slate-700 dark:text-slate-200 font-semibold">{formatXAxisValue(row[config?.xAxis])}</td>
+                          <td className="p-3 text-slate-900 dark:text-slate-100 font-bold">{row[config?.yAxis]}</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
                 {(submoduleData[getTrackerForPhase(maximizedChart)?.trackerId]?.rows || []).length > 50 && (
-                  <div style={{ padding: '15px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px', fontStyle: 'italic' }}>
+                  <div className="p-4 text-center text-slate-400 dark:text-slate-550 italic text-[11px] border-t border-slate-100 dark:border-slate-800">
                     Showing top 50 rows. Use "Export CSV" for full results.
                   </div>
                 )}
@@ -5148,333 +4930,275 @@ const EmailModal = ({
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 2000,
-      padding: '20px'
-    }}>
-      <div style={{
-        backgroundColor: 'var(--surface)',
-        borderRadius: '8px',
-        width: '700px',
-        maxWidth: '100%',
-        maxHeight: '90vh',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <div style={{
-          backgroundColor: 'var(--accent)',
-          color: 'white',
-          padding: '15px 20px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          borderBottom: '1px solid rgba(0,0,0,0.1)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexShrink: 0
-        }}>
-          <span>Send Project Dashboard Summary</span>
+    <Modal
+      isOpen={show}
+      onClose={onClose}
+      title="Send Project Dashboard Summary"
+      description={`Email the dashboard summary for ${activeProject?.name}.`}
+      size="3xl"
+      footer={
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', width: '100%' }}>
           <button
             onClick={onClose}
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              fontSize: '20px',
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--surface)',
+              color: 'var(--text-primary)',
               cursor: 'pointer',
-              padding: '0 5px'
+              fontWeight: 'bold'
             }}
           >
-            ×
+            Cancel
+          </button>
+
+          <button
+            onClick={onPreviewPdf}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '6px',
+              border: '1px solid var(--accent)',
+              backgroundColor: 'var(--surface)',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Maximize2 size={14} />
+            Preview PDF
+          </button>
+
+          <button
+            onClick={onExportPdf}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '6px',
+              border: '1px solid var(--accent)',
+              backgroundColor: 'var(--surface)',
+              color: 'var(--accent)',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Download size={14} />
+            Export PDF
+          </button>
+
+          <button
+            onClick={() => {
+              const validToEmails = emailData.emailInputs.filter(e => e.trim() !== '');
+              if (validToEmails.length === 0) {
+                setFormError('Please add at least one valid recipient to the "To" field.');
+                return;
+              }
+              setFormError('');
+              handleSendEmail();
+            }}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              borderRadius: '6px',
+              border: 'none',
+              backgroundColor: 'var(--accent)',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Send Email
+          </button>
+        </div>
+      }
+    >
+      {formError && (
+        <div style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#f87171', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', fontWeight: 'bold' }}>
+          {formError}
+        </div>
+      )}
+
+      {/* To, CC, BCC fields */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4px' }}>
+        <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {!showCc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowCc(true)}>Add CC</button>}
+          {!showBcc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowBcc(true)}>Add BCC</button>}
+        </div>
+      </div>
+      <RecipientInput
+        label=""
+        type="email"
+        emails={emailData.emailInputs.filter(e => e.trim() !== '')}
+        disabledEmails={[...emailData.ccInputs.filter(e => e.trim() !== ''), ...emailData.bccInputs.filter(e => e.trim() !== '')]}
+        onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, emailInputs: newEmails }))}
+        allEmployees={allEmployees}
+      />
+      {showCc && (
+        <RecipientInput
+          label="CC:"
+          type="cc"
+          emails={emailData.ccInputs.filter(e => e.trim() !== '')}
+          disabledEmails={[...emailData.emailInputs.filter(e => e.trim() !== ''), ...emailData.bccInputs.filter(e => e.trim() !== '')]}
+          onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, ccInputs: newEmails }))}
+          allEmployees={allEmployees}
+        />
+      )}
+      {showBcc && (
+        <RecipientInput
+          label="BCC:"
+          type="bcc"
+          emails={emailData.bccInputs.filter(e => e.trim() !== '')}
+          disabledEmails={[...emailData.emailInputs.filter(e => e.trim() !== ''), ...emailData.ccInputs.filter(e => e.trim() !== '')]}
+          onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, bccInputs: newEmails }))}
+          allEmployees={allEmployees}
+        />
+      )}
+
+
+      {/* Subject */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Subject:</label>
+        <input
+          type="text"
+          value={emailData.subject}
+          onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
+          style={{
+            width: '100%',
+            padding: '6px 8px',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '4px',
+            fontSize: '13px',
+            backgroundColor: 'var(--surface)',
+            color: 'var(--text-primary)'
+          }}
+        />
+      </div>
+
+      {/* Message */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Message (Optional):</label>
+        <RichTextEditor
+          value={emailData.message}
+          onChange={(html) => setEmailData(prev => ({ ...prev, message: html }))}
+        />
+      </div>
+
+      {/* Attachments */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Attachments:</label>
+        {emailData.includePdf ? (
+          <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'var(--elevated-card)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-subtle)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <span style={{ marginRight: '6px', fontSize: '14px' }}>📎</span> {activeProject?.name || 'Project'}_Dashboard_Report.pdf (Auto-generated)
+            <button
+              type="button"
+              onClick={() => setEmailData(prev => ({ ...prev, includePdf: false }))}
+              style={{ background: 'none', border: 'none', marginLeft: '8px', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold', fontSize: '14px', padding: '0' }}
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEmailData(prev => ({ ...prev, includePdf: true }))}
+            style={{ background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', color: 'var(--accent)', fontSize: '12px', fontWeight: 'bold' }}
+          >
+            + Attach Dashboard PDF
+          </button>
+        )}
+      </div>
+
+      {/* Section selection */}
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+          <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Select Sections to Include:</label>
+          <button
+            onClick={handleSelectAll}
+            style={{
+              padding: '2px 8px',
+              fontSize: '11px',
+              borderRadius: '4px',
+              border: `1px solid ${allSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
+              backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
+              color: allSelected ? 'white' : 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            {allSelected ? 'Deselect All' : 'Select All'}
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div style={{
-          padding: '20px',
-          overflowY: 'auto',
-          flex: 1
-        }}>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '15px' }}>
-            Email the dashboard summary for <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{activeProject?.name}</span>.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          {/* Default Sections */}
+          {[
+            { id: 'criticalIssues', label: 'Critical Issues' },
+            { id: 'budget', label: 'Budget Summary' },
+            { id: 'resource', label: 'Resource Summary' },
+            { id: 'quality', label: 'Quality Summary' },
+            { id: 'design', label: 'Design' },
+            { id: 'partDevelopment', label: 'Part Development' },
+            { id: 'build', label: 'Build' },
+            { id: 'gateway', label: 'Gateway' },
+            { id: 'validation', label: 'Validation' },
+            { id: 'qualityIssues', label: 'Quality Issues' },
 
-          {formError && (
-            <div style={{ padding: '10px', backgroundColor: 'var(--bg)', border: '1px solid #ef4444', color: '#f87171', borderRadius: '4px', marginBottom: '15px', fontSize: '13px', fontWeight: 'bold' }}>
-              {formError}
-            </div>
-          )}
+          ].filter(section => {
+            // Only show if visible on the dashboard
+            if (!visibleSections[section.id]) return false;
 
-          {/* To, CC, BCC fields */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '4px' }}>
-            <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>To: <span style={{ color: '#ef4444' }}>*</span></label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {!showCc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowCc(true)}>Add CC</button>}
-              {!showBcc && <button style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }} onClick={() => setShowBcc(true)}>Add BCC</button>}
-            </div>
-          </div>
-          <RecipientInput
-            label=""
-            type="email"
-            emails={emailData.emailInputs.filter(e => e.trim() !== '')}
-            disabledEmails={[...emailData.ccInputs.filter(e => e.trim() !== ''), ...emailData.bccInputs.filter(e => e.trim() !== '')]}
-            onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, emailInputs: newEmails }))}
-            allEmployees={allEmployees}
-          />
-          {showCc && (
-            <RecipientInput
-              label="CC:"
-              type="cc"
-              emails={emailData.ccInputs.filter(e => e.trim() !== '')}
-              disabledEmails={[...emailData.emailInputs.filter(e => e.trim() !== ''), ...emailData.bccInputs.filter(e => e.trim() !== '')]}
-              onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, ccInputs: newEmails }))}
-              allEmployees={allEmployees}
-            />
-          )}
-          {showBcc && (
-            <RecipientInput
-              label="BCC:"
-              type="bcc"
-              emails={emailData.bccInputs.filter(e => e.trim() !== '')}
-              disabledEmails={[...emailData.emailInputs.filter(e => e.trim() !== ''), ...emailData.ccInputs.filter(e => e.trim() !== '')]}
-              onUpdate={(newEmails) => setEmailData(prev => ({ ...prev, bccInputs: newEmails }))}
-              allEmployees={allEmployees}
-            />
-          )}
+            const metricKeys = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+            if (metricKeys.includes(section.id)) return availablePhases[section.id];
+            return true;
+          }).map(section => (
+            <label key={section.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+              <input
+                type="checkbox"
+                checked={emailData.selectedSections[section.id] || false}
+                onChange={() => handleSectionToggle(section.id)}
+                style={{ cursor: 'pointer' }}
+              />
+              {section.label}
+            </label>
+          ))}
 
+          {/* Dynamic Trackers */}
+          {(activeProject?.submodules || []).filter(sub => {
+            // Filter out unnamed or unwanted submodules
+            const name = sub.displayName || sub.name || '';
+            if (!name.trim()) return false;
 
-          {/* Subject */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Subject:</label>
-            <input
-              type="text"
-              value={emailData.subject}
-              onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '4px',
-                fontSize: '13px',
-                backgroundColor: 'var(--surface)',
-                color: 'var(--text-primary)'
-              }}
-            />
-          </div>
+            // Only show if visible on the dashboard
+            if (!visibleSections[sub.id]) return false;
 
-          {/* Message */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Message (Optional):</label>
-            <RichTextEditor
-              value={emailData.message}
-              onChange={(html) => setEmailData(prev => ({ ...prev, message: html }))}
-            />
-          </div>
-
-          {/* Attachments */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Attachments:</label>
-            {emailData.includePdf ? (
-              <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'var(--elevated-card)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-subtle)', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                <span style={{ marginRight: '6px', fontSize: '14px' }}>📎</span> {activeProject?.name || 'Project'}_Dashboard_Report.pdf (Auto-generated)
-                <button
-                  type="button"
-                  onClick={() => setEmailData(prev => ({ ...prev, includePdf: false }))}
-                  style={{ background: 'none', border: 'none', marginLeft: '8px', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold', fontSize: '14px', padding: '0' }}
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setEmailData(prev => ({ ...prev, includePdf: true }))}
-                style={{ background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: '4px', padding: '6px 12px', cursor: 'pointer', color: 'var(--accent)', fontSize: '12px', fontWeight: 'bold' }}
-              >
-                + Attach Dashboard PDF
-              </button>
-            )}
-          </div>
-
-          {/* Section selection */}
-          <div style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontWeight: 'bold', color: 'var(--text-primary)', fontSize: '13px' }}>Select Sections to Include:</label>
-              <button
-                onClick={handleSelectAll}
-                style={{
-                  padding: '2px 8px',
-                  fontSize: '11px',
-                  borderRadius: '4px',
-                  border: `1px solid ${allSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
-                  backgroundColor: allSelected ? 'var(--accent)' : 'var(--surface)',
-                  color: allSelected ? 'white' : 'var(--text-primary)',
-                  cursor: 'pointer'
-                }}
-              >
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-              {/* Default Sections */}
-              {[
-                { id: 'criticalIssues', label: 'Critical Issues' },
-                { id: 'budget', label: 'Budget Summary' },
-                { id: 'resource', label: 'Resource Summary' },
-                { id: 'quality', label: 'Quality Summary' },
-                { id: 'design', label: 'Design' },
-                { id: 'partDevelopment', label: 'Part Development' },
-                { id: 'build', label: 'Build' },
-                { id: 'gateway', label: 'Gateway' },
-                { id: 'validation', label: 'Validation' },
-                { id: 'qualityIssues', label: 'Quality Issues' },
-
-              ].filter(section => {
-                // Only show if visible on the dashboard
-                if (!visibleSections[section.id]) return false;
-
-                const metricKeys = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-                if (metricKeys.includes(section.id)) return availablePhases[section.id];
-                return true;
-              }).map(section => (
-                <label key={section.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={emailData.selectedSections[section.id] || false}
-                    onChange={() => handleSectionToggle(section.id)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  {section.label}
-                </label>
-              ))}
-
-              {/* Dynamic Trackers */}
-              {(activeProject?.submodules || []).filter(sub => {
-                // Filter out unnamed or unwanted submodules
-                const name = sub.displayName || sub.name || '';
-                if (!name.trim()) return false;
-
-                // Only show if visible on the dashboard
-                if (!visibleSections[sub.id]) return false;
-
-                const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
-                const coveredByDefault = defaultIds.some(id => {
-                  const tracker = getTrackerForPhase(id);
-                  return tracker && tracker.id === sub.id;
-                });
-                return !coveredByDefault;
-              }).map(sub => (
-                <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={emailData.selectedSections[sub.id] || false}
-                    onChange={() => handleSectionToggle(sub.id)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  {sub.displayName || sub.name}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-subtle)', paddingTop: '15px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--surface)',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Cancel
-            </button>
-
-            <button
-              onClick={onPreviewPdf}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
-                border: '1px solid var(--accent)',
-                backgroundColor: 'var(--surface)',
-                color: 'var(--accent)',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Maximize2 size={16} />
-              Preview PDF
-            </button>
-
-            <button
-              onClick={onExportPdf}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
-                border: '1px solid var(--accent)',
-                backgroundColor: 'var(--surface)',
-                color: 'var(--accent)',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Download size={16} />
-              Export PDF
-            </button>
-
-            <button
-              onClick={() => {
-                const validToEmails = emailData.emailInputs.filter(e => e.trim() !== '');
-                if (validToEmails.length === 0) {
-                  setFormError('Please add at least one valid recipient to the "To" field.');
-                  return;
-                }
-                setFormError('');
-                handleSendEmail();
-              }}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                borderRadius: '4px',
-                border: 'none',
-                backgroundColor: 'var(--accent)',
-                color: 'white',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              Send Email
-            </button>
-          </div>
+            const defaultIds = ['design', 'partDevelopment', 'build', 'gateway', 'validation', 'qualityIssues'];
+            const coveredByDefault = defaultIds.some(id => {
+              const tracker = getTrackerForPhase(id);
+              return tracker && tracker.id === sub.id;
+            });
+            return !coveredByDefault;
+          }).map(sub => (
+            <label key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+              <input
+                type="checkbox"
+                checked={emailData.selectedSections[sub.id] || false}
+                onChange={() => handleSectionToggle(sub.id)}
+                style={{ cursor: 'pointer' }}
+              />
+              {sub.displayName || sub.name}
+            </label>
+          ))}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 
@@ -5543,64 +5267,28 @@ const AxisSelectorModal = ({
   };
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: '100%',
-      right: '0',
-      backgroundColor: 'var(--surface)',
-      border: '1px solid var(--border-subtle)',
-      borderRadius: '12px',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-      padding: '16px',
-      zIndex: 200,
-      width: '280px',
-      marginTop: '12px'
-    }}>
+    <div className="absolute top-full right-0 mt-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 z-[200] w-72">
       {!showPrompt ? (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>Configure Axes</h3>
+          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-705 pb-3">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Configure Axes</h3>
             <button
               onClick={onClose}
-              style={{
-                border: 'none',
-                background: 'var(--bg)',
-                cursor: 'pointer',
-                fontSize: '12px',
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-muted)',
-                fontWeight: 'bold'
-              }}
+              className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 text-xs w-6 h-6 rounded-md hover:bg-slate-105 dark:hover:bg-slate-700 flex items-center justify-center font-bold"
             >
               ✕
             </button>
           </div>
 
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+          <div className="mb-3">
+            <label className="block text-[10px] font-bold text-slate-450 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
               X-Axis Attribute
             </label>
             <select
               value={localConfig.xAxis}
               onChange={(e) => setLocalConfig(prev => ({ ...prev, xAxis: e.target.value }))}
               disabled={dynamicAvailableColumns.length === 0}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                fontSize: '13px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: dynamicAvailableColumns.length === 0 ? 'var(--bg)' : 'var(--surface)',
-                cursor: dynamicAvailableColumns.length === 0 ? 'not-allowed' : 'pointer',
-                outline: 'none',
-                color: 'var(--text-primary)',
-                fontWeight: '500'
-              }}
+              className="w-full px-3 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none text-slate-900 dark:text-slate-100 font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {dynamicAvailableColumns.length === 0 ? (
                 <option>Loading attributes...</option>
@@ -5612,25 +5300,14 @@ const AxisSelectorModal = ({
             </select>
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '800', color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>
+          <div className="mb-5">
+            <label className="block text-[10px] font-bold text-slate-450 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
               Y-Axis Attribute
             </label>
             <select
               value={localConfig.yAxis}
               onChange={(e) => setLocalConfig(prev => ({ ...prev, yAxis: e.target.value }))}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                fontSize: '13px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--surface)',
-                cursor: 'pointer',
-                outline: 'none',
-                color: 'var(--text-primary)',
-                fontWeight: '500'
-              }}
+              className="w-full px-3 py-2 text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 outline-none text-slate-900 dark:text-slate-100 font-semibold cursor-pointer"
             >
               {dynamicAvailableColumns.map(col => (
                 <option key={col} value={col}>{col}</option>
@@ -5640,55 +5317,44 @@ const AxisSelectorModal = ({
 
           <button
             onClick={handleApply}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: 'var(--accent)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '800',
-              fontSize: '13px',
-              boxShadow: '0 4px 6px -1px rgba(30, 58, 95, 0.2)'
-            }}
+            className="w-full py-2.5 bg-blue-650 hover:bg-blue-750 text-white rounded-md text-xs font-bold transition-all shadow-sm cursor-pointer"
           >
             Apply Configuration
           </button>
         </>
       ) : (
         <div>
-          <div style={{ backgroundColor: 'var(--bg)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-            <strong style={{ color: 'var(--accent)' }}>Attr 1:</strong> {localConfig.xAxis}<br />
-            <strong style={{ color: 'var(--accent)' }}>Attr 2:</strong> {localConfig.yAxis}
+          <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-3 mb-3 text-xs text-slate-600 dark:text-slate-400 leading-relaxed border border-slate-100 dark:border-slate-750">
+            <strong className="text-blue-600 dark:text-blue-400">Attr 1:</strong> {localConfig.xAxis}<br />
+            <strong className="text-blue-600 dark:text-blue-400">Attr 2:</strong> {localConfig.yAxis}
           </div>
-          <h3 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '800', color: 'var(--accent)', lineHeight: '1.4' }}>
-            Both are dates {"\u2014"} what should we calculate?
+          <h3 className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-3 leading-relaxed">
+            Both are dates — what should we calculate?
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="flex flex-col gap-2">
             <button
               onClick={() => handleSelectedMetric('delay', 'Delay', localConfig.xAxis, localConfig.yAxis)}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--blue-900)', backgroundColor: 'var(--blue-50)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--blue-900)' }}
+              className="px-3 py-2 text-left rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900/30 dark:bg-blue-950/40 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-950/60 cursor-pointer"
             >
               Delay = {localConfig.yAxis} - {localConfig.xAxis}
             </button>
             <button
               onClick={() => handleSelectedMetric('duration', 'Duration', localConfig.xAxis, localConfig.yAxis)}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--green-900)', backgroundColor: 'var(--green-50)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--green-900)' }}
+              className="px-3 py-2 text-left rounded-md border border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-950/40 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 cursor-pointer"
             >
               Duration = {localConfig.yAxis} - {localConfig.xAxis}
             </button>
             <button
               onClick={() => { handleAxesUpdate(chartId, localConfig.xAxis, localConfig.yAxis, null); onClose(); }}
-              style={{ padding: '10px 12px', textAlign: 'left', borderRadius: '8px', border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg)', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}
+              className="px-3 py-2 text-left rounded-md border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800 text-xs font-semibold text-slate-750 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
             >
               Plot as-is (no calculation)
             </button>
             <button
               onClick={() => setShowPrompt(false)}
-              style={{ padding: '8px', textAlign: 'center', backgroundColor: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px', fontWeight: '700' }}
+              className="py-1.5 text-center text-[10px] font-bold text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer"
             >
-              {"\u2190"} Back to selection
+              ← Back to selection
             </button>
           </div>
         </div>

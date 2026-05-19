@@ -16,24 +16,24 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, message, type = '
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-app-surface dark:bg-slate-900 rounded-lg p-6 max-w-md w-full mx-4 border border-border dark:border-slate-800 shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium text-text-primary dark:text-slate-100">Confirm Delete</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+    <div className="app-modal-overlay">
+      <div className="app-modal-container max-w-md w-full mx-4">
+        <div className="app-modal-header">
+          <h3 className="app-modal-title">Confirm Delete</h3>
+          <button onClick={onClose} className="app-modal-close-btn">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mb-6">
-          <p className="text-text-secondary dark:text-slate-300">{message}</p>
+        <div className="app-modal-body">
+          <p className="text-sm text-text-secondary dark:text-slate-305">{message}</p>
           <p className="text-sm text-red-600 mt-2 font-medium">This action cannot be undone.</p>
         </div>
 
-        <div className="flex justify-end space-x-3">
+        <div className="app-modal-footer">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-border dark:border-slate-700 rounded-lg text-text-primary dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
           >
             Cancel
           </button>
@@ -42,7 +42,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, message, type = '
               onConfirm();
               onClose();
             }}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold"
+            className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 font-bold transition-colors"
           >
             Delete
           </button>
@@ -1069,27 +1069,34 @@ const FileContentViewer = ({
 
       {/* Add Column Modal */}
       {showAddColumnModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-5 sm:p-6 max-w-sm w-full border border-border dark:border-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-text-primary dark:text-slate-100 mb-4">Add New Column</h3>
-            <input
-              type="text"
-              placeholder="Enter column name..."
-              value={newColumnName}
-              onChange={(e) => setNewColumnName(e.target.value)}
-              className="w-full px-4 py-2 bg-app-bg dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-sm sm:text-base focus:ring-2 focus:ring-blue-500 outline-none text-text-primary dark:text-slate-100 transition-all mb-6"
-              autoFocus
-            />
-            <div className="flex justify-end gap-3">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Add New Column</h3>
+              <button onClick={() => setShowAddColumnModal(false)} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="app-modal-body">
+              <input
+                type="text"
+                placeholder="Enter column name..."
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm sm:text-base focus:ring-2 focus:ring-blue-500/20 outline-none text-text-primary dark:text-slate-100 transition-all"
+                autoFocus
+              />
+            </div>
+            <div className="app-modal-footer">
               <button
                 onClick={() => setShowAddColumnModal(false)}
-                className="px-4 py-2 text-text-secondary dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddColumn}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-md active:scale-95"
+                className="px-4 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
               >
                 Add Column
               </button>
@@ -1100,35 +1107,40 @@ const FileContentViewer = ({
 
       {/* Add Row Modal */}
       {showAddRowModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-5 sm:p-6 max-w-lg w-full max-h-[80vh] flex flex-col border border-border dark:border-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-text-primary dark:text-slate-100 mb-4 flex-shrink-0">Add New Row</h3>
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 mb-6">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="app-modal-header flex-shrink-0">
+              <h3 className="app-modal-title">Add New Row</h3>
+              <button onClick={() => setShowAddRowModal(false)} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="app-modal-body flex-1 overflow-y-auto space-y-4">
               {editedHeaders.map((header) => (
                 <div key={header}>
-                  <label className="block text-xs font-bold text-text-muted dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
                     {header}
                   </label>
                   <input
                     type="text"
                     value={newRowData[header] || ''}
                     onChange={(e) => setNewRowData({ ...newRowData, [header]: e.target.value })}
-                    className="w-full px-4 py-2 bg-app-bg dark:bg-slate-800 border border-border dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none text-text-primary dark:text-slate-100 transition-all"
+                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm focus:ring-2 focus:ring-blue-500/20 outline-none text-text-primary dark:text-slate-100 transition-all"
                     placeholder={`Enter ${header.toLowerCase()}...`}
                   />
                 </div>
               ))}
             </div>
-            <div className="flex justify-end gap-3 flex-shrink-0 pt-4 border-t border-border dark:border-slate-800">
+            <div className="app-modal-footer flex-shrink-0">
               <button
                 onClick={() => setShowAddRowModal(false)}
-                className="px-4 py-2 text-text-secondary dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddRow}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-md active:scale-95"
+                className="px-4 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
               >
                 Add Row
               </button>
@@ -1139,25 +1151,30 @@ const FileContentViewer = ({
 
       {/* Bulk Delete Prompt */}
       {showBulkDeletePrompt.show && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
-          <div className="bg-app-surface dark:bg-slate-900 rounded-xl p-6 max-w-sm w-full border border-border dark:border-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-4">
-              <AlertTriangle className="h-6 w-6" />
-              <h3 className="text-lg font-bold">Confirm Deletion</h3>
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Confirm Deletion</h3>
+              <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="app-modal-close-btn">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <p className="text-text-secondary dark:text-slate-300 mb-6">
-              Are you sure you want to delete <span className="font-bold text-text-primary dark:text-slate-100">{showBulkDeletePrompt.count}</span> selected row(s)? This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
+            <div className="app-modal-body">
+              <p className="text-sm text-text-secondary dark:text-slate-300 mb-2">
+                Are you sure you want to delete <span className="font-bold text-text-primary dark:text-slate-100">{showBulkDeletePrompt.count}</span> selected row(s)?
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 italic">This action cannot be undone.</p>
+            </div>
+            <div className="app-modal-footer">
               <button
                 onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })}
-                className="px-4 py-2 text-text-secondary dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmBulkDelete}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all shadow-md active:scale-95"
+                className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
               >
                 Delete
               </button>

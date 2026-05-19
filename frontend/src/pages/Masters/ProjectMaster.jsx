@@ -259,10 +259,15 @@ const ProjectMaster = () => {
   const { user: currentUser } = useSelector(state => state.auth);
   const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager' || currentUser?.role === 'Finance' || currentUser?.role === 'Head';
 
-  const canAddProject = isAdmin || currentUser?.permissions?.includes('Project Master:ADD');
-  const canEditProject = isAdmin || currentUser?.permissions?.includes('Project Master:EDIT');
-  const canDeleteProject = isAdmin || currentUser?.permissions?.includes('Project Master:DELETE');
-  const canAddCustomColumns = isAdmin || currentUser?.permissions?.includes('Project Master:CUSTOM_COLUMNS');
+  const hasProjPerm = (action) => {
+    const userPerms = currentUser?.permissions || [];
+    return userPerms.includes(`Project Master:${action}`) || userPerms.includes(action);
+  };
+
+  const canAddProject = isAdmin || hasProjPerm('ADD');
+  const canEditProject = isAdmin || hasProjPerm('EDIT');
+  const canDeleteProject = isAdmin || hasProjPerm('DELETE');
+  const canAddCustomColumns = isAdmin || hasProjPerm('CUSTOM_COLUMNS');
 
   const hasProjectPermission = (project, permissionType) => {
     if (isAdmin) return true;
@@ -487,7 +492,7 @@ const ProjectMaster = () => {
   // Validation
   const validateProjectForm = (project) => {
     const errors = {};
-    const requiredFixedFields = ['project_id', 'name', 'status', 'project_manager', 'department', 'start_date', 'end_date'];
+    const requiredFixedFields = ['project_id', 'name', 'status'];
 
     requiredFixedFields.forEach(field => {
       if (!project[field] || (typeof project[field] === 'string' && !project[field].trim())) {
@@ -661,6 +666,7 @@ const ProjectMaster = () => {
     setValidationErrors(errors);
 
     if (Object.keys(errors).length > 0) {
+      toast.error('Please fix the validation errors');
       return;
     }
 
@@ -768,6 +774,7 @@ const ProjectMaster = () => {
     const errors = validateProjectForm(editForm);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
+      toast.error('Please fix the validation errors');
       return;
     }
 
@@ -1179,9 +1186,10 @@ const ProjectMaster = () => {
     return employeeList
       .filter(e => e.role === 'Project Manager')
       .map(e => ({
-        value: String(e.employee_id || e.id),
-        label: e.name,
-        name: e.name
+        value: e.name,
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
       }));
   }, [employeeList]);
 
@@ -1190,8 +1198,9 @@ const ProjectMaster = () => {
       .filter(e => e.role === 'Team Lead')
       .map(e => ({
         value: String(e.employee_id || e.id),
-        label: e.name,
-        name: e.name
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
       }));
   }, [employeeList]);
 
@@ -1200,8 +1209,9 @@ const ProjectMaster = () => {
       .filter(e => e.role === 'Employee')
       .map(e => ({
         value: String(e.employee_id || e.id),
-        label: e.name,
-        name: e.name
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
       }));
   }, [employeeList]);
 
@@ -1542,16 +1552,18 @@ const ProjectMaster = () => {
 
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-md shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
-              <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
-                  <AlertTriangle size={20} />
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full">
+              <div className="app-modal-header border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <h3 className="app-modal-title">Confirm Permanent Deletion</h3>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Permanent Deletion</h3>
               </div>
               
-              <div className="p-6">
+              <div className="app-modal-body">
                 <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
                   Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-slate-100">"{showDeletePrompt.name}"</span>?
                 </p>
@@ -1579,7 +1591,7 @@ const ProjectMaster = () => {
                   </button>
                   <button 
                     onClick={confirmDeleteProject} 
-                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
                     Delete Permanently
@@ -1592,21 +1604,21 @@ const ProjectMaster = () => {
 
         {/* Delete Column Prompt */}
         {showDeleteColumnPrompt && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">
                   {showDeleteColumnPrompt.title}
                 </h3>
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
+              <div className="app-modal-body py-4">
                 {showDeleteColumnPrompt.type === 'warning' ? (
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                     {showDeleteColumnPrompt.message}
@@ -1626,10 +1638,10 @@ const ProjectMaster = () => {
                 )}
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer pt-3">
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors"
                 >
                   {showDeleteColumnPrompt.type === 'warning' ? 'OK' : 'Cancel'}
                 </button>
@@ -1637,7 +1649,7 @@ const ProjectMaster = () => {
                 {showDeleteColumnPrompt.type === 'delete' && (
                   <button
                     onClick={confirmDeleteColumn}
-                    className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                    className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                   >
                     Delete
                   </button>
@@ -1649,16 +1661,18 @@ const ProjectMaster = () => {
 
         {/* Bulk Delete Prompt */}
         {showBulkDeletePrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-700">
-              <div className="bg-red-50 dark:bg-red-900/20 px-6 py-4 border-b border-red-100 dark:border-red-900/30 flex items-center gap-3">
-                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
-                  <AlertTriangle size={20} />
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full">
+              <div className="app-modal-header border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <h3 className="app-modal-title">Confirm Bulk Deletion</h3>
                 </div>
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100">Confirm Bulk Deletion</h3>
               </div>
               
-              <div className="p-6">
+              <div className="app-modal-body">
                 <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
                   Are you sure you want to delete <span className="font-bold text-red-600 dark:text-red-400">{showBulkDeletePrompt.count} selected projects</span>?
                 </p>
@@ -1679,7 +1693,7 @@ const ProjectMaster = () => {
                   </button>
                   <button 
                     onClick={confirmBulkDelete} 
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md shadow-red-200 dark:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
                     Delete {showBulkDeletePrompt.count} Projects
@@ -1692,22 +1706,22 @@ const ProjectMaster = () => {
 
         {/* Bulk Edit Prompt */}
         {showBulkEditPrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Edit</h3>
-                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Bulk Edit</h3>
+                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="app-modal-body py-4">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to edit {showBulkEditPrompt.count} selected project{showBulkEditPrompt.count > 1 ? 's' : ''}?
                 </p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmBulkEdit} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Edit</button>
+              <div className="app-modal-footer">
+                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
+                <button onClick={confirmBulkEdit} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Edit</button>
               </div>
             </div>
           </div>
@@ -1715,15 +1729,15 @@ const ProjectMaster = () => {
 
         {/* Add Column Prompt */}
         {showColumnAddPrompt.show && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4 shadow-xl">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Add New Column</h3>
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Add New Column</h3>
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4 space-y-4">
+              <div className="app-modal-body space-y-4">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
@@ -1733,7 +1747,7 @@ const ProjectMaster = () => {
                   <select 
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100"
                   >
                     <option value="text">Text</option>
                     <option value="long_text">Long Text</option>
@@ -1762,7 +1776,7 @@ const ProjectMaster = () => {
                   )}
                 </div>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
                 <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Add Column</button>
               </div>
@@ -1772,56 +1786,51 @@ const ProjectMaster = () => {
 
         {/* Export Confirmation Prompt */}
         {showExportConfirmPrompt?.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Export</h3>
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Export</h3>
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="app-modal-body py-4">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Export {showExportConfirmPrompt.count} project{showExportConfirmPrompt.count > 1 ? 's' : ''} as {showExportConfirmPrompt.format.toUpperCase()}?
                 </p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
+              <div className="app-modal-footer">
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
                 <button onClick={() => {
                   handleExport(showExportConfirmPrompt.format);
                   setShowExportConfirmPrompt(null);
-                }} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Export</button>
+                }} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Export</button>
               </div>
             </div>
           </div>
         )}
-
-        {/* Freeze Column Modal */}
+         {/* Freeze Column Modal */}
         {showFreezeColumnModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Freeze Columns
-                  </span>
-                </h3>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Freeze Columns</h3>
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
+              <div className="app-modal-body">
                 <p className="text-xs text-slate-600 dark:text-slate-100 mb-3">Select columns to freeze (they will remain visible while scrolling horizontally)</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
 
                   {visibleColumns.map((column) => {
                     const actualColumnIndex = columns.findIndex(col => col.id === column.id);
                     return (
-                      <div key={column.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded">
+                      <div key={column.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/20">
                         <input
                           type="checkbox"
                           id={`freeze-${column.id}`}
@@ -1833,13 +1842,13 @@ const ProjectMaster = () => {
                               setTempFrozenColumns(tempFrozenColumns.filter(idx => idx !== actualColumnIndex));
                             }
                           }}
-                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
+                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3 cursor-pointer"
                         />
-                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1">
+                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1 select-none">
                           {column.label}
                         </label>
                         {tempFrozenColumns.includes(actualColumnIndex) && (
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Frozen</span>
+                          <span className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">Frozen</span>
                         )}
                       </div>
                     );
@@ -1847,16 +1856,16 @@ const ProjectMaster = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeColumns}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   Apply Freeze
                 </button>
@@ -1867,29 +1876,25 @@ const ProjectMaster = () => {
 
         {/* Freeze Row Modal */}
         {showFreezeRowModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Freeze Rows
-                  </span>
-                </h3>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Freeze Rows</h3>
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
+              <div className="app-modal-body">
                 <p className="text-xs text-slate-600 dark:text-slate-100 mb-3">Select rows to freeze (they will remain visible while scrolling vertically)</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {paginatedProjects.map((proj, index) => {
                     const actualRowIndex = (currentPage - 1) * pageSize + index;
                     return (
-                      <div key={proj.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded">
+                      <div key={proj.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/20">
                         <input
                           type="checkbox"
                           id={`freeze-row-${proj.id}`}
@@ -1901,13 +1906,13 @@ const ProjectMaster = () => {
                               setTempFrozenRows(tempFrozenRows.filter(idx => idx !== actualRowIndex));
                             }
                           }}
-                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
+                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3 cursor-pointer"
                         />
-                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1">
+                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1 select-none">
                           Row {actualRowIndex + 1}: {proj.name} ({proj.id})
                         </label>
                         {tempFrozenRows.includes(actualRowIndex) && (
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Frozen</span>
+                          <span className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">Frozen</span>
                         )}
                       </div>
                     );
@@ -1915,16 +1920,16 @@ const ProjectMaster = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeRows}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   Apply Freeze
                 </button>
@@ -1935,112 +1940,109 @@ const ProjectMaster = () => {
 
         {/* Column Management Modal */}
         {showColumnModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-md p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <div></div>
-                <button onClick={() => setShowColumnModal(false)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">
+                  Custom Column Management
+                </h3>
+                <button onClick={() => setShowColumnModal(false)} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4 p-3 rounded">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base -mt-5 mb-2">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Add New Custom Column
-                  </span>
-                </h3>
-
-                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                  <input
-                    type="text"
-                    placeholder="Column name (e.g., Start Date)"
-                    value={newColumnName}
-                    onChange={(e) => setNewColumnName(e.target.value)}
-                    className="flex-grow px-3 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded"
-                  />
-                  <button
-                    onClick={handleAddColumn}
-                    className="px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
-                  >
-                    Add Column
-                  </button>
+              <div className="app-modal-body space-y-4">
+                <div className="p-3 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900/20">
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2 uppercase tracking-wide">Add New Custom Column</h4>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Column name (e.g., Start Date)"
+                      value={newColumnName}
+                      onChange={(e) => setNewColumnName(e.target.value)}
+                      className="flex-grow px-3 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100 placeholder-slate-400"
+                    />
+                    <button
+                      onClick={handleAddColumn}
+                      className="px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap transition-colors"
+                    >
+                      Add Column
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <h4 className="text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">Available Columns</h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {columns.map((column) => {
-                    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(column.id);
-                    const isEditing = editingColumn === column.id;
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2 uppercase tracking-wide">Available Columns</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {columns.map((column) => {
+                      const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(column.id);
+                      const isEditing = editingColumn === column.id;
 
-                    return (
-                      <div key={column.id} className="flex items-center justify-between p-2 border border-slate-200 dark:border-slate-700 rounded">
-                        <div className="flex items-center space-x-2">
-                          {isEditing ? (
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="text"
-                                value={tempColumnName}
-                                onChange={(e) => setTempColumnName(e.target.value)}
-                                className="px-2 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded"
-                              />
-                              <button
-                                onClick={() => saveEditColumn(column.id)}
-                                className="p-1 text-green-600 hover:text-green-800"
-                                title="Save"
-                              >
-                                <Check className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                              <button
-                                onClick={cancelEditColumn}
-                                className="p-1 text-red-600 hover:text-red-800"
-                                title="Cancel"
-                              >
-                                <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <span className="">{column.label}</span>
-                            </>
-                          )}
-                        </div>
+                      return (
+                        <div key={column.id} className="flex items-center justify-between p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/10">
+                          <div className="flex items-center space-x-2">
+                            {isEditing ? (
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={tempColumnName}
+                                  onChange={(e) => setTempColumnName(e.target.value)}
+                                  className="px-2 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100"
+                                />
+                                <button
+                                  onClick={() => saveEditColumn(column.id)}
+                                  className="p-1 text-green-600 hover:text-green-800"
+                                  title="Save"
+                                >
+                                  <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                                <button
+                                  onClick={cancelEditColumn}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-slate-700 dark:text-slate-100">{column.label}</span>
+                            )}
+                          </div>
 
-                        <div className="flex items-center space-x-2">
-                          {/* View/Hide button */}
-                          <button
-                            onClick={() => toggleColumnVisibility(column.id)}
-                            className={`p-1 ${column.visible ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100'}`}
-                            title={column.visible ? "Hide column" : "Show column"}
-                          >
-                            {column.visible ? <Eye className="h-3 w-3 sm:h-4 sm:w-4" /> : <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />}
-                          </button>
-
-                          {/* Edit button for all columns */}
-                          {!isEditing && (
+                          <div className="flex items-center space-x-2">
+                            {/* View/Hide button */}
                             <button
-                              onClick={() => startEditColumn(column.id, column.label)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title="Edit column"
+                              onClick={() => toggleColumnVisibility(column.id)}
+                              className={`p-1 ${column.visible ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100'}`}
+                              title={column.visible ? "Hide column" : "Show column"}
                             >
-                              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {column.visible ? <Eye className="h-3 w-3 sm:h-4 sm:w-4" /> : <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />}
                             </button>
-                          )}
 
-                          {/* Delete button */}
-                          <button
-                            onClick={() => handleDeleteColumn(column.id)}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Delete column"
-                          >
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
+                            {/* Edit button for all columns */}
+                            {!isEditing && (
+                              <button
+                                onClick={() => startEditColumn(column.id, column.label)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title="Edit column"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                              </button>
+                            )}
+
+                            {/* Delete button */}
+                            <button
+                              onClick={() => handleDeleteColumn(column.id)}
+                              className="p-1 text-red-600 hover:text-red-800"
+                              title="Delete column"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -2049,249 +2051,273 @@ const ProjectMaster = () => {
 
         {/* Add Project Modal */}
         {showAddProjectModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-white dark:bg-slate-800 flex-shrink-0">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add New Project</h3>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
+                <div>
+                  <h3 className="app-modal-title">Add New Project</h3>
+                  <p className="app-modal-description">Register a new project in the system.</p>
+                </div>
                 <button
                   onClick={cancelNewProject}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Form Body */}
-              <div className="overflow-y-auto flex-1 px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Project ID */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={newProject.project_id || ''}
-                      onChange={e => handleNewProjectChange('project_id', e.target.value)}
-                      placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>&#9888;</span>{validationErrors.project_id}</p>}
+              <div className="app-modal-body">
+                {/* Basic Information Section */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Basic Information</h4>
                   </div>
-                  {/* Project Name */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={newProject.name || ''}
-                      onChange={e => handleNewProjectChange('name', e.target.value)}
-                      placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
-                  </div>
-                  {/* Project Manager */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Project manager</label>
-                    <select
-                      value={newProject.project_manager || ''}
-                      onChange={e => handleNewProjectChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
-                    >
-                      <option value="">Select project manager</option>
-                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
-                    </select>
-                  </div>
-                  {/* Assign Team Lead */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Assign team lead</label>
-                    <SearchableDropdown
-                      options={teamLeadOptions}
-                      value={newProject.employee_id || ''}
-                      onChange={(val, option) => {
-                        handleNewProjectChange('employee_id', val);
-                        handleNewProjectChange('employee_name', option ? option.name : '');
-                      }}
-                      placeholder="Select team lead..."
-                    />
-                  </div>
-                  {/* Assign Employee */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Assign employee</label>
-                    <SearchableDropdown
-                      options={employeeOptions}
-                      value={newProject.assigned_to_id || ''}
-                      onChange={(val, option) => {
-                        handleNewProjectChange('assigned_to_id', val);
-                        handleNewProjectChange('assigned_to_name', option ? option.name : '');
-                      }}
-                      placeholder="Select employee..."
-                    />
-                  </div>
-                  {/* Department */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide text-[11px]">Department</label>
-                    <SearchableDropdown
-                      options={departmentOptions}
-                      value={newProject.department || ''}
-                      onChange={(val) => handleNewProjectChange('department', val)}
-                      placeholder="Select or type department..."
-                    />
-                  </div>
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Start date</label>
-                    <input
-                      type="date"
-                      value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
-                      onChange={e => handleNewProjectChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">End date</label>
-                    <input
-                      type="date"
-                      value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
-                      onChange={e => handleNewProjectChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Timeline (Months) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Timeline (months)</label>
-                    <input
-                      type="number"
-                      value={newProject.timeline_months || ''}
-                      onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
-                      placeholder="e.g. 6"
-                      min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
-                    <select
-                      value={newProject.status || 'Planning'}
-                      onChange={e => handleNewProjectChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                    >
-                      {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
-                  </div>
-
-                  {/* Dynamic Custom Columns */}
-                  {customColumns.map(col => {
-                    const inputType = {
-                      'integer': 'number',
-                      'decimal': 'number',
-                      'currency': 'number',
-                      'percentage': 'number',
-                      'date': 'date',
-                      'datetime': 'datetime-local',
-                      'email': 'email',
-                      'phone': 'tel',
-                      'url': 'url',
-                      'boolean': 'checkbox'
-                    }[col.data_type || col.type] || 'text';
-
-                    if (col.data_type === 'boolean' || col.type === 'boolean') {
-                      return (
-                        <div key={col.id} className="flex items-center gap-3 mt-6">
-                          <input
-                            type="checkbox"
-                            id={`new-${col.id}`}
-                            checked={newProject[col.id] === true}
-                            onChange={(e) => handleNewProjectChange(col.id, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
-                          />
-                          <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-100 cursor-pointer">
-                            {col.label} {col.required && <span className="text-red-500">*</span>}
-                          </label>
-                        </div>
-                      );
-                    }
-
-                    if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
-                      const options = col.validation_rules?.options || [];
-                      return (
-                        <div key={col.id}>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
-                            {col.label} {col.required && <span className="text-red-500">*</span>}
-                          </label>
-                          <select
-                            value={newProject[col.id] || ''}
-                            onChange={e => handleNewProjectChange(col.id, e.target.value)}
-                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                          >
-                            <option value="">Select {col.label}</option>
-                            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                          </select>
-                          {validationErrors[col.id] && (
-                            <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={col.id}>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
-                          {col.label} {col.required && <span className="text-red-500">*</span>}
-                        </label>
-                        <input
-                          type={inputType}
-                          value={newProject[col.id] || ''}
-                          onChange={e => handleNewProjectChange(col.id, e.target.value)}
-                          placeholder={`Enter ${col.label.toLowerCase()}`}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                        />
-                        {validationErrors[col.id] && (
-                          <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Budget Upload (Excel) */}
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5">
-                      Budget file (Excel) <span className="text-slate-400 font-normal">- auto-syncs to Budget Master</span>
-                    </label>
-                    <div className="relative">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                    {/* Project ID */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
                       <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={e => handleNewProjectChange('_budgetFile', e.target.files[0] || null)}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        type="text"
+                        value={newProject.project_id || ''}
+                        onChange={e => handleNewProjectChange('project_id', e.target.value)}
+                        placeholder="e.g. PRJ001"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.project_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
                       />
-                      <div className="w-full px-3 py-2.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-md flex items-center gap-2 text-slate-400 text-sm bg-slate-50 dark:bg-slate-700/40 hover:border-blue-400 transition-colors">
-                        <FileText className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate text-xs">
-                          {newProject._budgetFile ? newProject._budgetFile.name : 'Click to upload budget Excel file (optional)...'}
-                        </span>
+                      {validationErrors.project_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.project_id}</p>}
+                    </div>
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={newProject.name || ''}
+                        onChange={e => handleNewProjectChange('name', e.target.value)}
+                        placeholder="Enter project name"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
+                    </div>
+                    {/* Project Manager */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Manager</label>
+                      <SearchableDropdown
+                        options={managerOptions}
+                        value={newProject.project_manager || ''}
+                        onChange={(val) => handleNewProjectChange('project_manager', val)}
+                        placeholder="Select Project Manager..."
+                      />
+                    </div>
+                    {/* Assign Team Lead */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Team Lead</label>
+                      <SearchableDropdown
+                        options={teamLeadOptions}
+                        value={newProject.employee_id || ''}
+                        onChange={(val, option) => {
+                          handleNewProjectChange('employee_id', val);
+                          handleNewProjectChange('employee_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Team Lead..."
+                      />
+                    </div>
+                    {/* Assign Employee */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employee</label>
+                      <SearchableDropdown
+                        options={employeeOptions}
+                        value={newProject.assigned_to_id || ''}
+                        onChange={(val, option) => {
+                          handleNewProjectChange('assigned_to_id', val);
+                          handleNewProjectChange('assigned_to_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Employee..."
+                      />
+                    </div>
+                    {/* Department */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department</label>
+                      <SearchableDropdown
+                        options={departmentOptions}
+                        value={newProject.department || ''}
+                        onChange={(val) => handleNewProjectChange('department', val)}
+                        placeholder="Select or type department..."
+                      />
+                    </div>
+                    {/* Start Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
+                        onChange={e => handleNewProjectChange('start_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* End Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">End Date</label>
+                      <input
+                        type="date"
+                        value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
+                        onChange={e => handleNewProjectChange('end_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* Timeline (Months) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Timeline (Months)</label>
+                      <input
+                        type="number"
+                        value={newProject.timeline_months || ''}
+                        onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
+                        placeholder="e.g. 6"
+                        min="0"
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                      />
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <select
+                        value={newProject.status || 'Planning'}
+                        onChange={e => handleNewProjectChange('status', e.target.value)}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                      >
+                        {['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {validationErrors.status && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.status}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom Fields Section */}
+                {customColumns.length > 0 && (
+                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                      <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Additional Details</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                      {customColumns.map(col => {
+                        const inputType = {
+                          'integer': 'number',
+                          'decimal': 'number',
+                          'currency': 'number',
+                          'percentage': 'number',
+                          'date': 'date',
+                          'datetime': 'datetime-local',
+                          'email': 'email',
+                          'phone': 'tel',
+                          'url': 'url',
+                          'boolean': 'checkbox'
+                        }[col.data_type || col.type] || 'text';
+
+                        if (col.data_type === 'boolean' || col.type === 'boolean') {
+                          return (
+                            <div key={col.id} className="flex items-center gap-3 mt-6">
+                              <input
+                                type="checkbox"
+                                id={`new-${col.id}`}
+                                checked={newProject[col.id] === true}
+                                onChange={(e) => handleNewProjectChange(col.id, e.target.checked)}
+                                className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                            </div>
+                          );
+                        }
+
+                        if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                          const options = col.validation_rules?.options || [];
+                          return (
+                            <div key={col.id}>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <select
+                                value={newProject[col.id] || ''}
+                                onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                                className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                              >
+                                <option value="">Select {col.label}</option>
+                                {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                              {validationErrors[col.id] && (
+                                <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={col.id}>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                              {col.label} {col.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type={inputType}
+                              value={newProject[col.id] || ''}
+                              onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                              placeholder={`Enter ${col.label.toLowerCase()}`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                            />
+                            {validationErrors[col.id] && (
+                              <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Budget Upload Section */}
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Budget Upload</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-5">
+                    {/* Budget Upload (Excel) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                        Budget file (Excel) <span className="text-slate-400 font-normal">- auto-syncs to Budget Master</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          onChange={e => handleNewProjectChange('_budgetFile', e.target.files[0] || null)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full px-4 py-3 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center gap-3 text-slate-400 text-sm bg-slate-50 dark:bg-slate-800/40 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all">
+                          <FileText className="h-5 w-5 flex-shrink-0 text-slate-400" />
+                          <span className="truncate text-xs font-medium">
+                            {newProject._budgetFile ? newProject._budgetFile.name : 'Click to upload budget Excel file (optional)...'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
                 <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Required fields</p>
                 <div className="flex gap-3">
                   <button
                     onClick={cancelNewProject}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-100"
+                    className="px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveNewProject}
-                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md shadow-blue-500/10 dark:shadow-none transition-all active:scale-[0.98] flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Project
@@ -2304,222 +2330,233 @@ const ProjectMaster = () => {
 
         {/* Edit Project Modal */}
         {editingId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-800/80 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500 rounded-md shadow-sm">
-                    <Edit className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Edit Project</h3>
-                  </div>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
+                <div>
+                  <h3 className="app-modal-title">Edit Project</h3>
+                  <p className="app-modal-description">Modify details for <span className="text-blue-600 dark:text-blue-400 font-semibold">{editForm.name}</span></p>
                 </div>
                 <button
                   onClick={cancelEdit}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Form Body */}
-              <div className="overflow-y-auto flex-1 px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Project ID */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={editForm.project_id || ''}
-                      onChange={e => handleEditFormChange('project_id', e.target.value)}
-                      placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.project_id}</p>}
+              <div className="app-modal-body">
+                {/* Basic Information Section */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Basic Information</h4>
                   </div>
-                  {/* Project Name */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={editForm.name || ''}
-                      onChange={e => handleEditFormChange('name', e.target.value)}
-                      placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>Ã¢Å¡Â </span>{validationErrors.name}</p>}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                    {/* Project ID */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={editForm.project_id || ''}
+                        onChange={e => handleEditFormChange('project_id', e.target.value)}
+                        placeholder="e.g. PRJ001"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.project_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.project_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.project_id}</p>}
+                    </div>
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={e => handleEditFormChange('name', e.target.value)}
+                        placeholder="Enter project name"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
+                    </div>
+                    {/* Project Manager */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Manager</label>
+                      <SearchableDropdown
+                        options={managerOptions}
+                        value={editForm.project_manager || ''}
+                        onChange={(val) => handleEditFormChange('project_manager', val)}
+                        placeholder="Select Project Manager..."
+                      />
+                    </div>
+                    {/* Assign Team Lead */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Team Lead</label>
+                      <SearchableDropdown
+                        options={teamLeadOptions}
+                        value={editForm.employee_id || ''}
+                        onChange={(val, option) => {
+                          handleEditFormChange('employee_id', val);
+                          handleEditFormChange('employee_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Team Lead..."
+                      />
+                    </div>
+                    {/* Assigned To */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assigned To</label>
+                      <SearchableDropdown
+                        options={employeeOptions}
+                        value={editForm.assigned_to_id || ''}
+                        onChange={(val, option) => {
+                          handleEditFormChange('assigned_to_id', val);
+                          handleEditFormChange('assigned_to_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Employee..."
+                      />
+                    </div>
+                    {/* Department */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department</label>
+                      <SearchableDropdown
+                        options={departmentOptions}
+                        value={editForm.department || ''}
+                        onChange={(val) => handleEditFormChange('department', val)}
+                        placeholder="Select or type department..."
+                      />
+                    </div>
+                    {/* Start Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
+                        onChange={e => handleEditFormChange('start_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* End Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">End Date</label>
+                      <input
+                        type="date"
+                        value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
+                        onChange={e => handleEditFormChange('end_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* Timeline (Months) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Timeline (Months)</label>
+                      <input
+                        type="number"
+                        value={editForm.timeline_months || ''}
+                        onChange={e => handleEditFormChange('timeline_months', e.target.value)}
+                        placeholder="e.g. 6"
+                        min="0"
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                      />
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <select
+                        value={editForm.status || 'Planning'}
+                        onChange={e => handleEditFormChange('status', e.target.value)}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                      >
+                        {['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {validationErrors.status && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.status}</p>}
+                    </div>
                   </div>
-                  {/* Project Manager */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Project Manager</label>
-                    <select
-                      value={editForm.project_manager || ''}
-                      onChange={e => handleEditFormChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
-                    >
-                      <option value="">Select Project Manager</option>
-                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
-                    </select>
-                  </div>
-                  {/* Assign Team Lead */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Assign Team Lead</label>
-                    <SearchableDropdown
-                      options={teamLeadOptions}
-                      value={editForm.employee_id || ''}
-                      onChange={(val, option) => {
-                        handleEditFormChange('employee_id', val);
-                        handleEditFormChange('employee_name', option ? option.name : '');
-                      }}
-                      placeholder="Select Team Lead..."
-                    />
-                  </div>
-                  {/* Assigned To */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Assigned To</label>
-                    <SearchableDropdown
-                      options={employeeOptions}
-                      value={editForm.assigned_to_id || ''}
-                      onChange={(val, option) => {
-                        handleEditFormChange('assigned_to_id', val);
-                        handleEditFormChange('assigned_to_name', option ? option.name : '');
-                      }}
-                      placeholder="Select Employee..."
-                    />
-                  </div>
-                  {/* Department */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Department</label>
-                    <SearchableDropdown
-                      options={departmentOptions}
-                      value={editForm.department || ''}
-                      onChange={(val) => handleEditFormChange('department', val)}
-                      placeholder="Select or type department..."
-                    />
-                  </div>
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Start Date</label>
-                    <input
-                      type="date"
-                      value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
-                      onChange={e => handleEditFormChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">End Date</label>
-                    <input
-                      type="date"
-                      value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
-                      onChange={e => handleEditFormChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Timeline (Months) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
-                    <input
-                      type="number"
-                      value={editForm.timeline_months || ''}
-                      onChange={e => handleEditFormChange('timeline_months', e.target.value)}
-                      placeholder="e.g. 6"
-                      min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
-                    <select
-                      value={editForm.status || 'Planning'}
-                      onChange={e => handleEditFormChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                    >
-                      {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
-                  </div>
-
-                  {/* Dynamic Custom Columns */}
-                  {customColumns.map(col => {
-                    const inputType = {
-                      'integer': 'number',
-                      'decimal': 'number',
-                      'currency': 'number',
-                      'percentage': 'number',
-                      'date': 'date',
-                      'datetime': 'datetime-local',
-                      'email': 'email',
-                      'phone': 'tel',
-                      'url': 'url',
-                      'boolean': 'checkbox'
-                    }[col.data_type || col.type] || 'text';
-
-                    if (col.data_type === 'boolean') {
-                      return (
-                        <div key={col.id} className="flex items-center gap-3 mt-6">
-                          <input
-                            type="checkbox"
-                            id={`edit-${col.id}`}
-                            checked={editForm[col.id] === true}
-                            onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
-                          />
-                          <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-600 dark:text-slate-100 cursor-pointer uppercase tracking-wide">
-                            {col.label} {col.required && <span className="text-red-500">*</span>}
-                          </label>
-                        </div>
-                      );
-                    }
-
-                    if (col.data_type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
-                      const options = col.validation_rules?.options || [];
-                      return (
-                        <div key={col.id}>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">
-                            {col.label} {col.required && <span className="text-red-500">*</span>}
-                          </label>
-                          <select
-                            value={editForm[col.id] || ''}
-                            onChange={e => handleEditFormChange(col.id, e.target.value)}
-                            className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                          >
-                            <option value="">Select {col.label}</option>
-                            {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                          </select>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={col.id}>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-100 mb-1.5 uppercase tracking-wide">
-                          {col.label} {col.is_required && <span className="text-red-500">*</span>}
-                        </label>
-                        <input
-                          type={inputType}
-                          value={editForm[col.id] || ''}
-                          onChange={e => handleEditFormChange(col.id, e.target.value)}
-                          placeholder={`Enter ${col.label.toLowerCase()}`}
-                          className={`w-full px-3 py-2.5 text-sm border ${validationErrors[col.id] ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                          required={col.is_required}
-                        />
-                        {validationErrors[col.id] && <p className="text-red-500 text-xs mt-1">{validationErrors[col.id]}</p>}
-                      </div>
-                    );
-                  })}
-
                 </div>
+
+                {/* Custom Fields Section */}
+                {customColumns.length > 0 && (
+                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                      <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Additional Details</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                      {customColumns.map(col => {
+                        const inputType = {
+                          'integer': 'number',
+                          'decimal': 'number',
+                          'currency': 'number',
+                          'percentage': 'number',
+                          'date': 'date',
+                          'datetime': 'datetime-local',
+                          'email': 'email',
+                          'phone': 'tel',
+                          'url': 'url',
+                          'boolean': 'checkbox'
+                        }[col.data_type || col.type] || 'text';
+
+                        if (col.data_type === 'boolean' || col.type === 'boolean') {
+                          return (
+                            <div key={col.id} className="flex items-center gap-3 mt-6">
+                              <input
+                                type="checkbox"
+                                id={`edit-${col.id}`}
+                                checked={editForm[col.id] === true}
+                                onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
+                                className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                            </div>
+                          );
+                        }
+
+                        if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                          const options = col.validation_rules?.options || [];
+                          return (
+                            <div key={col.id}>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <select
+                                value={editForm[col.id] || ''}
+                                onChange={e => handleEditFormChange(col.id, e.target.value)}
+                                className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                              >
+                                <option value="">Select {col.label}</option>
+                                {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                              {validationErrors[col.id] && (
+                                <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={col.id}>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                              {col.label} {col.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type={inputType}
+                              value={editForm[col.id] || ''}
+                              onChange={e => handleEditFormChange(col.id, e.target.value)}
+                              placeholder={`Enter ${col.label.toLowerCase()}`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                            />
+                            {validationErrors[col.id] && (
+                              <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
-                <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Required fields</p>
-                <div className="flex gap-3 w-full items-center">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
+                <div className="flex items-center gap-3 w-full">
                   {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                     <button
                       onClick={(e) => { 
@@ -2527,7 +2564,7 @@ const ProjectMaster = () => {
                         setActiveSubCategoryProject(editForm);
                         setShowSubCategoryModal(true);
                       }}
-                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto"
+                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto shadow-sm"
                     >
                       <FileText className="h-4 w-4" />
                       Trackers management
@@ -2535,13 +2572,13 @@ const ProjectMaster = () => {
                   )}
                   <button
                     onClick={cancelEdit}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-100"
+                    className={`px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors ${(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) ? '' : 'ml-auto'}`}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveEdit}
-                    className="px-5 py-2 text-sm font-medium bg-amber-500 text-white rounded-md hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-8 py-2 text-sm font-bold bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-md shadow-amber-500/10 dark:shadow-none transition-all active:scale-[0.98] flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Changes
@@ -2554,29 +2591,29 @@ const ProjectMaster = () => {
 
         {/* View Project Modal */}
         {showViewModal && viewData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-md shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200/60 dark:border-slate-800">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
                     <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 leading-none">Project Details</h3>
+                    <h3 className="app-modal-title leading-none">Project Details</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-100 mt-1">Full information for {viewData.name}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="app-modal-body flex-1 overflow-y-auto p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                   {columns.map((col) => (
                     <div key={col.id} className="flex flex-col gap-1">
@@ -2590,7 +2627,7 @@ const ProjectMaster = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+              <div className="app-modal-footer flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
                 {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                   <button
                     onClick={() => { 
@@ -2605,7 +2642,7 @@ const ProjectMaster = () => {
                 )}
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-md font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm shadow-sm"
+                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-md font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm shadow-sm"
                 >
                   Close
                 </button>
@@ -3187,22 +3224,22 @@ const ProjectMaster = () => {
             </>
           )}
         </div>
+        <FilterDrawer
+          isOpen={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          activeFilters={activeFilters}
+          setActiveFilters={setActiveFilters}
+          filterOptions={filterOptions}
+          sections={[
+            { id: 'department', label: 'Department', placeholder: 'Select departments...' },
+            { id: 'status', label: 'Status', placeholder: 'Select status...' },
+            { id: 'project_manager', label: 'Project Manager', placeholder: 'Select project managers...' },
+            { id: 'employee_name', label: 'Team Lead', placeholder: 'Select team leads...' }
+          ]}
+          title="Project Filters"
+          subtitle="Filter projects by department, status, or lead"
+        />
       </>
-      <FilterDrawer
-        isOpen={showFilterDrawer}
-        onClose={() => setShowFilterDrawer(false)}
-        activeFilters={activeFilters}
-        setActiveFilters={setActiveFilters}
-        filterOptions={filterOptions}
-        sections={[
-          { id: 'department', label: 'Department', placeholder: 'Select departments...' },
-          { id: 'status', label: 'Status', placeholder: 'Select status...' },
-          { id: 'project_manager', label: 'Project Manager', placeholder: 'Select project managers...' },
-          { id: 'employee_name', label: 'Team Lead', placeholder: 'Select team leads...' }
-        ]}
-        title="Project Filters"
-        subtitle="Filter projects by department, status, or lead"
-      />
     </div>
   );
 };

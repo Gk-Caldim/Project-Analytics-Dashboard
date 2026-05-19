@@ -136,7 +136,9 @@ const EmployeeMaster = () => {
 
   const hasPermission = (module, action = null) => {
     if (!action) return userPermissions.includes(module);
-    return userPermissions.includes(`${module}:${action}`);
+    const flatId = action;
+    const prefixedId = `${module}:${action}`;
+    return userPermissions.includes(prefixedId) || userPermissions.includes(flatId);
   };
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -1045,19 +1047,19 @@ const EmployeeMaster = () => {
 
         {/* Delete Employee Prompt */}
         {showDeletePrompt && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
-                <button onClick={cancelDelete} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Delete</h3>
+                <button onClick={cancelDelete} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="app-modal-body">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">Delete employee <span className="font-medium">{showDeletePrompt.name}</span>?</p>
                 <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button onClick={cancelDelete} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
                 <button onClick={confirmDeleteEmployee} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
               </div>
@@ -1067,21 +1069,21 @@ const EmployeeMaster = () => {
 
         {/* Delete Column Prompt */}
         {showDeleteColumnPrompt && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">
                   {showDeleteColumnPrompt.title}
                 </h3>
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
+              <div className="app-modal-body">
                 {showDeleteColumnPrompt.type === 'warning' ? (
                   <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                     {showDeleteColumnPrompt.message}
@@ -1101,7 +1103,7 @@ const EmployeeMaster = () => {
                 )}
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
                   className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
@@ -1124,21 +1126,21 @@ const EmployeeMaster = () => {
 
         {/* Bulk Delete Prompt */}
         {showBulkDeletePrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Bulk Delete</h3>
+                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="app-modal-body">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to delete {showBulkDeletePrompt.count} selected employee{showBulkDeletePrompt.count > 1 ? 's' : ''}?
                 </p>
                 <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
                 <button onClick={confirmBulkDelete} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
               </div>
@@ -1148,15 +1150,15 @@ const EmployeeMaster = () => {
 
         {/* Add Column Prompt */}
         {showColumnAddPrompt.show && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4 shadow-xl">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Add New Column</h3>
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4 shadow-xl">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Add New Column</h3>
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4 space-y-4">
+              <div className="app-modal-body space-y-4">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
@@ -1166,7 +1168,7 @@ const EmployeeMaster = () => {
                   <select
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
-                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100"
                   >
                     <option value="text">Text</option>
                     <option value="integer">Integer</option>
@@ -1184,7 +1186,7 @@ const EmployeeMaster = () => {
                   )}
                 </div>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
                 <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Add Column</button>
               </div>
@@ -1194,20 +1196,20 @@ const EmployeeMaster = () => {
 
         {/* Export Confirmation Prompt */}
         {showExportConfirmPrompt?.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Export</h3>
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Export</h3>
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="app-modal-body">
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Export {showExportConfirmPrompt.count} employee{showExportConfirmPrompt.count > 1 ? 's' : ''} as {showExportConfirmPrompt.format.toUpperCase()}?
                 </p>
               </div>
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
                 <button onClick={() => {
                   handleExport(showExportConfirmPrompt.format);
@@ -1217,26 +1219,25 @@ const EmployeeMaster = () => {
             </div>
           </div>
         )}
-
         {/* Freeze Column Modal */}
         {showFreezeColumnModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl overflow-hidden max-w-md w-full mx-4 border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title flex items-center gap-2">
                   <Snowflake className="h-4 w-4 text-blue-500" />
                   Freeze Columns
                 </h3>
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-6">
-                <p className="text-[13px] text-slate-500 dark:text-slate-100 mb-4">
+              <div className="app-modal-body">
+                <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">
                   Select columns to pin to the left side of the table while scrolling.
                 </p>
                 <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
@@ -1265,7 +1266,7 @@ const EmployeeMaster = () => {
                             className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
                           />
                         </div>
-                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-100'}`}>
+                        <span className={`ml-3 text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>
                           {column.label}
                         </span>
                         {isFrozen && <Snowflake className="h-3 w-3 ml-auto text-blue-500" />}
@@ -1275,16 +1276,16 @@ const EmployeeMaster = () => {
                 </div>
               </div>
 
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeColumns}
-                  className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-[0.98]"
+                  className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
                 >
                   Apply Settings
                 </button>
@@ -1295,23 +1296,23 @@ const EmployeeMaster = () => {
 
         {/* Freeze Row Modal */}
         {showFreezeRowModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl overflow-hidden max-w-md w-full mx-4 border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title flex items-center gap-2">
                   <Snowflake className="h-4 w-4 text-blue-500" />
                   Freeze Rows
                 </h3>
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-6">
-                <p className="text-[13px] text-slate-500 dark:text-slate-100 mb-4">
+              <div className="app-modal-body">
+                <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-4">
                   Select rows to pin to the top of the table while scrolling.
                 </p>
                 <div className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
@@ -1341,10 +1342,10 @@ const EmployeeMaster = () => {
                           />
                         </div>
                         <div className="ml-3 flex flex-col">
-                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-100'}`}>
+                          <span className={`text-sm font-medium ${isFrozen ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>
                             {emp.name}
                           </span>
-                          <span className="text-[11px] text-slate-400 uppercase font-mono">ID: {emp.id || emp.employee_id}</span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 uppercase font-mono">ID: {emp.id || emp.employee_id}</span>
                         </div>
                         {isFrozen && <Snowflake className="h-3 w-3 ml-auto text-blue-500" />}
                       </label>
@@ -1353,16 +1354,16 @@ const EmployeeMaster = () => {
                 </div>
               </div>
 
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeRows}
-                  className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 dark:shadow-none transition-all active:scale-[0.98]"
+                  className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
                 >
                   Apply Settings
                 </button>
@@ -1373,10 +1374,10 @@ const EmployeeMaster = () => {
 
         {/* Column Management Modal */}
         {showColumnModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl overflow-hidden max-w-md w-full mx-4 border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title flex items-center gap-2">
                   <div className="p-1 rounded bg-blue-100 dark:bg-blue-900/30">
                     <Plus className="h-4 w-4 text-blue-600" />
                   </div>
@@ -1384,26 +1385,26 @@ const EmployeeMaster = () => {
                 </h3>
                 <button
                   onClick={() => setShowColumnModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-6">
+              <div className="app-modal-body">
                 <div className="mb-6">
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Add New Custom Column</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Add New Custom Column</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
                       placeholder="e.g., Phone Number"
                       value={newColumnName}
                       onChange={(e) => setNewColumnName(e.target.value)}
-                      className="flex-grow px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                      className="flex-grow px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
                     />
                     <button
                       onClick={handleAddColumn}
-                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-200 dark:shadow-none"
+                      className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm"
                     >
                       Add
                     </button>
@@ -1411,14 +1412,14 @@ const EmployeeMaster = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Visibility & Actions</label>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Visibility & Actions</label>
                   <div className="space-y-1.5 max-h-[30vh] overflow-y-auto pr-1 custom-scrollbar">
                     {columns.map((column) => {
                       const isEditing = editingColumn === column.id;
                       const isFixed = ['employee_id', 'name', 'email', 'department', 'role', 'status', 'project_name'].includes(column.id);
 
                       return (
-                        <div key={column.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg group">
+                        <div key={column.id} className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg group">
                           <div className="flex items-center min-w-0 flex-1 mr-2">
                             {isEditing ? (
                               <div className="flex items-center gap-1 w-full">
@@ -1426,7 +1427,7 @@ const EmployeeMaster = () => {
                                   type="text"
                                   value={tempColumnName}
                                   onChange={(e) => setTempColumnName(e.target.value)}
-                                  className="flex-1 px-2 py-1 text-sm border border-blue-500 rounded bg-white dark:bg-slate-900 outline-none"
+                                  className="flex-1 px-2 py-1 text-sm border border-blue-500 rounded bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 outline-none"
                                   autoFocus
                                 />
                                 <button onClick={() => saveEditColumn(column.id)} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"><Check className="h-4 w-4" /></button>
@@ -1449,7 +1450,7 @@ const EmployeeMaster = () => {
                             {!isEditing && (
                               <button
                                 onClick={() => startEditColumn(column.id, column.label)}
-                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-md transition-colors"
                                 title="Rename"
                               >
                                 <Edit className="h-4 w-4" />
@@ -1459,7 +1460,7 @@ const EmployeeMaster = () => {
                             {!isFixed && (
                               <button
                                 onClick={() => handleDeleteColumn(column.id)}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 rounded-md transition-colors"
                                 title="Delete"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1478,22 +1479,22 @@ const EmployeeMaster = () => {
 
         {/* Add Employee Modal */}
         {showAddEmployeeModal && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Add New Employee</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Register a new staff member in the system.</p>
+                  <h3 className="app-modal-title">Add New Employee</h3>
+                  <p className="app-modal-description">Register a new staff member in the system.</p>
                 </div>
                 <button
                   onClick={cancelNewEmployee}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="app-modal-body">
                 {/* Basic Information Section */}
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-4">
@@ -1656,22 +1657,22 @@ const EmployeeMaster = () => {
 
         {/* Edit Employee Modal */}
         {editingId && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-sm shadow-2xl flex flex-col max-w-2xl w-full max-h-[90vh] overflow-hidden border border-slate-200/60 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Edit Employee</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-100 mt-0.5">Modify details for <span className="text-blue-600 font-semibold">{editForm.name}</span></p>
+                  <h3 className="app-modal-title">Edit Employee</h3>
+                  <p className="app-modal-description">Modify details for <span className="text-blue-600 font-semibold">{editForm.name}</span></p>
                 </div>
                 <button
                   onClick={cancelEdit}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+              <div className="app-modal-body">
                 {/* Basic Information Section */}
                 <div className="mb-8">
                   <div className="flex items-center gap-2 mb-4">
@@ -1813,7 +1814,7 @@ const EmployeeMaster = () => {
                 )}
               </div>
 
-              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+              <div className="app-modal-footer">
                 <button
                   onClick={cancelEdit}
                   className="px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
@@ -1822,7 +1823,7 @@ const EmployeeMaster = () => {
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md shadow-blue-500/10 dark:shadow-none transition-all active:scale-[0.98]"
+                  className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md transition-all active:scale-[0.98]"
                 >
                   Save Changes
                 </button>

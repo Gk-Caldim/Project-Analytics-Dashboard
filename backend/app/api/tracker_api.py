@@ -124,6 +124,13 @@ async def upload_tracker(
         logger.exception("[tracker_api] Upload pipeline failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
+    try:
+        from app.api.project import structure_cache
+        structure_cache.clear()
+    except Exception as cache_err:
+        logger.error(f"Failed to clear structure cache: {cache_err}")
+
+
     return {
         "upload_id":     new_upload.id,
         "id":            new_upload.dataset_id or new_upload.id, # Prefer dataset_id for frontend viewing
@@ -344,10 +351,15 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
     db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).delete()
     db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == upload.id).delete()
 
-    # 4. Cleanup Upload record
     db.delete(upload)
     db.commit()
     
+    try:
+        from app.api.project import structure_cache
+        structure_cache.clear()
+    except Exception as cache_err:
+        logger.error(f"Failed to clear structure cache: {cache_err}")
+
     print(f"[TrackerAPI] Successfully deleted upload {id}")
     return {"message": "Upload and associated data deleted successfully"}
 
@@ -414,6 +426,12 @@ async def bulk_delete_uploads(request: BulkDeleteRequest, db: Session = Depends(
 
     db.commit()
     
+    try:
+        from app.api.project import structure_cache
+        structure_cache.clear()
+    except Exception as cache_err:
+        logger.error(f"Failed to clear structure cache: {cache_err}")
+
     logger.info("[TrackerAPI] Bulk delete completed: %d uploads, %d datasets", len(upload_ids), len(actual_dataset_ids))
     return {
         "message": f"Successfully deleted {len(upload_ids)} upload(s) and {len(actual_dataset_ids)} dataset(s).",

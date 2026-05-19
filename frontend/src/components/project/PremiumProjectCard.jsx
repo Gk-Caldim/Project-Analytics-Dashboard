@@ -18,8 +18,6 @@ const PremiumProjectCard = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef();
-
-  const subModulesCount = project.submodules ? project.submodules.length : 0;
   const isConfigured = !!project.dashboardConfig;
 
   useEffect(() => {
@@ -152,9 +150,19 @@ const PremiumProjectCard = ({
 
       <div className="card-content-wrapper">
         <div className="meta-grid">
+          {viewMode === 'grid' && (
+            <div className="meta-item">
+              <span className="meta-label">Manager</span>
+              <span className="meta-value manager-name-text">
+                {project.project_manager || <span className="text-muted-value">Not Assigned</span>}
+              </span>
+            </div>
+          )}
           <div className="meta-item">
-            <span className="meta-label">Submodules</span>
-            <span className="meta-value">{subModulesCount}</span>
+            <span className="meta-label">Team Lead</span>
+            <span className="meta-value team-lead-name-text">
+              {project.employee_name || <span className="text-muted-value">Not Assigned</span>}
+            </span>
           </div>
           <div className="meta-item">
             <span className="meta-label">Status</span>
