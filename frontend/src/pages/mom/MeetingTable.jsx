@@ -267,6 +267,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const [showLinkWarning, setShowLinkWarning] = useState(false);
   const [syncedBadgeCount, setSyncedBadgeCount] = useState(0);
   const [syncRoster, setSyncRoster] = useState([]);
+  const [syncResultId, setSyncResultId] = useState(null); // deep-link to the exact record in Saved MOMs
   
   // Stable ID for deduplication when Redux meetingId is missing
   const tempMeetingIdRef = useRef(`temp-${Math.random().toString(36).substr(2, 9)}`);
@@ -387,15 +388,11 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       setSyncedBadgeCount(resp.data.issues_created || rowsToSync.length);
       setShowSyncPanel(true);
       
+      // Store sync_id so the drawer's "View in Library" button can deep-link to it
+      setSyncResultId(resp.data.sync_id || null);
       toast.success('MOM synced to Saved Library!');
-      
-      // Part 3 — Redirect to Saved MOMs with high-fidelity highlight
-      setTimeout(() => {
-        const sid = resp.data.sync_id;
-        navigate(`/dashboard/saved-moms${sid ? `?highlight=${sid}` : ''}`);
-      }, 1500);
 
-      setTimeout(() => setSyncFlowState('idle'), 3000);
+      setTimeout(() => setSyncFlowState('idle'), 4000);
     } catch (err) {
       setSyncFlowState('error');
       setTimeout(() => setSyncFlowState('idle'), 3000);
@@ -802,16 +799,19 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 </div>
                 <div style={{ padding: '24px', borderTop: '1px solid #E2E8F0', background: '#fff', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <button
-                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/mom/view/${sync_id}`); }}
+                    onClick={() => {
+                      setShowSyncPanel(false);
+                      navigate(`/dashboard/saved-moms${syncResultId ? `?highlight=${syncResultId}` : ''}`);
+                    }}
                     className="w-full flex items-center justify-center gap-2 bg-[#0D9488] text-white py-3 rounded-lg font-bold hover:bg-[#0F766E] transition-all shadow-lg"
                   >
-                    View Saved MOM <ArrowRight size={16} />
+                    View in Library <ArrowRight size={16} />
                   </button>
                   <button
-                    onClick={() => { setShowSyncPanel(false); navigate(`/dashboard/projects?projectId=${effectiveProjectId}`); }}
+                    onClick={() => setShowSyncPanel(false)}
                     style={{ background: 'transparent', border: 'none', color: '#64748B', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                   >
-                    Go to Project Dashboard
+                    Continue Editing
                   </button>
                 </div>
               </motion.div>

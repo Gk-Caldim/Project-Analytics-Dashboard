@@ -171,7 +171,7 @@ const Sidebar = ({
     };
 
     const renderMOMModule = () => {
-        const isActive = activeModule === 'mom-module' || activeModule === 'meetings';
+        const isActive = activeModule === 'mom-module' || activeModule === 'schedule-meeting' || activeModule === 'saved-moms' || activeModule === 'calendar';
         const isExpanded = expandedModules['mom'];
 
         return (
@@ -202,10 +202,18 @@ const Sidebar = ({
                         >
                             <div className="sidebar-tree-container">
                                 <div
-                                    onClick={() => handleModuleClick('meetings')}
-                                    className={`sidebar-sub-item ${activeModule === 'meetings' ? 'sidebar-sub-item-active' : ''}`}
+                                    onClick={() => handleModuleClick('calendar')}
+                                    className={`sidebar-sub-item ${activeModule === 'calendar' ? 'sidebar-sub-item-active' : ''}`}
                                 >
-                                    All Meetings
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>My Calendar</span>
+                                    </div>
+                                </div>
+                                <div
+                                    onClick={() => handleModuleClick('schedule-meeting')}
+                                    className={`sidebar-sub-item ${activeModule === 'schedule-meeting' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Schedule Meeting
                                 </div>
                                 <div
                                     onClick={() => handleModuleClick('mom-module')}
@@ -218,12 +226,6 @@ const Sidebar = ({
                                     className={`sidebar-sub-item ${activeModule === 'saved-moms' ? 'sidebar-sub-item-active' : ''}`}
                                 >
                                     Saved MOMs
-                                </div>
-                                <div
-                                    onClick={() => handleModuleClick('schedule-meeting')}
-                                    className={`sidebar-sub-item ${activeModule === 'schedule-meeting' ? 'sidebar-sub-item-active' : ''}`}
-                                >
-                                    Schedule Meeting
                                 </div>
                             </div>
                         </motion.div>

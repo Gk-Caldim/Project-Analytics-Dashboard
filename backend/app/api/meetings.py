@@ -65,8 +65,11 @@ class ScheduleRequest(BaseModel):
     timezone: Optional[str] = "UTC"
     organizer_email: Optional[str] = "unknown@example.com"
     project_id: Optional[int] = None
+    reminder_minutes: Optional[int] = None
+    reminder_notify_attendees: Optional[bool] = True
 
 class MeetingUpdateRequest(BaseModel):
+    title: Optional[str] = None
     date: Optional[str] = None
     time: Optional[str] = None
     platform: Optional[str] = None
@@ -75,6 +78,12 @@ class MeetingUpdateRequest(BaseModel):
     agenda: Optional[List[str]] = None
     agenda_text: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    reminder_notify_attendees: Optional[bool] = None
+    notes: Optional[str] = None
+    intelligence_data: Optional[str] = None
+    action_item_count: Optional[int] = None
 
 class CancelRequest(BaseModel):
     reason: Optional[str] = None
@@ -345,7 +354,9 @@ async def publish_meeting(
             meeting_code = result.get("meeting_code")
 
         else:
-            raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
+            # For other platforms (Zoom, Zoho, etc.), we don't have automated creators yet.
+            # We skip link generation and just save the meeting record.
+            logger.info(f"Skipping link generation for platform: {platform}")
 
         # ── Database Persistence ──────────────────────────────────────────
         meeting = Meeting(
@@ -363,6 +374,8 @@ async def publish_meeting(
             status="scheduled",
             invites_sent=True,
             project_id=req.project_id,
+            reminder_minutes=req.reminder_minutes,
+            reminder_notify_attendees=req.reminder_notify_attendees,
         )
         db.add(meeting)
         db.commit()
@@ -446,7 +459,17 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
 
     agenda_list = []
     if meeting.agenda_text:
-        agenda_list = [t for t in meeting.agenda_text.split('\n') if t.strip()]
+        try:
+            # Try to parse as JSON first (for rich agenda items)
+            parsed = json.loads(meeting.agenda_text)
+            if isinstance(parsed, list):
+                agenda_list = parsed
+            else:
+                # If it's a JSON string but not a list, wrap it
+                agenda_list = [str(parsed)]
+        except Exception:
+            # Fallback to newline splitting for legacy plain text agenda
+            agenda_list = [t for t in meeting.agenda_text.split('\n') if t.strip()]
 
     return {
         "success": True,
@@ -470,6 +493,8 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "cancellation_note": meeting.cancellation_note,
             "cancelled_by": meeting.cancelled_by,
             "project_id":   meeting.project_id,
+            "reminder_minutes": meeting.reminder_minutes,
+            "reminder_notify_attendees": meeting.reminder_notify_attendees,
             "transcript":   json.loads(cast(str, meeting.transcript)) if meeting.transcript else [],
             "intelligence_data": json.loads(cast(str, meeting.intelligence_data)) if meeting.intelligence_data else None,
         },
@@ -481,23 +506,75 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
+    if req.title is not None: meeting.title = req.title  # type: ignore
     if req.date is not None: meeting.date = req.date  # type: ignore
     if req.time is not None: meeting.time = req.time  # type: ignore
-    if req.platform is not None: meeting.platform = req.platform  # type: ignore
     if req.duration is not None: meeting.duration_minutes = req.duration  # type: ignore
     if req.attendees is not None: meeting.attendees = json.dumps(req.attendees)  # type: ignore
     if req.description is not None: meeting.description = req.description  # type: ignore
+    if (req.status is not None):
+        # If moving FROM cancelled TO scheduled/upcoming, clear cancellation metadata
+        if meeting.status == "cancelled" and req.status in ("scheduled", "upcoming"):
+            meeting.cancellation_reason = None # type: ignore
+            meeting.cancellation_note = None # type: ignore
+            meeting.cancelled_by = None # type: ignore
+            meeting.cancelled_at = None # type: ignore
+            meeting.attendees_notified = False # type: ignore
+        
+        meeting.status = req.status  # type: ignore
+    if req.reminder_minutes is not None: meeting.reminder_minutes = req.reminder_minutes  # type: ignore
+    if req.reminder_notify_attendees is not None: meeting.reminder_notify_attendees = req.reminder_notify_attendees  # type: ignore
+    if req.notes is not None: meeting.notes = req.notes  # type: ignore
+    if req.intelligence_data is not None: meeting.intelligence_data = req.intelligence_data  # type: ignore
+    if req.action_item_count is not None: meeting.action_item_count = req.action_item_count  # type: ignore
     
+    # Handle platform change - regenerate link if platform is different
+    if req.platform is not None and req.platform.lower() != meeting.platform:
+        platform = req.platform.lower()
+        meeting_data = {
+            "title":           meeting.title,
+            "description":     meeting.description or "",
+            "date":            meeting.date,
+            "time":            meeting.time,
+            "duration_minutes": meeting.duration_minutes,
+            "platform":        platform,
+            "attendees":       json.loads(cast(str, meeting.attendees)) if meeting.attendees else [],
+            "timezone_name":   "UTC", # Defaulting to UTC for now
+            "agenda_text":     meeting.agenda_text or "",
+        }
+        
+        try:
+            if platform in ("google", "gmeet", "meet"):
+                access_token = GoogleTokenService.get_fresh_access_token(db)
+                creator = GoogleMeetCreator(access_token)
+                result  = creator.create_meeting(meeting_data)
+                meeting.join_url     = result.get("join_url")
+                meeting.meeting_code = result.get("meeting_code")
+                meeting.platform = "google" # normalize
+            elif platform == "teams":
+                teams_token = get_teams_token()
+                creator = MicrosoftTeamsCreator(teams_token)
+                result  = creator.create_meeting(meeting_data)
+                meeting.join_url     = result.get("join_url")
+                meeting.meeting_code = result.get("meeting_code")
+                meeting.platform = "teams"
+            else:
+                raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
+        except Exception as e:
+            logger.error(f"Platform regeneration failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to regenerate meeting link: {str(e)}")
+    elif req.platform is not None:
+        # Just update the string if it's the same but maybe different case
+        meeting.platform = req.platform.lower()
+
     if req.agenda_text is not None:
         meeting.agenda_text = req.agenda_text  # type: ignore
     elif req.agenda is not None:
-        # backward compat loop
         meeting.agenda_text = '\n'.join(req.agenda)  # type: ignore
         
     db.commit()
     db.refresh(meeting)
     
-    # re-fetch wrapper
     return await get_meeting(cast(str, meeting.id), db=db)
 
 @router.post("/{meeting_id}/cancel")
@@ -521,6 +598,17 @@ async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depe
         logger.info(f"Triggering email notifications for meeting {meeting.id} cancellation")
         
     return {"success": True, "message": "Meeting successfully cancelled."}
+
+@router.delete("/{meeting_id}")
+async def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    db.delete(meeting)
+    db.commit()
+    
+    return {"success": True, "message": "Meeting successfully deleted."}
 
 @router.post("/{meeting_id}/resend-invite")
 async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(get_db)):
@@ -594,3 +682,105 @@ async def generate_mom(
         "meeting_id": meeting_id,
         "intelligence": intelligence
     }
+
+@router.post("/{meeting_id}/duplicate")
+async def duplicate_meeting(
+    meeting_id: str, 
+    req: ScheduleRequest, 
+    db: Session = Depends(get_db)
+):
+    """
+    Duplicates an existing meeting with new date/time and optional content carry-over.
+    The request body (ScheduleRequest) should contain the new date/time and 
+    any carried-over fields like title, description, etc.
+    """
+    original = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="Original meeting not found")
+
+    # Generate new meeting link if platform is supported
+    platform = req.platform.lower()
+    join_url = None
+    meeting_code = None
+
+    try:
+        meeting_data = {
+            "title":           req.title,
+            "description":     req.description or "",
+            "date":            req.date,
+            "time":            req.time,
+            "duration_minutes": req.duration_minutes,
+            "platform":        platform,
+            "attendees":       req.attendees or [],
+            "timezone_name":   req.timezone,
+            "agenda_text":     req.agenda_text or "",
+        }
+
+        if platform in ("google", "gmeet", "meet"):
+            access_token = GoogleTokenService.get_fresh_access_token(db)
+            creator = GoogleMeetCreator(access_token)
+            result  = creator.create_meeting(meeting_data)
+            join_url     = result.get("join_url")
+            meeting_code = result.get("meeting_code")
+        elif platform == "teams":
+            teams_token = get_teams_token()
+            creator = MicrosoftTeamsCreator(teams_token)
+            result  = creator.create_meeting(meeting_data)
+            join_url     = result.get("join_url")
+            meeting_code = result.get("meeting_code")
+    except Exception as e:
+        logger.error(f"Link generation for duplicate failed: {e}")
+        # We still proceed with DB creation but link might be missing
+
+    # Create new meeting using the provided request data
+    new_meeting = Meeting(
+        title=req.title,
+        description=req.description,
+        date=req.date,
+        time=req.time,
+        duration_minutes=req.duration_minutes,
+        timezone_name=req.timezone,
+        platform=platform,
+        join_url=join_url,
+        meeting_code=meeting_code,
+        organizer_email=req.organizer_email,
+        attendees=json.dumps(req.attendees),
+        agenda_text=req.agenda_text,
+        status="scheduled",
+        project_id=req.project_id,
+        reminder_minutes=req.reminder_minutes,
+        reminder_notify_attendees=req.reminder_notify_attendees,
+    )
+    
+    db.add(new_meeting)
+    db.commit()
+    db.refresh(new_meeting)
+    
+    return {
+        "success": True, 
+        "message": "Meeting duplicated successfully",
+        "meeting_id": new_meeting.id
+    }
+
+@router.get("/restore-meetings-page")
+def restore_meetings_page():
+    import subprocess
+    try:
+        # Run git checkout from HEAD to restore the files
+        res1 = subprocess.run(["git", "checkout", "HEAD", "frontend/src/pages/mom/MeetingsDashboardPage.jsx"], capture_output=True, text=True, shell=True)
+        res2 = subprocess.run(["git", "checkout", "HEAD", "frontend/src/pages/mom/MeetingsDashboardPage.css"], capture_output=True, text=True, shell=True)
+        return {
+            "status": "success",
+            "jsx": {
+                "returncode": res1.returncode,
+                "stdout": res1.stdout,
+                "stderr": res1.stderr
+            },
+            "css": {
+                "returncode": res2.returncode,
+                "stdout": res2.stdout,
+                "stderr": res2.stderr
+            }
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

@@ -339,15 +339,11 @@ const Dashboard = () => {
     }
     else if (path.includes('/dashboard/masters')) dispatch(setActiveModule('masters-main'));
     else if (path.includes('/dashboard/mom/view')) {
-      dispatch(setActiveModule('meetings'));
+      dispatch(setActiveModule('saved-moms'));
       dispatch(setExpandedModules({ 'mom': true }));
     }
     else if (path.includes('/dashboard/mom')) {
       dispatch(setActiveModule('mom-module'));
-      dispatch(setExpandedModules({ 'mom': true }));
-    }
-    else if (path.includes('/dashboard/meetings')) {
-      dispatch(setActiveModule('meetings'));
       dispatch(setExpandedModules({ 'mom': true }));
     }
     else if (path.includes('/dashboard/saved-moms')) {
@@ -356,6 +352,14 @@ const Dashboard = () => {
     }
     else if (path.includes('/dashboard/schedule-meeting')) {
       dispatch(setActiveModule('schedule-meeting'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/calendar')) {
+      dispatch(setActiveModule('calendar'));
+      dispatch(setExpandedModules({ 'mom': true }));
+    }
+    else if (path.includes('/dashboard/meeting/')) {
+      dispatch(setActiveModule('calendar'));
       dispatch(setExpandedModules({ 'mom': true }));
     }
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
@@ -553,9 +557,12 @@ const Dashboard = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
     if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') return 'Minutes of Meeting';
-    if (activeModule === 'meetings') return 'Meetings Console';
     if (activeModule === 'saved-moms') return 'Saved MOMs';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
+    if (activeModule === 'calendar') {
+      if (location.pathname.includes('/dashboard/meeting/')) return 'Meeting Details';
+      return 'Calendar Console';
+    }
 
     const allModules = [...mastersModules, ...mastersSubmodules, ...uploadsModules, ...uploadsSubmodules, ...otherModules];
     const module = allModules.find(m => m.id === activeModule);
@@ -603,9 +610,9 @@ const Dashboard = () => {
     const module = allModules.find(m => m.id === moduleId);
     if (module) path = module.path;
     else if (moduleId === 'mom-module') path = 'mom';
-    else if (moduleId === 'meetings') path = 'meetings';
     else if (moduleId === 'saved-moms') path = 'saved-moms';
     else if (moduleId === 'schedule-meeting') path = 'schedule-meeting';
+    else if (moduleId === 'calendar') path = 'calendar';
 
     navigate(`/dashboard/${path}`);
 
@@ -630,7 +637,7 @@ const Dashboard = () => {
       }
     } else if (moduleId === 'uploads-main') {
       dispatch(toggleExpansion('uploads'));
-    } else if (moduleId === 'mom-module' || moduleId === 'meetings' || moduleId === 'saved-moms' || moduleId === 'schedule-meeting') {
+    } else if (moduleId === 'mom-module' || moduleId === 'saved-moms' || moduleId === 'schedule-meeting' || moduleId === 'calendar') {
       if (!expandedModules['mom']) {
         dispatch(setExpandedModules({ 'mom': true }));
       }
@@ -692,8 +699,6 @@ const Dashboard = () => {
   // ==========================================================================
   // RENDER FUNCTIONS - ALL WITH WHITE TEXT ON BLUE BACKGROUND
   // ==========================================================================
-
-  // Redundant render functions removed - now using Sidebar component
 
   // Determine if sidebar should be expanded
   const isSidebarExpanded = !sidebarCollapsed;

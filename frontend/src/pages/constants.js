@@ -1,5 +1,20 @@
 // constants.js - Meeting Minutes of Meeting (MOM) Constants
 
+// ── EVENT_COLORS ────────────────────────────────────────────────────────────
+// Single source of truth for the event color palette used across the app.
+export const EVENT_COLORS = [
+  { name: 'Blue',    hex: '#2563EB' },
+  { name: 'Emerald', hex: '#10B981' },
+  { name: 'Amber',   hex: '#F59E0B' },
+  { name: 'Red',     hex: '#EF4444' },
+  { name: 'Purple',  hex: '#8B5CF6' },
+  { name: 'Cyan',    hex: '#06B6D4' }
+];
+
+export const EVENT_COLOR_HEXES = EVENT_COLORS.map(c => c.hex);
+
+
+
 // Criticality/Importance Levels - Simplified
 export const CRITICALITY_OPTIONS = [
   { 

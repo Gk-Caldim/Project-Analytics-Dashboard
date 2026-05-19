@@ -1,0 +1,1192 @@
+/* CalendarPage.css - Zoho Enterprise Layout */
+
+:root {
+  --bg-app: #F7F8FA;
+  --bg-card: #FFFFFF;
+  --border-soft: #E6E8EB;
+  
+  --primary-blue: #2563EB;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  
+  --hover-surface: #F3F4F6;
+  --active-blue-bg: #EFF6FF;
+  
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --radius-button: 8px;
+  
+  --shadow-dropdown: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.calendar-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-app);
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* --- Top Header (Productivity Bar) --- */
+.calendar-header {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo {
+  width: 24px;
+  height: 24px;
+  color: var(--primary-blue);
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Live clock in header */
+.header-live-clock {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 3px 9px;
+  background: var(--hover-surface);
+  border-radius: 20px;
+  letter-spacing: 0.01em;
+  margin-left: 4px;
+  user-select: none;
+}
+
+/* Search clear button */
+.search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-secondary);
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+}
+
+.search-bar-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--hover-surface);
+  border-radius: var(--radius-input);
+  height: 36px;
+  width: 100%;
+  max-width: 480px;
+  padding: 0 12px;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.search-bar-container:focus-within {
+  background-color: var(--bg-card);
+  box-shadow: 0 0 0 2px var(--active-blue-bg), 0 0 0 1px var(--primary-blue);
+}
+
+.search-icon {
+  color: var(--text-muted);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-create-primary {
+  height: 36px;
+  padding: 0 16px;
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.btn-create-primary:hover {
+  background-color: #1D4ED8;
+}
+
+.view-switcher-container {
+  display: flex;
+  background-color: var(--hover-surface);
+  padding: 3px;
+  border-radius: var(--radius-button);
+}
+
+.view-pill {
+  height: 30px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.view-pill.active {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.btn-today-ghost {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-button);
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.btn-today-ghost:hover {
+  background-color: var(--hover-surface);
+  color: var(--text-primary);
+}
+
+.avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--primary-blue);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- 3-Zone Body --- */
+.calendar-body-3zone {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  flex: 1;
+  overflow: hidden;
+  height: calc(100vh - 64px);
+}
+
+/* Zone Cards Common */
+.zone-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* --- Left Sidebar (Zone 1) --- */
+.calendar-left-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* Mini month picker wrapper */
+.mini-picker {
+  width: 100%;
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* Mini Calendar */
+.mini-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.mini-cal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-mini-nav {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.btn-mini-nav:hover {
+  background-color: var(--hover-surface);
+}
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.mini-cal-day-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.mini-cal-cell {
+  height: 30px;            /* slightly taller to give dot room */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 150ms;
+  position: relative;      /* needed for the absolute event dot */
+  flex-direction: column;
+  gap: 0;
+}
+
+.mini-cal-cell:hover:not(.selected) {
+  background-color: var(--hover-surface);
+}
+
+.mini-cal-cell.today:not(.selected) {
+  color: var(--primary-blue);
+  background-color: var(--active-blue-bg);
+  font-weight: 600;
+}
+
+.mini-cal-cell.selected {
+  background-color: var(--primary-blue);
+  color: white;
+  font-weight: 600;
+}
+
+.mini-cal-cell.muted {
+  color: var(--text-muted);
+}
+
+/* Event dot — small pill shown under the date number when the active
+   filter has events on that day. Hidden on selected/muted cells. */
+.mini-event-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--primary-blue);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.mini-cal-cell.selected .mini-event-dot {
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+/* Calendar List Rows */
+.calendar-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background-color 150ms, border-left-color 150ms;
+  margin-bottom: 2px;
+  margin-left: -10px;
+  margin-right: -10px;
+  border-left: 2.5px solid transparent;
+  position: relative;
+}
+
+.calendar-list-row:hover {
+  background-color: var(--hover-surface);
+}
+
+/* Active row: the calendar that owns the currently-selected event */
+.calendar-list-row.cal-row-active {
+  background-color: var(--active-blue-bg);
+  border-left-color: var(--primary-blue);
+}
+
+/* Filtered row: stronger visual — this calendar is actively filtering the grid */
+.calendar-list-row.cal-row-filtered {
+  background-color: #EFF6FF;
+  border-left-color: var(--primary-blue);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.calendar-list-row.cal-row-filtered .cal-name {
+  font-weight: 600;
+  color: var(--primary-blue);
+}
+
+.calendar-list-row.cal-row-filtered .cal-count-badge {
+  background-color: #DBEAFE;
+  color: var(--primary-blue);
+  font-weight: 700;
+}
+
+/* Hidden calendar row dims itself to signal inactive state */
+.calendar-list-row.cal-row-hidden {
+  opacity: 0.65;
+}
+
+.cal-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: opacity 150ms;
+}
+
+.cal-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 150ms;
+}
+
+/* Filter zone: the clickable left part of a calendar row (dot + name + count).
+   Stretches to fill available space, leaving room for the ⋯ and checkmark. */
+.cal-row-filter-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;           /* allow text-overflow ellipsis to work */
+  cursor: pointer;
+}
+.cal-count-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--hover-surface);
+  border-radius: 10px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+  transition: background-color 150ms, color 150ms;
+}
+
+.calendar-list-row.cal-row-active .cal-count-badge {
+  background-color: #DBEAFE; /* blue-100 */
+  color: var(--primary-blue);
+}
+
+/* ⋯ actions container — hidden until row is hovered */
+.cal-row-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.calendar-list-row:hover .cal-row-actions {
+  opacity: 1;
+}
+
+/* Force visible when the dropdown is open, even without hover */
+.calendar-list-row .cal-row-actions:has([data-state="open"]) {
+  opacity: 1;
+}
+
+.cal-actions-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+  padding: 0;
+}
+
+.cal-actions-btn:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary);
+}
+
+.cal-toggle {
+  color: var(--primary-blue);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Section label row: flex container holding the 'MY CALENDARS' label and
+   the 'Show All' pill side by side. */
+.section-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+/* Show All pill — appears when a calendar filter is active */
+.cal-show-all-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-blue);
+  background-color: var(--active-blue-bg);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 20px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 150ms;
+  white-space: nowrap;
+}
+
+.cal-show-all-pill:hover {
+  background-color: #DBEAFE;
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+/* Filter banner: context reminder shown below the label row when a filter
+   is active, telling the user which calendar's events they're seeing. */
+.cal-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background-color: #F0F7FF;
+  border-left: 3px solid var(--primary-blue);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 8px;
+}
+
+.cal-filter-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cal-filter-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-filter-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.cal-color-picker-section {
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: 4px;
+}
+
+.cal-color-picker-section {
+  margin: 6px 4px;
+  padding: 12px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.cal-color-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.cal-color-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px 8px;
+  justify-items: center;
+}
+
+.cal-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+
+.cal-color-swatch:hover {
+  transform: scale(1.2) !important;
+}
+
+/* Filter Toggles */
+.filters-toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.filter-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 4px 2px;
+  user-select: none;
+}
+
+.filter-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 150ms;
+}
+
+.filter-toggle-row:hover .filter-toggle-label {
+  color: var(--text-primary);
+}
+
+.switch-toggle {
+  width: 34px;
+  height: 20px;
+  background-color: #cbd5e1; /* Slate-300 */
+  border-radius: 100px;
+  position: relative;
+  transition: background-color 200ms ease;
+  cursor: pointer;
+}
+
+.switch-toggle.active {
+  background-color: var(--accent-blue, #2563eb);
+}
+
+.switch-thumb {
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.switch-toggle.active .switch-thumb {
+  transform: translateX(14px);
+}
+
+/* --- Main Calendar (Zone 2) --- */
+.calendar-main-grid {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Grid Header moved into Main */
+.main-grid-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.main-month-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.main-grid-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* --- Right Panel (Zone 3) --- */
+.calendar-right-panel {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  background: transparent;
+  border: none;
+}
+
+.right-card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-card);
+  border: 0.5px solid var(--border-soft);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.right-card.flex-1 {
+  flex: 1;
+  overflow: hidden;
+}
+
+.right-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+  margin: 0 -20px;
+  padding: 0 20px;
+}
+
+.upcoming-row {
+  padding: 10px 12px;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+  margin-bottom: 2px;
+}
+
+.upcoming-row:hover {
+  background-color: var(--hover-surface);
+  border-left-color: var(--primary-blue);
+  transform: translateX(2px);
+}
+
+.upcoming-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.upcoming-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-ghost-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-input);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.btn-ghost-action:hover {
+  background-color: var(--hover-surface);
+}
+
+.btn-ghost-action svg {
+  color: var(--text-secondary);
+}
+
+/* Details View Card */
+.event-details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.event-details-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.event-details-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.event-details-divider {
+  height: 1px;
+  background-color: var(--border-soft);
+  margin: 8px 0;
+}
+
+.event-attendee-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.attendee-sm-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--hover-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.btn-outline-action {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 150ms;
+  margin-top: 8px;
+}
+
+.btn-outline-action:hover {
+  background: var(--hover-surface);
+  border-color: var(--text-muted);
+}
+
+/* ── Group Calendars sidebar section ───────────────────────────────────── */
+
+/* + button in the section header to open the Add Calendar modal */
+.group-cal-add-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 150ms;
+  flex-shrink: 0;
+}
+
+.group-cal-add-btn:hover {
+  background-color: var(--hover-surface);
+  color: var(--primary-blue);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Empty state in the GROUP CALENDARS section */
+.group-cal-empty {
+  padding: 4px 0;
+}
+
+.group-cal-empty-text {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
+
+/* Group calendar row — same base as .calendar-list-row, distinguished by tag */
+.group-cal-row {
+  /* Inherits all .calendar-list-row styles.
+     The left-border color is always transparent until filtered/active. */
+}
+
+/* Inline leave-confirmation: "Leave | ×" appears instead of the × button */
+.group-cal-leave-confirm {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group-cal-leave-yes {
+  font-size: 11px;
+  font-weight: 600;
+  color: #DC2626;           /* red-600 */
+  background: #FEF2F2;      /* red-50 */
+  border: 1px solid #FECACA; /* red-200 */
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 150ms;
+  white-space: nowrap;
+}
+
+.group-cal-leave-yes:hover {
+  background: #FEE2E2;      /* red-100 */
+}
+
+.group-cal-leave-no {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 150ms;
+}
+
+.group-cal-leave-no:hover {
+  color: var(--text-secondary);
+}
+
+/* ── Add Group Calendar modal ──────────────────────────────────────────── */
+
+/* Search field inside the modal */
+.join-modal-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--hover-surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-input);
+  padding: 0 10px;
+  height: 36px;
+  transition: all 0.2s;
+}
+
+.join-modal-search:focus-within {
+  background: white;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.join-modal-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.join-modal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.join-modal-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Validation / error message */
+.join-modal-msg {
+  font-size: 12px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.join-modal-msg-error {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.join-modal-msg-success {
+  background: #F0FDF4;
+  color: #16A34A;
+  border: 1px solid #BBF7D0;
+}
+
+/* Scrollable list of project suggestions */
+.join-modal-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  padding: 4px 0;
+}
+
+.join-modal-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 20px 16px;
+}
+
+/* Individual project row inside the modal list */
+.join-modal-project-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 150ms;
+  text-align: left;
+}
+
+.join-modal-project-row:hover {
+  background-color: var(--hover-surface);
+}
+
+.join-modal-project-row:hover .join-modal-project-add {
+  opacity: 1;
+}
+
+.join-modal-project-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.join-modal-project-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.join-modal-project-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.join-modal-project-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.join-modal-project-add {
+  color: var(--primary-blue);
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 150ms;
+}
+
+/* Modal footer — now has two buttons: Cancel (left) + Verify & Join (right) */
+.join-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.join-modal-cancel {
+  padding: 7px 16px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.join-modal-cancel:hover {
+  background: var(--hover-surface);
+  color: var(--text-primary);
+}
+
+/* Primary "Verify & Join" button */
+.join-modal-verify-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  background: var(--primary-blue);
+  border: none;
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.join-modal-verify-btn:hover:not(:disabled) {
+  background: #1D4ED8; /* blue-700 */
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.join-modal-verify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.join-modal-verify-btn.verifying {
+  opacity: 0.85;
+  cursor: wait;
+}
+
+/* Monospace font for the code entry field — makes codes easier to read */
+.join-modal-input-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+/* Slightly taller field to accommodate the monospace font */
+.join-modal-code-field {
+  height: 40px;
+}
+
+/* Security context note below the input */
+.join-modal-security-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+.join-modal-security-note svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* CSS-only spinner shown inside the Verify button during API call */
+@keyframes join-spin {
+  to { transform: rotate(360deg); }
+}
+
+.join-modal-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: join-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Small blue spinner shown inside dropdown actions during API fetches */
+.dropdown-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(37, 99, 235, 0.15);
+  border-top-color: var(--primary-blue);
+  border-radius: 50%;
+  animation: join-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+

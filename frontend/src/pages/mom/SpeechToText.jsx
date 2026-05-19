@@ -1115,8 +1115,8 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
 
       {/* ── BACK LINK ── */}
       <div className="mb-2">
-        <button onClick={() => navigate('/dashboard/meetings')} className="text-xs font-semibold text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
-          <CornerDownLeft className="w-3.5 h-3.5" /> Back to Manage Meetings
+        <button onClick={() => navigate('/dashboard/calendar')} className="text-xs font-semibold text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
+          <CornerDownLeft className="w-3.5 h-3.5" /> Back to Calendar
         </button>
       </div>
 

@@ -1,6 +1,44 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+import Dashboard from './pages/Dashboard';
+import PrivateRoute from './components/PrivateRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+
+// Import modules for direct routing
+import ProjectDashboard from './pages/ProjectDashboard';
+import UploadTrackers from './pages/Trackers/UploadTrackers';
+import EmployeeMaster from './pages/Masters/EmployeeMaster';
+import ProjectMaster from './pages/Masters/ProjectMaster';
+
+import BudgetMaster from './pages/Masters/BudgetMaster';
+import MOMModule from './pages/mom/MOMModule';
+import TranscriptViewer from './pages/mom/TranscriptViewer';
+import MeetingCapturePage from './pages/mom/MeetingCapturePage';
+import MOMViewPage from './pages/mom/MOMViewPage';
+import ScheduleMeetingPage from './pages/mom/ScheduleMeetingPage';
+import ScheduleMeetingPremiumPage from './pages/mom/ScheduleMeetingPremiumPage';
+import MeetingDetailsPage from './pages/mom/MeetingDetailsPage';
+import SavedMOMsPage from './pages/mom/SavedMOMsPage';
+import SystemSettings from './pages/Settings/SystemSettings';
+import BudgetSummaryView from './pages/Budget/BudgetSummaryView';
+import ProjectDetail from './pages/ProjectDetail';
+import LandingPage from './pages/LandingPage';
+
+// Import new module pages
+import AnalyticsPage from './pages/modules/AnalyticsPage';
+import MeetingsPage from './pages/modules/MeetingsPage';
+import BudgetPage from './pages/modules/BudgetPage';
+import GovernancePage from './pages/modules/GovernancePage';
+
+import EnterprisePage from './pages/EnterprisePage';
+import CustomersPage from './pages/CustomersPage';
+import PricingPage from './pages/PricingPage';
+import CheckoutPage from './pages/CheckoutPage';
+import LoginPage from './pages/LoginPage';
+import WorkspaceDashboard from './pages/WorkspaceDashboard';
+import NotFound from './pages/NotFound';
+import CalendarPage from './pages/calendar/CalendarPage';
 // Code splitting imports using React.lazy
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const PrivateRoute = React.lazy(() => import('./components/PrivateRoute'));
@@ -39,9 +77,10 @@ const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard')
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ConfirmProvider } from './hooks/use-confirm';
 import { Toaster, toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
-import { Sparkles, X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { setBranding, setExchangeRates } from './store/slices/navSlice';
 import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
@@ -167,6 +206,36 @@ function App() {
   });
 
   React.useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        const settingsRes = await API.get('/settings/');
+        const settings = settingsRes.data || [];
+
+        const companyName = settings.find(s => s.key === 'company_name')?.value;
+        const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
+        const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
+        const sidebarDashboardLimit = settings.find(s => s.key === 'sidebar_dashboard_limit')?.value;
+        const sidebarDashboardMode = settings.find(s => s.key === 'sidebar_dashboard_mode')?.value;
+
+        if (companyName || companyLogo || baseCurrency || sidebarDashboardLimit || sidebarDashboardMode) {
+          dispatch(setBranding({
+            companyName,
+            companyLogo,
+            baseCurrency,
+            sidebarDashboardLimit,
+            sidebarDashboardMode
+          }));
+        }
+
+        const ratesRes = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+        const ratesData = await ratesRes.json();
+
+        if (ratesData && ratesData.rates) {
+          dispatch(setExchangeRates(ratesData.rates));
+        }
+
+      } catch (error) {
+        console.error('Failed to initialize app settings:', error);
     if (settings) {
       const companyName = settings.find(s => s.key === 'company_name')?.value;
       const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
@@ -194,11 +263,9 @@ function App() {
 
   React.useEffect(() => {
 
-    // ── Global WebSocket Setup for Real-time Notifications ──
     let retryDelay = 5000;
 
     const connectWebSocket = () => {
-      // 1. Prevent duplicate connections if already connecting or open
       if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
         return;
       }
@@ -207,13 +274,11 @@ function App() {
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api';
         const wsBase = apiBase.replace(/^http/, 'ws');
         const wsUrl = `${wsBase}/ws/status/dashboard_${Date.now()}`;
-        console.log('📡 WS ATTEMPT:', wsUrl);
 
         const socket = new WebSocket(wsUrl);
         wsRef.current = socket;
 
         socket.onopen = () => {
-          console.log('✅ WS CONNECTED (Handshake Successful)');
           retryDelay = 5000;
         };
 
@@ -231,36 +296,28 @@ function App() {
               window.dispatchEvent(new CustomEvent('ISSUE_SYNCED', { detail: data }));
             }
           } catch (e) {
-            console.warn('WS Message non-JSON:', event.data);
           }
         };
 
         socket.onclose = (e) => {
-          // Only retry if this is still the current active socket reference
           if (wsRef.current === socket) {
-            console.log(`🔌 WS CLOSED (Code: ${e.code}, Reason: ${e.reason || 'None'}). Retrying in ${retryDelay / 1000}s...`);
             reconnectTimerRef.current = setTimeout(connectWebSocket, retryDelay);
             retryDelay = Math.min(retryDelay * 2, 60000);
           }
         };
 
         socket.onerror = (err) => {
-          console.error('❌ WS ERROR DETECTED');
-          // onclose will handle retry
         };
       } catch (err) {
-        console.error('WS Setup Exception:', err);
       }
     };
 
     connectWebSocket();
 
     return () => {
-      // Cleanup on unmount
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (wsRef.current) {
         const socket = wsRef.current;
-        // Detach listeners before closing to avoid "Failed" logs during intentional cleanup
         socket.onclose = null;
         socket.onerror = null;
         socket.onopen = null;
@@ -281,6 +338,9 @@ function App() {
         {(t) => <CustomToast t={t} toast={toast} />}
       </Toaster>
 
+      <ConfirmProvider>
+        <ErrorBoundary>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ErrorBoundary>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
@@ -312,9 +372,9 @@ function App() {
             <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
             <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
             <Route path="mom/legacy" element={<MOMModule />} />
-            <Route path="meetings" element={<MeetingsDashboardPage />} />
             <Route path="saved-moms" element={<SavedMOMsPage />} />
-            <Route path="schedule-meeting" element={<ScheduleMeetingPage />} />
+            <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
             <Route path="meeting/:id" element={<MeetingDetailsPage />} />
             <Route path="settings/*" element={<SystemSettings />} />
           </Route>
@@ -333,6 +393,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Router>
+      </ErrorBoundary>
+    </ConfirmProvider>
         </React.Suspense>
       </Router>
     </ErrorBoundary>

@@ -28,6 +28,12 @@ class Project(Base):
     dashboard_config = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # ── Group Calendar Join Code ──────────────────────────────────────────
+    # A unique 9-char code (e.g. "ABCD-EF12") that gates calendar subscriptions.
+    # NEVER exposed in the standard ProjectResponse schema — admin-only endpoint only.
+    # nullable=True for backward compat; the startup migration fills existing rows.
+    join_code = Column(String(9), unique=True, nullable=True, index=True)
+
     # Relationship to Employee model
     employee = relationship("Employee", foreign_keys=[employee_id], primaryjoin="Project.employee_id == Employee.employee_id")
 
