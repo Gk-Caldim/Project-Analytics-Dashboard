@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
 import API from '../../utils/api';
 import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const CRITICALITY_COLORS = {
   'High':     { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
@@ -444,19 +446,78 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   };
 
 
-  // Copy to clipboard
-  const handleCopy = () => {
-    const text = meetings.map(m =>
-      `${m.s_no || m.sno || ''}\t${m.function || ''}\t${m.project_name || ''}\t${m.criticality || ''}\t${m.discussion_point || ''}\t${m.responsibility || ''}\t${m.target || ''}\t${m.status || ''}\t${m.action_taken || ''}`
-    ).join('\n');
-    navigator.clipboard.writeText(`S.No\tFunction\tProject\tCriticality\tAction Points\tResponsibility\tTarget\tStatus\tAction Taken\n${text}`).then(() => {
-      setCopied(true);
-      toast.success('Table copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
-    });
+  // Download as CSV
+  const handleDownloadCSV = () => {
+    const header = ['S.No', 'Function', 'Project', 'Criticality', 'Action Points', 'Responsibility', 'Target', 'Status', 'Action Taken'];
+    const rows = meetings.map((m, idx) => [
+      m.s_no || m.sno || idx + 1,
+      m.function || 'General',
+      m.project_name || reduxProjectName || 'General',
+      m.criticality || 'Normal',
+      `"${(m.discussion_point || '').replace(/"/g, '""')}"`,
+      m.responsibility || '',
+      m.target || '',
+      m.status || '',
+      `"${(m.action_taken || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MOM_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('CSV downloaded successfully');
   };
 
-  const handlePrint = () => window.print();
+  // Download as PDF via jsPDF
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(40);
+    doc.text('Minutes of Meeting - Official Record', 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+    const tableColumn = ["S.No", "Function", "Project", "Criticality", "Action Points", "Responsibility", "Target", "Status", "Action Taken"];
+    const tableRows = meetings.map((m, idx) => [
+      m.s_no || m.sno || idx + 1,
+      m.function || 'General',
+      m.project_name || reduxProjectName || 'General',
+      m.criticality || 'Normal',
+      m.discussion_point || '',
+      m.responsibility || '',
+      m.target || '',
+      m.status || '',
+      m.action_taken || ''
+    ]);
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 36,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [13, 148, 136], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        4: { cellWidth: 70 }, 
+        8: { cellWidth: 50 }  
+      }
+    });
+
+    // Open PDF preview in a new tab instead of downloading directly
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, '_blank');
+    toast.success('PDF preview opened in new tab');
+  };
 
   // ── Send Summary Modal ──
   const [showSendModal, setShowSendModal] = useState(false);
@@ -723,8 +784,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 {showExportMenu && (
                   <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded shadow-lg min-w-[140px] overflow-hidden">
                     {[
-                      { label: 'Copy CSV', icon: <Clipboard size={12} />, action: handleCopy },
-                      { label: 'Print PDF', icon: <Download size={12} />, action: handlePrint },
+                      { label: 'CSV', icon: <Download size={12} />, action: handleDownloadCSV },
+                      { label: 'PDF', icon: <Download size={12} />, action: handleDownloadPDF },
                     ].map(item => (
                       <button
                         key={item.label}
@@ -737,12 +798,6 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                   </div>
                 )}
               </div>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-2 px-4 h-8 rounded bg-gray-800 text-white text-xs font-bold hover:bg-black transition-colors"
-              >
-                <Download size={14} /> Download PDF
-              </button>
            </div>
         </div>
 

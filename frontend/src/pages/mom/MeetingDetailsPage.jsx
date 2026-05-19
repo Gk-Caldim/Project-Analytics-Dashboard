@@ -197,6 +197,9 @@ const MeetingDetailsPage = () => {
   // Attendee
   const [showAttendeeForm, setShowAttendeeForm] = useState(false);
   const [newAttendee, setNewAttendee] = useState({ email: '', role: 'attendee' });
+  // Resend invite: tracks in-flight email (spinner) and confirmed-sent emails (✓ badge)
+  const [resendingEmail, setResendingEmail] = useState(null);
+  const [resentEmails, setResentEmails] = useState(new Set());
 
   // Access key
   const [accessKeyRevealed, setAccessKeyRevealed] = useState(false);
@@ -857,9 +860,26 @@ const MeetingDetailsPage = () => {
   };
 
   const handleResendInvite = async (email) => {
-    if (!email) return;
-    showToast(`Invite resent to ${email}`);
-    try { await API.post(`/meetings/${id}/resend-invite`, { email }); } catch {}
+    if (!email || resendingEmail === email) return;
+    setResendingEmail(email);
+    try {
+      await API.post(`/meetings/${id}/resend-invite`, { email });
+      // Mark as sent — show ✓ badge for 3 s then clear
+      setResentEmails(prev => new Set([...prev, email]));
+      toast.success(`Invite resent to ${email}`);
+      setTimeout(() => {
+        setResentEmails(prev => {
+          const next = new Set(prev);
+          next.delete(email);
+          return next;
+        });
+      }, 3000);
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.message || 'Failed to resend invite';
+      toast.error(msg);
+    } finally {
+      setResendingEmail(null);
+    }
   };
 
   const handleHostReassignment = async (attendeeId) => {
@@ -2049,16 +2069,43 @@ const MeetingDetailsPage = () => {
                                   </PopoverContent>
                                 </Popover>
                                 <span className="z-tz-pill">{att.timezone || 'IST'}</span>
-                                {/* More actions */}
+
+                                {/* Inline resend — prominent for PENDING, discreet otherwise */}
+                                {rsvp === 'pending' && (
+                                  <button
+                                    className={`z-resend-btn${resentEmails.has(email) ? ' sent' : ''}`}
+                                    onClick={() => handleResendInvite(email)}
+                                    disabled={resendingEmail === email || resentEmails.has(email)}
+                                    title="Resend invitation"
+                                  >
+                                    {resendingEmail === email ? (
+                                      <Loader size={11} className="mdp2-spin" />
+                                    ) : resentEmails.has(email) ? (
+                                      <><Check size={11} /><span>Sent</span></>
+                                    ) : (
+                                      <><Send size={11} /><span>Send</span></>
+                                    )}
+                                  </button>
+                                )}
+
+                                {/* More actions (host reassign, role change, remove) */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: 4 }}><MoreVertical size={14} /></button>
+                                    <button style={{ background: 'none', border: 'none', color: '#9aa0a6', cursor: 'pointer', padding: 4, borderRadius: 4 }} title="More actions"><MoreVertical size={14} /></button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-40">
-                                    <DropdownMenuItem onClick={() => handleResendInvite(email)}>Resend Invite</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleHostReassignment(id)}>Make Host</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleUpdateAttendee(id, 'role', 'organizer')}>Make Organizer</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRemoveAttendee(id)} className="text-red-600">Remove</DropdownMenuItem>
+                                  <DropdownMenuContent align="end" className="w-44">
+                                    <DropdownMenuItem onClick={() => handleResendInvite(email)}>
+                                      <Send size={13} style={{ marginRight: 8, opacity: 0.6 }} />Resend Invite
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleHostReassignment(id)}>
+                                      <Crown size={13} style={{ marginRight: 8, opacity: 0.6 }} />Make Host
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleUpdateAttendee(id, 'role', 'organizer')}>
+                                      <Users size={13} style={{ marginRight: 8, opacity: 0.6 }} />Make Organizer
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRemoveAttendee(id)} className="text-red-600">
+                                      <Trash2 size={13} style={{ marginRight: 8 }} />Remove
+                                    </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>

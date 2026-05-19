@@ -4213,3 +4213,620 @@
   color: #5f6368;
   margin-bottom: 24px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Z-SYSTEM STRUCTURAL LAYER
+   Covers: header zone · identity bar · title · body layout · cards
+           agenda suggestions · attendee rows · inline resend button
+   Design tokens: Primary #4f46e5 · Border #e8eaed · Radius 12px/8px
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Header Zone ───────────────────────────────────────────────── */
+.z-header-zone {
+  background: #ffffff;
+  border-bottom: 1px solid #e8eaed;
+  position: sticky;
+  top: 0;
+  z-index: 25;
+}
+
+.z-header-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 28px;
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 44px;
+  gap: 12px;
+}
+
+.z-header-row2 {
+  padding: 14px 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.z-header-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ─── Breadcrumb ────────────────────────────────────────────────── */
+.z-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.z-bc-link {
+  color: #9ca3af;
+  text-decoration: none;
+  transition: color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.z-bc-link:hover { color: #4f46e5; }
+
+.z-bc-sep {
+  color: #d1d5db;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.z-bc-current {
+  color: #374151;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Countdown Timer Pill ──────────────────────────────────────── */
+.z-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+/* ─── Header Primary & Ghost Buttons (full rewrite for consistency) ─ */
+.z-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.14s;
+  white-space: nowrap;
+}
+
+.z-btn-primary:hover:not(:disabled) {
+  background: #4338ca;
+  transform: translateY(-1px);
+}
+
+.z-btn-primary:active { transform: scale(0.97); }
+.z-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.z-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #374151;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.z-btn-ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+/* ─── Status Badge ──────────────────────────────────────────────── */
+.z-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.z-status-badge:hover { opacity: 0.8; }
+.z-status-badge.live      { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.z-status-badge.upcoming  { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+.z-status-badge.ended     { background: #f3f4f6; color: #6b7280; border-color: #e5e7eb; }
+.z-status-badge.cancelled { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+
+/* ─── Identity Line ─────────────────────────────────────────────── */
+.z-identity-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.z-identity-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.z-identity-item.editable {
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: 6px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.z-identity-item.editable:hover {
+  background: #f0f4ff;
+  color: #4f46e5;
+}
+
+.z-identity-sep {
+  color: #cbd5e1;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin: 0 1px;
+}
+
+/* ─── Platform Pill ─────────────────────────────────────────────── */
+.z-platform-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.z-platform-pill:hover { background: #f1f5f9; border-color: #cbd5e1; }
+
+/* ─── Meeting Title ─────────────────────────────────────────────── */
+.z-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.z-meeting-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.z-title-row:hover .z-meeting-title { border-color: #e5e7eb; }
+
+.z-title-pencil {
+  color: #9ca3af;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.z-title-row:hover .z-title-pencil { opacity: 1; }
+
+.z-meeting-title-input {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  border: none;
+  outline: none;
+  width: 100%;
+  background: transparent;
+  font-family: inherit;
+  border-bottom: 2px solid #4f46e5;
+  padding-bottom: 2px;
+}
+
+/* ─── Two-Column Body ───────────────────────────────────────────── */
+.z-body {
+  padding: 20px 28px;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .z-body { grid-template-columns: 1fr; }
+}
+
+.z-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.z-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 60px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .z-right-col { position: static; max-height: none; }
+}
+
+/* ─── Section Label ─────────────────────────────────────────────── */
+.z-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9ca3af;
+  padding: 2px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.z-section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8eaed;
+}
+
+/* ─── Cards ─────────────────────────────────────────────────────── */
+.z-card {
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  overflow: hidden;
+  animation: mdp2Fade 0.25s ease both;
+}
+
+.z-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  border-bottom: 1px solid #f0f2f5;
+  background: #fafbfc;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.z-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #6b7280;
+}
+
+.z-card-meta {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.z-card-meta.amber { color: #d97706; }
+.z-card-meta.red   { color: #dc2626; }
+
+.z-card-body {
+  padding: 14px 16px;
+}
+
+/* ─── Agenda Suggestions Block ──────────────────────────────────── */
+.z-suggestion-block {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.z-suggestion-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.z-suggestion-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+.z-suggestion-row:hover {
+  background: #f0f4ff;
+  color: #4f46e5;
+}
+
+.z-suggestion-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+
+.z-suggestion-row:hover .z-suggestion-num {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.z-suggestion-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.z-row-plus {
+  color: #c7d2fe;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+
+.z-suggestion-row:hover .z-row-plus { color: #6366f1; }
+
+.z-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-top: 1px dashed #e8eaed;
+  margin-top: 4px;
+}
+
+.z-add-row:hover {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+/* ─── Attendee Card ─────────────────────────────────────────────── */
+.z-att-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.z-att-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* ─── RSVP Chips ────────────────────────────────────────────────── */
+.z-rsvp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.z-rsvp-chip.green { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.z-rsvp-chip.amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.z-rsvp-chip.red   { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+/* ─── Add Attendee Button ───────────────────────────────────────── */
+.z-btn-add-att {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.z-btn-add-att:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+/* ─── Attendee Rows ─────────────────────────────────────────────── */
+.z-att-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 6px;
+  border-bottom: 1px solid #f8fafc;
+  border-radius: 6px;
+  transition: background 0.12s, opacity 0.25s;
+}
+
+.z-att-row:last-child { border-bottom: none; }
+.z-att-row:hover { background: #fafbfc; }
+
+.z-att-row.removing {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.z-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.z-att-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.z-att-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.z-att-email {
+  font-size: 11px;
+  color: #94a3b8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.z-att-right {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.z-tz-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+/* ─── Inline Resend Invite Button ───────────────────────────────── */
+.z-resend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.z-resend-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.z-resend-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.z-resend-btn.sent {
+  border-color: #bbf7d0;
+  color: #059669;
+  background: #f0fdf4;
+  pointer-events: none;
+}
+

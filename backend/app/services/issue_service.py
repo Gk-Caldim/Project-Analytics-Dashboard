@@ -19,10 +19,7 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
-
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation, IssueAuditLog
 from app.models.project import Project
@@ -274,7 +271,12 @@ def list_issues(
     Filter support: project_id, status, owner, priority.
     Sort order: Overdue first, then nearest due_date.
     """
-    q = db.query(Issue)
+    q = db.query(Issue).options(
+        selectinload(Issue.actions),
+        selectinload(Issue.comments),
+        selectinload(Issue.escalations),
+        selectinload(Issue.audit_logs)
+    )
     
     if project_id is not None:
         q = q.filter(Issue.project_id == project_id)
@@ -307,6 +309,12 @@ def get_critical_issues(
 
     issues = (
         db.query(Issue)
+        .options(
+            selectinload(Issue.actions),
+            selectinload(Issue.comments),
+            selectinload(Issue.escalations),
+            selectinload(Issue.audit_logs)
+        )
         .filter(
             Issue.project_id == project_id, 
             Issue.status == "Open", 
@@ -379,7 +387,14 @@ def create_issue_from_mom_action(
 # ─── Analytics ───────────────────────────────────────────────────────────────
 
 def compute_analytics(db: Session, project_id: int) -> dict:
-    all_issues = db.query(Issue).filter(Issue.project_id == project_id).all()
+    all_issues = (
+        db.query(Issue)
+        .options(
+            selectinload(Issue.escalations)
+        )
+        .filter(Issue.project_id == project_id)
+        .all()
+    )
     for iss in all_issues:
         enrich_issue(iss)
 

@@ -403,6 +403,16 @@ const SavedMOMsPage = () => {
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
 
+  // Premium Custom Alert Dialog state matching Zoho design principles
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    syncId: null,
+    historyId: null,
+    meetingId: null,
+    meetingName: '',
+    rowCount: 0
+  });
+
   const fetchRecords = useCallback(async () => {
     try {
       const res = await API.get('/mom/history/all');
@@ -427,16 +437,52 @@ const SavedMOMsPage = () => {
         }, 500);
       }
     }); 
+
+    // Listen for WebSocket broadcasts to auto-refresh the library
+    const handleRemoteUpdate = () => {
+      fetchRecords();
+    };
+    
+    window.addEventListener('ISSUE_SYNCED', handleRemoteUpdate);
+    window.addEventListener('MOM_SAVED', handleRemoteUpdate);
+
+    return () => {
+      window.removeEventListener('ISSUE_SYNCED', handleRemoteUpdate);
+      window.removeEventListener('MOM_SAVED', handleRemoteUpdate);
+    };
   }, [fetchRecords, highlightSyncId]);
 
-  const handleDeleteSync = async (syncId) => {
-    if (!window.confirm('Delete this sync record and all associated action items?')) return;
+  const triggerDeleteSync = (rec) => {
+    setDeleteConfirm({
+      isOpen: true,
+      syncId: rec.sync_id,
+      historyId: rec.history_id,
+      meetingId: rec.meeting_id,
+      meetingName: rec.meeting_name || 'Untitled Meeting',
+      rowCount: rec.row_count || 0
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    const { syncId, historyId, meetingId } = deleteConfirm;
+    setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
+    
+    const localFilterId = syncId && syncId !== 'null' ? syncId : null;
+
     try {
-      await API.delete(`/mom/syncs/${syncId}`);
-      setRecords(prev => prev.filter(r => r.sync_id !== syncId));
-      toast.success('Sync record deleted');
-    } catch {
-      toast.error('Failed to delete sync');
+      // Pass all resolved identifiers to guarantee thorough hard deletion
+      await API.delete(`/mom/syncs/${syncId || 'null'}?history_id=${historyId || ''}&meeting_id=${meetingId || ''}`);
+      
+      setRecords(prev => prev.filter(r => {
+        if (localFilterId && r.sync_id === localFilterId) return false;
+        if (historyId && r.history_id === historyId) return false;
+        if (meetingId && r.meeting_id === meetingId) return false;
+        return true;
+      }));
+      toast.success('MOM completely and permanently deleted', { icon: '🗑️' });
+    } catch (err) {
+      console.error('[DELETE SYNC ERROR]', err);
+      toast.error('Failed to hard delete MOM');
     }
   };
 
@@ -567,8 +613,9 @@ const SavedMOMsPage = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteSync(rec.sync_id); }}
+                      onClick={(e) => { e.stopPropagation(); triggerDeleteSync(rec); }}
                       className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
+                      title="Hard Delete MOM"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -594,6 +641,72 @@ const SavedMOMsPage = () => {
         )}
       </div>
 
+      {/* Premium Zoho Alert Dialog Confirmation Overlay */}
+      <AnimatePresence>
+        {deleteConfirm.isOpen && (
+          <div className="smp-overlay">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="smp-modal-backdrop"
+              onClick={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'transparent'
+              }}
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              transition={{ type: "spring", duration: 0.25 }}
+              className="smp-dialog"
+              style={{ position: 'relative', zIndex: 9001 }}
+            >
+              <div className="smp-dialog-icon">
+                <AlertTriangle size={24} style={{ color: '#dc2626' }} className="animate-pulse" />
+              </div>
+              <h3 className="smp-dialog-title">Hard Delete MOM?</h3>
+              <p className="smp-dialog-desc">
+                You are about to completely delete the Minutes of Meeting (MOM) for:
+                <strong style={{ display: 'block', marginTop: '6px', color: '#1e293b' }}>
+                  "{deleteConfirm.meetingName}"
+                </strong>
+              </p>
+              
+              <div className="smp-dialog-warning-box">
+                <strong style={{ display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.04em' }}>
+                  ⚠️ CRITICAL SYSTEM CASCADE
+                </strong>
+                This action is irreversible and will perform a hard delete:
+                <ul className="smp-dialog-bullet-list">
+                  <li>Erase the sync history tracking snapshot</li>
+                  <li>Permanently erase the MOM session action items JSON</li>
+                  <li>Hard delete all <strong>{deleteConfirm.rowCount} action items</strong> inside the Issue Engine</li>
+                  <li>Reset the "MOM Generated" flags and counts on the Meeting calendar</li>
+                </ul>
+              </div>
+
+              <div className="smp-dialog-footer">
+                <button
+                  onClick={() => setDeleteConfirm(prev => ({ ...prev, isOpen: false }))}
+                  className="smp-dialog-btn smp-dialog-btn--cancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="smp-dialog-btn smp-dialog-btn--danger"
+                >
+                  Confirm Hard Delete
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

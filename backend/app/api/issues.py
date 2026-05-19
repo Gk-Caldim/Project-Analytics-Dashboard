@@ -69,6 +69,7 @@ def _serialize(issue) -> IssueOut:
         health_status=getattr(issue, "health_status", issue_service.compute_health_status(issue)),
         due_date=issue.due_date,
         meeting_id=issue.meeting_id,
+        sync_id=issue.sync_id,
         milestone_name=issue.milestone_name,
         created_at=issue.created_at,
         updated_at=issue.updated_at,

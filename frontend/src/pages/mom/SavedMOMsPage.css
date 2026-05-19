@@ -695,3 +695,72 @@
 
 
 /* ── Animations ────────────────────────────────────────────── */
+
+/* ── Custom Alert Dialog Extensions (Zoho Premium Style) ── */
+.smp-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 9000;
+}
+
+.smp-dialog-warning-box {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  padding: 14px;
+  text-align: left;
+  margin-bottom: 24px;
+  font-size: 0.8125rem;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
+.smp-dialog-bullet-list {
+  list-style-type: disc;
+  padding-left: 20px;
+  margin-top: 6px;
+  margin-bottom: 0;
+  font-size: 0.75rem;
+  color: #7f1d1d;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.smp-dialog-btn {
+  height: 38px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.smp-dialog-btn--cancel {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+.smp-dialog-btn--cancel:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.smp-dialog-btn--danger {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+.smp-dialog-btn--danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 4px 8px rgba(185, 28, 28, 0.3);
+}
