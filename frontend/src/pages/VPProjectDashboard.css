@@ -2,7 +2,6 @@
   --primary: var(--accent);
   --primary-hover: var(--accent-hover);
   --bg-main: var(--bg);
-  --surface: var(--surface);
   --text-main: var(--text-primary);
   --text-muted: var(--text-secondary);
   --border: var(--border-subtle);
