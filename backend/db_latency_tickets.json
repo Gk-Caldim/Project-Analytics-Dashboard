@@ -1,0 +1,14 @@
+[
+    {
+        "timestamp": "2026-05-20 11:45:04",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
+    },
+    {
+        "timestamp": "2026-05-20 11:52:37",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
+    }
+]

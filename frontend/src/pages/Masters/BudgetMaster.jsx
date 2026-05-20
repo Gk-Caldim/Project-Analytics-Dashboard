@@ -1558,279 +1558,7 @@ const BudgetMaster = () => {
                             </div>
                           </div>
 
-                          {showMarketSuggestion && marketAnalysis && (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-                              animate={{ opacity: 1, scale: 1, y: 0 }}
-                              className="md:col-span-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden p-6 space-y-6"
-                            >
-                              {/* Dashboard Header */}
-                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-slate-200 dark:border-slate-800">
-                                <div>
-                                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-indigo-500" />
-                                    Procurement Intelligence Dashboard
-                                  </h3>
-                                  <p className="text-[11px] text-slate-505 dark:text-slate-400 font-medium">Real-time risk & escalation analysis for {marketAnalysis.project_name}</p>
-                                </div>
-                                <div className="mt-2 md:mt-0 flex gap-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-750">
-                                    Exchange Rate: 1 USD = {marketAnalysis.exchange_rate} {marketAnalysis.currency}
-                                  </span>
-                                </div>
-                              </div>
 
-                              {/* Section 1: Detected Categories & Real-time Commodity Indices */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Detected Categories List */}
-                                <div className="space-y-3">
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Detected Categories</h4>
-                                  <div className="space-y-2">
-                                    {marketAnalysis.detected_categories && marketAnalysis.detected_categories.map((det, idx) => (
-                                      <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700">
-                                        <div>
-                                          <p className="text-xs font-bold text-slate-700 dark:text-slate-100">"{det.raw_input}"</p>
-                                          <p className="text-[10px] text-slate-400 dark:text-slate-505 font-semibold font-bold">Normalized: {det.normalized.toUpperCase()}</p>
-                                        </div>
-                                        <div className="text-right">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${det.confidence >= 0.85 ? 'bg-emerald-50 text-emerald-705 dark:bg-emerald-950/30 dark:text-emerald-405' :
-                                              det.confidence >= 0.70 ? 'bg-blue-50 text-blue-705 dark:bg-blue-950/30 dark:text-blue-405' :
-                                                'bg-amber-50 text-amber-705 dark:bg-amber-950/30 dark:text-amber-405'
-                                            }`}>
-                                            {Math.round(det.confidence * 100)}% Confidence
-                                          </span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Commodity Index Snapshots */}
-                                <div className="space-y-3">
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Commodity Indices & Pricing</h4>
-                                  <div className="space-y-2">
-                                    {marketAnalysis.market_indicators && Object.entries(marketAnalysis.market_indicators).map(([cat, data], idx) => {
-                                      const isRelevant = marketAnalysis.detected_categories?.some(d => d.normalized === cat) || cat === 'steel';
-                                      if (!isRelevant) return null;
-
-                                      const pct = data.percentage_change;
-                                      const isUp = pct >= 0;
-                                      return (
-                                        <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 flex justify-between items-center">
-                                          <div>
-                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-100 uppercase">{cat}</p>
-                                            <p className="text-[10px] text-slate-400 dark:text-slate-505 font-semibold">{data.source} • Volatility: {data.volatility_index}</p>
-                                          </div>
-                                          <div className="text-right">
-                                            <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100">
-                                              {format(data.current_price)}
-                                            </p>
-                                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${isUp ? 'text-rose-600' : 'text-emerald-605'}`}>
-                                              {isUp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                                              {isUp ? '+' : ''}{pct}%
-                                            </span>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Section 2: Procurement Risk Metrics */}
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Risk Assessment Profile</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => (
-                                    <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 space-y-3">
-                                      <div className="flex justify-between items-center pb-2 border-b border-slate-150 dark:border-slate-750">
-                                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">{cat} Risks</span>
-                                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${res.risks.risk_level === 'Critical' ? 'bg-red-50 text-red-705 dark:bg-red-950/30 dark:text-red-405' :
-                                            res.risks.risk_level === 'High' ? 'bg-orange-50 text-orange-705 dark:bg-orange-950/30 dark:text-orange-405' :
-                                              res.risks.risk_level === 'Medium' ? 'bg-amber-50 text-amber-705 dark:bg-amber-950/30 dark:text-amber-405' :
-                                                'bg-emerald-50 text-emerald-705 dark:bg-emerald-950/30 dark:text-emerald-405'
-                                          }`}>
-                                          {res.risks.risk_level} Risk ({res.risks.overall_risk_score}%)
-                                        </span>
-                                      </div>
-
-                                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
-                                        <div>
-                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-                                            <span>Commodity Price</span>
-                                            <span className="font-bold">{res.risks.commodity_escalation}%</span>
-                                          </div>
-                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.commodity_escalation}%` }} />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-                                            <span>Logistics Delay</span>
-                                            <span className="font-bold">{res.risks.logistics_risk}%</span>
-                                          </div>
-                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.logistics_risk}%` }} />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-                                            <span>Supplier Sourcing</span>
-                                            <span className="font-bold">{res.risks.supplier_dependency}%</span>
-                                          </div>
-                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.supplier_dependency}%` }} />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
-                                            <span>Forex Fluctuations</span>
-                                            <span className="font-bold">{res.risks.forex_exposure}%</span>
-                                          </div>
-                                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.forex_exposure}%` }} />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Section 3: Live Warning Alerts Feed */}
-                              {marketAnalysis.alerts && marketAnalysis.alerts.length > 0 && (
-                                <div className="space-y-3">
-                                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Live Warning Alerts Feed</h4>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {marketAnalysis.alerts.map((alert, idx) => (
-                                      <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold ${alert.severity === 'Critical' ? 'bg-red-50 text-red-800 border-red-250 dark:bg-red-950/20 dark:text-red-300 dark:border-red-900' :
-                                          'bg-amber-50 text-amber-800 border-amber-250 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900'
-                                        }`}>
-                                        <span>{alert.message}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm">
-                                          {alert.metric}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Section 4: Forecast Pricing Trends */}
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Forecasting Trend Visualizer (30, 60, 90 Days)</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => {
-                                    if (!res.forecasts || !res.forecasts.forecast) return null;
-                                    const currentVal = res.forecasts.current_price || 100.0;
-                                    return (
-                                      <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700 space-y-4">
-                                        <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-200">
-                                          <span className="uppercase">{cat} Price Outlook</span>
-                                          <span className="text-[10px] font-semibold text-slate-400">Baseline: {format(currentVal)}</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-3">
-                                          {res.forecasts.forecast.map((val, fIdx) => {
-                                            const pctChange = ((val - currentVal) / currentVal) * 100.0;
-                                            const day = (fIdx + 1) * 30;
-                                            return (
-                                              <div key={fIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700 text-center">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{day} Days</p>
-                                                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
-                                                  {format(val)}
-                                                </p>
-                                                <span className={`text-[9px] font-bold ${pctChange >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                                  {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%
-                                                </span>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-
-                              {/* Section 5: Affected Items & Granular Calculations Breakdown */}
-                              <div className="space-y-3">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Affected Procurement Items & Calculations</h4>
-                                <div className="overflow-hidden border border-slate-205 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
-                                  <table className="w-full text-left border-collapse text-[11px]">
-                                    <thead>
-                                      <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-205 dark:border-slate-700 text-slate-505 dark:text-slate-400 font-bold">
-                                        <th className="py-2.5 px-4 font-black">Budget Row Description</th>
-                                        <th className="py-2.5 px-4 font-black">Matched Category</th>
-                                        <th className="py-2.5 px-4 text-right font-black">Original Budget</th>
-                                        <th className="py-2.5 px-4 text-right font-black">Suggested Revision</th>
-                                        <th className="py-2.5 px-4 text-right font-black">Suggested Additional</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-750">
-                                      {marketAnalysis.affected_rows && marketAnalysis.affected_rows.map((row, rIdx) => (
-                                        <React.Fragment key={rIdx}>
-                                          <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30">
-                                            <td className="py-2.5 px-4 font-bold text-slate-700 dark:text-slate-200">{row.description}</td>
-                                            <td className="py-2.5 px-4 uppercase text-slate-505 dark:text-slate-400 font-semibold">{row.category} ({Math.round(row.confidence_score * 100)}%)</td>
-                                            <td className="py-2.5 px-4 text-right font-mono text-slate-650 dark:text-slate-350">{format(row.original_budget_usd)}</td>
-                                            <td className="py-2.5 px-4 text-right font-mono font-bold text-blue-600">{format(row.suggested_budget_usd)}</td>
-                                            <td className="py-2.5 px-4 text-right font-mono font-black text-rose-600">+{format(row.overrun_usd)}</td>
-                                          </tr>
-                                          {row.calculations && (
-                                            <tr>
-                                              <td colSpan={5} className="py-2 px-6 bg-slate-50/50 dark:bg-slate-900/30">
-                                                <div className="space-y-1 py-1">
-                                                  <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1">Applied Buffers:</p>
-                                                  {row.calculations.map((calc, cIdx) => (
-                                                    <div key={cIdx} className={`flex justify-between items-center text-[10px] ${!calc.applied ? 'opacity-40 line-through' : ''}`}>
-                                                      <span className="text-slate-505 dark:text-slate-400">• {calc.step} ({calc.formula})</span>
-                                                      <span className="font-mono text-slate-600 dark:text-slate-300">+{format(calc.usd_val)}</span>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              </td>
-                                            </tr>
-                                          )}
-                                        </React.Fragment>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-
-                              {/* Section 6: Action Controls */}
-                              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-                                <div>
-                                  <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Suggested Revision Overrun</p>
-                                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-mono">
-                                    +{format(marketAnalysis.delta)}
-                                  </p>
-                                  <p className="text-xs text-slate-450 dark:text-slate-500 font-semibold mt-1">
-                                    Proposed new project total: <span className="font-bold text-slate-650 dark:text-slate-350">{format(marketAnalysis.suggested_overall_budget)}</span>
-                                  </p>
-                                </div>
-
-                                <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-205 dark:border-slate-700">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">System Rationale</p>
-                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-relaxed italic">
-                                    "{marketAnalysis.reasoning}"
-                                  </p>
-                                </div>
-
-                                <div className="flex gap-3">
-                                  <button type="button" onClick={handleAcceptSuggestion}
-                                    className="flex-1 h-12 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all active:scale-95 shadow-md shadow-indigo-500/10">
-                                    Apply Suggestion
-                                  </button>
-                                  <button type="button" onClick={() => setShowMarketSuggestion(false)}
-                                    className="px-6 h-12 bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 text-slate-505 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
-                                    Dismiss
-                                  </button>
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
 
                           {revisionData.revised_budget && (
                             <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-md border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
@@ -2610,6 +2338,16 @@ const BudgetMaster = () => {
             </div>
 
             <div className="app-modal-body space-y-4">
+              {/* Currency Scale Alignment Warning */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
+                <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Currency Scale Warning</p>
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed font-semibold">
+                    Ensure your Excel values are populated in the selected project currency (<span className="font-black text-amber-600 dark:text-amber-400">{code}</span>). The platform will automatically convert to the system baseline (USD) for storage.
+                  </p>
+                </div>
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Project Name</label>
                 <div className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-350">
@@ -2691,6 +2429,371 @@ const BudgetMaster = () => {
                   Overwrite
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Market Analysis Modal ─────────────────────────────────────────── */}
+      {showMarketSuggestion && marketAnalysis && (
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-5xl w-full mx-4 max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center sticky top-0 z-20">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/10 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-indigo-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                    Procurement Market Intelligence Report
+                  </h3>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-0.5 tracking-wider">
+                    Live Pricing & Risk Buffers — {marketAnalysis.project_name}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-750 dark:text-slate-300 border border-slate-200 dark:border-slate-700 uppercase tracking-wider">
+                  1 USD = {marketAnalysis.exchange_rate} {marketAnalysis.currency}
+                </span>
+                <button onClick={() => setShowMarketSuggestion(false)}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-slate-50/50 dark:bg-slate-900/30">
+              
+              {/* Section 1: Detected Categories & Commodity Pricing */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Detected Categories List */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Detected Categories</h4>
+                  <div className="space-y-2">
+                    {marketAnalysis.detected_categories && marketAnalysis.detected_categories.map((det, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div>
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-100">"{det.raw_input}"</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Normalized: {det.normalized.toUpperCase()}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${det.confidence >= 0.85 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
+                              det.confidence >= 0.70 ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
+                                'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                            }`}>
+                            {Math.round(det.confidence * 100)}% Confidence
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Commodity Index Snapshots */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Commodity Indices & Pricing</h4>
+                  <div className="space-y-2">
+                    {marketAnalysis.market_indicators && Object.entries(marketAnalysis.market_indicators).map(([cat, data], idx) => {
+                      const isRelevant = marketAnalysis.detected_categories?.some(d => d.normalized === cat) || cat === 'steel';
+                      if (!isRelevant) return null;
+
+                      const pct = data.percentage_change;
+                      const isUp = pct >= 0;
+                      return (
+                        <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-100 uppercase">{cat}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">{data.source} • Volatility: {data.volatility_index}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-105">
+                              {format(data.current_price)}
+                            </p>
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${isUp ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {isUp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                              {isUp ? '+' : ''}{pct}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Procurement Risk Metrics */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Risk Assessment Profile</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => (
+                    <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
+                      <div className="flex justify-between items-center pb-2 border-b border-slate-150 dark:border-slate-700">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">{cat} Risks</span>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${res.risks.risk_level === 'Critical' ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400' :
+                            res.risks.risk_level === 'High' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400' :
+                              res.risks.risk_level === 'Medium' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' :
+                                'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
+                          }`}>
+                          {res.risks.risk_level} Risk ({res.risks.overall_risk_score}%)
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px]">
+                        <div>
+                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                            <span>Commodity Price</span>
+                            <span className="font-bold">{res.risks.commodity_escalation}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.commodity_escalation}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                            <span>Logistics Delay</span>
+                            <span className="font-bold">{res.risks.logistics_risk}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.logistics_risk}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                            <span>Supplier Sourcing</span>
+                            <span className="font-bold">{res.risks.supplier_dependency}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.supplier_dependency}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                            <span>Forex Fluctuations</span>
+                            <span className="font-bold">{res.risks.forex_exposure}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.forex_exposure}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-0.5">
+                            <span>Project Utilization</span>
+                            <span className="font-bold">{res.risks.utilization_risk}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-500 rounded-full" style={{ width: `${res.risks.utilization_risk}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 3: Live Warning Alerts Feed */}
+              {marketAnalysis.alerts && marketAnalysis.alerts.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Live Warning Alerts Feed</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {marketAnalysis.alerts.map((alert, idx) => (
+                      <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold ${alert.severity === 'Critical' ? 'bg-red-50 text-red-800 border-red-250 dark:bg-red-950/20 dark:text-red-300 dark:border-red-900' :
+                          'bg-amber-50 text-amber-800 border-amber-250 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900'
+                        }`}>
+                        <span>{alert.message}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm">
+                          {alert.metric}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Section 4: Forecast Pricing Trends */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Forecasting Trend Visualizer (30, 60, 90 Days)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => {
+                    if (!res.forecasts || !res.forecasts.forecast) return null;
+                    const currentVal = res.forecasts.current_price || 100.0;
+                    return (
+                      <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-200">
+                          <span className="uppercase">{cat} Price Outlook</span>
+                          <span className="text-[10px] font-semibold text-slate-400">Baseline: {format(currentVal)}</span>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          {res.forecasts.forecast.map((val, fIdx) => {
+                            const pctChange = ((val - currentVal) / currentVal) * 100.0;
+                            const day = (fIdx + 1) * 30;
+                            return (
+                              <div key={fIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{day} Days</p>
+                                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
+                                  {format(val)}
+                                </p>
+                                <span className={`text-[9px] font-bold ${pctChange >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Project Budget Reconciliation Section */}
+              {marketAnalysis.reconciliation && (
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Project Budget Reconciliation</h4>
+                  <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Current Budget</p>
+                        <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
+                          {format(marketAnalysis.reconciliation.current_budget / marketAnalysis.exchange_rate)}
+                        </p>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
+                          ({marketAnalysis.reconciliation.current_budget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
+                        </p>
+                      </div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Total Utilization</p>
+                        <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
+                          {format(marketAnalysis.reconciliation.total_utilization / marketAnalysis.exchange_rate)}
+                        </p>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
+                          ({marketAnalysis.reconciliation.total_utilization.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
+                        </p>
+                      </div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Project Balance</p>
+                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {format(marketAnalysis.reconciliation.balance / marketAnalysis.exchange_rate)}
+                        </p>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
+                          ({marketAnalysis.reconciliation.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
+                        </p>
+                      </div>
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Difference (Deficit)</p>
+                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.difference > 0 ? 'text-rose-600 font-black' : 'text-slate-500'}`}>
+                          {marketAnalysis.reconciliation.difference > 0 ? '+' : ''}{format(marketAnalysis.reconciliation.difference / marketAnalysis.exchange_rate)}
+                        </p>
+                        <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
+                          ({marketAnalysis.reconciliation.difference.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 dark:text-slate-450 font-semibold">• Existing Utilization Overrun:</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300 font-bold">
+                          {format(Math.max(0, marketAnalysis.reconciliation.difference) / marketAnalysis.exchange_rate)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 dark:text-slate-450 font-semibold">• Mapped Material Risk & Escalation Buffers:</span>
+                        <span className="font-mono text-rose-600 font-bold">
+                          +{format(marketAnalysis.reconciliation.raw_material_risk_buffer / marketAnalysis.exchange_rate)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                        <span className="font-black text-slate-800 dark:text-slate-200">Total Suggested Revision Request:</span>
+                        <span className="font-mono text-indigo-600 font-black text-sm">
+                          +{format(marketAnalysis.reconciliation.total_revision_requested / marketAnalysis.exchange_rate)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 5: Affected Items & Granular Calculations Breakdown */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Affected Procurement Items & Calculations</h4>
+                <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+                  <table className="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold">
+                        <th className="py-2.5 px-4 font-black">Budget Row Description</th>
+                        <th className="py-2.5 px-4 font-black">Matched Category</th>
+                        <th className="py-2.5 px-4 text-right font-black">Original Budget</th>
+                        <th className="py-2.5 px-4 text-right font-black">Suggested Revision</th>
+                        <th className="py-2.5 px-4 text-right font-black">Suggested Additional</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-750">
+                      {marketAnalysis.affected_rows && marketAnalysis.affected_rows.map((row, rIdx) => (
+                        <React.Fragment key={rIdx}>
+                          <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30">
+                            <td className="py-2.5 px-4 font-bold text-slate-700 dark:text-slate-200">{row.description}</td>
+                            <td className="py-2.5 px-4 uppercase text-slate-500 dark:text-slate-400 font-semibold">{row.category} ({Math.round(row.confidence_score * 100)}%)</td>
+                            <td className="py-2.5 px-4 text-right font-mono text-slate-600 dark:text-slate-300">{format(row.original_budget_usd)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-blue-600">{format(row.suggested_budget_usd)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-black text-rose-600">+{format(row.overrun_usd)}</td>
+                          </tr>
+                          {row.calculations && (
+                            <tr>
+                              <td colSpan={5} className="py-2 px-6 bg-slate-50/50 dark:bg-slate-900/30">
+                                <div className="space-y-1 py-1">
+                                  <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider mb-1">Applied Calculations breakdown:</p>
+                                  {row.calculations.map((calc, cIdx) => (
+                                    <div key={cIdx} className={`flex justify-between items-center text-[10px] ${!calc.applied ? 'opacity-40 line-through' : ''}`}>
+                                      <span className="text-slate-500 dark:text-slate-400">• {calc.step} ({calc.formula})</span>
+                                      <span className="font-mono text-slate-600 dark:text-slate-300">+{format(calc.usd_val)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Section 6: Suggesed Revision Overrun & Rationale */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                <div>
+                  <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Suggested Revision Overrun</p>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-mono">
+                    +{format(marketAnalysis.delta)}
+                  </p>
+                  <p className="text-xs text-slate-450 dark:text-slate-500 font-semibold mt-1">
+                    Proposed new project total: <span className="font-bold text-slate-600 dark:text-slate-300">{format(marketAnalysis.suggested_overall_budget)}</span>
+                  </p>
+                </div>
+
+                <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">System Rationale</p>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-relaxed italic">
+                    "{marketAnalysis.reasoning}"
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 z-20">
+              <button type="button" onClick={() => setShowMarketSuggestion(false)}
+                className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                Dismiss
+              </button>
+              <button type="button" onClick={handleAcceptSuggestion}
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all active:scale-95 shadow-md shadow-indigo-500/10">
+                Apply Suggestion
+              </button>
             </div>
           </div>
         </div>

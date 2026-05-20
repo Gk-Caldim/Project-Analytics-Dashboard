@@ -10,7 +10,10 @@ def generate_procurement_proposal(
     risks: Dict[str, Any],
     volatility_index: float,
     currency_rate: float,
-    category: str
+    category: str,
+    inflation_rate: float,
+    contingency_rate: float,
+    volatility_factor: float
 ) -> Dict[str, Any]:
     """
     Generate suggested budget revision details following the procurement-aware risk formula.
@@ -24,6 +27,7 @@ def generate_procurement_proposal(
                        + Procurement Delay Risk 
                        + Forecasted Inflation 
                        + Category Volatility Buffer
+                       + Contingency Buffer
     """
     # 1. Component calculations (coefficients map risks to budget percentages)
     escalation = base_budget * (risks["commodity_escalation"] / 100.0) * 0.04
@@ -31,8 +35,12 @@ def generate_procurement_proposal(
     logistics = base_budget * (risks["logistics_risk"] / 100.0) * 0.025
     forex = base_budget * (risks["forex_exposure"] / 100.0) * 0.02
     delay_risk = base_budget * (risks["overall_risk_score"] / 100.0) * 0.015
-    inflation = base_budget * (risks["inflation_exposure"] / 100.0) * 0.03
-    volatility_buffer = base_budget * (volatility_index / 100.0) * 0.035
+    
+    # Dynamic calculations using settings parameters
+    inflation = base_budget * (risks["inflation_exposure"] / 100.0) * (inflation_rate / 100.0)
+    vol_coeff = max(0.0, volatility_factor - 1.0)
+    volatility_buffer = base_budget * (volatility_index / 100.0) * vol_coeff
+    contingency = base_budget * (contingency_rate / 100.0)
     
     # Specialty buffers
     specialty_buffer = 0.0
@@ -50,6 +58,7 @@ def generate_procurement_proposal(
         delay_risk + 
         inflation + 
         volatility_buffer + 
+        contingency +
         specialty_buffer
     )
     
@@ -101,17 +110,24 @@ def generate_procurement_proposal(
         },
         {
             "step": "Forecasted Inflation",
-            "formula": f"Base * Inflation Risk ({risks['inflation_exposure']}%) * 3.0%",
+            "formula": f"Base * Inflation Risk ({risks['inflation_exposure']}%) * {inflation_rate:.2f}%",
             "usd_val": round(inflation, 2),
             "local_val": round(inflation * currency_rate, 2),
             "applied": inflation > 0
         },
         {
             "step": "Category Volatility Buffer",
-            "formula": f"Base * Volatility Index ({volatility_index:.1f}%) * 3.5%",
+            "formula": f"Base * Volatility Index ({volatility_index:.1f}%) * {vol_coeff * 100.0:.2f}%",
             "usd_val": round(volatility_buffer, 2),
             "local_val": round(volatility_buffer * currency_rate, 2),
             "applied": volatility_buffer > 0
+        },
+        {
+            "step": "Contingency Buffer",
+            "formula": f"Base * Contingency Factor ({contingency_rate:.2f}%)",
+            "usd_val": round(contingency, 2),
+            "local_val": round(contingency * currency_rate, 2),
+            "applied": contingency > 0
         }
     ]
     
