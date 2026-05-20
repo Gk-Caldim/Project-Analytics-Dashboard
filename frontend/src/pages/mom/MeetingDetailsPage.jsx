@@ -15,6 +15,7 @@ import './MeetingDetailsPage.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '../../hooks/use-confirm';
 import { Spinner } from '../../components/ui/spinner';
+import { Skeleton } from '../../components/ui/skeleton';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -48,6 +49,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 import API from '../../utils/api';
 
 // ─── Recording Helpers ───────────────────────────────────────────────────────
@@ -1413,8 +1415,75 @@ const MeetingDetailsPage = () => {
   ) : <Video style={{ width: 13, height: 13, color: '#4f46e5' }} />;
 
   if (loading) return (
-    <div className="mdp2-loading">
-      <Spinner size="lg" className="text-indigo-600" />
+    <div className="mdp2-root">
+      {/* Skeleton Header Zone */}
+      <div className="z-header-zone">
+        {/* Row 1 — Breadcrumb + Action bar */}
+        <div className="z-header-row1">
+          <nav className="z-breadcrumb-bar">
+            <Skeleton className="h-5 w-48 rounded" />
+          </nav>
+          <div className="z-header-actions-bar flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-lg" />
+            <Skeleton className="h-8 w-32 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Row 2 — Meeting identity + title */}
+        <div className="z-header-row2 space-y-3">
+          <div className="z-identity-line flex gap-3 items-center" style={{ flexWrap: 'wrap' }}>
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-4 w-32 rounded" />
+            <Skeleton className="h-4 w-24 rounded" />
+            <Skeleton className="h-4 w-28 rounded" />
+          </div>
+          <div className="z-title-row">
+            <Skeleton className="h-9 w-96 rounded-lg" />
+          </div>
+        </div>
+      </div>
+
+      {/* Skeleton Body Layout */}
+      <div className="z-body" style={{ display: 'grid', gridTemplateColumns: '1fr var(--sidebar-w, 360px)', gap: '24px', padding: '24px' }}>
+        {/* Left Column Skeleton */}
+        <div className="z-left-col space-y-6">
+          <div className="z-card p-6 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </div>
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+        </div>
+
+        {/* Right Column Skeleton */}
+        <div className="z-right-col space-y-6">
+          {/* Health Card skeleton */}
+          <div className="z-card p-6 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-6 w-28" />
+              <Skeleton className="h-12 w-12 rounded-full" />
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-full rounded-lg" />
+              <Skeleton className="h-8 w-full rounded-lg" />
+              <Skeleton className="h-8 w-full rounded-lg" />
+            </div>
+          </div>
+
+          {/* Attendees Card skeleton */}
+          <div className="z-card p-6 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <Skeleton className="h-6 w-28" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-8 w-20 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-full" />
+              <Skeleton className="h-8 w-20 rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
@@ -1778,33 +1847,36 @@ const MeetingDetailsPage = () => {
             </div>
           )}
 
-          {/* ─── BEFORE MEETING section ─── */}
+          {/* ─── BEFORE MEETING section (Radix Collapsible) ─── */}
           <div id="mdp2-before-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span className="z-section-label" style={{ marginBottom: 0 }}>Before Meeting</span>
-              {meetingStatus === 'ended' && (
-                <button className="mdp2-collapse-toggle" onClick={() => setIsBeforeCollapsed(!isBeforeCollapsed)}>
-                  {isBeforeCollapsed ? 'Show details' : 'Hide details'}
-                </button>
-              )}
-            </div>
+            <Collapsible
+              open={!isBeforeCollapsed}
+              onOpenChange={(open) => setIsBeforeCollapsed(!open)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="z-section-label" style={{ marginBottom: 0 }}>Before Meeting</span>
+                  {/* Collapsed chip summary — always visible when closed */}
+                  {isBeforeCollapsed && meetingStatus === 'ended' && (
+                    <div className="mdp2-before-chip-row">
+                      <span className="mdp2-before-chip"><Calendar size={11} />{agenda.length} items</span>
+                      <span className="mdp2-before-chip"><Users size={11} />{attendees.filter(a => a.rsvpStatus === 'ACCEPTED').length}/{attendees.length} attending</span>
+                    </div>
+                  )}
+                </div>
+                {meetingStatus === 'ended' && (
+                  <CollapsibleTrigger asChild>
+                    <button className="mdp2-collapse-toggle" aria-label={isBeforeCollapsed ? 'Expand before meeting details' : 'Collapse before meeting details'}>
+                      {isBeforeCollapsed
+                        ? <><ChevronDown size={13} style={{ marginRight: 4 }} />Show details</>
+                        : <><ChevronUp size={13} style={{ marginRight: 4 }} />Hide details</>}
+                    </button>
+                  </CollapsibleTrigger>
+                )}
+              </div>
 
-            <AnimatePresence>
-              {isBeforeCollapsed && meetingStatus === 'ended' ?
-                <motion.div
-                  key="before-collapsed"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="mdp2-collapsed-summary"
-                  onClick={() => setIsBeforeCollapsed(false)}
-                >
-                  <div className="mdp2-summary-item"><Calendar size={14} /><span>{agenda.length} items · {totalDuration} min</span></div>
-                  <div className="mdp2-summary-item"><Users size={14} /><span>{attendees.length} attendees · {attendees.filter(a => a.rsvpStatus === 'ACCEPTED').length} confirmed</span></div>
-                  <div className="mdp2-summary-more">Click to expand details</div>
-                </motion.div>
-              : 
-                <motion.div key="before-expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <CollapsibleContent>
+                <div>
                     {/* ── Agenda Card ── */}
                     <div className="z-card" ref={agendaPanelRef} id="mdp2-agenda-section" style={{ marginBottom: 16 }}>
                       {/* Card header */}
@@ -2140,9 +2212,9 @@ const MeetingDetailsPage = () => {
                       )}
                     </div>
                   </div>
-                </motion.div>
-              }
-            </AnimatePresence>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>{/* end #mdp2-before-section */}
 
         </div>{/* end z-left-col */}

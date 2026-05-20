@@ -27,6 +27,8 @@ import { toast } from 'react-hot-toast';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { EVENT_COLORS } from '../constants';
+import { Skeleton } from '../../components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
 dayjs.extend(customParseFormat);
 
 // --- Utility Helpers ---
@@ -655,6 +657,96 @@ const ScheduleMeetingPremiumPage = () => {
     );
   };
 
+  if (loadingMeetings) {
+    return (
+      <div className="schedule-premium-page">
+        <div className="schedule-content">
+          {/* Left Column Form Skeleton */}
+          <section className="column-left" style={{ flex: '0 0 62%', padding: '24px', minHeight: 'calc(100vh - 100px)' }}>
+            <div className="top-action-strip flex items-center mb-4">
+              <Skeleton className="h-5 w-48 rounded" />
+            </div>
+            
+            {/* Title Input Placeholder */}
+            <div className="title-section-container mb-6">
+              <Skeleton className="h-12 w-3/4 rounded-lg" />
+            </div>
+
+            {/* Event Types Pill Placeholder */}
+            <div className="form-section space-y-3 mb-6">
+              <Skeleton className="h-4 w-12" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-28 rounded-full" />
+                <Skeleton className="h-9 w-24 rounded-full" />
+              </div>
+            </div>
+
+            {/* Project Select Placeholder */}
+            <div className="form-section space-y-3 mb-6">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+
+            {/* Grid for Date, Time, Duration */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+            </div>
+
+            {/* Description Textarea Placeholder */}
+            <div className="form-section space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-28 w-full rounded-lg" />
+            </div>
+          </section>
+
+          {/* Resizer handle placeholder */}
+          <div className="resizer-handle" style={{ cursor: 'default' }}>
+            <div className="resizer-line" />
+          </div>
+
+          {/* Right Column Timeline/Mini-Month Skeleton */}
+          <section className="column-right" style={{ flex: '0 0 38%', padding: '24px' }}>
+            <div className="sidebar-calendar-container space-y-6">
+              <div className="flex flex-col gap-3">
+                <div className="mini-month-header flex justify-between items-center">
+                  <Skeleton className="h-5 w-32" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-6 rounded" />
+                    <Skeleton className="h-6 w-6 rounded" />
+                  </div>
+                </div>
+                {/* Compact Month Grid */}
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 35 }).map((_, idx) => (
+                    <Skeleton key={idx} className="h-6 w-6 rounded-full mx-auto" />
+                  ))}
+                </div>
+              </div>
+
+              {/* Timeline Placeholder */}
+              <div className="timeline-section space-y-3 pt-6 border-t border-gray-100">
+                <Skeleton className="h-5 w-24" />
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                  <Skeleton className="h-8 w-full rounded-lg" />
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="schedule-premium-page" onClick={() => { setShowDatePicker(false); setShowStartTimePicker(false); setShowEndTimePicker(false); }}>
       <main className="schedule-content">
@@ -942,19 +1034,22 @@ const ScheduleMeetingPremiumPage = () => {
 
           {/* Section: Progressive Details Toggle — Encapsulated in Hairline Cards to match Look */}
           <div className="form-section">
-            <button 
-              className={`btn-more-settings-sleek mb-4 ${isMoreOptionsOpen ? 'active' : ''}`}
-              onClick={() => setIsMoreOptionsOpen(!isMoreOptionsOpen)}
+            <Collapsible
+              open={isMoreOptionsOpen}
+              onOpenChange={setIsMoreOptionsOpen}
             >
-              <Settings size={14} className={isMoreOptionsOpen ? 'animate-spin' : ''} style={{ animationDuration: '4s' }} />
-              <span>{isMoreOptionsOpen ? 'Less settings' : 'More settings'}</span>
-              {isMoreOptionsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            
-            <AnimatePresence>
-              {isMoreOptionsOpen && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mt-2 space-y-4">
-                  
+              <CollapsibleTrigger asChild>
+                <button 
+                  className={`btn-more-settings-sleek mb-4 ${isMoreOptionsOpen ? 'active' : ''}`}
+                >
+                  <Settings size={14} className={isMoreOptionsOpen ? 'animate-spin' : ''} style={{ animationDuration: '4s' }} />
+                  <span>{isMoreOptionsOpen ? 'Less settings' : 'More settings'}</span>
+                  {isMoreOptionsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent className="overflow-hidden mt-2 space-y-4">
+
                   {/* Card 1: Reminder & Linked Workspace Project */}
                   <div className="hairline-card">
                     <div className="grid grid-cols-2 gap-4">
@@ -1005,9 +1100,8 @@ const ScheduleMeetingPremiumPage = () => {
                     />
                   </div>
 
-                </motion.div>
-              )}
-            </AnimatePresence>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* Bottom Action Bar */}

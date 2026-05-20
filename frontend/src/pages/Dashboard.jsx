@@ -339,7 +339,8 @@ const Dashboard = () => {
     }
     else if (path.includes('/dashboard/masters')) dispatch(setActiveModule('masters-main'));
     else if (path.includes('/dashboard/mom/view')) {
-      dispatch(setActiveModule('saved-moms'));
+      // MOM output page belongs to the MOM creation workflow, not Saved MOMs library
+      dispatch(setActiveModule('mom-module'));
       dispatch(setExpandedModules({ 'mom': true }));
     }
     else if (path.includes('/dashboard/mom')) {
@@ -556,7 +557,11 @@ const Dashboard = () => {
   const getActiveModuleName = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
     if (activeModule === 'masters-main') return 'Master';
-    if (activeModule === 'mom-module') return 'Minutes of Meeting';
+    if (activeModule === 'mom-module') {
+      // Distinguish between MOM creation entry and the output/view table
+      if (location.pathname.includes('/dashboard/mom/view')) return 'Meeting Table';
+      return 'Minutes of Meeting';
+    }
     if (activeModule === 'saved-moms') return 'Saved MOMs';
     if (activeModule === 'schedule-meeting') return 'Schedule Meeting';
     if (activeModule === 'calendar') {
