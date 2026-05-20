@@ -16,16 +16,43 @@ import {
 import { useDispatch } from 'react-redux';
 import { setSidebarCollapsed } from '../store/slices/navSlice';
 
+// ─── Hamburger Icon Component ───────────────────────────────────────────────
+const HamburgerIcon = ({ collapsed }) => {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round">
+      <motion.path
+        animate={{
+          d: collapsed ? "M 3 5 L 17 5" : "M 5 5 L 15 15"
+        }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+      />
+      <motion.path
+        animate={{
+          d: collapsed ? "M 3 10 L 13 10" : "M 10 10 L 10 10",
+          opacity: collapsed ? 1 : 0
+        }}
+        transition={{ duration: 0.2, ease: "easeInOut" }}
+      />
+      <motion.path
+        animate={{
+          d: collapsed ? "M 3 15 L 17 15" : "M 5 15 L 15 5"
+        }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+      />
+    </svg>
+  );
+};
+
 // ─── Logo Block ─────────────────────────────────────────────────────────────
 const LogoBlock = ({ collapsed, onToggle }) => (
     <div className={`h-[72px] flex items-center border-b border-white/5 transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'px-6 justify-between'}`}>
         {!collapsed && <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>}
         <button 
             onClick={onToggle}
-            className={`p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
+            className={`w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
             title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            <HamburgerIcon collapsed={collapsed} />
         </button>
     </div>
 );

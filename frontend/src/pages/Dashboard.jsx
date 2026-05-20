@@ -725,6 +725,134 @@ const Dashboard = () => {
   };
 
   // ==========================================================================
+  // GET BREADCRUMBS FOR TOP HEADER
+  // ==========================================================================
+  const getBreadcrumbs = () => {
+    if (activeView === 'agent') {
+      return [
+        { label: 'KIA', active: true }
+      ];
+    }
+
+    const formatNavLabel = (string) => {
+      if (!string) return '';
+      let clean = string.replace(/[-_]/g, ' ');
+      clean = clean.replace(/^project dashboard\s+/i, '');
+      return clean
+        .split(/\s+/)
+        .map(word => {
+          let w = word.toLowerCase();
+          if (w === 'tata' || w === 'motors') return 'TATA';
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(' ');
+    };
+
+    const crumbs = [
+      { label: 'Dashboard', path: '/dashboard/projects', active: false }
+    ];
+
+    const path = location.pathname;
+
+    const addCrumb = (label, pathStr, isActive = false) => {
+      crumbs.push({ label, path: pathStr, active: isActive });
+    };
+
+    if (path.includes('/dashboard/projects')) {
+      const urlProjectId = searchParams.get('projectId');
+      const urlSubmoduleId = searchParams.get('submoduleId');
+      
+      addCrumb('Project Dashboard', '/dashboard/projects', !urlProjectId && !urlSubmoduleId);
+
+      if (urlProjectId || urlSubmoduleId) {
+        if (urlProjectId) {
+          const projectLabel = formatNavLabel(activeProjectName || urlProjectId);
+          if (urlSubmoduleId) {
+            addCrumb(projectLabel, `/dashboard/projects?projectId=${encodeURIComponent(urlProjectId)}`);
+            let fileLabel = 'File';
+            for (const proj of projectDashboardModules) {
+              const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+              if (file) {
+                fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+                break;
+              }
+            }
+            addCrumb(fileLabel, null, true);
+          } else {
+            addCrumb(projectLabel, null, true);
+          }
+        } else if (urlSubmoduleId) {
+          let fileLabel = 'File';
+          for (const proj of projectDashboardModules) {
+            const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+            if (file) {
+              fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+              break;
+            }
+          }
+          addCrumb(fileLabel, null, true);
+        }
+      }
+    } else if (path.includes('/dashboard/trackers')) {
+      const urlFileId = searchParams.get('file');
+      addCrumb('Upload Trackers', '/dashboard/trackers', !urlFileId);
+      if (urlFileId) {
+        let fileLabel = 'File';
+        for (const proj of uploadTrackerModules) {
+          const file = proj.submodules?.find(s => String(s.trackerId) === String(urlFileId));
+          if (file) {
+            fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+            break;
+          }
+        }
+        addCrumb(fileLabel, null, true);
+      }
+    } else if (path.includes('/dashboard/budget-summary/')) {
+      const pathParts = path.split('/');
+      const projectName = decodeURIComponent(pathParts[pathParts.length - 1]);
+      addCrumb('Budget Summary', null, false);
+      addCrumb(formatNavLabel(projectName), null, true);
+    } else if (path.includes('/dashboard/masters/')) {
+      addCrumb('Masters', '/dashboard/masters/employees', false);
+      if (path.includes('/dashboard/masters/employees')) {
+        addCrumb('Employee Master', null, true);
+      } else if (path.includes('/dashboard/masters/project-master')) {
+        addCrumb('Project Master', null, true);
+      } else if (path.includes('/dashboard/masters/budget-master')) {
+        addCrumb('Budget Master', null, true);
+      } else if (path.includes('/dashboard/masters/project-detail/')) {
+        addCrumb('Project Detail', null, true);
+      } else {
+        addCrumb('Masters', null, true);
+      }
+    } else if (path.includes('/dashboard/mom')) {
+      addCrumb('Minutes of Meeting', '/dashboard/mom', path === '/dashboard/mom');
+      if (path.includes('/dashboard/mom/view')) {
+        addCrumb('MOM View', null, true);
+      } else if (path.includes('/dashboard/mom/transcript-viewer')) {
+        addCrumb('Transcript Viewer', null, true);
+      } else if (path.includes('/dashboard/mom/legacy')) {
+        addCrumb('Legacy MOM', null, true);
+      }
+    } else if (path.includes('/dashboard/saved-moms')) {
+      addCrumb('Saved MOMs', null, true);
+    } else if (path.includes('/dashboard/schedule-meeting')) {
+      addCrumb('Schedule Meeting', null, true);
+    } else if (path.includes('/dashboard/calendar')) {
+      addCrumb('Calendar Console', null, true);
+    } else if (path.includes('/dashboard/meeting/')) {
+      addCrumb('Calendar Console', '/dashboard/calendar');
+      addCrumb('Meeting Details', null, true);
+    } else if (path.includes('/dashboard/settings')) {
+      addCrumb('System Settings', null, true);
+    } else {
+      addCrumb(capitalizeFirstLetter(getActiveModuleName()), null, true);
+    }
+
+    return crumbs;
+  };
+
+  // ==========================================================================
   // RENDER FUNCTIONS - ALL WITH WHITE TEXT ON BLUE BACKGROUND
   // ==========================================================================
 
@@ -803,11 +931,55 @@ const Dashboard = () => {
                 className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
                 title={activeView === 'agent' ? "Back to Dashboard" : "Go Back"}
               >
-                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-text-secondary group-hover:text-text-primary'}`} />
+                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
               </button>
-              <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
-                {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
-              </h1>
+              <button
+                onClick={() => navigate(1)}
+                className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
+                title="Go Forward"
+              >
+                <ChevronRight className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
+              </button>
+              <nav className={`flex items-center flex-wrap gap-1 text-sm font-sans tracking-tight ${activeView === 'agent' ? 'text-white/90' : 'text-slate-900 dark:text-white'}`}>
+                {activeView === 'agent' ? (
+                  <span className="font-semibold text-base">KIA</span>
+                ) : (
+                  getBreadcrumbs().map((crumb, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && (
+                        <span className={`font-normal mx-1 text-xs select-none ${activeView === 'agent' ? 'text-white/30' : 'text-slate-400 dark:text-slate-500'}`}>&gt;</span>
+                      )}
+                      {crumb.active || !crumb.path ? (
+                        <span className={crumb.active
+                          ? (activeView === 'agent' ? 'text-white font-semibold' : 'text-slate-900 dark:text-white font-semibold')
+                          : (activeView === 'agent' ? 'text-white/60 font-medium' : 'text-slate-500 dark:text-slate-400 font-medium')}>
+                          {crumb.label}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (crumb.path === '/dashboard/projects') {
+                              dispatch(setSelectedProjectFileId(null));
+                              dispatch(setActiveProjectName(null));
+                              window.dispatchEvent(new CustomEvent('resetProjectDashboardMain'));
+                            } else if (crumb.path === '/dashboard/trackers') {
+                              dispatch(setSelectedUploadFileId(null));
+                            }
+                            navigate(crumb.path);
+                          }}
+                          className={`hover:text-slate-900 dark:hover:text-white hover:underline transition-colors text-left font-medium bg-transparent border-0 p-0 cursor-pointer ${
+                            activeView === 'agent'
+                              ? 'text-white/60 hover:text-white'
+                              : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          {crumb.label}
+                        </button>
+                      )}
+                    </React.Fragment>
+                  ))
+                )}
+              </nav>
             </div>
 
             {/* Right - Date/Time, AI Chat Toggle & Profile */}

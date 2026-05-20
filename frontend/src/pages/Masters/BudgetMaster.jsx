@@ -1001,11 +1001,6 @@ const BudgetMaster = () => {
                   ? 'font-black text-slate-900 dark:text-slate-100'
                   : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
                 Revision Budget
-                {revisions.filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length > 0 && (
-                  <span className="absolute -top-2 -right-6 px-1.5 py-0.5 text-[8px] font-black bg-blue-600 text-white rounded-none">
-                    {revisions.filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length}
-                  </span>
-                )}
               </button>
               <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
             </div>
@@ -1060,6 +1055,7 @@ const BudgetMaster = () => {
                       value={selectedProject}
                       onChange={handleProjectChange}
                       placeholder="Select a project..."
+                      controlClassName="px-4 text-base border-slate-200 dark:border-slate-700 bg-app-bg dark:bg-slate-900/50 hover:border-blue-400 dark:hover:border-blue-500 text-slate-900 dark:text-slate-100 font-bold rounded-md h-12 flex items-center justify-between shadow-sm"
                     />
                   </div>
                   <div>
@@ -1070,13 +1066,13 @@ const BudgetMaster = () => {
                       value={convert(overallBudget, 'USD', code)}
                       onChange={e => setOverallBudget(convert(parseFloat(e.target.value) || 0, code, 'USD'))}
                       placeholder="0.00"
-                      className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold" />
+                      className="w-full px-4 text-base bg-app-bg dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold h-12 shadow-sm" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
                       Project Manager
                     </label>
-                    <div className="w-full px-4 py-3 text-base bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-slate-600 dark:text-slate-100 font-bold min-h-[48px] flex items-center">
+                    <div className="w-full px-4 text-base bg-app-bg dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 font-bold h-12 flex items-center shadow-sm">
                       {managerName || '— Unassigned —'}
                     </div>
                   </div>
