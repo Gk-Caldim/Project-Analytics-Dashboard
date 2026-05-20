@@ -1,0 +1,56 @@
+{
+  "database": "Supabase Remote PostgreSQL",
+  "passed_tests": [
+    "Database Connection Succeeded",
+    "CRUD Lifecycle Succeeded",
+    "API Rate Limiter Configured",
+    "CORS Policy Enforced",
+    "JWT Authentication Secret Secured"
+  ],
+  "failed_tests": [],
+  "bugs": [],
+  "retrieval_benchmarks": {
+    "projects_count": 1,
+    "single_record_fetch_ms": 357.7375999993819,
+    "paginated_fetch_ms": 110.38480000206619,
+    "joined_relational_ms": 126.30890000218642,
+    "filtered_query_ms": 352.26739999779966,
+    "search_operation_ms": 394.24679999865475,
+    "crud": {
+      "create_ms": 167.22769999978482,
+      "read_ms": 109.52390000238665,
+      "update_ms": 72.88970000081463,
+      "delete_ms": 690.8649999968475,
+      "success": true
+    }
+  },
+  "load_tests": {
+    "users_100": {
+      "concurrency": 100,
+      "total_time_ms": 11359.623500000453,
+      "avg_latency_ms": 2150.4553270001998,
+      "p95_latency_ms": 5306.519999998272,
+      "errors": 0,
+      "success_rate": 100.0
+    },
+    "users_500": {
+      "concurrency": 500,
+      "total_time_ms": 25566.904800001794,
+      "avg_latency_ms": 1357.0164564210538,
+      "p95_latency_ms": 7171.908699998312,
+      "errors": 25,
+      "success_rate": 95.0
+    },
+    "users_1000": {
+      "concurrency": 1000,
+      "total_time_ms": 47484.712299999956,
+      "avg_latency_ms": 1339.582212105271,
+      "p95_latency_ms": 4511.486799998238,
+      "errors": 50,
+      "success_rate": 95.0
+    }
+  },
+  "security_findings": [],
+  "readiness_score": 91,
+  "missing_indexes": []
+}

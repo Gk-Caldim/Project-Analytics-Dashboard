@@ -82,7 +82,8 @@ if ASYNC_DATABASE_URL:
         async_connect_args = {}
         if IS_CLOUD_DB:
             async_connect_args = {
-                "server_settings": {"search_path": "public", "statement_timeout": "15000"}
+                "server_settings": {"search_path": "public", "statement_timeout": "15000"},
+                "prepared_statement_cache_size": 0
             }
         
         async_kwargs = {
@@ -95,8 +96,6 @@ if ASYNC_DATABASE_URL:
             async_kwargs["pool_size"] = 10
             async_kwargs["max_overflow"] = 15
             async_kwargs["pool_timeout"] = 15
-            # Critical: Disable prepared statement caching for transaction mode pooler (PgBouncer/Supavisor)
-            async_kwargs["prepared_statement_cache_size"] = 0
         else:
             async_kwargs["pool_size"] = 20
             async_kwargs["max_overflow"] = 30
