@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, X, Calendar,
   FolderOpen, AlertCircle, Clock, BarChart2,
   ArrowUpDown, CheckCircle2, Layers, Loader2,
-  Check, Edit3, Target, Plus, MessageSquare, AlertTriangle
+  Check, Edit3, Target, Plus, MessageSquare, AlertTriangle, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -272,6 +272,13 @@ const ActionItemsTable = ({ syncId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
+  // ── Per-row edit state ──
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editingRowData, setEditingRowData] = useState({});
+
+  // ── Delete confirm state ──
+  const [deletingRowId, setDeletingRowId] = useState(null);
+
   const fetchItems = useCallback(async () => {
     try {
       const res = await API.get(`/mom/syncs/${syncId}/items`);
@@ -285,15 +292,77 @@ const ActionItemsTable = ({ syncId }) => {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  // ── Update a single field via PATCH ──
   const handleUpdateItem = async (itemId, field, value) => {
     try {
       await API.patch(`/mom/action-items/${itemId}`, { field, value, sync_id: syncId });
-      setItems(prev => prev.map(item => 
+      setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       ));
       toast.success('Field updated', { icon: '✨', duration: 1500 });
     } catch {
       toast.error('Update failed');
+    }
+  };
+
+  // ── Batch save all edited fields at once ──
+  const handleSaveRow = async (itemId) => {
+    try {
+      // Flush each changed field one by one
+      const fields = Object.keys(editingRowData);
+      for (const field of fields) {
+        await API.patch(`/mom/action-items/${itemId}`, {
+          field,
+          value: editingRowData[field],
+          sync_id: syncId,
+        });
+      }
+      setItems(prev => prev.map(item =>
+        item.id === itemId ? { ...item, ...editingRowData } : item
+      ));
+      toast.success('Row saved', { icon: '✅', duration: 1500 });
+    } catch {
+      toast.error('Save failed');
+    } finally {
+      setEditingRowId(null);
+      setEditingRowData({});
+    }
+  };
+
+  // ── Start editing a row — snapshot its current values ──
+  const startEditRow = (item) => {
+    setEditingRowId(item.id);
+    setEditingRowData({
+      function:         item.function || 'General',
+      criticality:      item.criticality || 'Medium',
+      discussion_point: item.discussion_point || '',
+      responsibility:   item.responsibility || '',
+      target:           item.target || '',
+      status:           item.status || 'Open',
+      action_taken:     item.action_taken || '',
+    });
+  };
+
+  const cancelEditRow = () => {
+    setEditingRowId(null);
+    setEditingRowData({});
+  };
+
+  const setEditField = (field, value) => {
+    setEditingRowData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // ── Hard delete a single action item ──
+  const handleDeleteItem = async (itemId) => {
+    try {
+      await API.delete(`/mom/action-items/${itemId}`);
+      setItems(prev => prev.filter(item => item.id !== itemId));
+      toast.success('Item deleted', { icon: '🗑️', duration: 1500 });
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err.message || 'Unknown error';
+      toast.error(`Delete failed: ${detail}`);
+    } finally {
+      setDeletingRowId(null);
     }
   };
 
@@ -313,6 +382,37 @@ const ActionItemsTable = ({ syncId }) => {
     );
   }
 
+  // ── Static styled pills for read-only display ──
+  const CriticalityBadge = ({ value }) => {
+    const style = CRITICALITY_COLORS[value] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+    return (
+      <span style={{
+        background: style.bg, color: style.color, border: `1.5px solid ${style.border}`,
+        padding: '2px 8px', borderRadius: '999px', fontSize: '10px',
+        fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex',
+        alignItems: 'center', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>{value || 'Medium'}</span>
+    );
+  };
+
+  const StatusBadge = ({ value }) => {
+    const style = STATUS_COLORS[value] || STATUS_COLORS['Pending'];
+    return (
+      <span style={{
+        background: style.bg, color: style.color, border: `1.5px solid ${style.border}`,
+        padding: '2px 8px', borderRadius: '999px', fontSize: '10px',
+        fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex',
+        alignItems: 'center', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>{value || 'Open'}</span>
+    );
+  };
+
+  const FunctionBadge = ({ value }) => (
+    <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+      {value || 'General'}
+    </span>
+  );
+
   return (
     <div className="flex flex-col gap-3 p-1">
       <div className="overflow-x-auto">
@@ -327,59 +427,171 @@ const ActionItemsTable = ({ syncId }) => {
               <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Target</th>
               <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-28">Status</th>
               <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-48">Action Taken</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {paginatedItems.map((item, idx) => (
-              <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
-                <td className="px-4 py-4 text-xs font-mono text-slate-400 text-center">
-                  {(activePage - 1) * itemsPerPage + idx + 1}
-                </td>
-                <td className="px-4 py-4">
-                  <FunctionCell
-                    value={item.function || 'General'}
-                    onSave={val => handleUpdateItem(item.id, 'function', val)}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <CriticalityCell
-                    value={item.criticality || 'Medium'}
-                    onSave={val => handleUpdateItem(item.id, 'criticality', val)}
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <EditableCell 
-                    value={item.discussion_point} 
-                    onSave={val => handleUpdateItem(item.id, 'discussion_point', val)} 
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <EditableCell 
-                    value={item.responsibility} 
-                    onSave={val => handleUpdateItem(item.id, 'responsibility', val)} 
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <DateCell 
-                    value={item.target} 
-                    onSave={val => handleUpdateItem(item.id, 'target', val)} 
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <StatusCell 
-                    value={item.status} 
-                    onSave={val => handleUpdateItem(item.id, 'status', val)} 
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <EditableCell 
-                    value={item.action_taken} 
-                    multiline
-                    onSave={val => handleUpdateItem(item.id, 'action_taken', val)} 
-                  />
-                </td>
-              </tr>
-            ))}
+            {paginatedItems.map((item, idx) => {
+              const isEditing = editingRowId === item.id;
+              return (
+                <tr
+                  key={item.id}
+                  className={`transition-colors group ${
+                    isEditing
+                      ? 'bg-blue-50/30 ring-2 ring-inset ring-blue-300/40'
+                      : 'hover:bg-slate-50/30'
+                  }`}
+                >
+                  {/* S.No */}
+                  <td className="px-4 py-3 text-xs font-mono text-slate-400 text-center">
+                    {(activePage - 1) * itemsPerPage + idx + 1}
+                  </td>
+
+                  {/* Function */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <FunctionCell
+                        value={editingRowData.function}
+                        onSave={val => setEditField('function', val)}
+                      />
+                    ) : (
+                      <FunctionBadge value={item.function} />
+                    )}
+                  </td>
+
+                  {/* Criticality */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <CriticalityCell
+                        value={editingRowData.criticality}
+                        onSave={val => setEditField('criticality', val)}
+                      />
+                    ) : (
+                      <CriticalityBadge value={item.criticality} />
+                    )}
+                  </td>
+
+                  {/* Action Point */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <textarea
+                        value={editingRowData.discussion_point}
+                        onChange={e => setEditField('discussion_point', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none min-h-[60px]"
+                      />
+                    ) : (
+                      <span className="text-sm text-slate-700 line-clamp-2">{item.discussion_point || '—'}</span>
+                    )}
+                  </td>
+
+                  {/* Responsibility */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingRowData.responsibility}
+                        onChange={e => setEditField('responsibility', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-slate-700">{item.responsibility || '—'}</span>
+                    )}
+                  </td>
+
+                  {/* Target Date */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <DateCell
+                        value={editingRowData.target}
+                        onSave={val => setEditField('target', val)}
+                      />
+                    ) : (
+                      <DateCell value={item.target} onSave={val => handleUpdateItem(item.id, 'target', val)} />
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <StatusCell
+                        value={editingRowData.status}
+                        onSave={val => setEditField('status', val)}
+                      />
+                    ) : (
+                      <StatusBadge value={item.status} />
+                    )}
+                  </td>
+
+                  {/* Action Taken */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <textarea
+                        value={editingRowData.action_taken}
+                        onChange={e => setEditField('action_taken', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none min-h-[48px]"
+                        rows={2}
+                      />
+                    ) : (
+                      <span className="text-sm text-slate-600 line-clamp-2">{item.action_taken || <span className="text-slate-300 italic">No update</span>}</span>
+                    )}
+                  </td>
+
+                  {/* Actions Column */}
+                  <td className="px-4 py-3 text-center" style={{ minWidth: '90px' }}>
+                    {isEditing ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleSaveRow(item.id)}
+                          className="p-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                          title="Save changes"
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          onClick={cancelEditRow}
+                          className="p-1.5 bg-slate-100 text-slate-500 rounded-md hover:bg-red-50 hover:text-red-500 transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : deletingRowId === item.id ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded hover:bg-red-600 transition-colors"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setDeletingRowId(null)}
+                          className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded hover:bg-slate-200 transition-colors"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => startEditRow(item)}
+                          className="p-1.5 text-slate-300 hover:text-blue-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Edit"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingRowId(item.id)}
+                          className="p-1.5 text-slate-300 hover:text-red-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -424,7 +636,7 @@ const ActionItemsTable = ({ syncId }) => {
           <Pagination className="w-auto mx-0">
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious 
+                <PaginationPrevious
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={activePage === 1}
                   className="cursor-pointer"
@@ -444,7 +656,7 @@ const ActionItemsTable = ({ syncId }) => {
               ))}
               
               <PaginationItem>
-                <PaginationNext 
+                <PaginationNext
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                   disabled={activePage === totalPages}
                   className="cursor-pointer"

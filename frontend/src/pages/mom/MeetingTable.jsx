@@ -25,6 +25,7 @@ import {
   PaginationNext,
 } from '../../components/ui/pagination';
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
+import { useConfirm } from '../../hooks/use-confirm';
 
 const CRITICALITY_COLORS = {
   'High':     { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
@@ -276,6 +277,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
   const effectiveProjectId = lockedProjectId || reduxProjectId;
 
+  const confirm = useConfirm();
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [meetings.length]);
+
   // ── Local Pagination State ──
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -298,6 +306,77 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+
+  // ── Selection Toggling Logic ──
+  const pageIds = React.useMemo(() => {
+    return paginatedMeetings.map((m, idx) => m.id || ((activePage - 1) * itemsPerPage + idx));
+  }, [paginatedMeetings, activePage, itemsPerPage]);
+
+  const isAllPageSelected = React.useMemo(() => {
+    return pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+  }, [pageIds, selectedIds]);
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // ── Confirmation Handlers ──
+  const handleDeleteClick = async (rowId) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Action Item?',
+      description: 'Are you sure you want to delete this action item? This will remove it from the meeting notes.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (isConfirmed) {
+      onDeleteMeeting(rowId);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+      toast.success('Action item deleted', { duration: 1500 });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const isConfirmed = await confirm({
+      title: `Delete ${selectedIds.size} Action Items?`,
+      description: `Are you sure you want to delete the ${selectedIds.size} selected action items? This action cannot be undone.`,
+      confirmText: `Delete ${selectedIds.size} Items`,
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (isConfirmed) {
+      selectedIds.forEach(id => {
+        onDeleteMeeting(id);
+      });
+      setSelectedIds(new Set());
+      toast.success('Selected action items deleted', { duration: 1500 });
+    }
+  };
 
 
 
@@ -986,6 +1065,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
            </div>
         </div>
 
+
+
         {/* Global Slide-out Drawer (Always rendered at body level via fixed position) */}
         <AnimatePresence>
           {showSyncPanel && (
@@ -1063,6 +1144,21 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
           <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
               <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid #E2E8F0' }}>
+                <th
+                  className="px-3 py-3 text-center font-medium sticky top-0 z-10 bg-[#F8FAFC] print:hidden"
+                  style={{
+                    width: '40px',
+                    borderRight: '1px solid #F1F5F9',
+                    borderBottom: '1px solid #E2E8F0'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isAllPageSelected}
+                    onChange={toggleSelectAllPage}
+                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer accent-[#0D9488]"
+                  />
+                </th>
                 {[
                   { label: 'S.No', cls: 'px-3 py-3 text-left' },
                   { label: 'Function', cls: 'px-4 py-3 text-left' },
@@ -1112,6 +1208,19 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                       borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
                     }}
                   >
+                    <td className="px-3 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))}
+                        onChange={() => toggleSelectRow(m.id || ((activePage - 1) * itemsPerPage + idx))}
+                        aria-label={`Select row ${m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}`}
+                        className={`w-4 h-4 rounded border-slate-300 cursor-pointer accent-[#0D9488] transition-opacity duration-100 ${
+                          selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                      />
+                    </td>
                     <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
                     <td className="px-4 py-2 text-center" style={cellBorder}>
                        <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
@@ -1229,14 +1338,14 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                             />
                           </button>
                           <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
-                          <button onClick={() => onDeleteMeeting(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
+                          <button onClick={() => handleDeleteClick(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
                         </div>
                       </td>
                     </tr>
                     {/* ── Inline Preview Row (conditionally rendered) ── */}
                     {expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) && (
                       <tr className="mt-row-preview-tr">
-                        <td colSpan={10} className="mt-preview-cell" style={{ padding: 0, borderBottom: '1px solid #E2E8F0' }}>
+                        <td colSpan={11} className="mt-preview-cell" style={{ padding: 0, borderBottom: '1px solid #E2E8F0' }}>
                           <div className="mt-preview-body">
                             <div className="mt-preview-section">
                               <span className="mt-preview-label">Full Discussion Point</span>
@@ -1301,6 +1410,36 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     </ComboboxContent>
                   </Combobox>
                 </div>
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="text-[11px] text-slate-200">|</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleBulkDelete}
+                        className="p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors flex items-center justify-center"
+                        title={`Delete ${selectedIds.size} selected items`}
+                        aria-label={`Delete ${selectedIds.size} selected items`}
+                      >
+                        <Trash2 size={14} className="stroke-[2.2]" />
+                      </button>
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                        {selectedIds.size} selected
+                      </span>
+                      <button
+                        onClick={() => setSelectedIds(new Set())}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: '10px', color: '#94A3B8', fontWeight: 500,
+                          padding: 0
+                        }}
+                        className="hover:text-slate-600 transition-colors ml-1"
+                        aria-label="Clear selection"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </>
+                )}
              </div>
              <Pagination className="w-auto mx-0">
                <PaginationContent>

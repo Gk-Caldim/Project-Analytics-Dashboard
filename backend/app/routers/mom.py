@@ -509,6 +509,34 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.delete("/action-items/{item_id}")
+async def delete_action_item(item_id: int, db: Session = Depends(get_db)):
+    """Hard delete a single action item (Issue) and decrement the parent sync's row_count."""
+    try:
+        issue = db.query(Issue).filter(Issue.id == item_id).first()
+        if not issue:
+            raise HTTPException(status_code=404, detail="Action item not found")
+
+        sync_id = issue.sync_id  # capture before deletion
+
+        db.delete(issue)
+        db.flush()
+
+        # Decrement row_count on parent sync history record so the card count stays accurate
+        if sync_id:
+            history = db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).first()
+            if history and history.row_count and history.row_count > 0:
+                history.row_count -= 1
+
+        db.commit()
+        return {"success": True, "deleted_item_id": item_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/syncs/{sync_id}")
 async def delete_sync(
     sync_id: str, 
