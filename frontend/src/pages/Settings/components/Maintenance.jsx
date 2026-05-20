@@ -289,10 +289,9 @@ const Maintenance = () => {
                         <button
                             onClick={handleClearCache}
                             disabled={isClearing}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
+                            className="inline-flex items-center justify-center w-full sm:w-80 h-11 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
                         >
                             {isClearing ? 'Clearing...' : 'Clear All Cache & Reload'}
-                            <Trash2 className="h-3.5 w-3.5" />
                         </button>
                     </div>
                 </div>
@@ -341,10 +340,9 @@ const Maintenance = () => {
                         <button
                             onClick={handleRunIntegrityCheck}
                             disabled={isChecking}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
+                            className="inline-flex items-center justify-center w-full sm:w-80 h-11 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
                         >
                             {isChecking ? 'Executing Diagnostics...' : 'Run Integrity Diagnostics'}
-                            <Activity className={`h-3.5 w-3.5 ${isChecking ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
 
@@ -529,10 +527,9 @@ const Maintenance = () => {
                         <button
                             onClick={handleTestLatency}
                             disabled={isTestingLatency}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
+                            className="inline-flex items-center justify-center w-full sm:w-80 h-11 bg-brand-primary hover:bg-black text-white text-[11px] font-bold uppercase tracking-[0.15em] rounded transition-all disabled:opacity-50"
                         >
                             {isTestingLatency ? 'Measuring Connection Speed...' : 'Test Database Latency'}
-                            <Activity className={`h-3.5 w-3.5 ${isTestingLatency ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
 

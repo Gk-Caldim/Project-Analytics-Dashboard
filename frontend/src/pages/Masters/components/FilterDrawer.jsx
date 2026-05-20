@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Filter, RotateCcw, ChevronDown, Check } from 'lucide-react';
 import Select from 'react-select';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const FilterDrawer = ({ 
   isOpen, 
@@ -18,6 +19,7 @@ const FilterDrawer = ({
   title = "Filters",
   subtitle = "Refine your data list"
 }) => {
+  const { themeSettings } = useTheme();
   // Local state for the drawer to allow "Apply" pattern
   const [localFilters, setLocalFilters] = useState(activeFilters);
 
@@ -111,7 +113,7 @@ const FilterDrawer = ({
     singleValue: (base) => ({ ...base, color: '#fff' })
   };
 
-  const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark' || document.body.classList.contains('dark');
+  const isDarkMode = themeSettings.displayMode === 'dark';
   const styles = isDarkMode ? darkSelectStyles : selectStyles;
 
   return (

@@ -50,7 +50,8 @@ const Sidebar = ({
         sidebarDashboardLimit = 10, 
         sidebarDashboardMode = 'custom',
         navigationHistory = [],
-        sidebarCollapsed = false
+        sidebarCollapsed = false,
+        activeView = 'dashboard'
     } = useSelector(state => state.nav);
 
     const toggleSidebar = () => {

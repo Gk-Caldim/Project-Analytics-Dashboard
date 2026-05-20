@@ -55,37 +55,32 @@ const CustomToast = ({ t, toast }) => {
   const isLoading = t.type === 'loading';
   const isSuccess = t.type === 'success' || t.type === 'blank';
 
-  let borderColor = 'border-emerald-500 dark:border-emerald-400';
-  let bgColor = 'bg-emerald-50 dark:bg-emerald-900/30';
-  let iconColor = 'text-emerald-700 dark:text-emerald-200';
-  let titleColor = 'text-emerald-800 dark:text-emerald-100';
-  let textColor = 'text-emerald-700 dark:text-emerald-200';
+  let borderColor = 'border-emerald-500/20 dark:border-emerald-500/25';
+  let bgColor = 'bg-white/95 dark:bg-[#0f1115]/95';
+  let iconBgColor = 'bg-emerald-50 dark:bg-emerald-500/10';
+  let iconColor = 'text-emerald-600 dark:text-emerald-400';
+  let titleColor = 'text-slate-800 dark:text-slate-200';
+  let textColor = 'text-slate-600 dark:text-slate-400';
   let title = 'Success';
   let Icon = CheckCircle;
 
   if (isError) {
     title = 'Action Failed';
-    borderColor = 'border-rose-500 dark:border-rose-400';
-    bgColor = 'bg-rose-50 dark:bg-rose-900/30';
-    iconColor = 'text-rose-700 dark:text-rose-200';
-    titleColor = 'text-rose-800 dark:text-rose-100';
-    textColor = 'text-rose-700 dark:text-rose-200';
+    borderColor = 'border-rose-500/20 dark:border-rose-500/25';
+    iconBgColor = 'bg-rose-50 dark:bg-rose-500/10';
+    iconColor = 'text-rose-600 dark:text-rose-400';
     Icon = AlertCircle;
   } else if (isLoading) {
     title = 'Processing';
-    borderColor = 'border-sky-500 dark:border-sky-400';
-    bgColor = 'bg-sky-50 dark:bg-sky-900/30';
-    iconColor = 'text-sky-700 dark:text-sky-200';
-    titleColor = 'text-sky-800 dark:text-sky-100';
-    textColor = 'text-sky-700 dark:text-sky-200';
+    borderColor = 'border-blue-500/20 dark:border-blue-500/25';
+    iconBgColor = 'bg-blue-50 dark:bg-blue-500/10';
+    iconColor = 'text-blue-600 dark:text-blue-400';
     Icon = RefreshCw;
   } else if (t.type === 'blank') {
     title = 'Note';
-    borderColor = 'border-amber-500 dark:border-amber-400';
-    bgColor = 'bg-amber-50 dark:bg-amber-900/30';
-    iconColor = 'text-amber-700 dark:text-amber-200';
-    titleColor = 'text-amber-800 dark:text-amber-100';
-    textColor = 'text-amber-700 dark:text-amber-200';
+    borderColor = 'border-amber-500/20 dark:border-amber-500/25';
+    iconBgColor = 'bg-amber-50 dark:bg-amber-500/10';
+    iconColor = 'text-amber-600 dark:text-amber-400';
     Icon = Info;
   }
 
@@ -93,51 +88,40 @@ const CustomToast = ({ t, toast }) => {
     <div
       role="alert"
       className={`${
-        t.visible ? 'animate-in fade-in slide-in-from-bottom-5' : 'animate-out fade-out slide-out-to-bottom-5'
-      } rounded-xl border-2 ${borderColor} ${bgColor} p-4 shadow-2xl backdrop-blur-md transition-all duration-300 pointer-events-auto min-w-[340px] max-w-md ring-1 ring-black/5`}
+        t.visible ? 'animate-in fade-in slide-in-from-top-5' : 'animate-out fade-out slide-out-to-top-5'
+      } rounded-full border ${borderColor} ${bgColor} py-1.5 pl-1.5 pr-4 shadow-lg backdrop-blur-md transition-all duration-300 pointer-events-auto flex items-center gap-2.5 ring-1 ring-black/5 max-h-9`}
     >
-      <div className="flex items-start gap-4">
-        <div className={`mt-0.5 rounded-full p-1.5 ${bgColor.replace('bg-', 'bg-opacity-20 bg-')}`}>
-          {isLoading ? (
-             <Icon className={`size-5 animate-spin ${iconColor}`} />
-          ) : t.icon ? (
-            <div className="size-5 flex items-center justify-center text-xl">{t.icon}</div>
-          ) : (
-            <Icon className={`size-5 ${iconColor}`} />
-          )}
-        </div>
-
-        <div className="flex-1">
-          <strong className={`block text-sm font-bold tracking-tight ${titleColor}`}>
-            {title}
-          </strong>
-
-          <div className={`mt-1 text-xs font-medium leading-relaxed ${textColor}`}>
-            {t.message}
-          </div>
-        </div>
-        
-        <div className="flex flex-col gap-2">
-          {t.action ? (
-            <button
-              onClick={() => {
-                t.action.onClick();
-                toast.dismiss(t.id);
-              }}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${titleColor} hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95`}
-            >
-              {t.action.label}
-            </button>
-          ) : (
-            <button 
-              onClick={() => toast.dismiss(t.id)}
-              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-            >
-               <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+      <div className={`size-6 rounded-full flex items-center justify-center ${iconBgColor}`}>
+        {isLoading ? (
+           <Icon className={`size-3.5 animate-spin ${iconColor}`} />
+        ) : t.icon ? (
+          <div className="size-3.5 flex items-center justify-center text-sm">{t.icon}</div>
+        ) : (
+          <Icon className={`size-3.5 ${iconColor}`} />
+        )}
       </div>
+
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        <strong className={`text-xs font-semibold tracking-tight ${titleColor}`}>
+          {title}
+        </strong>
+        <span className="h-3.5 w-[1px] bg-slate-200 dark:bg-slate-800" />
+        <span className={`text-xs font-medium leading-none ${textColor}`}>
+          {t.message}
+        </span>
+      </div>
+      
+      {t.action && (
+        <button
+          onClick={() => {
+            t.action.onClick();
+            toast.dismiss(t.id);
+          }}
+          className={`ml-2 px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${titleColor} hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95`}
+        >
+          {t.action.label}
+        </button>
+      )}
     </div>
   );
 };
@@ -262,9 +246,12 @@ function App() {
   return (
     <ThemeProvider>
       <Toaster
-        position="bottom-right"
+        position="top-center"
+        containerStyle={{
+          top: '10px',
+        }}
         toastOptions={{
-          duration: 3500,
+          duration: 3000,
         }}
       >
         {(t) => <CustomToast t={t} toast={toast} />}

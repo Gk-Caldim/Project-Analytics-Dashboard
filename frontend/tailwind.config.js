@@ -12,6 +12,12 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
+        slate: {
+          250: '#d7e1ea',
+          550: '#55657e',
+          750: '#293548',
+          850: '#172237',
+        },
         // Industrial Design System Colors
         app: {
           bg: 'var(--bg)',

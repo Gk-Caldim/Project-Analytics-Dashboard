@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { setSelectedUploadFileId } from '../../store/slices/navSlice';
 import {
@@ -156,6 +157,8 @@ const capitalizeFirstLetter = (str) => {
 
 const UploadTrackers = () => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const loadingFileIdRef = useRef(null);
   const selectedFileId = useSelector(state => state.nav.selectedUploadFileId);
   const authUser = useSelector(state => state.auth?.user);
   const isAdmin = authUser?.role === 'Admin' || authUser?.role === 'Super Admin' || authUser?.role === 'Project Manager';
@@ -282,25 +285,19 @@ const UploadTrackers = () => {
   };
 
   // Handle URL parameters when component mounts or URL changes
-  // Handle URL parameters when component mounts or URL changes
   useEffect(() => {
-    const handleUrlNavigation = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const fileId = urlParams.get('file');
+    const fileId = searchParams.get('file');
 
-      if (fileId && !selectedFileId && !initialFileLoaded && trackers.length > 0) {
-        const trackerId = parseInt(fileId, 10);
-        await openFileDirectly(trackerId);
+    if (fileId && trackers.length > 0) {
+      const trackerId = parseInt(fileId, 10);
+      if (selectedFileId !== trackerId) {
+        dispatch(setSelectedUploadFileId(trackerId));
       }
-    };
-
-    // Small delay to ensure trackers are loaded
-    const timer = setTimeout(() => {
-      handleUrlNavigation();
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [trackers, selectedFileId, initialFileLoaded]);
+    } else if (!fileId && selectedFileId !== null) {
+      // URL cleared (e.g. browser back) — also clear Redux state
+      dispatch(setSelectedUploadFileId(null));
+    }
+  }, [searchParams, trackers, selectedFileId, dispatch]);
 
   // Save trackers to localStorage (metadata only)
   useEffect(() => {
@@ -333,14 +330,19 @@ const UploadTrackers = () => {
 
   // Load file content when selectedFileId changes
   useEffect(() => {
+    if (trackers.length === 0) return;
+
     if (selectedFileId) {
-      const tracker = trackers.find(t => t.id === selectedFileId);
+      const tracker = trackers.find(t => t.id === selectedFileId || t.upload_id === selectedFileId);
       if (tracker) {
         setSelectedFileTrackerInfo(tracker);
       }
 
       const trackerId = parseInt(selectedFileId, 10);
-      if (!initialFileLoaded || selectedFileTrackerInfo?.id !== trackerId) {
+      const isCorrectFileLoaded = initialFileLoaded && 
+        (selectedFileTrackerInfo?.upload_id === trackerId || selectedFileTrackerInfo?.id === trackerId);
+
+      if (!isCorrectFileLoaded && loadingFileIdRef.current !== trackerId) {
         openFileDirectly(trackerId);
       }
     } else {
@@ -348,7 +350,7 @@ const UploadTrackers = () => {
       setSelectedFileTrackerInfo(null);
       setInitialFileLoaded(false);
     }
-  }, [selectedFileId, trackers]);
+  }, [selectedFileId, trackers, initialFileLoaded, selectedFileTrackerInfo]);
 
   // Handle saving edited file data (Disabled - now server-side only)
   const handleSaveFileData = (trackerId, updatedFileData) => {
@@ -1048,7 +1050,12 @@ const UploadTrackers = () => {
           className="flex items-center cursor-pointer group/file"
           onClick={(e) => {
             e.stopPropagation();
-            openFileDirectly(tracker.upload_id);
+            dispatch(setSelectedUploadFileId(tracker.upload_id));
+            setSearchParams(prev => {
+              const next = new URLSearchParams(prev);
+              next.set('file', String(tracker.upload_id));
+              return next;
+            });
           }}
         >
           <File className="h-4 w-4 text-slate-400 dark:text-slate-500 mr-2 group-hover/file:text-blue-500 transition-colors" />
@@ -1103,11 +1110,13 @@ const UploadTrackers = () => {
   const openFileDirectly = async (trackerId) => {
     console.log('Opening file directly:', trackerId);
 
-    const tracker = trackers.find(t => t.upload_id === trackerId);
+    const tracker = trackers.find(t => t.upload_id === trackerId || t.id === trackerId);
     if (!tracker) {
       showNotification('File not found', 'error');
       return;
     }
+
+    loadingFileIdRef.current = trackerId;
 
     setFetchingData(true);
     try {
@@ -1126,6 +1135,9 @@ const UploadTrackers = () => {
       showNotification('Error loading file data from server', 'error');
     } finally {
       setFetchingData(false);
+      if (loadingFileIdRef.current === trackerId) {
+        loadingFileIdRef.current = null;
+      }
     }
   };
 
@@ -1386,10 +1398,12 @@ const UploadTrackers = () => {
             setSelectedFileTrackerInfo(null);
             setInitialFileLoaded(false); // ← CRITICAL: Reset the flag
 
-            // Update URL without file parameter
-            const url = new URL(window.location);
-            url.searchParams.delete('file');
-            window.history.pushState({}, '', url);
+            // Update URL without file parameter via React Router (triggers re-render)
+            setSearchParams(prev => {
+              const next = new URLSearchParams(prev);
+              next.delete('file');
+              return next;
+            });
 
             // Call onClearSelection to notify parent Dashboard
             if (onClearSelection) {
@@ -1644,7 +1658,14 @@ const UploadTrackers = () => {
                         <td className="py-3 px-4 whitespace-nowrap text-left">
                           <div className="flex items-center space-x-2">
                             <button
-                              onClick={() => openFileDirectly(tracker.upload_id)}
+                              onClick={() => {
+                                dispatch(setSelectedUploadFileId(tracker.upload_id));
+                                setSearchParams(prev => {
+                                  const next = new URLSearchParams(prev);
+                                  next.set('file', String(tracker.upload_id));
+                                  return next;
+                                });
+                              }}
                               className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
                               title="View File"
                             >
