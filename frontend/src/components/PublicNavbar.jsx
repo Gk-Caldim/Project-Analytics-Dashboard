@@ -23,7 +23,14 @@ const PublicNavbar = () => {
     <nav className="public-nav">
       <div className="public-nav-inner">
         <div className="public-logo-area" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          <div className="public-logo-box"></div>
+          <div className="public-logo-wrapper">
+            <svg className="public-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2" width="9" height="9" rx="2" fill="#2563EB" />
+              <rect x="13" y="2" width="9" height="9" rx="2" fill="#10B981" />
+              <rect x="2" y="13" width="9" height="9" rx="2" fill="#F59E0B" />
+              <rect x="13" y="13" width="9" height="9" rx="2" fill="#EF4444" />
+            </svg>
+          </div>
           <span className="public-logo-text">Industrial Analytics Workspace</span>
         </div>
         

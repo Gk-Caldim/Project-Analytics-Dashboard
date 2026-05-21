@@ -13,7 +13,7 @@ from app.api.websockets import manager
 
 router = APIRouter()
 
-def normalize_status(status: str) -> str:
+def normalize_status(status: Optional[str]) -> str:
     if not status:
         return "Open"
     s = status.strip().lower()
@@ -70,7 +70,7 @@ async def sync_mom_issues(
     if is_existing_standalone:
         meeting_id_for_session = req.meeting_id
         # Extract sync_id from the existing meeting_id (e.g. sync-uuid -> uuid)
-        sync_id = req.meeting_id.replace("sync-", "")
+        sync_id = req.meeting_id.replace("sync-", "") if req.meeting_id else ""
     elif is_scheduled_meeting:
         meeting_id_for_session = req.meeting_id
         sync_id = str(uuid.uuid4())
@@ -142,7 +142,7 @@ async def sync_mom_issues(
                 department=action.department or "General",
                 priority=action.priority or "Medium",
                 due_date=parsed_due_date,
-                status=normalize_status(action.status),
+                status=normalize_status(action.status or "Pending"),
                 sync_id=sync_id,
                 action_taken=action.action_taken or "",
                 meeting_id=meeting_id_for_session,
@@ -164,19 +164,21 @@ async def sync_mom_issues(
                 "function": action.department or "General",
                 "criticality": action.priority or "Medium",
                 "target": action.due_date or "TBD",
-                "status": normalize_status(action.status),
+                "status": normalize_status(action.status or "Pending"),
                 "action_taken": action.action_taken
             })
         
         existing_session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id_for_session).first()
         
         if existing_session:
-            existing_session.sync_id = sync_id
-            existing_session.meeting_name = req.meeting_name
-            existing_session.project_id = req.project_id
-            existing_session.project_name = project_name
-            existing_session.mom_data = mom_data
-            existing_session.updated_at = datetime.now(timezone.utc)
+            db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id_for_session).update({
+                MOMSession.sync_id: sync_id,
+                MOMSession.meeting_name: req.meeting_name,
+                MOMSession.project_id: req.project_id,
+                MOMSession.project_name: project_name,
+                MOMSession.mom_data: mom_data,
+                MOMSession.updated_at: datetime.now(timezone.utc)
+            })
         else:
             saved_mom = MOMSession(
                 sync_id=sync_id,
@@ -190,8 +192,10 @@ async def sync_mom_issues(
             db.add(saved_mom)
 
         # Update history to success
-        history.status = "success"
-        history.row_count = len(created)
+        db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).update({
+            MomSyncHistory.status: "success",
+            MomSyncHistory.row_count: len(created)
+        })
         
         db.commit()
 
@@ -231,8 +235,8 @@ async def sync_mom_issues(
         # Update history to failed if it was created
         try:
             fail_history = db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).first()
-            if fail_history:
-                fail_history.status = "failed"
+            if fail_history is not None:
+                db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).update({MomSyncHistory.status: "failed"})
                 db.commit()
         except:
             pass
@@ -267,7 +271,7 @@ async def get_items_by_sync_id(sync_id: str, db: Session = Depends(get_db)):
                 "discussion_point": i.title,
                 "description":      i.description,
                 "responsibility":   i.owner or "Unassigned",
-                "target":           str(i.due_date) if i.due_date else "TBD",
+                "target":           str(i.due_date) if i.due_date is not None else "TBD",
                 "status":           i.status or "Pending",
                 "action_taken":     i.action_taken or "",
                 "project_id":       i.project_id,
@@ -299,6 +303,41 @@ async def get_mom_session_by_sync_id(sync_id: str, db: Session = Depends(get_db)
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{meeting_id}")
+async def get_mom_data(meeting_id: str, db: Session = Depends(get_db)):
+    """
+    Unified endpoint to fetch MOM data by meeting_id.
+    Supports meeting_id, sync-{sync_id}, and 'unscheduled' lookups.
+    Returns MOMSession.mom_data if available, empty data otherwise.
+    """
+    try:
+        # Handle special cases
+        if not meeting_id or meeting_id in ("null", "undefined", ""):
+            return {"success": False, "mom_data": [], "detail": "Invalid meeting_id"}
+        
+        # If it's an unscheduled meeting with no data, return empty
+        if meeting_id == "unscheduled":
+            return {"success": True, "mom_data": [], "detail": "Unscheduled meeting has no saved data yet"}
+        
+        # Try to find MOMSession by meeting_id first
+        session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id).first()
+        
+        # If not found and meeting_id is a sync-id format, try extracting sync_id
+        if session is None and meeting_id.startswith("sync-"):
+            sync_id = meeting_id.replace("sync-", "")
+            session = db.query(MOMSession).filter(MOMSession.sync_id == sync_id).first()
+        
+        if session is not None and session.mom_data is not None:
+            return {"success": True, "mom_data": session.mom_data}
+        
+        return {"success": True, "mom_data": []}
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[mom/get] Error fetching MOM data for {meeting_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/issues/{meeting_id}")
 async def get_issues_by_meeting(meeting_id: str, db: Session = Depends(get_db)):
     """Fetch all synced MOM issues for a given meeting_id.
@@ -319,7 +358,7 @@ async def get_issues_by_meeting(meeting_id: str, db: Session = Depends(get_db)):
                 "discussion_point": i.title,
                 "description":      i.description,
                 "responsibility":   i.owner or "Unassigned",
-                "target":           str(i.due_date) if i.due_date else "TBD",
+                "target":           str(i.due_date) if i.due_date is not None else "TBD",
                 "status":           i.status or "Pending",
                 "project_id":       i.project_id,
             })
@@ -381,8 +420,8 @@ async def get_mom_history(project_id: int, db: Session = Depends(get_db)):
                 "status": h.status,
                 "session_id": h.meeting_id,
                 "meeting_name": h.meeting_name,
-                "date": str(h.date) if h.date else None,
-                "synced_at": h.synced_at.isoformat() if h.synced_at else None,
+                "date": str(h.date) if h.date is not None else None,
+                "synced_at": h.synced_at.isoformat() if h.synced_at is not None else None,
                 "row_count": h.row_count,
                 "mom_output_url": h.mom_output_url,
             }
@@ -413,7 +452,7 @@ async def get_all_mom_history(
         records = query.order_by(MomSyncHistory.synced_at.desc()).all()
 
         # Collect unique project_ids so we can enrich with project names
-        pid_set = {r.project_id for r in records if r.project_id}
+        pid_set = {r.project_id for r in records if r.project_id is not None}
         projects = {
             p.id: p.name
             for p in db.query(Project).filter(Project.id.in_(pid_set)).all()
@@ -429,8 +468,8 @@ async def get_all_mom_history(
                 "meeting_name": h.meeting_name or "Untitled Meeting",
                 "project_id": h.project_id,
                 "project_name": projects.get(h.project_id, "Unknown Project"),
-                "date": str(h.date) if h.date else None,
-                "synced_at": h.synced_at.isoformat() if h.synced_at else None,
+                "date": str(h.date) if h.date is not None else None,
+                "synced_at": h.synced_at.isoformat() if h.synced_at is not None else None,
                 "row_count": h.row_count or 0,
                 "mom_output_url": h.mom_output_url,
             })
@@ -485,7 +524,9 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
             val = normalize_status(val)
 
         setattr(issue, model_field, val)
-        issue.updated_at = datetime.now(timezone.utc)
+        db.query(Issue).filter(Issue.id == item_id).update({
+            Issue.updated_at: datetime.now(timezone.utc)
+        })
         
         db.commit()
         db.refresh(issue)
@@ -498,7 +539,7 @@ async def patch_action_item(item_id: int, req: ActionItemPatchRequest, db: Sessi
                 "responsibility": issue.owner,
                 "function": issue.department,
                 "criticality": issue.priority,
-                "target": str(issue.due_date) if issue.due_date else "TBD",
+                "target": str(issue.due_date) if issue.due_date is not None else "TBD",
                 "status": issue.status,
                 "action_taken": issue.action_taken
             }
@@ -523,10 +564,10 @@ async def delete_action_item(item_id: int, db: Session = Depends(get_db)):
         db.flush()
 
         # Decrement row_count on parent sync history record so the card count stays accurate
-        if sync_id:
-            history = db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).first()
-            if history and history.row_count and history.row_count > 0:
-                history.row_count -= 1
+        if sync_id is not None:
+            db.query(MomSyncHistory).filter(MomSyncHistory.sync_id == sync_id).update({
+                MomSyncHistory.row_count: MomSyncHistory.row_count - 1
+            })
 
         db.commit()
         return {"success": True, "deleted_item_id": item_id}
@@ -571,9 +612,9 @@ async def delete_sync(
             from sqlalchemy import or_
             histories = db.query(MomSyncHistory).filter(or_(*history_queries)).all()
             for h in histories:
-                if h.sync_id:
+                if h.sync_id is not None:
                     sync_ids.add(h.sync_id)
-                if h.meeting_id:
+                if h.meeting_id is not None:
                     meeting_ids.add(h.meeting_id)
                 history_ids.add(h.id)
 

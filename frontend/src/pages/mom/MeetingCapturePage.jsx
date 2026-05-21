@@ -352,7 +352,10 @@ const MeetingCapturePage = () => {
   useEffect(() => {
     const init = async () => {
       try {
+        // Set meeting title early but don't update state yet during render
+        let titleToSet = '';
         const promises = [];
+        
         if (!(reduxProjects && reduxProjects.length > 0)) {
           promises.push(
             API.get('/projects/')
@@ -364,7 +367,7 @@ const MeetingCapturePage = () => {
         }
         
         if (meetingId && meetingId !== 'unscheduled') {
-          setMeetingTitle(`Meeting #${meetingId}`);
+          titleToSet = `Meeting #${meetingId}`;
           promises.push(
             API.get(`/transcript/${meetingId}`)
               .then(r => { 
@@ -395,8 +398,14 @@ const MeetingCapturePage = () => {
               .catch(() => { })
           );
         }
+        
         if (promises.length > 0) {
           await Promise.all(promises);
+        }
+        
+        // Defer setState calls until after Promise.all completes
+        if (titleToSet) {
+          setMeetingTitle(titleToSet);
         }
       } catch (err) {
         console.error("Initial load error in MeetingCapturePage:", err);
