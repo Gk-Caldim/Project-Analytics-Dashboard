@@ -15,7 +15,7 @@ async def test_async():
             pool_pre_ping=True,
             connect_args={
                 "server_settings": {"search_path": "public", "statement_timeout": "15000"},
-                "prepared_statement_cache_size": 0 # Critical for transaction mode pooler (PgBouncer/Supavisor)
+                "statement_cache_size": 0 # Critical for transaction mode pooler (PgBouncer/Supavisor)
             }
         )
         

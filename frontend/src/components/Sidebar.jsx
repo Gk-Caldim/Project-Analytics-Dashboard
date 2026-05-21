@@ -18,25 +18,43 @@ import { setSidebarCollapsed } from '../store/slices/navSlice';
 
 // ─── Hamburger Icon Component ───────────────────────────────────────────────
 const HamburgerIcon = ({ collapsed }) => {
+  const isCollapsed = !!collapsed;
+
+  const path1Variants = {
+    collapsed: { d: "M 3 5 L 17 5" },
+    expanded: { d: "M 5 5 L 15 15" }
+  };
+
+  const path2Variants = {
+    collapsed: { d: "M 3 10 L 13 10", opacity: 1 },
+    expanded: { d: "M 10 10 L 10 10", opacity: 0 }
+  };
+
+  const path3Variants = {
+    collapsed: { d: "M 3 15 L 17 15" },
+    expanded: { d: "M 5 15 L 15 5" }
+  };
+
+  const activeState = isCollapsed ? "collapsed" : "expanded";
+
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round">
       <motion.path
-        animate={{
-          d: collapsed ? "M 3 5 L 17 5" : "M 5 5 L 15 15"
-        }}
+        variants={path1Variants}
+        animate={activeState}
+        initial={activeState}
         transition={{ duration: 0.25, ease: "easeInOut" }}
       />
       <motion.path
-        animate={{
-          d: collapsed ? "M 3 10 L 13 10" : "M 10 10 L 10 10",
-          opacity: collapsed ? 1 : 0
-        }}
+        variants={path2Variants}
+        animate={activeState}
+        initial={activeState}
         transition={{ duration: 0.2, ease: "easeInOut" }}
       />
       <motion.path
-        animate={{
-          d: collapsed ? "M 3 15 L 17 15" : "M 5 15 L 15 5"
-        }}
+        variants={path3Variants}
+        animate={activeState}
+        initial={activeState}
         transition={{ duration: 0.25, ease: "easeInOut" }}
       />
     </svg>
