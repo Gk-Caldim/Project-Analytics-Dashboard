@@ -1,10 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import PrivateRoute from './components/PrivateRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Code splitting imports using React.lazy
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const PrivateRoute = React.lazy(() => import('./components/PrivateRoute'));
-const ErrorBoundary = React.lazy(() => import('./components/ErrorBoundary'));
 
 const ProjectDashboard = React.lazy(() => import('./pages/ProjectDashboard'));
 const UploadTrackers = React.lazy(() => import('./pages/Trackers/UploadTrackers'));

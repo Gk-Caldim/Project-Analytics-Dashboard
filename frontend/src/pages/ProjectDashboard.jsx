@@ -4406,7 +4406,7 @@ const ProjectTitleDashboard = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     {/* Bulk Actions Menu (Visible when selecting) */}
                     {selectionMode && selectedProjects.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'white', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                         <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginRight: '4px' }}>
                           {selectedProjects.length} selected
                         </span>
@@ -4652,7 +4652,7 @@ const ProjectTitleDashboard = () => {
                     <button
                       onClick={() => setProjectToDelete(null)}
                       disabled={loading}
-                      style={{ padding: '8px 16px', background: 'white', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                      style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
                       Cancel
                     </button>
                     <button
