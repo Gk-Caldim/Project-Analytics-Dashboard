@@ -2872,6 +2872,29 @@
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+}
+
+/* Inline chip row shown next to section label when collapsed */
+.mdp2-before-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mdp2-before-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F0FDFA;
+  color: #065F46;
+  border: 1px solid #99F6E4;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .mdp2-collapsed-summary {

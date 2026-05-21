@@ -10,6 +10,15 @@ import toast from 'react-hot-toast';
 import './MeetingsDashboardPage.css';
 import API from '../../utils/api';
 import { setMomData, setMeetingContext } from '../../store/slices/momSlice';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from '../../components/ui/pagination';
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
 
 const MeetingsDashboardPage = () => {
   const navigate = useNavigate();
@@ -30,8 +39,12 @@ const MeetingsDashboardPage = () => {
   const [timeNow, setTimeNow] = useState(new Date());
 
   // State for expand/collapse saved MOMs
-  const [expandMoms, setExpandMoms] = useState(false);
-  const [expandHistory, setExpandHistory] = useState(false);
+  const [currentPageMoms, setCurrentPageMoms] = useState(1);
+  const itemsPerPageMoms = 2;
+
+  const [currentPageHistory, setCurrentPageHistory] = useState(1);
+  const [itemsPerPageHistory, setItemsPerPageHistory] = useState(5);
+
   // Inline delete confirmation
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -119,8 +132,26 @@ const MeetingsDashboardPage = () => {
   });
 
   const momHistory = completedMeetings.filter(m => m.mom_generated);
-  const showMoreMoms = momHistory.length > 2;
-  const displayedMoms = expandMoms ? momHistory : momHistory.slice(0, 2);
+
+  useEffect(() => {
+    setCurrentPageMoms(1);
+  }, [momHistory.length]);
+
+  const totalPagesMoms = Math.max(1, Math.ceil(momHistory.length / itemsPerPageMoms));
+  const activePageMoms = Math.min(currentPageMoms, totalPagesMoms);
+  const paginatedMoms = React.useMemo(() => {
+    return momHistory.slice((activePageMoms - 1) * itemsPerPageMoms, activePageMoms * itemsPerPageMoms);
+  }, [momHistory, activePageMoms]);
+
+  useEffect(() => {
+    setCurrentPageHistory(1);
+  }, [filteredHistory.length, activeFilter]);
+
+  const totalPagesHistory = Math.max(1, Math.ceil(filteredHistory.length / itemsPerPageHistory));
+  const activePageHistory = Math.min(currentPageHistory, totalPagesHistory);
+  const paginatedHistory = React.useMemo(() => {
+    return filteredHistory.slice((activePageHistory - 1) * itemsPerPageHistory, activePageHistory * itemsPerPageHistory);
+  }, [filteredHistory, activePageHistory]);
 
   // Insights
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -399,7 +430,7 @@ const MeetingsDashboardPage = () => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <button
-                      onClick={() => navigate('/dashboard/mom/view')}
+                      onClick={() => navigate(`/dashboard/mom/view/${savedMomId}`)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         background: '#0284c7', color: '#fff', border: 'none',
@@ -432,7 +463,7 @@ const MeetingsDashboardPage = () => {
                 </div>
               )}
 
-              {displayedMoms.map((momInst, i) => (
+              {paginatedMoms.map((momInst, i) => (
                 <div key={momInst.id || i} style={{
                   background: '#ffffff',
                   border: '1px solid #e2e8f0',
@@ -498,35 +529,39 @@ const MeetingsDashboardPage = () => {
                 </div>
               ))}
 
-              {showMoreMoms && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
-                  <button
-                    onClick={() => setExpandMoms(!expandMoms)}
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      background: '#f8fafc',
-                      border: '1px dashed #cbd5e1',
-                      borderRadius: '12px',
-                      color: '#475569',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.borderColor = '#94a3b8'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }}
-                  >
-                    {expandMoms ? (
-                      <>Show Less History</>
-                    ) : (
-                      <>Show {momHistory.length - 2} More Saved Meetings <ChevronRight style={{ width: 14, height: 14 }} /></>
-                    )}
-                  </button>
+              {momHistory.length > 0 && (
+                <div className="py-2 flex justify-center bg-white border border-slate-200 rounded-lg shadow-sm">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentPageMoms(prev => Math.max(1, prev - 1))}
+                          disabled={activePageMoms === 1}
+                          className="cursor-pointer"
+                        />
+                      </PaginationItem>
+                      
+                      {Array.from({ length: totalPagesMoms }).map((_, i) => (
+                        <PaginationItem key={i}>
+                          <PaginationLink
+                            onClick={() => setCurrentPageMoms(i + 1)}
+                            isActive={activePageMoms === i + 1}
+                            className="cursor-pointer"
+                          >
+                            {i + 1}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentPageMoms(prev => Math.min(totalPagesMoms, prev + 1))}
+                          disabled={activePageMoms === totalPagesMoms}
+                          className="cursor-pointer"
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
                 </div>
               )}
             </div>
@@ -574,7 +609,7 @@ const MeetingsDashboardPage = () => {
                   <td colSpan={6}>No records found</td>
                 </tr>
               ) : (
-                (expandHistory ? filteredHistory : filteredHistory.slice(0, 5)).map(m => {
+                paginatedHistory.map(m => {
                   const { label, cls } = getStatusInfo(m);
                   const host = m.attendees?.[0];
                   const hostName = typeof host === 'string'
@@ -610,24 +645,74 @@ const MeetingsDashboardPage = () => {
             </tbody>
           </table>
 
-          {filteredHistory.length > 5 && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px', borderTop: '1px solid #f1f5f9' }}>
-              <button
-                onClick={() => setExpandHistory(!expandHistory)}
-                style={{
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  color: '#6366f1',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                {expandHistory ? 'Show Less' : `Show All ${filteredHistory.length} Meetings ↓`}
-              </button>
+          {filteredHistory.length > 0 && (
+            <div className="py-3 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/20 rounded-b-sm print:hidden">
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-slate-400 font-medium">
+                  Showing {(activePageHistory - 1) * itemsPerPageHistory + 1}–{Math.min(activePageHistory * itemsPerPageHistory, filteredHistory.length)} of {filteredHistory.length} items
+                </span>
+                <span className="text-[11px] text-slate-200">|</span>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                  <span>Show:</span>
+                  <Combobox
+                    items={[5, 10, 15, 20]}
+                    value={itemsPerPageHistory}
+                    onChange={val => {
+                      setItemsPerPageHistory(Number(val));
+                      setCurrentPageHistory(1);
+                    }}
+                    className="w-16"
+                  >
+                    <ComboboxInput
+                      hideSearch
+                      hideClear
+                      readOnly
+                      placeholder={String(itemsPerPageHistory)}
+                      className="h-6 py-0.5 px-1.5 text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded shadow-sm transition-all"
+                    />
+                    <ComboboxContent className="w-16 min-w-0" position="top">
+                      <ComboboxList className="max-h-32">
+                        {(val) => (
+                          <ComboboxItem key={val} value={val} className="py-1 px-2 text-[10px]">
+                            {val}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                </div>
+              </div>
+              <Pagination className="w-auto mx-0">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => setCurrentPageHistory(prev => Math.max(1, prev - 1))}
+                      disabled={activePageHistory === 1}
+                      className="cursor-pointer"
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPagesHistory }).map((_, i) => (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        onClick={() => setCurrentPageHistory(i + 1)}
+                        isActive={activePageHistory === i + 1}
+                        className="cursor-pointer"
+                      >
+                        {i + 1}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      onClick={() => setCurrentPageHistory(prev => Math.min(totalPagesHistory, prev + 1))}
+                      disabled={activePageHistory === totalPagesHistory}
+                      className="cursor-pointer"
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </div>

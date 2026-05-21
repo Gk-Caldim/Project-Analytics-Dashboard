@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +10,22 @@ import API from '../../utils/api';
 import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '../../components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from '../../components/ui/pagination';
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
+import { useConfirm } from '../../hooks/use-confirm';
 
 const CRITICALITY_COLORS = {
   'High':     { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
@@ -26,69 +43,79 @@ const STATUS_STYLES = {
   'Closed': 'text-gray-400 font-medium line-through',
 };
 
-// ── Custom Pill Dropdown Component ─────────────────────────────────────────
-const PillDropdown = ({ value, options, onChange, colors }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setIsOpen(false);
-    };
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
+// ── Portal-based Pill Dropdown — escapes overflow:hidden/auto parents ──────
+// Root cause: table wrapper uses overflow-x:auto which creates a scroll
+// containment block. position:absolute children are clipped to that block.
+// Fix: render the menu into document.body via createPortal with position:fixed
+// coordinates calculated from getBoundingClientRect().
+const PillDropdown = ({ value, options, onChange, colors, label = "Select option" }) => {
   const activeColor = colors[value] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block', margin: '0 auto' }}>
-      <button
-        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        style={{
-          background: activeColor.bg, color: activeColor.color, border: `1px solid ${activeColor.border}`,
-          padding: '4px 10px', borderRadius: '12px', fontSize: '10px', fontWeight: 800,
-          textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-          outline: 'none', transition: 'all 0.2s', letterSpacing: '0.05em', minWidth: '80px', justifyContent: 'center'
-        }}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          style={{
+            background: activeColor.bg,
+            color: activeColor.color,
+            border: `1.5px solid ${activeColor.border}`,
+            padding: '3px 10px',
+            borderRadius: '999px',
+            fontSize: '10px',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            outline: 'none',
+            transition: 'all 0.15s',
+            letterSpacing: '0.06em',
+            minWidth: '76px',
+            justifyContent: 'center',
+            whiteSpace: 'nowrap',
+          }}
+          className="hover:opacity-85 focus:ring-1 focus:ring-slate-400 select-none"
+        >
+          {value}
+          <ChevronDown size={11} className="opacity-70 transition-transform" />
+        </button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent 
+        align="center" 
+        className="bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden min-w-[130px] p-0 z-50"
       >
-        {value}
-        <ChevronDown size={12} style={{ opacity: 0.6, transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', marginLeft: '4px' }} />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -5, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -5, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'absolute', top: 'calc(100% + 4px)', left: '50%', transform: 'translateX(-50%)',
-              background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 50, overflow: 'hidden', minWidth: '110px'
-            }}
-          >
-            {options.map((opt) => (
-              <div
+        <div className="px-3 py-1.5 text-[9px] font-extrabold tracking-widest text-slate-400 uppercase border-b border-slate-100 bg-slate-50/50">
+          {label}
+        </div>
+        <div className="p-1">
+          {options.map((opt) => {
+            const c = colors[opt] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+            const isActive = value === opt;
+            return (
+              <DropdownMenuItem
                 key={opt}
-                onClick={(e) => { e.stopPropagation(); onChange(opt); setIsOpen(false); }}
+                onClick={() => onChange(opt)}
+                className={`flex items-center justify-between gap-2 px-3 py-2 text-[10px] font-bold uppercase tracking-wide rounded cursor-pointer outline-none transition-colors ${
+                  isActive 
+                    ? 'text-teal-600 font-extrabold' 
+                    : 'text-slate-700 hover:bg-slate-50 focus:bg-slate-50 focus:text-slate-900'
+                }`}
                 style={{
-                  padding: '8px 12px', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase',
-                  color: '#334155', cursor: 'pointer', textAlign: 'center',
-                  background: value === opt ? '#F8FAFC' : 'transparent',
-                  borderBottom: '1px solid #F1F5F9', letterSpacing: '0.05em'
+                  borderLeft: isActive ? `3px solid ${c.border}` : '3px solid transparent',
+                  color: isActive ? c.color : undefined,
+                  background: isActive ? c.bg : undefined,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#F1F5F9'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = value === opt ? '#F8FAFC' : 'transparent'; }}
               >
-                {opt}
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+                <span>{opt}</span>
+                {isActive && <Check size={11} strokeWidth={3} />}
+              </DropdownMenuItem>
+            );
+          })}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -231,7 +258,10 @@ const ProjectCell = ({ projectName, defaultProjectName }) => {
   );
 };
 
-const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId }) => {
+import { Skeleton } from '../../components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
+
+const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId, loading }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
@@ -246,6 +276,107 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   } = useSelector(state => state.mom);
 
   const effectiveProjectId = lockedProjectId || reduxProjectId;
+
+  const confirm = useConfirm();
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [meetings.length]);
+
+  // ── Local Pagination State ──
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [meetings.length]);
+
+  const totalPages = Math.max(1, Math.ceil(meetings.length / itemsPerPage));
+  const activePage = Math.min(currentPage, totalPages);
+  
+  const paginatedMeetings = React.useMemo(() => {
+    return meetings.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+  }, [meetings, activePage]);
+
+  // ── Inline row preview state (multi-expand via Set) ──
+  const [expandedRows, setExpandedRows] = React.useState(new Set());
+  const toggleRowExpand = (id) => setExpandedRows(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  // ── Selection Toggling Logic ──
+  const pageIds = React.useMemo(() => {
+    return paginatedMeetings.map((m, idx) => m.id || ((activePage - 1) * itemsPerPage + idx));
+  }, [paginatedMeetings, activePage, itemsPerPage]);
+
+  const isAllPageSelected = React.useMemo(() => {
+    return pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+  }, [pageIds, selectedIds]);
+
+  const toggleSelectAllPage = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (isAllPageSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectRow = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // ── Confirmation Handlers ──
+  const handleDeleteClick = async (rowId) => {
+    const isConfirmed = await confirm({
+      title: 'Delete Action Item?',
+      description: 'Are you sure you want to delete this action item? This will remove it from the meeting notes.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (isConfirmed) {
+      onDeleteMeeting(rowId);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(rowId);
+        return next;
+      });
+      toast.success('Action item deleted', { duration: 1500 });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const isConfirmed = await confirm({
+      title: `Delete ${selectedIds.size} Action Items?`,
+      description: `Are you sure you want to delete the ${selectedIds.size} selected action items? This action cannot be undone.`,
+      confirmText: `Delete ${selectedIds.size} Items`,
+      cancelText: 'Cancel',
+      variant: 'danger'
+    });
+    if (isConfirmed) {
+      selectedIds.forEach(id => {
+        onDeleteMeeting(id);
+      });
+      setSelectedIds(new Set());
+      toast.success('Selected action items deleted', { duration: 1500 });
+    }
+  };
 
 
 
@@ -555,6 +686,139 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
          m.status !== 'Done' && m.status !== 'Closed'
   ).length;
 
+  if (loading) {
+    return (
+      <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
+        {/* Consolidated Command Bar Skeleton */}
+        <div className="bg-white border border-gray-300 shadow-xl rounded-sm overflow-hidden">
+          <div className="pt-8 pb-4 px-8 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
+            <div style={{ flex: 1 }}>
+              <Skeleton className="h-3 w-20" />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <h1 className="text-[14px] font-extrabold uppercase tracking-[0.2em] text-gray-800">
+                Minutes of Meeting
+              </h1>
+            </div>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <Skeleton className="h-5 w-32" />
+            </div>
+          </div>
+
+          <div className="px-6 py-3 bg-[#F8FAFC] border-b border-[#E2E8F0] flex items-center justify-between">
+            {/* Left side: Sync & Automation Skeleton */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Skeleton className="h-8 w-28 rounded-[4px]" />
+              <Skeleton className="h-8 w-8 rounded-[4px]" />
+            </div>
+
+            {/* Right side: Exports Skeleton */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Skeleton className="h-8 w-20 rounded-[4px]" />
+            </div>
+          </div>
+
+          {/* THE GRID SKELETON */}
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+              <thead>
+                <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid #E2E8F0' }}>
+                  {[
+                    { label: 'S.No', cls: 'px-3 py-3 text-left' },
+                    { label: 'Function', cls: 'px-4 py-3 text-left' },
+                    { label: 'Project Name', cls: 'px-4 py-3 text-left' },
+                    { label: 'Criticality', cls: 'px-3 py-3 text-left' },
+                    { label: 'Action Points Discussed', cls: 'px-6 py-3 text-left' },
+                    { label: 'Responsibility', cls: 'px-4 py-3 text-left' },
+                    { label: 'Target', cls: 'px-4 py-3 text-center' },
+                    { label: 'Status', cls: 'px-4 py-3 text-center' },
+                    { label: 'Action Taken', cls: 'px-4 py-3 text-left' },
+                  ].map((col, i, arr) => (
+                    <th
+                      key={col.label}
+                      className={`${col.cls} font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]`}
+                      style={{
+                        fontSize: '11px', letterSpacing: '0.05em',
+                        color: 'var(--color-text-tertiary)',
+                        borderRight: i < arr.length - 1 ? '1px solid #F1F5F9' : 'none',
+                        borderBottom: '1px solid #E2E8F0'
+                      }}
+                    >{col.label}</th>
+                  ))}
+                  <th
+                    className="px-3 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]"
+                    style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)', borderBottom: '1px solid #E2E8F0' }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, idx) => {
+                  const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
+                  return (
+                    <tr
+                      key={idx}
+                      className="hover:bg-[#FAFCFF] transition-none"
+                      style={{ height: '58px' }}
+                    >
+                      {/* S.No */}
+                      <td className="px-3 py-2 text-center" style={{ ...cellBorder }}>
+                        <Skeleton className="h-4 w-6 mx-auto" />
+                      </td>
+                      {/* Function */}
+                      <td className="px-4 py-2 text-center" style={{ ...cellBorder }}>
+                        <Skeleton className="h-6 w-16 mx-auto" />
+                      </td>
+                      {/* Project Name */}
+                      <td className="px-4 py-2 text-left" style={{ maxWidth: '160px', ...cellBorder }}>
+                        <Skeleton className="h-4 w-24" />
+                      </td>
+                      {/* Criticality */}
+                      <td className="px-3 py-2 text-center" style={{ ...cellBorder }}>
+                        <Skeleton className="h-6 w-16 mx-auto rounded-full" />
+                      </td>
+                      {/* Action Points */}
+                      <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ ...cellBorder }}>
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <Skeleton className="h-3 w-[70%]" />
+                        </div>
+                      </td>
+                      {/* Responsibility */}
+                      <td className="px-4 py-2 min-w-[180px]" style={{ ...cellBorder }}>
+                        <Skeleton className="h-8 w-28 rounded-[4px]" />
+                      </td>
+                      {/* Target */}
+                      <td className="px-4 py-2 text-center" style={{ ...cellBorder }}>
+                        <Skeleton className="h-5 w-16 mx-auto" />
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-2 text-center" style={{ ...cellBorder }}>
+                        <Skeleton className="h-6 w-20 mx-auto rounded-full" />
+                      </td>
+                      {/* Action Taken */}
+                      <td className="px-4 py-2 min-w-[150px]" style={{ ...cellBorder }}>
+                        <Skeleton className="h-4 w-28" />
+                      </td>
+                      {/* Actions */}
+                      <td className="px-3 py-2 text-center" style={{ borderBottom: '1px solid #F8FAFC' }}>
+                        <div className="flex items-center justify-center gap-2">
+                          <Skeleton className="h-6 w-6 rounded" />
+                          <Skeleton className="h-6 w-6 rounded" />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
 
@@ -801,6 +1065,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
            </div>
         </div>
 
+
+
         {/* Global Slide-out Drawer (Always rendered at body level via fixed position) */}
         <AnimatePresence>
           {showSyncPanel && (
@@ -873,12 +1139,26 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             </div>
           )}
         </AnimatePresence>
-
         {/* ── THE GRID ── */}
         <div className="overflow-x-auto">
           <table className="w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
             <thead>
               <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid #E2E8F0' }}>
+                <th
+                  className="px-3 py-3 text-center font-medium sticky top-0 z-10 bg-[#F8FAFC] print:hidden"
+                  style={{
+                    width: '40px',
+                    borderRight: '1px solid #F1F5F9',
+                    borderBottom: '1px solid #E2E8F0'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isAllPageSelected}
+                    onChange={toggleSelectAllPage}
+                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer accent-[#0D9488]"
+                  />
+                </th>
                 {[
                   { label: 'S.No', cls: 'px-3 py-3 text-left' },
                   { label: 'Function', cls: 'px-4 py-3 text-left' },
@@ -917,18 +1197,31 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               </tr>
             </thead>
             <tbody>
-              {meetings.map((m, idx) => {
+              {paginatedMeetings.map((m, idx) => {
                 const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
                 return (
+                  <React.Fragment key={m.id || idx}>
                   <tr
-                    key={m.id || idx}
                     className="hover:bg-[#FAFCFF] transition-none group"
                     style={{
                       height: '52px',
                       borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
                     }}
                   >
-                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || idx + 1}</td>
+                    <td className="px-3 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))}
+                        onChange={() => toggleSelectRow(m.id || ((activePage - 1) * itemsPerPage + idx))}
+                        aria-label={`Select row ${m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}`}
+                        className={`w-4 h-4 rounded border-slate-300 cursor-pointer accent-[#0D9488] transition-opacity duration-100 ${
+                          selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
                     <td className="px-4 py-2 text-center" style={cellBorder}>
                        <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
                     </td>
@@ -959,14 +1252,54 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
                         defaultValue={m.responsibility ? { value: m.responsibility, label: m.responsibility } : null}
                         onChange={(opt) => onUpdateMeeting(m.id, { responsibility: opt?.value })}
-                        placeholder="Search Employee..."
+                        placeholder="Assign..."
                         className="text-left"
+                        /* ── Portal fix: render menu to body to escape overflow:auto ── */
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
                         styles={{
-                          control: (base) => ({ ...base, minHeight: '30px', background: 'transparent', border: 'none', boxShadow: 'none', fontSize: '14px', color: 'var(--color-text-primary)' }),
-                          placeholder: (base) => ({ ...base, color: 'var(--color-text-tertiary)' }),
-                          singleValue: (base) => ({ ...base, color: 'var(--color-text-primary)' }),
+                          menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+                          menu: (base) => ({
+                            ...base,
+                            borderRadius: '10px',
+                            border: '1px solid #E2E8F0',
+                            boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
+                            overflow: 'hidden',
+                            fontSize: '13px',
+                          }),
+                          menuList: (base) => ({ ...base, padding: '4px', maxHeight: '220px' }),
+                          option: (base, state) => ({
+                            ...base,
+                            fontSize: '13px',
+                            fontWeight: state.isSelected ? 700 : 500,
+                            color: state.isSelected ? '#0D9488' : '#334155',
+                            background: state.isSelected ? '#F0FDFA' : state.isFocused ? '#F8FAFC' : 'transparent',
+                            borderRadius: '6px',
+                            padding: '7px 10px',
+                            cursor: 'pointer',
+                          }),
+                          control: (base) => ({
+                            ...base,
+                            minHeight: '30px',
+                            background: 'transparent',
+                            border: 'none',
+                            boxShadow: 'none',
+                            fontSize: '13px',
+                            color: 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                          }),
+                          placeholder: (base) => ({ ...base, color: '#94A3B8', fontSize: '12px' }),
+                          singleValue: (base) => ({ ...base, color: 'var(--color-text-primary)', fontWeight: 500 }),
                           indicatorSeparator: () => ({ display: 'none' }),
-                          dropdownIndicator: () => ({ display: 'none' })
+                          dropdownIndicator: (base, state) => ({
+                            ...base,
+                            color: '#94A3B8',
+                            padding: '0 4px',
+                            transform: state.selectProps.menuIsOpen ? 'rotate(180deg)' : 'none',
+                            transition: 'transform 0.2s',
+                          }),
+                          input: (base) => ({ ...base, fontSize: '13px' }),
+                          valueContainer: (base) => ({ ...base, padding: '0 6px' }),
                         }}
                       />
                     </td>
@@ -990,20 +1323,158 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                      </td>
                      <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
                        <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
-                     </td>
-                     <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
-                       <div className="flex items-center justify-center gap-1">
-                         <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
-                         <button onClick={() => onDeleteMeeting(m.id || idx)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
-                       </div>
-                     </td>
-                   </tr>
-                 );
-               })}
-            </tbody>
-          </table>
-        </div>
-     </div>
+                      </td>
+                      <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Row expand toggle */}
+                          <button
+                            onClick={() => toggleRowExpand(m.id || ((activePage - 1) * itemsPerPage + idx))}
+                            className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors"
+                            title={expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'Collapse preview' : 'Expand preview'}
+                          >
+                            <ChevronDown
+                              className="w-3.5 h-3.5 mx-auto transition-transform duration-200"
+                              style={{ transform: expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'rotate(180deg)' : 'none' }}
+                            />
+                          </button>
+                          <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
+                          <button onClick={() => handleDeleteClick(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* ── Inline Preview Row (conditionally rendered) ── */}
+                    {expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) && (
+                      <tr className="mt-row-preview-tr">
+                        <td colSpan={11} className="mt-preview-cell" style={{ padding: 0, borderBottom: '1px solid #E2E8F0' }}>
+                          <div className="mt-preview-body">
+                            <div className="mt-preview-section">
+                              <span className="mt-preview-label">Full Discussion Point</span>
+                              <p className="mt-preview-text">{m.discussion_point || '—'}</p>
+                            </div>
+                            {m.action_taken && m.action_taken !== 'None' && (
+                              <div className="mt-preview-section">
+                                <span className="mt-preview-label">Action Taken</span>
+                                <p className="mt-preview-text">{m.action_taken}</p>
+                              </div>
+                            )}
+                            <div className="mt-preview-chips">
+                              {m.function && <span className="mt-preview-chip">{m.function}</span>}
+                              {m.criticality && <span className="mt-preview-chip" style={{ background: CRITICALITY_COLORS[m.criticality]?.bg, color: CRITICALITY_COLORS[m.criticality]?.color }}>{m.criticality}</span>}
+                              {m.target && <span className="mt-preview-chip">Due: {m.target}</span>}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                   </React.Fragment>
+                  );
+                })}
+             </tbody>
+           </table>
+         </div>
+
+         {/* Pagination footer — always visible when rows exist so users know current page state */}
+         {meetings.length > 0 && (
+           <div className="py-3 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/20 rounded-b-sm print:hidden">
+             <div className="flex items-center gap-3">
+               <span className="text-[11px] text-slate-400 font-medium">
+                 Showing {(activePage - 1) * itemsPerPage + 1}–{Math.min(activePage * itemsPerPage, meetings.length)} of {meetings.length} items
+               </span>
+               <span className="text-[11px] text-slate-200">|</span>
+               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                  <span>Show:</span>
+                  <Combobox
+                    items={[5, 10, 15, 20]}
+                    value={itemsPerPage}
+                    onChange={val => {
+                      setItemsPerPage(Number(val));
+                      setCurrentPage(1);
+                    }}
+                    className="w-16"
+                  >
+                    <ComboboxInput
+                      hideSearch
+                      hideClear
+                      readOnly
+                      placeholder={String(itemsPerPage)}
+                      className="h-6 py-0.5 px-1.5 text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded shadow-sm transition-all"
+                    />
+                    <ComboboxContent className="w-16 min-w-0" position="top">
+                      <ComboboxList className="max-h-32">
+                        {(val) => (
+                          <ComboboxItem key={val} value={val} className="py-1 px-2 text-[10px]">
+                            {val}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                </div>
+                {selectedIds.size > 0 && (
+                  <>
+                    <span className="text-[11px] text-slate-200">|</span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={handleBulkDelete}
+                        className="p-1 rounded hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors flex items-center justify-center"
+                        title={`Delete ${selectedIds.size} selected items`}
+                        aria-label={`Delete ${selectedIds.size} selected items`}
+                      >
+                        <Trash2 size={14} className="stroke-[2.2]" />
+                      </button>
+                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                        {selectedIds.size} selected
+                      </span>
+                      <button
+                        onClick={() => setSelectedIds(new Set())}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: '10px', color: '#94A3B8', fontWeight: 500,
+                          padding: 0
+                        }}
+                        className="hover:text-slate-600 transition-colors ml-1"
+                        aria-label="Clear selection"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </>
+                )}
+             </div>
+             <Pagination className="w-auto mx-0">
+               <PaginationContent>
+                 <PaginationItem>
+                   <PaginationPrevious
+                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                     disabled={activePage === 1}
+                     className="cursor-pointer"
+                   />
+                 </PaginationItem>
+
+                 {Array.from({ length: totalPages }).map((_, i) => (
+                   <PaginationItem key={i}>
+                     <PaginationLink
+                       onClick={() => setCurrentPage(i + 1)}
+                       isActive={activePage === i + 1}
+                       className="cursor-pointer"
+                     >
+                       {i + 1}
+                     </PaginationLink>
+                   </PaginationItem>
+                 ))}
+
+                 <PaginationItem>
+                   <PaginationNext
+                     onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                     disabled={activePage === totalPages}
+                     className="cursor-pointer"
+                   />
+                 </PaginationItem>
+               </PaginationContent>
+             </Pagination>
+           </div>
+         )}
+      </div>
     </div>
   );
 };

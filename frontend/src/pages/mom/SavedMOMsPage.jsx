@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronRight, X, Calendar,
   FolderOpen, AlertCircle, Clock, BarChart2,
   ArrowUpDown, CheckCircle2, Layers, Loader2,
-  Check, Edit3, Target, Plus, MessageSquare, AlertTriangle
+  Check, Edit3, Target, Plus, MessageSquare, AlertTriangle, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -22,6 +22,22 @@ import {
   EmptyDescription, EmptyContent
 } from '../../components/ui/empty';
 import { Button } from '../../components/ui/button';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../../components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '../../components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+} from '../../components/ui/pagination';
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
 import './SavedMOMsPage.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -120,33 +136,31 @@ const EditableCell = ({ value, onSave, multiline = false }) => {
 };
 
 const StatusCell = ({ value, onSave }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const style = STATUS_COLORS[value] || STATUS_COLORS['Pending'];
 
   return (
-    <div className="relative">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all"
-        style={{ background: style.bg, color: style.color, borderColor: style.border }}
-      >
-        {value}
-        <ChevronDown size={10} className={isOpen ? 'rotate-180' : ''} />
-      </button>
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[120px]">
-          {STATUS_OPTIONS.map(opt => (
-            <button
-              key={opt}
-              onClick={() => { onSave(opt); setIsOpen(false); }}
-              className="w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 rounded transition-colors"
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button 
+          className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer outline-none hover:opacity-85 focus:ring-1 focus:ring-slate-400 select-none"
+          style={{ background: style.bg, color: style.color, borderColor: style.border }}
+        >
+          {value}
+          <ChevronDown size={10} className="opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[120px] bg-white border border-slate-200 rounded-lg shadow-xl p-1 z-50">
+        {STATUS_OPTIONS.map(opt => (
+          <DropdownMenuItem
+            key={opt}
+            onClick={() => onSave(opt)}
+            className="w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none text-slate-700 focus:bg-slate-50 focus:text-slate-900"
+          >
+            {opt}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -186,51 +200,30 @@ const FUNCTION_OPTIONS = [
 ];
 
 const FunctionCell = ({ value, onSave }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [localValue, setLocalValue] = useState(value || 'General');
-  const ref = useRef(null);
-
-  // Sync local state when parent value changes (optimistic update cascade)
-  useEffect(() => setLocalValue(value || 'General'), [value]);
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
-    if (isOpen) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
-
-  const handleSelect = (opt) => {
-    setLocalValue(opt);
-    onSave(opt);
-    setIsOpen(false);
-  };
-
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
-      >
-        {localValue}
-        <ChevronDown size={10} className={isOpen ? 'rotate-180' : ''} />
-      </button>
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[140px] max-h-[200px] overflow-y-auto">
-          {FUNCTION_OPTIONS.map(opt => (
-            <button
-              key={opt}
-              onClick={() => handleSelect(opt)}
-              className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 rounded transition-colors ${
-                localValue === opt ? 'text-blue-600 font-bold bg-blue-50' : 'text-slate-700'
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 rounded transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-slate-300 select-none"
+        >
+          {value || 'General'}
+          <ChevronDown size={10} className="opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[140px] max-h-[220px] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-xl p-1 z-50">
+        {FUNCTION_OPTIONS.map(opt => (
+          <DropdownMenuItem
+            key={opt}
+            onClick={() => onSave(opt)}
+            className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900 ${
+              value === opt ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'
+            }`}
+          >
+            {opt}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -239,44 +232,35 @@ const FunctionCell = ({ value, onSave }) => {
 const CRITICALITY_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
 
 const CriticalityCell = ({ value, onSave }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const ref = useRef(null);
   const style = CRITICALITY_COLORS[value] || CRITICALITY_COLORS['Medium'];
 
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setIsOpen(false); };
-    if (isOpen) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
-
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border cursor-pointer transition-all"
-        style={{ background: style.bg, color: style.color, borderColor: style.border }}
-      >
-        {value}
-        <ChevronDown size={9} className={isOpen ? 'rotate-180' : ''} />
-      </button>
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-xl p-1 min-w-[110px]">
-          {CRITICALITY_OPTIONS.map(opt => {
-            const s = CRITICALITY_COLORS[opt] || CRITICALITY_COLORS['Medium'];
-            return (
-              <button
-                key={opt}
-                onClick={() => { onSave(opt); setIsOpen(false); }}
-                className="w-full text-left px-2 py-1.5 text-[10px] font-bold uppercase rounded transition-colors hover:bg-slate-50"
-                style={{ color: s.color }}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border cursor-pointer transition-all hover:opacity-85 outline-none focus:ring-1 focus:ring-slate-400 select-none"
+          style={{ background: style.bg, color: style.color, borderColor: style.border }}
+        >
+          {value}
+          <ChevronDown size={9} className="opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[110px] bg-white border border-slate-200 rounded-lg shadow-xl p-1 z-50">
+        {CRITICALITY_OPTIONS.map(opt => {
+          const s = CRITICALITY_COLORS[opt] || CRITICALITY_COLORS['Medium'];
+          return (
+            <DropdownMenuItem
+              key={opt}
+              onClick={() => onSave(opt)}
+              className="w-full text-left px-3 py-2 text-[10px] font-bold uppercase rounded transition-colors hover:bg-slate-50 cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900"
+              style={{ color: s.color }}
+            >
+              {opt}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
@@ -285,6 +269,15 @@ const CriticalityCell = ({ value, onSave }) => {
 const ActionItemsTable = ({ syncId }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  // ── Per-row edit state ──
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editingRowData, setEditingRowData] = useState({});
+
+  // ── Delete confirm state ──
+  const [deletingRowId, setDeletingRowId] = useState(null);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -299,10 +292,11 @@ const ActionItemsTable = ({ syncId }) => {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
+  // ── Update a single field via PATCH ──
   const handleUpdateItem = async (itemId, field, value) => {
     try {
       await API.patch(`/mom/action-items/${itemId}`, { field, value, sync_id: syncId });
-      setItems(prev => prev.map(item => 
+      setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       ));
       toast.success('Field updated', { icon: '✨', duration: 1500 });
@@ -310,6 +304,74 @@ const ActionItemsTable = ({ syncId }) => {
       toast.error('Update failed');
     }
   };
+
+  // ── Batch save all edited fields at once ──
+  const handleSaveRow = async (itemId) => {
+    try {
+      // Flush each changed field one by one
+      const fields = Object.keys(editingRowData);
+      for (const field of fields) {
+        await API.patch(`/mom/action-items/${itemId}`, {
+          field,
+          value: editingRowData[field],
+          sync_id: syncId,
+        });
+      }
+      setItems(prev => prev.map(item =>
+        item.id === itemId ? { ...item, ...editingRowData } : item
+      ));
+      toast.success('Row saved', { icon: '✅', duration: 1500 });
+    } catch {
+      toast.error('Save failed');
+    } finally {
+      setEditingRowId(null);
+      setEditingRowData({});
+    }
+  };
+
+  // ── Start editing a row — snapshot its current values ──
+  const startEditRow = (item) => {
+    setEditingRowId(item.id);
+    setEditingRowData({
+      function:         item.function || 'General',
+      criticality:      item.criticality || 'Medium',
+      discussion_point: item.discussion_point || '',
+      responsibility:   item.responsibility || '',
+      target:           item.target || '',
+      status:           item.status || 'Open',
+      action_taken:     item.action_taken || '',
+    });
+  };
+
+  const cancelEditRow = () => {
+    setEditingRowId(null);
+    setEditingRowData({});
+  };
+
+  const setEditField = (field, value) => {
+    setEditingRowData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // ── Hard delete a single action item ──
+  const handleDeleteItem = async (itemId) => {
+    try {
+      await API.delete(`/mom/action-items/${itemId}`);
+      setItems(prev => prev.filter(item => item.id !== itemId));
+      toast.success('Item deleted', { icon: '🗑️', duration: 1500 });
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err.message || 'Unknown error';
+      toast.error(`Delete failed: ${detail}`);
+    } finally {
+      setDeletingRowId(null);
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedItems = useMemo(() => {
+    return items.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+  }, [items, activePage]);
 
   if (loading) {
     return (
@@ -320,72 +382,290 @@ const ActionItemsTable = ({ syncId }) => {
     );
   }
 
+  // ── Static styled pills for read-only display ──
+  const CriticalityBadge = ({ value }) => {
+    const style = CRITICALITY_COLORS[value] || { bg: '#F1F5F9', color: '#475569', border: '#E2E8F0' };
+    return (
+      <span style={{
+        background: style.bg, color: style.color, border: `1.5px solid ${style.border}`,
+        padding: '2px 8px', borderRadius: '999px', fontSize: '10px',
+        fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex',
+        alignItems: 'center', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>{value || 'Medium'}</span>
+    );
+  };
+
+  const StatusBadge = ({ value }) => {
+    const style = STATUS_COLORS[value] || STATUS_COLORS['Pending'];
+    return (
+      <span style={{
+        background: style.bg, color: style.color, border: `1.5px solid ${style.border}`,
+        padding: '2px 8px', borderRadius: '999px', fontSize: '10px',
+        fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex',
+        alignItems: 'center', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>{value || 'Open'}</span>
+    );
+  };
+
+  const FunctionBadge = ({ value }) => (
+    <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+      {value || 'General'}
+    </span>
+  );
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-slate-50/50">
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-12 text-center">S.No</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Function</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24">Criticality</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Action Point</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-40">Responsibility</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Target</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-28">Status</th>
-            <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-48">Action Taken</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {items.map((item, idx) => (
-            <tr key={item.id} className="hover:bg-slate-50/30 transition-colors">
-              <td className="px-4 py-4 text-xs font-mono text-slate-400 text-center">{idx + 1}</td>
-              <td className="px-4 py-4">
-                <FunctionCell
-                  value={item.function || 'General'}
-                  onSave={val => handleUpdateItem(item.id, 'function', val)}
-                />
-              </td>
-              <td className="px-4 py-4">
-                <CriticalityCell
-                  value={item.criticality || 'Medium'}
-                  onSave={val => handleUpdateItem(item.id, 'criticality', val)}
-                />
-              </td>
-              <td className="px-4 py-4">
-                <EditableCell 
-                  value={item.discussion_point} 
-                  onSave={val => handleUpdateItem(item.id, 'discussion_point', val)} 
-                />
-              </td>
-              <td className="px-4 py-4">
-                <EditableCell 
-                  value={item.responsibility} 
-                  onSave={val => handleUpdateItem(item.id, 'responsibility', val)} 
-                />
-              </td>
-              <td className="px-4 py-4">
-                <DateCell 
-                  value={item.target} 
-                  onSave={val => handleUpdateItem(item.id, 'target', val)} 
-                />
-              </td>
-              <td className="px-4 py-4">
-                <StatusCell 
-                  value={item.status} 
-                  onSave={val => handleUpdateItem(item.id, 'status', val)} 
-                />
-              </td>
-              <td className="px-4 py-4">
-                <EditableCell 
-                  value={item.action_taken} 
-                  multiline
-                  onSave={val => handleUpdateItem(item.id, 'action_taken', val)} 
-                />
-              </td>
+    <div className="flex flex-col gap-3 p-1">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50/50">
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-12 text-center">S.No</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Function</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24">Criticality</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Action Point</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-40">Responsibility</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Target</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-28">Status</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-48">Action Taken</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24 text-center">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {paginatedItems.map((item, idx) => {
+              const isEditing = editingRowId === item.id;
+              return (
+                <tr
+                  key={item.id}
+                  className={`transition-colors group ${
+                    isEditing
+                      ? 'bg-blue-50/30 ring-2 ring-inset ring-blue-300/40'
+                      : 'hover:bg-slate-50/30'
+                  }`}
+                >
+                  {/* S.No */}
+                  <td className="px-4 py-3 text-xs font-mono text-slate-400 text-center">
+                    {(activePage - 1) * itemsPerPage + idx + 1}
+                  </td>
+
+                  {/* Function */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <FunctionCell
+                        value={editingRowData.function}
+                        onSave={val => setEditField('function', val)}
+                      />
+                    ) : (
+                      <FunctionBadge value={item.function} />
+                    )}
+                  </td>
+
+                  {/* Criticality */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <CriticalityCell
+                        value={editingRowData.criticality}
+                        onSave={val => setEditField('criticality', val)}
+                      />
+                    ) : (
+                      <CriticalityBadge value={item.criticality} />
+                    )}
+                  </td>
+
+                  {/* Action Point */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <textarea
+                        value={editingRowData.discussion_point}
+                        onChange={e => setEditField('discussion_point', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none min-h-[60px]"
+                      />
+                    ) : (
+                      <span className="text-sm text-slate-700 line-clamp-2">{item.discussion_point || '—'}</span>
+                    )}
+                  </td>
+
+                  {/* Responsibility */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingRowData.responsibility}
+                        onChange={e => setEditField('responsibility', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-slate-700">{item.responsibility || '—'}</span>
+                    )}
+                  </td>
+
+                  {/* Target Date */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <DateCell
+                        value={editingRowData.target}
+                        onSave={val => setEditField('target', val)}
+                      />
+                    ) : (
+                      <DateCell value={item.target} onSave={val => handleUpdateItem(item.id, 'target', val)} />
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <StatusCell
+                        value={editingRowData.status}
+                        onSave={val => setEditField('status', val)}
+                      />
+                    ) : (
+                      <StatusBadge value={item.status} />
+                    )}
+                  </td>
+
+                  {/* Action Taken */}
+                  <td className="px-4 py-3">
+                    {isEditing ? (
+                      <textarea
+                        value={editingRowData.action_taken}
+                        onChange={e => setEditField('action_taken', e.target.value)}
+                        className="w-full bg-white border border-blue-400 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none min-h-[48px]"
+                        rows={2}
+                      />
+                    ) : (
+                      <span className="text-sm text-slate-600 line-clamp-2">{item.action_taken || <span className="text-slate-300 italic">No update</span>}</span>
+                    )}
+                  </td>
+
+                  {/* Actions Column */}
+                  <td className="px-4 py-3 text-center" style={{ minWidth: '90px' }}>
+                    {isEditing ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => handleSaveRow(item.id)}
+                          className="p-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                          title="Save changes"
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          onClick={cancelEditRow}
+                          className="p-1.5 bg-slate-100 text-slate-500 rounded-md hover:bg-red-50 hover:text-red-500 transition-colors"
+                          title="Cancel"
+                        >
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : deletingRowId === item.id ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="px-2 py-1 bg-red-500 text-white text-[10px] font-bold rounded hover:bg-red-600 transition-colors"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setDeletingRowId(null)}
+                          className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded hover:bg-slate-200 transition-colors"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => startEditRow(item)}
+                          className="p-1.5 text-slate-300 hover:text-blue-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Edit"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingRowId(item.id)}
+                          className="p-1.5 text-slate-300 hover:text-red-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {items.length > 0 && (
+        <div className="py-3 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/20 rounded-b-lg print:hidden">
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-slate-400 font-medium">
+              Showing {(activePage - 1) * itemsPerPage + 1}–{Math.min(activePage * itemsPerPage, items.length)} of {items.length} items
+            </span>
+            <span className="text-[11px] text-slate-200">|</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+              <span>Show:</span>
+              <Combobox
+                items={[5, 10, 15, 20]}
+                value={itemsPerPage}
+                onChange={val => {
+                  setItemsPerPage(Number(val));
+                  setCurrentPage(1);
+                }}
+                className="w-16"
+              >
+                <ComboboxInput
+                  hideSearch
+                  hideClear
+                  readOnly
+                  placeholder={String(itemsPerPage)}
+                  className="h-6 py-0.5 px-1.5 text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded shadow-sm transition-all"
+                />
+                <ComboboxContent position="top" className="w-16 min-w-0">
+                  <ComboboxList className="max-h-32">
+                    {(val) => (
+                      <ComboboxItem key={val} value={val} className="py-1 px-2 text-[10px]">
+                        {val}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            </div>
+          </div>
+          <Pagination className="w-auto mx-0">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={activePage === 1}
+                  className="cursor-pointer"
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <PaginationItem key={i}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(i + 1)}
+                    isActive={activePage === i + 1}
+                    className="cursor-pointer"
+                  >
+                    {i + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={activePage === totalPages}
+                  className="cursor-pointer"
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 };
@@ -399,9 +679,39 @@ const SavedMOMsPage = () => {
 
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState(highlightSyncId || null);
+  const [expandedIds, setExpandedIds] = useState(new Set(highlightSyncId ? [highlightSyncId] : []));
+  const [multiExpand, setMultiExpand] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  const toggleRecord = useCallback((syncId) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(syncId)) {
+        next.delete(syncId);
+      } else {
+        if (!multiExpand) {
+          next.clear();
+        }
+        next.add(syncId);
+      }
+      return next;
+    });
+  }, [multiExpand]);
+
+  useEffect(() => {
+    if (!multiExpand && expandedIds.size > 1) {
+      const first = Array.from(expandedIds)[0];
+      setExpandedIds(new Set(first ? [first] : []));
+    }
+  }, [multiExpand, expandedIds]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedProject]);
 
   // Premium Custom Alert Dialog state matching Zoho design principles
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -416,23 +726,32 @@ const SavedMOMsPage = () => {
   const fetchRecords = useCallback(async () => {
     try {
       const res = await API.get('/mom/history/all');
-      setRecords(res.data.records || []);
+      const recs = res.data.records || [];
+      setRecords(recs);
+      return recs;
     } catch {
       toast.error('Failed to load history');
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => { 
-    fetchRecords().then(() => {
-      if (highlightSyncId) {
-        // Delay slightly to allow records to render
+    fetchRecords().then((recs) => {
+      if (highlightSyncId && recs && recs.length > 0) {
+        const idx = recs.findIndex(r => r.sync_id === highlightSyncId);
+        if (idx !== -1) {
+          const targetPage = Math.floor(idx / itemsPerPage) + 1;
+          setCurrentPage(targetPage);
+        }
+        
+        // Delay slightly to allow records and the specific page to render
         setTimeout(() => {
           const el = document.getElementById(`sync-${highlightSyncId}`);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            setExpandedId(highlightSyncId);
+            setExpandedIds(new Set([highlightSyncId]));
           }
         }, 500);
       }
@@ -500,6 +819,13 @@ const SavedMOMsPage = () => {
     ['all', ...new Set(records.map(r => r.project_name))].filter(Boolean), 
   [records]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedRecords = useMemo(() => {
+    return filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+  }, [filtered, activePage]);
+
   if (loading) {
     return (
       <div className="smp-root p-8 space-y-4">
@@ -563,16 +889,39 @@ const SavedMOMsPage = () => {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <select 
-          className="smp-pill outline-none cursor-pointer"
+        <Combobox
+          items={[
+            { value: 'all', label: 'All Projects' },
+            ...allProjects.filter(p => p !== 'all').map(p => ({ value: p, label: p }))
+          ]}
           value={selectedProject}
-          onChange={e => setSelectedProject(e.target.value)}
+          onChange={val => setSelectedProject(val)}
+          className="w-48"
         >
-          <option value="all">All Projects</option>
-          {allProjects.filter(p => p !== 'all').map(p => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
+          <ComboboxInput
+            hideSearch
+            hideClear
+            placeholder="Select project..."
+            className="smp-pill flex items-center justify-between border-slate-200 hover:border-slate-300 rounded-[20px] shadow-sm text-xs font-semibold text-slate-600 h-[36px] py-1 bg-white cursor-pointer"
+          />
+          <ComboboxContent className="w-48 min-w-0">
+            <ComboboxList className="max-h-48">
+              {(item) => (
+                <ComboboxItem key={item.value} value={item.value} className="text-xs py-1.5 px-3">
+                  {item.label}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+        <button
+          onClick={() => setMultiExpand(!multiExpand)}
+          className={`smp-pill flex items-center gap-2 outline-none cursor-pointer select-none transition-all duration-150 ${multiExpand ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
+          style={{ border: '1px solid' }}
+        >
+          <span className={`w-2 h-2 rounded-full ${multiExpand ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`} />
+          <span className="font-semibold text-xs uppercase tracking-wider">Multi-Expand</span>
+        </button>
       </div>
 
       {/* Content */}
@@ -586,57 +935,142 @@ const SavedMOMsPage = () => {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="smp-list">
-            {filtered.map(rec => (
-              <div 
-                key={rec.sync_id} 
-                id={`sync-${rec.sync_id}`}
-                className={`smp-project-card ${expandedId === rec.sync_id ? 'ring-2 ring-blue-500/20' : ''} ${highlightSyncId === rec.sync_id ? 'ring-2 ring-blue-400' : ''}`}
-                style={{ borderLeftColor: getProjectAccent(rec.project_name) }}
-              >
-                <div 
-                  className="smp-project-header hover:bg-slate-50 transition-colors"
-                  onClick={() => setExpandedId(expandedId === rec.sync_id ? null : rec.sync_id)}
-                >
-                  <div className="smp-project-header-left">
-                    <div className="smp-project-icon" style={{ background: `${getProjectAccent(rec.project_name)}15`, color: getProjectAccent(rec.project_name) }}>
-                      <FolderOpen size={18} />
-                    </div>
-                    <div>
-                      <div className="smp-project-name">{rec.meeting_name}</div>
-                      <div className="smp-project-meta">
-                        <span className="smp-project-pill smp-project-pill--neutral">{rec.project_name}</span>
-                        <span className="smp-project-pill smp-project-pill--neutral"><Clock size={10} /> {relativeTime(rec.synced_at)}</span>
-                        <span className="smp-project-pill smp-project-pill--neutral"><Layers size={10} /> {rec.row_count} items</span>
+          <div className="flex flex-col gap-6 w-full">
+            <div className="smp-list">
+              {paginatedRecords.map(rec => {
+                const isRecordExpanded = expandedIds.has(rec.sync_id);
+                return (
+                  <Collapsible
+                    key={rec.sync_id}
+                    open={isRecordExpanded}
+                    onOpenChange={() => toggleRecord(rec.sync_id)}
+                    id={`sync-${rec.sync_id}`}
+                    className={`smp-project-card ${isRecordExpanded ? 'ring-2 ring-blue-500/20' : ''} ${highlightSyncId === rec.sync_id ? 'ring-2 ring-blue-400' : ''}`}
+                    style={{ borderLeftColor: getProjectAccent(rec.project_name) }}
+                  >
+                    <div className="smp-project-header hover:bg-slate-50 transition-colors">
+                      <CollapsibleTrigger asChild>
+                        <div className="smp-project-header-left cursor-pointer flex-1 py-1">
+                          <div className="smp-project-icon" style={{ background: `${getProjectAccent(rec.project_name)}15`, color: getProjectAccent(rec.project_name) }}>
+                            <FolderOpen size={18} />
+                          </div>
+                          <div>
+                            <div className="smp-project-name">{rec.meeting_name}</div>
+                            <div className="smp-project-meta">
+                              <span className="smp-project-pill smp-project-pill--neutral">{rec.project_name}</span>
+                              <span className="smp-project-pill smp-project-pill--neutral"><Clock size={10} /> {relativeTime(rec.synced_at)}</span>
+                              <span className="smp-project-pill smp-project-pill--neutral"><Layers size={10} /> {rec.row_count} items</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CollapsibleTrigger>
+                      
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); triggerDeleteSync(rec); }}
+                          className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
+                          title="Hard Delete MOM"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        
+                        <CollapsibleTrigger asChild>
+                          <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-all cursor-pointer">
+                            <ChevronRight size={18} className={`transition-transform duration-300 ${isRecordExpanded ? 'rotate-90 text-blue-500' : 'text-slate-300'}`} />
+                          </button>
+                        </CollapsibleTrigger>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); triggerDeleteSync(rec); }}
-                      className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
-                      title="Hard Delete MOM"
+
+                    <CollapsibleContent className="overflow-hidden border-t border-slate-100">
+                      <AnimatePresence initial={false}>
+                        {isRecordExpanded && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                          >
+                            <ActionItemsTable syncId={rec.sync_id} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
+            </div>
+
+            {filtered.length > 0 && (
+              <div className="py-3 px-6 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center justify-between print:hidden">
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    Showing {(activePage - 1) * itemsPerPage + 1}–{Math.min(activePage * itemsPerPage, filtered.length)} of {filtered.length} items
+                  </span>
+                  <span className="text-[11px] text-slate-200">|</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                    <span>Show:</span>
+                    <Combobox
+                      items={[5, 10, 15, 20]}
+                      value={itemsPerPage}
+                      onChange={val => {
+                        setItemsPerPage(Number(val));
+                        setCurrentPage(1);
+                      }}
+                      className="w-16"
                     >
-                      <Trash2 size={16} />
-                    </button>
-                    <ChevronRight size={18} className={`transition-transform duration-300 ${expandedId === rec.sync_id ? 'rotate-90 text-blue-500' : 'text-slate-300'}`} />
+                      <ComboboxInput
+                        hideSearch
+                        hideClear
+                        readOnly
+                        placeholder={String(itemsPerPage)}
+                        className="h-6 py-0.5 px-1.5 text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded shadow-sm transition-all"
+                      />
+                      <ComboboxContent position="top" className="w-16 min-w-0">
+                        <ComboboxList className="max-h-32">
+                          {(val) => (
+                            <ComboboxItem key={val} value={val} className="py-1 px-2 text-[10px]">
+                              {val}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                   </div>
                 </div>
-
-                <AnimatePresence>
-                  {expandedId === rec.sync_id && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden border-t border-slate-100"
-                    >
-                      <ActionItemsTable syncId={rec.sync_id} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <Pagination className="w-auto mx-0">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={activePage === 1}
+                        className="cursor-pointer"
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <PaginationItem key={i}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(i + 1)}
+                          isActive={activePage === i + 1}
+                          className="cursor-pointer"
+                        >
+                          {i + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={activePage === totalPages}
+                        className="cursor-pointer"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

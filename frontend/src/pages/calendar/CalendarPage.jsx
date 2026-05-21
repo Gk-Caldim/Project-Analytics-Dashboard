@@ -11,6 +11,7 @@ import './CalendarPage.css';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
 import CalendarGrid from './components/CalendarGrid';
 import API from '../../utils/api';
+import { Skeleton } from '../../components/ui/skeleton';
 import { EVENT_COLOR_HEXES } from '../constants';
 import {
   AlertDialog,
@@ -733,6 +734,99 @@ const CalendarPage = () => {
     }
     return sorted; // 'all'
   }, [processedEvents, rightPanelFilter]);
+
+  if (loading) {
+    return (
+      <div className="calendar-page">
+        {/* Header Skeleton */}
+        <header className="calendar-header">
+          <div className="header-left" />
+          <div className="header-center">
+            <div className="search-bar-container">
+              <Skeleton className="h-8 w-80 rounded-lg" />
+            </div>
+          </div>
+          <div className="header-right">
+            <Skeleton className="h-9 w-44 rounded-full" />
+          </div>
+        </header>
+
+        {/* 3-Zone Body Skeleton */}
+        <div className="calendar-body-3zone">
+          {/* Zone 1: Left Sidebar */}
+          <aside className="zone-card calendar-left-sidebar custom-scrollbar space-y-6" style={{ padding: '16px' }}>
+            <div className="sidebar-section space-y-3">
+              <Skeleton className="h-5 w-24 mb-4" />
+              {/* Mini Month Grid Placeholder */}
+              <div className="space-y-2">
+                <div className="flex justify-between gap-1">
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <Skeleton key={idx} className="h-5 w-5 rounded" />
+                  ))}
+                </div>
+                {Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <div key={rowIdx} className="flex justify-between gap-1">
+                    {Array.from({ length: 7 }).map((_, colIdx) => (
+                      <Skeleton key={colIdx} className="h-5 w-5 rounded-full" />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="sidebar-section space-y-3" style={{ marginTop: '24px' }}>
+              <Skeleton className="h-4 w-32 mb-2" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-full rounded-lg" />
+                <Skeleton className="h-8 w-full rounded-lg" />
+                <Skeleton className="h-8 w-full rounded-lg" />
+              </div>
+            </div>
+          </aside>
+
+          {/* Zone 2: Calendar Grid */}
+          <main className="zone-card calendar-main-grid flex flex-col" style={{ padding: '20px' }}>
+            <div className="main-grid-toolbar flex justify-between items-center mb-4">
+              <Skeleton className="h-8 w-44" />
+              <div className="flex gap-2">
+                <Skeleton className="h-8 w-8 rounded-lg" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
+            </div>
+            <div className="grid grid-cols-7 gap-2 flex-1" style={{ minHeight: '450px' }}>
+              {Array.from({ length: 35 }).map((_, i) => (
+                <Skeleton key={i} className="h-full w-full rounded-lg min-h-[85px]" />
+              ))}
+            </div>
+          </main>
+
+          {/* Zone 3: Right Sidebar */}
+          <aside className="calendar-right-panel flex flex-col gap-4">
+            <div className="right-card flex-1 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4 flex flex-col">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-6 w-6 rounded-full" />
+              </div>
+              <Skeleton className="h-10 w-full rounded-xl" />
+              <div className="space-y-3 pt-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              <div className="space-y-2 pt-4 mt-auto">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="calendar-page">

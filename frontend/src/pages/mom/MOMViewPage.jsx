@@ -12,7 +12,7 @@ import {
   CheckCircle, GitBranch, Trash2, Download, Clipboard,
   ChevronDown, ChevronUp, Loader, Zap, Check, Edit3,
   FileText, Plus, MessageSquare, Target, MoreHorizontal, Users,
-  FolderOpen, Mail, X, Settings, Clock, Edit2
+  FolderOpen, Mail, X, Settings, Clock, Edit2, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
@@ -20,6 +20,7 @@ import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingCo
 import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
+import { Skeleton } from '../../components/ui/skeleton';
 import './MOMViewPage.css';
 
 // ── Speaker colour palette ───────────────────────────────────────────────
@@ -58,6 +59,10 @@ const MOMViewPage = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // ── Transcript Search & Highlight State ──
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeHighlightIdx, setActiveHighlightIdx] = useState(0);
+
   const { meetingId: urlMeetingId } = useParams();
   const effectiveMeetingId = urlMeetingId || meetingId;
 
@@ -65,6 +70,26 @@ const MOMViewPage = () => {
   const [localTranscript, setLocalTranscript] = useState([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [pickerProjectId, setPickerProjectId] = useState('');
+
+  // ── Dual-Layer Route Synchronization & Session Hydration Fallback ──
+  useEffect(() => {
+    if (urlMeetingId) {
+      sessionStorage.setItem('active_meeting_id', urlMeetingId);
+    } else {
+      const storedId = sessionStorage.getItem('active_meeting_id');
+      if (storedId) {
+        console.log('[MOMViewPage] Syncing URL with SessionStorage active ID:', storedId);
+        navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
+      } else if (meetingId) {
+        console.log('[MOMViewPage] Syncing URL with Redux active ID:', meetingId);
+        navigate(`/dashboard/mom/view/${meetingId}`, { replace: true });
+      } else {
+        console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
+        toast.error('No active meeting selected. Returning to dashboard.');
+        navigate('/dashboard/mom', { replace: true });
+      }
+    }
+  }, [urlMeetingId, meetingId, navigate]);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -255,6 +280,89 @@ const MOMViewPage = () => {
     ]
   }), [participationData]);
 
+  // ── Search & Highlight Handlers ──
+  const matches = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const res = [];
+    transcriptEntries.forEach((entry, entryIdx) => {
+      if (entry.type === 'dialogue' && entry.text) {
+        const textLower = entry.text.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        if (textLower.includes(searchLower)) {
+          res.push(entryIdx);
+        }
+      }
+    });
+    return res;
+  }, [transcriptEntries, searchTerm]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setActiveHighlightIdx(0);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (matches.length > 0) {
+        if (e.shiftKey) {
+          setActiveHighlightIdx(prev => (prev - 1 + matches.length) % matches.length);
+        } else {
+          setActiveHighlightIdx(prev => (prev + 1) % matches.length);
+        }
+      }
+    }
+  };
+
+  const handlePrevMatch = () => {
+    if (matches.length > 0) {
+      setActiveHighlightIdx(prev => (prev - 1 + matches.length) % matches.length);
+    }
+  };
+
+  const handleNextMatch = () => {
+    if (matches.length > 0) {
+      setActiveHighlightIdx(prev => (prev + 1) % matches.length);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setActiveHighlightIdx(0);
+  };
+
+  // Scroll active match into viewport
+  useEffect(() => {
+    if (discussionOpen && matches.length > 0 && activeHighlightIdx < matches.length) {
+      const entryIdx = matches[activeHighlightIdx];
+      const element = document.getElementById(`transcript-entry-${entryIdx}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeHighlightIdx, matches, discussionOpen]);
+
+  const highlightText = useCallback((text, highlight, isActiveEntry) => {
+    if (!highlight || !highlight.trim()) return text;
+    const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === highlight.toLowerCase() ? (
+            <mark
+              key={i}
+              className={isActiveEntry ? "mvp-transcript-mark-active" : "mvp-transcript-mark"}
+            >
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  }, []);
+
   // ── Handlers ──────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback((id, data) => {
@@ -276,8 +384,145 @@ const MOMViewPage = () => {
   }, [rows]);
 
 
-  // ── Render ─────────────────────────────────────────────────────────────
-  // ── Render ─────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="mvp-root-wrapper">
+        <div className="mvp-main-content">
+          <div className="mvp-root">
+            <div className="mvp-content-container">
+              {/* ── Executive Header Card Skeleton ── */}
+              <div className="mvp-top-container">
+                {/* Breadcrumb */}
+                <nav className="mvp-breadcrumb">
+                  <Skeleton className="h-4 w-16" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-16" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-32" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-20" />
+                </nav>
+
+                {/* Header Card — Zoho flat style */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
+                  padding: '20px 24px', background: '#fff',
+                  border: '1px solid #E2E8F0', borderRadius: '10px',
+                  gap: '24px'
+                }}>
+                  {/* Left: session identity */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <Skeleton className="h-6 w-80" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    {/* Slim meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Clock style={{ width: 12, height: 12, color: '#CBD5E1' }} />
+                        <Skeleton className="h-4 w-12" />
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Users style={{ width: 12, height: 12, color: '#CBD5E1' }} />
+                        <Skeleton className="h-4 w-24" />
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <Skeleton className="h-4 w-36" />
+                    </div>
+                  </div>
+
+                  {/* Right: controls bar */}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                    justifyContent: 'center', gap: '12px', flexShrink: 0
+                  }}>
+                    {/* Row 1: Project & Status Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Skeleton className="h-6 w-28 rounded-[4px]" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                    {/* Row 2: Buttons Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Skeleton className="h-9 w-32 rounded-[6px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Body ── */}
+              <div className="mvp-body">
+                {/* ── 1. The Dynamic Metrics Band ── */}
+                <div className="mvp-section">
+                  <div className="mvp-stats-band" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    
+                    {/* KEY RISKS */}
+                    <div className="mvp-stat-item risks" style={{ 
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FECACA', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <AlertTriangle size={16} /> Key Risks
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
+
+                    {/* PENDING ACTIONS */}
+                    <div className="mvp-stat-item pending" style={{ 
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FDE68A', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Clock size={16} /> Pending Actions
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
+
+                    {/* RESOLVED */}
+                    <div className="mvp-stat-item resolved" style={{ 
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)', 
+                      border: '1px solid #BBF7D0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <CheckCircle size={16} /> Resolved
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
+
+                    {/* TOTAL ACTIONS */}
+                    <div className="mvp-stat-item total" style={{ 
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', 
+                      border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Target size={16} /> Total Actions
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── 2. The Meeting Table ── */}
+                <div style={{ marginTop: '24px' }}>
+                  <MeetingTable
+                    meetings={[]}
+                    loading={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="mvp-root-wrapper">
@@ -607,6 +852,96 @@ const MOMViewPage = () => {
                   </button>
                 </div>
 
+                {/* Search Bar Container */}
+                <div style={{ padding: '12px 24px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search discussion dialogue..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleSearchKeyDown}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px 8px 36px',
+                        fontSize: '13px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '6px',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        background: '#fff',
+                        transition: 'border-color 0.15s ease'
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={clearSearch}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          color: '#94A3B8',
+                          padding: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {searchTerm && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '12px', color: '#64748B', minWidth: '45px', textAlign: 'center', fontWeight: 500 }}>
+                        {matches.length > 0 ? `${activeHighlightIdx + 1}/${matches.length}` : '0/0'}
+                      </span>
+                      <button
+                        disabled={matches.length === 0}
+                        onClick={handlePrevMatch}
+                        style={{
+                          padding: '6px',
+                          borderRadius: '4px',
+                          border: '1px solid #E2E8F0',
+                          background: '#fff',
+                          cursor: matches.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: matches.length > 0 ? 1 : 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Previous Match"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        disabled={matches.length === 0}
+                        onClick={handleNextMatch}
+                        style={{
+                          padding: '6px',
+                          borderRadius: '4px',
+                          border: '1px solid #E2E8F0',
+                          background: '#fff',
+                          cursor: matches.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: matches.length > 0 ? 1 : 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Next Match"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
                   {transcriptEntries.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -620,8 +955,24 @@ const MOMViewPage = () => {
                           );
                         }
                         const color = getSpeakerColor(entry.speaker);
+                        const isMatch = matches.includes(idx);
+                        const isActiveMatch = matches.length > 0 && matches[activeHighlightIdx] === idx;
                         return (
-                          <div key={idx} style={{ display: 'flex', gap: '12px' }}>
+                          <div
+                            key={idx}
+                            id={`transcript-entry-${idx}`}
+                            className={isActiveMatch ? "mvp-transcript-active-bubble" : ""}
+                            style={{
+                              display: 'flex',
+                              gap: '12px',
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              borderLeft: '4px solid transparent',
+                              transition: 'all 0.2s ease',
+                              background: isActiveMatch ? '#FFFBEB' : 'transparent',
+                              borderLeftColor: isActiveMatch ? '#F59E0B' : 'transparent',
+                            }}
+                          >
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: color.bg, color: color.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
                               {entry.speaker?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'}
                             </div>
@@ -631,7 +982,7 @@ const MOMViewPage = () => {
                                 <span style={{ fontSize: '10px', color: '#94A3B8' }}>{entry.time}</span>
                               </div>
                               <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
-                                {entry.text}
+                                {highlightText(entry.text, searchTerm, isActiveMatch)}
                               </div>
                             </div>
                           </div>

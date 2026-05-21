@@ -18,6 +18,8 @@ import API from '../../utils/api';
 import {
   setMeetingContext, saveMOM, addMomRows, fetchMOM, setMomData
 } from '../../store/slices/momSlice';
+import { Skeleton } from '../../components/ui/skeleton';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../../components/ui/collapsible';
 import { setActiveModule } from '../../store/slices/navSlice';
 import './tokens.css';
 import './MeetingCapturePage.css';
@@ -278,6 +280,7 @@ const MeetingCapturePage = () => {
   }, [user]);
 
   const [meetingTitle, setMeetingTitle] = useState('');
+  const [loading, setLoading] = useState(true);
   const [projectId, setProjectId] = useState(searchParams.get('projectId') || '');
   const [projectName, setProjectName] = useState('');
   const reduxProjects = useSelector(s => s.project?.projects) || [];
@@ -289,6 +292,17 @@ const MeetingCapturePage = () => {
   // TranscriptDoc shape: { id, fileName, fileSize, uploadedAt, status, entries[], lineCount, signature }
   // status: 'reviewing' | 'confirmed' | 'duplicate'
   const [transcripts, setTranscripts] = useState([]);
+  const hasTranscripts = transcripts.length > 0;
+  const [isSetupOpen, setIsSetupOpen] = useState(true);
+
+  useEffect(() => {
+    if (hasTranscripts) {
+      setIsSetupOpen(false);
+    } else {
+      setIsSetupOpen(true);
+    }
+  }, [hasTranscripts]);
+
   const [activeTranscriptId, setActiveTranscriptId] = useState(null);
   const sigSetRef = useRef(new Set()); // content fingerprints — ref avoids stale closure in FileReader
 
@@ -336,44 +350,70 @@ const MeetingCapturePage = () => {
   }, []);
 
   useEffect(() => {
-    if (reduxProjects && reduxProjects.length > 0) {
-      setProjects(reduxProjects);
-    } else {
-      API.get('/projects/')
-        .then(r => setProjects(r.data?.projects || r.data || []))
-        .catch(() => { });
-    }
-    
-    if (meetingId && meetingId !== 'unscheduled') {
-      setMeetingTitle(`Meeting #${meetingId}`);
-      API.get(`/transcript/${meetingId}`)
-        .then(r => { 
-          if (r.data?.transcript_data) {
-            const existingEntries = r.data.transcript_data.map((e, i) => ({
-              ...e,
-              id: e.id || `ext-${Date.now()}-${i}`,
-              ...getSpeakerColor(e.speaker || 'Transcript')
-            }));
-            const doc = {
-              id: `tdoc-existing-${meetingId}`,
-              fileName: `Transcript #${meetingId}`,
-              fileSize: 0,
-              uploadedAt: nowTime(),
-              status: 'confirmed',
-              entries: existingEntries,
-              lineCount: existingEntries.length,
-              signature: `existing_${meetingId}`,
-              isExisting: true
-            };
-            setTranscripts(prev => {
-              if (prev.some(t => t.id === doc.id)) return prev;
-              return [...prev, doc];
-            });
-            setActiveTranscriptId(doc.id);
-          }
-        })
-        .catch(() => { });
-    }
+    const init = async () => {
+      try {
+        // Set meeting title early but don't update state yet during render
+        let titleToSet = '';
+        const promises = [];
+        
+        if (!(reduxProjects && reduxProjects.length > 0)) {
+          promises.push(
+            API.get('/projects/')
+              .then(r => setProjects(r.data?.projects || r.data || []))
+              .catch(() => { })
+          );
+        } else {
+          setProjects(reduxProjects);
+        }
+        
+        if (meetingId && meetingId !== 'unscheduled') {
+          titleToSet = `Meeting #${meetingId}`;
+          promises.push(
+            API.get(`/transcript/${meetingId}`)
+              .then(r => { 
+                if (r.data?.transcript_data) {
+                  const existingEntries = r.data.transcript_data.map((e, i) => ({
+                    ...e,
+                    id: e.id || `ext-${Date.now()}-${i}`,
+                    ...getSpeakerColor(e.speaker || 'Transcript')
+                  }));
+                  const doc = {
+                    id: `tdoc-existing-${meetingId}`,
+                    fileName: `Transcript #${meetingId}`,
+                    fileSize: 0,
+                    uploadedAt: nowTime(),
+                    status: 'confirmed',
+                    entries: existingEntries,
+                    lineCount: existingEntries.length,
+                    signature: `existing_${meetingId}`,
+                    isExisting: true
+                  };
+                  setTranscripts(prev => {
+                    if (prev.some(t => t.id === doc.id)) return prev;
+                    return [...prev, doc];
+                  });
+                  setActiveTranscriptId(doc.id);
+                }
+              })
+              .catch(() => { })
+          );
+        }
+        
+        if (promises.length > 0) {
+          await Promise.all(promises);
+        }
+        
+        // Defer setState calls until after Promise.all completes
+        if (titleToSet) {
+          setMeetingTitle(titleToSet);
+        }
+      } catch (err) {
+        console.error("Initial load error in MeetingCapturePage:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, [meetingId, reduxProjects, getSpeakerColor]);
 
   useEffect(() => {
@@ -577,7 +617,6 @@ const MeetingCapturePage = () => {
   const activeTranscript = transcripts.find(t => t.id === activeTranscriptId) || null;
   const mergedEntries = useMemo(() => transcripts.filter(t => t.status === 'confirmed').flatMap(t => t.entries), [transcripts]);
   const hasConfirmed = transcripts.some(t => t.status === 'confirmed');
-  const hasTranscripts = transcripts.length > 0;
 
 
 
@@ -643,7 +682,7 @@ const MeetingCapturePage = () => {
           if (fallback.length > 0) {
             dispatch(setMomData(fallback));
             dispatch(setActiveModule('mom-module'));
-            navigate('/dashboard/mom/view');
+            navigate(`/dashboard/mom/view/${meetingId}`);
             return;
           }
           setGenError('Generation produced no content. Check transcript format.');
@@ -663,7 +702,7 @@ const MeetingCapturePage = () => {
       if (rows.length === 0) { setGenError('Generation produced no content.'); setGenerating(false); return; }
       setGenError(null);
       dispatch(setActiveModule('mom-module'));
-      navigate('/dashboard/mom/view');
+      navigate(`/dashboard/mom/view/${meetingId}`);
     } finally { setGenerating(false); }
   };
 
@@ -682,6 +721,76 @@ const MeetingCapturePage = () => {
     }));
     setProtectedIds(new Set());
   };
+
+  if (loading) {
+    return (
+      <div className="mcp-root mom-theme">
+        {/* Top Bar Skeleton */}
+        <div className="mcp-topbar">
+          <nav className="mcp-breadcrumb">
+            <Skeleton className="h-5 w-44 rounded" />
+          </nav>
+        </div>
+
+        {/* Steps Skeleton */}
+        <div className="mcp-steps flex gap-4 items-center" style={{ margin: '16px 24px' }}>
+          <Skeleton className="h-10 w-28 rounded-full" />
+          <Skeleton className="h-0.5 w-16" />
+          <Skeleton className="h-10 w-28 rounded-full" />
+          <Skeleton className="h-0.5 w-16" />
+          <Skeleton className="h-10 w-28 rounded-full" />
+        </div>
+
+        {/* Body Skeleton */}
+        <div className="mcp-body mcp-body-3col" style={{ display: 'grid', gridTemplateColumns: '380px 260px 1fr', gap: '24px', padding: '0 24px 24px' }}>
+          {/* Column 1: Left Panel */}
+          <div className="mcp-left-panel space-y-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="mcp-lp-section space-y-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+            <div className="mcp-lp-section space-y-3" style={{ marginTop: '20px' }}>
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-10 w-full rounded-lg" />
+            </div>
+            <div className="mcp-lp-section space-y-3" style={{ marginTop: '20px' }}>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-28 w-full rounded-lg" />
+            </div>
+          </div>
+
+          {/* Column 2: Queue Panel */}
+          <div className="mcp-queue-panel space-y-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+            <div className="mcp-queue-header flex justify-between items-center">
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-5 w-8 rounded" />
+            </div>
+            <div className="space-y-3">
+              <Skeleton className="h-20 w-full rounded-xl" />
+              <Skeleton className="h-20 w-full rounded-xl" />
+            </div>
+          </div>
+
+          {/* Column 3: Right Panel */}
+          <div className="mcp-right-panel flex flex-col space-y-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm" style={{ flex: 1 }}>
+            <div className="mcp-rp-header flex justify-between items-center">
+              <Skeleton className="h-6 w-44" />
+              <Skeleton className="h-8 w-24 rounded-lg" />
+            </div>
+            <div className="flex-1 space-y-4 pt-4">
+              <Skeleton className="h-10 w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mcp-root mom-theme">
@@ -723,84 +832,111 @@ const MeetingCapturePage = () => {
       {/* ════════ BODY: 380px | 260px | 1fr ════════ */}
       <div className="mcp-body mcp-body-3col">
 
-        {/* ── COL 1: LEFT PANEL ── */}
-        <div className="mcp-left-panel">
-          <div className="mcp-lp-section">
-            <div className="mcp-lp-label">MEETING TITLE</div>
-            <input className="mcp-lp-input" placeholder="e.g. Sprint Review — May 6" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} />
-          </div>
-
-          <div className="mcp-lp-section">
-            <div className="mcp-lp-label-row">
-              <span className="mcp-lp-label" style={{ marginBottom: 0 }}>LINK PROJECT</span>
-              <span className="mcp-lp-required">*</span>
-            </div>
-            <div className="mcp-lp-select-wrap">
-              <select className="mcp-lp-select" value={projectId} onChange={e => setProjectId(e.target.value)}>
-                <option value="">Select a project...</option>
-                {projects.map(p => <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            {!isProjectLinked && <div className="mcp-lp-hint">Select a project to enable capture</div>}
-          </div>
-
-          <div className={`mcp-lp-section mcp-capture-gated ${!isProjectLinked ? 'disabled' : ''}`}>
-            <div className="mcp-tab-bar">
-              <button className={`mcp-tab ${mode === 'upload' ? 'active' : ''}`} onClick={() => setMode('upload')}><Upload size={16} /> Upload</button>
-              <button className={`mcp-tab ${mode === 'record' ? 'active' : ''}`} onClick={() => setMode('record')}><Mic size={16} /> Record</button>
-            </div>
-
-            {mode === 'upload' && (
-              <>
-                {isUploading ? (
-                  <div className="mcp-upload-progress-wrap">
-                    <div className="mcp-upload-progress-filename"><FileText size={14} color="#0D9488" /><span>{uploadingLabel}</span></div>
-                    <div className="mcp-progress-track"><div className="mcp-progress-fill" style={{ width: `${uploadProgress}%` }} /></div>
-                    <div className="mcp-upload-progress-pct">{Math.round(uploadProgress)}%</div>
-                  </div>
-                ) : (
-                  <div
-                    className={`mcp-dropzone ${isDragOver ? 'drag-over' : ''} ${!isProjectLinked ? 'mcp-dropzone-disabled' : ''}`}
-                    onClick={() => isProjectLinked && fileInputRef.current.click()}
-                    onDragOver={e => { e.preventDefault(); if (isProjectLinked) setIsDragOver(true); }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={e => { e.preventDefault(); setIsDragOver(false); if (isProjectLinked && e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files); }}
-                  >
-                    <Upload size={28} color="#0D9488" strokeWidth={1.5} />
-                    <div className="mcp-dropzone-title">Drop transcripts or click to browse</div>
-                    <div className="mcp-dropzone-sub">Multiple files · .txt .md .vtt .srt</div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {mode === 'record' && (
-              <div className="mcp-record-zone">
-                <button className={`mcp-record-btn ${recordState.toLowerCase()}`} onClick={recordState === 'IDLE' ? startRecording : stopRecording}>
-                  {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
-                </button>
-                <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
-                <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
-                {micError && <div className="mcp-mic-error">{micError}</div>}
-              </div>
-            )}
-
-            <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
-          </div>
-
-          {/* Merged summary — shown when confirmed transcripts exist */}
-          {hasConfirmed && (
-            <div className="mcp-merged-summary">
-              <div className="mcp-merged-summary-title">SESSION TOTAL</div>
-              <div className="mcp-merged-summary-stats">
-                <span>{mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines</span>
-                <span>{Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers</span>
-                <span>{transcripts.filter(t => t.status === 'confirmed').length} confirmed</span>
-              </div>
-              {genError && <div className="mcp-gen-error">{genError}</div>}
-            </div>
+        {/* ── COL 1: LEFT PANEL (Collapsible Setup Panel) ── */}
+        <Collapsible
+          open={isSetupOpen}
+          onOpenChange={setIsSetupOpen}
+          className={`mcp-left-panel mcp-left-collapsible${!isSetupOpen ? ' mcp-left-collapsed' : ''}`}
+        >
+          {/* ── Collapsed Super-Clean Handle ── */}
+          {!isSetupOpen && (
+            <CollapsibleTrigger asChild>
+              <button className="mcp-setup-collapsed-handle" aria-label="Expand setup panel" title="Expand Setup Panel">
+                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" />
+              </button>
+            </CollapsibleTrigger>
           )}
-        </div>
+
+          {/* ── Expanded Full Setup Form ── */}
+          <CollapsibleContent className="mcp-setup-content">
+            {/* Panel header with collapse trigger — always visible for user-friendly control */}
+            <div className="mcp-setup-header">
+              <span className="mcp-setup-header-label">SETUP CONFIGURATION</span>
+              <CollapsibleTrigger asChild>
+                <button className="mcp-setup-collapse-btn" aria-label="Collapse setup panel" title="Collapse setup panel">
+                  <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
+                  <span>Hide Panel</span>
+                </button>
+              </CollapsibleTrigger>
+            </div>
+
+            <div className="mcp-lp-section">
+              <div className="mcp-lp-label">MEETING TITLE</div>
+              <input className="mcp-lp-input" placeholder="e.g. Sprint Review — May 6" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} />
+            </div>
+
+            <div className="mcp-lp-section">
+              <div className="mcp-lp-label-row">
+                <span className="mcp-lp-label" style={{ marginBottom: 0 }}>LINK PROJECT</span>
+                <span className="mcp-lp-required">*</span>
+              </div>
+              <div className="mcp-lp-select-wrap">
+                <select className="mcp-lp-select" value={projectId} onChange={e => setProjectId(e.target.value)}>
+                  <option value="">Select a project...</option>
+                  {projects.map(p => <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              {!isProjectLinked && <div className="mcp-lp-hint">Select a project to enable capture</div>}
+            </div>
+
+            <div className={`mcp-lp-section mcp-capture-gated ${!isProjectLinked ? 'disabled' : ''}`}>
+              <div className="mcp-tab-bar">
+                <button className={`mcp-tab ${mode === 'upload' ? 'active' : ''}`} onClick={() => setMode('upload')}><Upload size={16} /> Upload</button>
+                <button className={`mcp-tab ${mode === 'record' ? 'active' : ''}`} onClick={() => setMode('record')}><Mic size={16} /> Record</button>
+              </div>
+
+              {mode === 'upload' && (
+                <>
+                  {isUploading ? (
+                    <div className="mcp-upload-progress-wrap">
+                      <div className="mcp-upload-progress-filename"><FileText size={14} color="#0D9488" /><span>{uploadingLabel}</span></div>
+                      <div className="mcp-progress-track"><div className="mcp-progress-fill" style={{ width: `${uploadProgress}%` }} /></div>
+                      <div className="mcp-upload-progress-pct">{Math.round(uploadProgress)}%</div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`mcp-dropzone ${isDragOver ? 'drag-over' : ''} ${!isProjectLinked ? 'mcp-dropzone-disabled' : ''}`}
+                      onClick={() => isProjectLinked && fileInputRef.current.click()}
+                      onDragOver={e => { e.preventDefault(); if (isProjectLinked) setIsDragOver(true); }}
+                      onDragLeave={() => setIsDragOver(false)}
+                      onDrop={e => { e.preventDefault(); setIsDragOver(false); if (isProjectLinked && e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files); }}
+                    >
+                      <Upload size={28} color="#0D9488" strokeWidth={1.5} />
+                      <div className="mcp-dropzone-title">Drop transcripts or click to browse</div>
+                      <div className="mcp-dropzone-sub">Multiple files · .txt .md .vtt .srt</div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {mode === 'record' && (
+                <div className="mcp-record-zone">
+                  <button className={`mcp-record-btn ${recordState.toLowerCase()}`} onClick={recordState === 'IDLE' ? startRecording : stopRecording}>
+                    {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
+                  </button>
+                  <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
+                  <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
+                  {micError && <div className="mcp-mic-error">{micError}</div>}
+                </div>
+              )}
+
+              <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
+            </div>
+
+            {/* Merged summary — shown when confirmed transcripts exist */}
+            {hasConfirmed && (
+              <div className="mcp-merged-summary">
+                <div className="mcp-merged-summary-title">SESSION TOTAL</div>
+                <div className="mcp-merged-summary-stats">
+                  <span>{mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines</span>
+                  <span>{Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers</span>
+                  <span>{transcripts.filter(t => t.status === 'confirmed').length} confirmed</span>
+                </div>
+                {genError && <div className="mcp-gen-error">{genError}</div>}
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* ── COL 2: TRANSCRIPT QUEUE ── */}
         <div className="mcp-queue-panel">
