@@ -21,8 +21,6 @@ const SystemSettings = () => {
   const location = useLocation();
   const { themeSettings, updateThemeLocally, refreshTheme } = useTheme();
   const [settings, setSettings] = useState([]);
-  const [modifiedSettings, setModifiedSettings] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
@@ -73,82 +71,6 @@ const SystemSettings = () => {
       console.error('Error fetching settings:', error);
     }
   };
-
-  const showNotification = (message, type = 'success') => {
-    if (type === 'success') toast.success(message);
-    else if (type === 'error') toast.error(message);
-    else toast(message);
-  };
-
-  const handleUpdate = (key, value) => {
-    setSettings(prev => {
-      const exists = prev.find(s => s.key === key);
-      if (exists) {
-        return prev.map(s => s.key === key ? { ...s, value } : s);
-      }
-      return [...prev, { key, value }];
-    });
-    setModifiedSettings(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleLogoUpload = async (imageSource) => {
-    let file;
-    if (imageSource instanceof File) {
-      file = imageSource;
-    } else {
-      file = imageSource.target.files[0];
-    }
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      setIsSaving(true);
-      const response = await API.post('/settings/upload-logo', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      const logoUrl = response.data.url;
-      setSettings(prev => prev.map(s => s.key === 'company_logo' ? { ...s, value: logoUrl } : s));
-      dispatch(setBranding({ companyLogo: logoUrl }));
-      showNotification('Logo uploaded successfully');
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      showNotification('Failed to upload logo', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const syncUpdates = async () => {
-    if (Object.keys(modifiedSettings).length === 0) return;
-    setIsSaving(true);
-    try {
-      const settingsToUpdate = Object.entries(modifiedSettings).map(([key, value]) => {
-        const original = settings.find(s => s.key === key);
-        return { key, value, category: original?.category || 'General', type: original?.type || 'text' };
-      });
-      await API.patch('/settings/bulk', { settings: settingsToUpdate });
-      if (modifiedSettings.company_name || modifiedSettings.base_currency || modifiedSettings.sidebar_dashboard_limit || modifiedSettings.sidebar_dashboard_mode) {
-        dispatch(setBranding({ 
-          companyName: modifiedSettings.company_name,
-          baseCurrency: modifiedSettings.base_currency,
-          sidebarDashboardLimit: modifiedSettings.sidebar_dashboard_limit,
-          sidebarDashboardMode: modifiedSettings.sidebar_dashboard_mode
-        }));
-      }
-      if (modifiedSettings.primary_color || modifiedSettings.secondary_color || modifiedSettings.display_mode) {
-        refreshTheme();
-      }
-      setModifiedSettings({});
-      showNotification('Settings saved successfully');
-    } catch (error) {
-      console.error('Error syncing settings:', error);
-      showNotification('Failed to save updates', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Routes are handled in the return JSX now
 
   return (
     <div className="flex h-screen overflow-hidden bg-app-bg font-['Inter']">
@@ -234,42 +156,17 @@ const SystemSettings = () => {
             </div>
           ))}
         </div>
-
-        {/* Footer — commit button */}
-        <div style={{ padding: '16px', borderTop: '1px solid rgba(0,0,0,0.06)', marginTop: 'auto' }}>
-          <button
-            onClick={syncUpdates}
-            disabled={!Object.keys(modifiedSettings).length || isSaving}
-            style={{
-              width: '100%',
-              height: '40px',
-              backgroundColor: 'var(--accent)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 700,
-              fontSize: '10px',
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              cursor: Object.keys(modifiedSettings).length && !isSaving ? 'pointer' : 'not-allowed',
-              opacity: Object.keys(modifiedSettings).length && !isSaving ? 1 : 0.25,
-              transition: 'opacity 0.2s',
-            }}
-          >
-            {isSaving ? '...' : 'Commit Changes'}
-          </button>
-        </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-app-bg p-16">
         <div className="max-w-5xl mx-auto pb-24">
           <Routes>
             <Route index element={<Navigate to="general" replace />} />
-            <Route path="general" element={<GeneralInfo settings={settings} onUpdate={handleUpdate} onLogoUpload={handleLogoUpload} />} />
-            <Route path="branding" element={<BrandingTheme settings={settings} onUpdate={handleUpdate} onLocalUpdate={updateThemeLocally} />} />
+            <Route path="general" element={<GeneralInfo settings={settings} onSaveSuccess={fetchSettings} />} />
+            <Route path="branding" element={<BrandingTheme settings={settings} onSaveSuccess={fetchSettings} onLocalUpdate={updateThemeLocally} />} />
             <Route path="access" element={<AccessControl />} />
             <Route path="applications" element={<ApplicationAccess />} />
-            <Route path="connections" element={<Connections settings={settings} onUpdate={handleUpdate} />} />
+            <Route path="connections" element={<Connections settings={settings} onSaveSuccess={fetchSettings} />} />
             <Route path="audit" element={<AuditHistory />} />
             <Route path="maintenance" element={<Maintenance />} />
             {/* Fallback to general */}

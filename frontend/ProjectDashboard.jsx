@@ -2420,11 +2420,12 @@ const ProjectTitleDashboard = () => {
         type: 'category',
         data: xLabels,
         axisLabel: {
-          interval: 0,
+          interval: xLabels.length > 10 ? 'auto' : 0,
           rotate: xLabels.length > 5 ? (chartType === 'bar-rotated' ? 45 : 35) : 0,
           formatter: formatXAxisValue,
           fontSize: 10,
-          color: '#64748b'
+          color: '#64748b',
+          hideOverlap: true
         },
         axisLine: { lineStyle: { color: '#e2e8f0' } }
       },
@@ -2470,6 +2471,7 @@ const ProjectTitleDashboard = () => {
                 color: '#1e3a5f',
                 fontSize: 10,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -2502,7 +2504,8 @@ const ProjectTitleDashboard = () => {
                 position: 'top',
                 color: '#1e3a5f',
                 fontSize: 10,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                hideOverlap: true
               }
             }
           ]
@@ -2659,6 +2662,7 @@ const ProjectTitleDashboard = () => {
                 color: '#1e3a5f',
                 fontSize: 10,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -2705,6 +2709,7 @@ const ProjectTitleDashboard = () => {
                 color: '#1e3a5f',
                 fontSize: 9,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -2730,7 +2735,8 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                fontSize: 10
+                fontSize: 10,
+                hideOverlap: true
               }
             }
           ]
@@ -2779,6 +2785,7 @@ const ProjectTitleDashboard = () => {
                 position: 'top',
                 formatter: (p) => p.value,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 color: '#047857'
               }
             }
@@ -2799,7 +2806,7 @@ const ProjectTitleDashboard = () => {
           <img
             src={pdfChartImages[chartId]}
             alt="Static Chart Image"
-            style={{ height: isMaximized ? '350px' : '280px', width: '100%', objectFit: 'contain' }}
+            style={{ height: 'calc(100% - 40px)', width: '100%', objectFit: 'contain' }}
             crossOrigin="anonymous"
           />
         ) : (
@@ -2809,7 +2816,7 @@ const ProjectTitleDashboard = () => {
             }}
             theme="v5"
             option={{ ...option, animation: !isCapturingPdf }}
-            style={{ height: isMaximized ? '350px' : '280px', width: '100%' }}
+            style={{ height: 'calc(100% - 40px)', width: '100%' }}
             notMerge={true}
           />
         )}
@@ -4833,23 +4840,43 @@ const AxisSelectorModal = ({
             </select>
           </div>
 
-          <button
-            onClick={handleApply}
-            style={{
-              width: '100%',
-              padding: '10px',
-              backgroundColor: '#1e3a5f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '800',
-              fontSize: '13px',
-              boxShadow: '0 4px 6px -1px rgba(30, 58, 95, 0.2)'
-            }}
-          >
-            Apply Configuration
-          </button>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '10px',
+                backgroundColor: '#f1f5f9',
+                color: '#475569',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '800',
+                fontSize: '13px',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleApply}
+              style={{
+                flex: 1,
+                padding: '10px',
+                backgroundColor: '#1e3a5f',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '800',
+                fontSize: '13px',
+                boxShadow: '0 4px 6px -1px rgba(30, 58, 95, 0.2)',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              Apply
+            </button>
+          </div>
         </>
       ) : (
         <div>

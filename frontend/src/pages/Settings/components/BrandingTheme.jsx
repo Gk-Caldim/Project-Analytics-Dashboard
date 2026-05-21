@@ -1,16 +1,55 @@
-import React from 'react';
-import { Sun, Moon, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sun, Moon, CheckCircle2, Loader2 } from 'lucide-react';
+import API from '../../../utils/api';
+import { toast } from 'react-hot-toast';
 
-const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
-  const displayMode = settings.find(s => s.key === 'display_mode')?.value || 'light';
+const BrandingTheme = ({ settings, onSaveSuccess, onLocalUpdate }) => {
+  const [localEdits, setLocalEdits] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const activeMode = localEdits.display_mode !== undefined 
+    ? localEdits.display_mode 
+    : (settings.find(s => s.key === 'display_mode')?.value || 'light');
+
+  const hasChanges = Object.keys(localEdits).length > 0;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const originalSetting = settings.find(s => s.key === 'display_mode');
+      await API.patch('/settings/bulk', {
+        settings: [{
+          key: 'display_mode',
+          value: localEdits.display_mode,
+          category: originalSetting?.category || 'Branding',
+          type: originalSetting?.type || 'text'
+        }]
+      });
+      setLocalEdits({});
+      toast.success('Visual theme saved successfully');
+      if (onSaveSuccess) await onSaveSuccess();
+    } catch (error) {
+      console.error('Error saving theme:', error);
+      toast.error('Failed to save theme setting');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setLocalEdits({});
+    const originalMode = settings.find(s => s.key === 'display_mode')?.value || 'light';
+    if (onLocalUpdate) onLocalUpdate({ displayMode: originalMode });
+    toast.success('Changes discarded');
+  };
 
   const ThemeCard = ({ mode, label, description, icon: Icon, colors }) => {
-    const isActive = displayMode === mode;
+    const isActive = activeMode === mode;
 
     return (
       <button
         onClick={() => {
-          onUpdate('display_mode', mode);
+          setLocalEdits({ display_mode: mode });
           if (onLocalUpdate) onLocalUpdate({ displayMode: mode });
         }}
         className={`group relative flex flex-col p-6 rounded-2xl border-2 transition-all duration-300 text-left ${isActive
@@ -61,7 +100,7 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
   };
 
   return (
-    <div className="max-w-4xl space-y-12 animate-fadeIn">
+    <div className="max-w-4xl space-y-12 animate-fadeIn relative">
       <div className="space-y-4">
         <h2 className="text-4xl font-bold text-text-primary tracking-tight">Visual Identity</h2>
         <p className="text-lg text-text-secondary max-w-2xl">
@@ -85,6 +124,44 @@ const BrandingTheme = ({ settings, onUpdate, onLocalUpdate }) => {
           colors={['#1E242B', '#2B353F', '#E6EAF0', '#16313E']}
         />
       </div>
+
+      {/* Floating Save/Discard Panel */}
+      {hasChanges && (
+        <div className="fixed bottom-6 left-[240px] right-6 flex justify-center z-50 animate-slideInUp">
+          <div className="bg-app-surface/95 dark:bg-slate-900/95 backdrop-blur-md border border-border-strong/30 shadow-2xl px-6 py-4 flex items-center justify-between gap-12 max-w-3xl w-full">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
+              <div>
+                <span className="text-xs font-bold text-text-primary uppercase tracking-wider">Unsaved Changes</span>
+                <p className="text-[10px] text-text-muted mt-0.5">You have modified the workspace theme preferences.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleDiscard}
+                disabled={isSaving}
+                className="px-4 py-2 border border-transparent text-xs font-bold text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-brand-accent hover:bg-brand-accent-hover text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

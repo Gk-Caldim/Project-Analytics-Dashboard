@@ -95,6 +95,30 @@ def analyze_procurement_budget(
     # Loop over budget rows to find matches
     budget_rows = budget.budget_data or []
     
+    # Calculate utilization parameters
+    proj_budget = budget.overall_budget
+    proj_utilization = 0.0
+    proj_balance = 0.0
+    
+    # Sum from budget rows
+    for r in budget_rows:
+        r_est = clean_float(r.get("Estimated", r.get("Total budget", r.get("Budget", 0.0))))
+        r_util = clean_float(r.get("Total utilization", r.get("Utilized", 0.0)))
+        proj_utilization += r_util
+        proj_balance += (r_est - r_util)
+        
+    # If the sum of row utilization is 0, check the Project master record
+    if proj_utilization <= 0:
+        try:
+            from app.models.project import Project
+            proj = db.query(Project).filter(Project.name == project_name).first()
+            if proj:
+                proj_budget = proj.budget or budget.overall_budget
+                proj_utilization = proj.utilized_budget or 0.0
+                proj_balance = proj.balance_budget or 0.0
+        except Exception as e:
+            logger.warning(f"Failed to fetch project record for utilization: {e}")
+            
     for row_idx, row in enumerate(budget_rows):
         # Extract row descriptions or titles
         row_desc = ""
@@ -130,14 +154,15 @@ def analyze_procurement_budget(
         if matched_norm_cat:
             # Map this row as affected!
             # Parse utilization & balance
-            # BudgetMaster.jsx labels: 'Total budget', 'Total utilization', 'Balance'
-            row_budget = clean_float(row.get("Total budget", row.get("Budget", 0.0)))
+            row_budget = clean_float(row.get("Estimated", row.get("Total budget", row.get("Budget", 0.0))))
             row_utilization = clean_float(row.get("Total utilization", row.get("Utilized", 0.0)))
             row_balance = clean_float(row.get("Balance", row_budget - row_utilization))
             
             # Calculate risks and proposal for this specific category
             if matched_norm_cat not in category_results:
-                risks = calculate_procurement_risks(matched_norm_cat, industry, target_currency, db)
+                risks = calculate_procurement_risks(
+                    matched_norm_cat, industry, target_currency, proj_budget, proj_utilization, proj_balance, db
+                )
                 volatility = market_prices.get(matched_norm_cat, {}).get("volatility_index", 2.0)
                 forecasts = get_forecast_chart_data(matched_norm_cat, market_prices.get(matched_norm_cat, {}).get("current_price", 100.0), db)
                 
@@ -153,7 +178,10 @@ def analyze_procurement_budget(
                 risks=cat_data["risks"],
                 volatility_index=cat_data["volatility"],
                 currency_rate=rate,
-                category=matched_norm_cat
+                category=matched_norm_cat,
+                inflation_rate=cat_data["risks"]["inflation_rate"],
+                contingency_rate=cat_data["risks"]["contingency_rate"],
+                volatility_factor=cat_data["risks"]["volatility_factor"]
             )
             
             total_base_usd += row_budget
@@ -178,7 +206,9 @@ def analyze_procurement_budget(
         general_cat = "steel"
         general_budget = budget.overall_budget
         
-        risks = calculate_procurement_risks(general_cat, industry, target_currency, db)
+        risks = calculate_procurement_risks(
+            general_cat, industry, target_currency, proj_budget, proj_utilization, proj_balance, db
+        )
         volatility = market_prices.get(general_cat, {}).get("volatility_index", 2.0)
         forecasts = get_forecast_chart_data(general_cat, market_prices.get(general_cat, {}).get("current_price", 100.0), db)
         
@@ -187,7 +217,10 @@ def analyze_procurement_budget(
             risks=risks,
             volatility_index=volatility,
             currency_rate=rate,
-            category=general_cat
+            category=general_cat,
+            inflation_rate=risks["inflation_rate"],
+            contingency_rate=risks["contingency_rate"],
+            volatility_factor=risks["volatility_factor"]
         )
         
         category_results[general_cat] = {
@@ -236,6 +269,22 @@ def analyze_procurement_budget(
             "applied": step_item["applied"]
         })
         
+    # Reconcile project budget constraints (Total utilization vs current budget)
+    utilization_gap_usd = max(0.0, proj_utilization - proj_budget)
+    suggested_overall_budget_usd = max(proj_budget, proj_utilization) + overall_overrun_usd
+    delta_usd = suggested_overall_budget_usd - proj_budget
+    delta_local = delta_usd * rate
+    
+    reconciliation = {
+        "current_budget": round(proj_budget * rate, 2),
+        "total_utilization": round(proj_utilization * rate, 2),
+        "difference": round((proj_utilization - proj_budget) * rate, 2),
+        "balance": round((proj_budget - proj_utilization) * rate, 2),
+        "raw_material_risk_buffer": round(overall_overrun_local, 2),
+        "suggested_new_budget": round(suggested_overall_budget_usd * rate, 2),
+        "total_revision_requested": round(delta_local, 2)
+    }
+        
     return {
         "project_name": project_name,
         "industry": industry,
@@ -246,11 +295,12 @@ def analyze_procurement_budget(
         "alerts": market_alerts,
         "category_results": category_results,
         "affected_rows": affected_rows,
-        "original_budget_usd": round(budget.overall_budget, 2),
-        "original_budget_local": round(budget.overall_budget * rate, 2),
-        "suggested_budget_usd": round(budget.overall_budget + overall_overrun_usd, 2),
-        "suggested_budget_local": round((budget.overall_budget + overall_overrun_usd) * rate, 2),
-        "overrun_usd": round(overall_overrun_usd, 2),
-        "overrun_local": round(overall_overrun_local, 2),
-        "overall_calculations": overall_calculations
+        "original_budget_usd": round(proj_budget, 2),
+        "original_budget_local": round(proj_budget * rate, 2),
+        "suggested_budget_usd": round(suggested_overall_budget_usd, 2),
+        "suggested_budget_local": round(suggested_overall_budget_usd * rate, 2),
+        "overrun_usd": round(delta_usd, 2),
+        "overrun_local": round(delta_local, 2),
+        "overall_calculations": overall_calculations,
+        "reconciliation": reconciliation
     }

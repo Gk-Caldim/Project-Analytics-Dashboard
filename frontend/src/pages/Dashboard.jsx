@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import ReactDOM from 'react-dom';
@@ -22,12 +22,13 @@ import { logout } from '../store/slices/authSlice';
 import Sidebar from '../components/Sidebar';
 import AgentView from './AgentView';
 import {
-  Layout as LayoutIcon, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
+  Layout as LayoutIcon, LayoutDashboard, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter, ChevronUp, ChevronDown, ChevronLeft, Check, Save, Settings,
   Users, Shield, FolderKanban, Package, Building, Database, FileUp, LogOut, Menu, User as UserIcon, Bell, ChevronRight, Projector, FileText, Globe, Clock, BarChart3, PieChart, LineChart,
-  MessageSquare, Layers, FolderTree, Calendar, Wallet
+  MessageSquare, Layers, FolderTree, Calendar, Wallet, Sparkles, Sun, Moon
 } from 'lucide-react';
 
 import API from "../utils/api";
+import { useTheme } from '../contexts/ThemeContext';
 
 // ============================================================================
 // SIDEBAR MANAGER
@@ -59,6 +60,8 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { themeSettings, toggleTheme } = useTheme();
 
   // Get state from Redux
   const user = useSelector(state => state.auth.user);
@@ -459,12 +462,12 @@ const Dashboard = () => {
     const handleOpenProjectDashboardFile = (event) => {
       const { trackerId, fileModule, projectName } = event.detail;
 
-      // Set the selected file ID
-      setSelectedProjectFileId(trackerId);
+      // Set the selected file ID — must use dispatch for Redux
+      dispatch(setSelectedProjectFileId(trackerId));
 
       // Ensure project dashboard is active
       if (activeModule !== 'project-dashboard') {
-        setActiveModule('project-dashboard');
+        dispatch(setActiveModule('project-dashboard'));
       }
 
       // Ensure project dashboard is expanded
@@ -489,16 +492,16 @@ const Dashboard = () => {
 
     window.addEventListener('openProjectDashboardFile', handleOpenProjectDashboardFile);
     return () => window.removeEventListener('openProjectDashboardFile', handleOpenProjectDashboardFile);
-  }, [activeModule, projectDashboardModules]);
+  }, [activeModule, projectDashboardModules, dispatch]);
 
   useEffect(() => {
     const handleOpenProjectDashboardMain = (event) => {
       const { projectId } = event.detail;
       const project = projectDashboardModules.find(p => p.id === projectId || p.name === projectId || p.projectId === projectId);
       if (project && project.name) {
-        setActiveProjectName(project.name);
+        dispatch(setActiveProjectName(project.name));
       } else {
-        setActiveProjectName(projectId);
+        dispatch(setActiveProjectName(projectId));
       }
     };
 
@@ -514,7 +517,7 @@ const Dashboard = () => {
       window.removeEventListener('resetProjectDashboardMain', handleResetProjectDashboardMain);
       window.removeEventListener('openNotifications', () => setNotificationMenuOpen(true));
     };
-  }, [projectDashboardModules]);
+  }, [projectDashboardModules, dispatch]);
 
   // ==========================================================================
   // FIXED: Effect to ensure project file selection persists
@@ -537,6 +540,28 @@ const Dashboard = () => {
       }
     }
   }, [activeModule, selectedProjectFileId, projectDashboardModules, dispatch]);
+
+  // Listen for popstate (browser back/forward) events — important when UploadTrackers
+  // uses window.history.pushState directly (bypassing React Router's setSearchParams)
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      if (activeModule === 'upload-trackers') {
+        const fileId = params.get('file');
+        if (!fileId) {
+          dispatch(setSelectedUploadFileId(null));
+        }
+      } else if (activeModule === 'project-dashboard') {
+        const projectId = params.get('projectId');
+        const submoduleId = params.get('submoduleId');
+        if (!submoduleId) dispatch(setSelectedProjectFileId(null));
+        if (!projectId) dispatch(setActiveProjectName(null));
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeModule, dispatch]);
 
   // Helper functions
   const getUserInitial = () => {
@@ -607,6 +632,7 @@ const Dashboard = () => {
   // HANDLE MODULE CLICK - UPDATED to match Masters behavior
   // ==========================================================================
   const handleModuleClick = (moduleId) => {
+    dispatch(setActiveView('dashboard'));
     dispatch(setActiveModule(moduleId));
 
     // Build path
@@ -667,6 +693,7 @@ const Dashboard = () => {
   // FIXED: Use context-specific file click handlers
   // ==========================================================================
   const handleFileModuleClick = (fileModule) => {
+    dispatch(setActiveView('dashboard'));
     dispatch(setActiveModule('upload-trackers'));
     dispatch(setSelectedUploadFileId(fileModule.trackerId));
     navigate('/dashboard/trackers');
@@ -677,6 +704,7 @@ const Dashboard = () => {
   // Dashboard's dedicated table view.
   // ==========================================================================
   const handleProjectFileClick = (fileModule) => {
+    dispatch(setActiveView('dashboard'));
     if (fileModule.type === 'budget') {
       // Budget files still navigate to the budget summary page
       navigate(`/dashboard/budget-summary/${encodeURIComponent(fileModule.projectName)}`);
@@ -699,6 +727,134 @@ const Dashboard = () => {
       return selectedProjectFileId === (fileModule.trackerId || fileModule.id);
     }
     return selectedUploadFileId === fileModule.trackerId;
+  };
+
+  // ==========================================================================
+  // GET BREADCRUMBS FOR TOP HEADER
+  // ==========================================================================
+  const getBreadcrumbs = () => {
+    if (activeView === 'agent') {
+      return [
+        { label: 'KIA', active: true }
+      ];
+    }
+
+    const formatNavLabel = (string) => {
+      if (!string) return '';
+      let clean = string.replace(/[-_]/g, ' ');
+      clean = clean.replace(/^project dashboard\s+/i, '');
+      return clean
+        .split(/\s+/)
+        .map(word => {
+          let w = word.toLowerCase();
+          if (w === 'tata' || w === 'motors') return 'TATA';
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        })
+        .join(' ');
+    };
+
+    const crumbs = [
+      { label: 'Dashboard', path: '/dashboard/projects', active: false }
+    ];
+
+    const path = location.pathname;
+
+    const addCrumb = (label, pathStr, isActive = false) => {
+      crumbs.push({ label, path: pathStr, active: isActive });
+    };
+
+    if (path.includes('/dashboard/projects')) {
+      const urlProjectId = searchParams.get('projectId');
+      const urlSubmoduleId = searchParams.get('submoduleId');
+      
+      addCrumb('Project Dashboard', '/dashboard/projects', !urlProjectId && !urlSubmoduleId);
+
+      if (urlProjectId || urlSubmoduleId) {
+        if (urlProjectId) {
+          const projectLabel = formatNavLabel(activeProjectName || urlProjectId);
+          if (urlSubmoduleId) {
+            addCrumb(projectLabel, `/dashboard/projects?projectId=${encodeURIComponent(urlProjectId)}`);
+            let fileLabel = 'File';
+            for (const proj of projectDashboardModules) {
+              const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+              if (file) {
+                fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+                break;
+              }
+            }
+            addCrumb(fileLabel, null, true);
+          } else {
+            addCrumb(projectLabel, null, true);
+          }
+        } else if (urlSubmoduleId) {
+          let fileLabel = 'File';
+          for (const proj of projectDashboardModules) {
+            const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+            if (file) {
+              fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+              break;
+            }
+          }
+          addCrumb(fileLabel, null, true);
+        }
+      }
+    } else if (path.includes('/dashboard/trackers')) {
+      const urlFileId = searchParams.get('file');
+      addCrumb('Upload Trackers', '/dashboard/trackers', !urlFileId);
+      if (urlFileId) {
+        let fileLabel = 'File';
+        for (const proj of uploadTrackerModules) {
+          const file = proj.submodules?.find(s => String(s.trackerId) === String(urlFileId));
+          if (file) {
+            fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
+            break;
+          }
+        }
+        addCrumb(fileLabel, null, true);
+      }
+    } else if (path.includes('/dashboard/budget-summary/')) {
+      const pathParts = path.split('/');
+      const projectName = decodeURIComponent(pathParts[pathParts.length - 1]);
+      addCrumb('Budget Summary', null, false);
+      addCrumb(formatNavLabel(projectName), null, true);
+    } else if (path.includes('/dashboard/masters/')) {
+      addCrumb('Masters', '/dashboard/masters/employees', false);
+      if (path.includes('/dashboard/masters/employees')) {
+        addCrumb('Employee Master', null, true);
+      } else if (path.includes('/dashboard/masters/project-master')) {
+        addCrumb('Project Master', null, true);
+      } else if (path.includes('/dashboard/masters/budget-master')) {
+        addCrumb('Budget Master', null, true);
+      } else if (path.includes('/dashboard/masters/project-detail/')) {
+        addCrumb('Project Detail', null, true);
+      } else {
+        addCrumb('Masters', null, true);
+      }
+    } else if (path.includes('/dashboard/mom')) {
+      addCrumb('Minutes of Meeting', '/dashboard/mom', path === '/dashboard/mom');
+      if (path.includes('/dashboard/mom/view')) {
+        addCrumb('MOM View', null, true);
+      } else if (path.includes('/dashboard/mom/transcript-viewer')) {
+        addCrumb('Transcript Viewer', null, true);
+      } else if (path.includes('/dashboard/mom/legacy')) {
+        addCrumb('Legacy MOM', null, true);
+      }
+    } else if (path.includes('/dashboard/saved-moms')) {
+      addCrumb('Saved MOMs', null, true);
+    } else if (path.includes('/dashboard/schedule-meeting')) {
+      addCrumb('Schedule Meeting', null, true);
+    } else if (path.includes('/dashboard/calendar')) {
+      addCrumb('Calendar Console', null, true);
+    } else if (path.includes('/dashboard/meeting/')) {
+      addCrumb('Calendar Console', '/dashboard/calendar');
+      addCrumb('Meeting Details', null, true);
+    } else if (path.includes('/dashboard/settings')) {
+      addCrumb('System Settings', null, true);
+    } else {
+      addCrumb(capitalizeFirstLetter(getActiveModuleName()), null, true);
+    }
+
+    return crumbs;
   };
 
   // ==========================================================================
@@ -730,64 +886,158 @@ const Dashboard = () => {
         )}
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-black' : 'bg-app-bg'}`}>
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#0B0F19]' : 'bg-app-bg'}`}>
           {/* Header */}
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
             ? 'bg-black border-b border-white/5'
             : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Title & Back Button */}
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-4">
               <button 
-                onClick={() => navigate(-1)}
+                onClick={() => {
+                  if (activeView === 'agent') {
+                    dispatch(setActiveView('dashboard'));
+                  } else if (activeModule === 'project-dashboard') {
+                    const urlProjectId = searchParams.get('projectId');
+                    const urlSubmoduleId = searchParams.get('submoduleId');
+                    if (urlSubmoduleId) {
+                      // Submodule → Project dashboard: just remove submoduleId
+                      setSearchParams(prev => {
+                        const next = new URLSearchParams(prev);
+                        next.delete('submoduleId');
+                        return next;
+                      });
+                    } else if (urlProjectId) {
+                      // Project dashboard → Projects list: clear all params + Redux state
+                      setSearchParams({});
+                      dispatch(setSelectedProjectFileId(null));
+                      dispatch(setActiveProjectName(null));
+                      window.dispatchEvent(new CustomEvent('resetProjectDashboardMain'));
+                    } else {
+                      navigate(-1);
+                    }
+                  } else if (activeModule === 'upload-trackers') {
+                    const urlFileId = searchParams.get('file');
+                    if (urlFileId) {
+                      // File view → Tracker list: clear file param + Redux state
+                      setSearchParams(prev => {
+                        const next = new URLSearchParams(prev);
+                        next.delete('file');
+                        return next;
+                      });
+                      dispatch(setSelectedUploadFileId(null));
+                    } else {
+                      navigate(-1);
+                    }
+                  } else {
+                    navigate(-1);
+                  }
+                }}
                 className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
-                title="Go Back"
+                title={activeView === 'agent' ? "Back to Dashboard" : "Go Back"}
               >
-                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-text-secondary group-hover:text-text-primary'}`} />
+                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
               </button>
-              <h1 className={`text-h3 font-semibold ${activeView === 'agent' ? 'text-white/90' : 'text-text-primary'}`}>
-                {activeView === 'agent' ? 'KIA' : getHeaderTitle()}
-              </h1>
+              <button
+                onClick={() => navigate(1)}
+                className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
+                title="Go Forward"
+              >
+                <ChevronRight className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
+              </button>
+              <nav className={`flex items-center flex-wrap gap-1 text-sm font-sans tracking-tight ${activeView === 'agent' ? 'text-white/90' : 'text-slate-900 dark:text-white'}`}>
+                {activeView === 'agent' ? (
+                  <span className="font-semibold text-base">KIA</span>
+                ) : (
+                  getBreadcrumbs().map((crumb, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && (
+                        <span className={`font-normal mx-1 text-xs select-none ${activeView === 'agent' ? 'text-white/30' : 'text-slate-400 dark:text-slate-500'}`}>&gt;</span>
+                      )}
+                      {crumb.active || !crumb.path ? (
+                        <span className={crumb.active
+                          ? (activeView === 'agent' ? 'text-white font-semibold' : 'text-slate-900 dark:text-white font-semibold')
+                          : (activeView === 'agent' ? 'text-white/60 font-medium' : 'text-slate-500 dark:text-slate-400 font-medium')}>
+                          {crumb.label}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (crumb.path === '/dashboard/projects') {
+                              dispatch(setSelectedProjectFileId(null));
+                              dispatch(setActiveProjectName(null));
+                              window.dispatchEvent(new CustomEvent('resetProjectDashboardMain'));
+                            } else if (crumb.path === '/dashboard/trackers') {
+                              dispatch(setSelectedUploadFileId(null));
+                            }
+                            navigate(crumb.path);
+                          }}
+                          className={`hover:text-slate-900 dark:hover:text-white hover:underline transition-colors text-left font-medium bg-transparent border-0 p-0 cursor-pointer ${
+                            activeView === 'agent'
+                              ? 'text-white/60 hover:text-white'
+                              : 'text-slate-500 dark:text-slate-400'
+                          }`}
+                        >
+                          {crumb.label}
+                        </button>
+                      )}
+                    </React.Fragment>
+                  ))
+                )}
+              </nav>
             </div>
 
-            {/* Center - View Toggle */}
-            <div className="flex-1 flex justify-center">
-              <div className={`flex p-1 rounded-lg border transition-colors duration-300 ${activeView === 'agent'
-                ? 'bg-[#212121] border-white/10'
-                : 'bg-app-surface border-border'}`}>
-                <button
-                  onClick={() => dispatch(setActiveView('dashboard'))}
-                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'dashboard'
-                    ? 'bg-brand-primary text-white shadow-sm'
-                    : activeView === 'agent'
-                      ? 'text-white/40 hover:text-white hover:bg-white/5'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                    }`}
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => dispatch(setActiveView('agent'))}
-                  className={`px-4 py-1.5 rounded-md text-body-sm font-semibold transition-all duration-fast ${activeView === 'agent'
-                    ? 'bg-brand-primary text-white shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                    }`}
-                >
-                  KIA
-                </button>
-              </div>
-            </div>
-
-            {/* Right - Date/Time & Profile */}
-            <div className="flex items-center gap-4 flex-1 justify-end">
+            {/* Right - Date/Time, AI Chat Toggle & Profile */}
+            <div className="flex items-center gap-4 ml-auto">
               {/* Date and Time */}
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors duration-300 ${activeView === 'agent'
                 ? 'bg-[#212121] border border-white/5'
-                : 'bg-app-surface'}`}>
+                : 'bg-app-surface border border-border/40 shadow-sm'}`}>
                 <Clock className={`h-4 w-4 ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`} />
                 <span className={`text-body-sm font-medium tabular-nums ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentTime}</span>
                 <span className={activeView === 'agent' ? 'text-white/10' : 'text-border-strong'}>|</span>
                 <span className={`text-body-sm ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentDate}</span>
               </div>
+
+              {/* Quick Access AI Copilot Button */}
+              <button
+                onClick={() => dispatch(setActiveView(activeView === 'agent' ? 'dashboard' : 'agent'))}
+                className={`p-2 rounded-full transition-all duration-300 relative group active:scale-95 ${activeView === 'agent'
+                  ? 'text-indigo-400 bg-white/5 hover:bg-white/10 border border-white/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-app-surface border border-transparent hover:border-border shadow-sm bg-app-surface'}`}
+                title={activeView === 'agent' ? "Back to Dashboard" : "Chat with KIA"}
+              >
+                {activeView === 'agent' ? (
+                  <LayoutDashboard className="h-5 w-5 transition-transform duration-300 group-hover:scale-115 text-indigo-400" />
+                ) : (
+                  <Sparkles className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-115 text-indigo-500 fill-indigo-500/10" />
+                )}
+              </button>
+
+              {/* Sleek Theme Switch Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`flex items-center justify-between p-1 rounded-full w-14 h-8 transition-all duration-300 relative border ${
+                  activeView === 'agent'
+                    ? 'bg-[#212121] border-white/5 hover:border-white/10'
+                    : themeSettings.displayMode === 'dark'
+                      ? 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                      : 'bg-slate-100 border-slate-200 hover:border-slate-350'
+                }`}
+                title={themeSettings.displayMode === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              >
+                <span className={`z-10 flex items-center justify-center w-5 h-5 transition-colors ${themeSettings.displayMode === 'dark' ? 'text-slate-500' : 'text-amber-500'}`}>
+                  <Sun className="h-3.5 w-3.5" />
+                </span>
+                <span className={`z-10 flex items-center justify-center w-5 h-5 transition-colors ${themeSettings.displayMode === 'dark' ? 'text-blue-400' : 'text-slate-400'}`}>
+                  <Moon className="h-3.5 w-3.5" />
+                </span>
+                <span
+                  className={`absolute top-0.5 left-0.5 rounded-full w-6.5 h-6.5 shadow-md transition-transform duration-300 ease-out bg-white dark:bg-slate-900 border dark:border-slate-800 ${
+                    themeSettings.displayMode === 'dark' ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
 
               {/* Notifications Menu */}
               <div className="relative mr-2 flex items-center justify-center" ref={notificationMenuRef}>
