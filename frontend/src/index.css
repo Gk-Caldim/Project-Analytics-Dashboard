@@ -6,6 +6,13 @@
 @source "../index.html";
 @source "./**/*.{js,ts,jsx,tsx}";
 
+@theme {
+  --color-slate-250: #d7e1ea;
+  --color-slate-550: #55657e;
+  --color-slate-750: #293548;
+  --color-slate-850: #172237;
+}
+
 
 :root {
   /* Industrial Analytics Brand Colors - Redesign 2026 */
@@ -705,3 +712,30 @@
   z-index: 9999;
   animation: toastSlideIn 0.25s ease;
 }
+
+/* ── Custom Theme View Transitions ── */
+
+/* Disable default fade transition on root for a clean clip-path swipe */
+.theme-transitioning::view-transition-old(root),
+.theme-transitioning::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Ensure incoming theme (new snapshot) stays on top of old theme during transitions */
+.theme-transitioning::view-transition-new(root) {
+  z-index: 99999;
+}
+.theme-transitioning::view-transition-old(root) {
+  z-index: 1;
+}
+
+/* Fallback transitions for when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .theme-transitioning::view-transition-old(root) {
+    animation: 150ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+  }
+  .theme-transitioning::view-transition-new(root) {
+    animation: 250ms cubic-bezier(0, 0, 0.2, 1) both fade-in;
+  }
+}

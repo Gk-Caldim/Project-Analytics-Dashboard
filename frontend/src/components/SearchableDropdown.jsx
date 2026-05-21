@@ -7,6 +7,7 @@ const SearchableDropdown = ({
   onChange, 
   placeholder = 'Select an option...',
   className = '',
+  controlClassName = '',
   disabled = false,
   required = false
 }) => {
@@ -63,14 +64,15 @@ const SearchableDropdown = ({
     <div className={`relative w-full ${className}`} ref={dropdownRef}>
       <div
         className={`
-          flex items-center justify-between w-full px-3 py-2 text-sm border rounded-lg cursor-pointer transition-all duration-200
-          ${disabled ? 'bg-gray-50 dark:bg-slate-800 cursor-not-allowed opacity-60' : 'bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-500'}
-          ${isOpen ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/20' : 'border-gray-300 dark:border-slate-700'}
+          flex items-center justify-between w-full border cursor-pointer transition-all duration-200
+          ${controlClassName ? controlClassName : 'px-3 py-2 text-sm rounded-lg border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-500 text-gray-900 dark:text-slate-100'}
+          ${disabled ? 'bg-gray-50 dark:bg-slate-800 cursor-not-allowed opacity-60' : ''}
+          ${isOpen ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/20' : ''}
         `}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="flex-1 truncate">
-          <span className={value ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500"}>
+          <span className={value ? "" : "text-gray-400 dark:text-slate-500 font-normal"}>
             {displayLabel}
           </span>
         </div>

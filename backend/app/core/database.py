@@ -43,12 +43,14 @@ else:
     }
 
 
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set!")
+
 print(f"[DB] Initializing engine. IS_CLOUD_DB: {IS_CLOUD_DB}, Pool: {pool_class.__name__}")
 try:
     # Basic URL validation for debugging
-    if DATABASE_URL:
-        scheme = DATABASE_URL.split("://")[0] if "://" in DATABASE_URL else "unknown"
-        print(f"[DB] Using URL scheme: {scheme}")
+    scheme = DATABASE_URL.split("://")[0] if "://" in DATABASE_URL else "unknown"
+    print(f"[DB] Using URL scheme: {scheme}")
     
     engine = create_engine(
         DATABASE_URL,
@@ -82,7 +84,9 @@ if ASYNC_DATABASE_URL:
         async_connect_args = {}
         if IS_CLOUD_DB:
             async_connect_args = {
-                "server_settings": {"search_path": "public", "statement_timeout": "15000"}
+                "server_settings": {"search_path": "public", "statement_timeout": "15000"},
+                # Critical: Disable prepared statement caching for transaction mode pooler (PgBouncer/Supavisor)
+                "statement_cache_size": 0
             }
         
         async_kwargs = {
@@ -95,8 +99,6 @@ if ASYNC_DATABASE_URL:
             async_kwargs["pool_size"] = 10
             async_kwargs["max_overflow"] = 15
             async_kwargs["pool_timeout"] = 15
-            # Critical: Disable prepared statement caching for transaction mode pooler (PgBouncer/Supavisor)
-            async_kwargs["prepared_statement_cache_size"] = 0
         else:
             async_kwargs["pool_size"] = 20
             async_kwargs["max_overflow"] = 30

@@ -56,15 +56,91 @@ export const ThemeProvider = ({ children }) => {
             applyTheme(newTheme);
         }
     }, [settings]);
+ 
+    useEffect(() => {
+        const handleGlobalClick = (e) => {
+            window.lastClickX = e.clientX;
+            window.lastClickY = e.clientY;
+        };
+        window.addEventListener('click', handleGlobalClick, { capture: true });
+        return () => window.removeEventListener('click', handleGlobalClick, { capture: true });
+    }, []);
 
     const updateThemeLocally = (newSettings) => {
-        const updated = { ...themeSettings, ...newSettings };
-        setThemeSettings(updated);
-        applyTheme(updated);
+        const newMode = newSettings.displayMode;
+        const currentMode = themeSettings.displayMode;
+
+        if (!newMode || newMode === currentMode || !document.startViewTransition) {
+            const updated = { ...themeSettings, ...newSettings };
+            setThemeSettings(updated);
+            applyTheme(updated);
+            return;
+        }
+
+        const x = window.lastClickX ?? window.innerWidth / 2;
+        const y = window.lastClickY ?? window.innerHeight / 2;
+        const endRadius = Math.hypot(
+            Math.max(x, window.innerWidth - x),
+            Math.max(y, window.innerHeight - y)
+        );
+
+        document.documentElement.classList.add('theme-transitioning');
+
+        const transition = document.startViewTransition(() => {
+            const updated = { ...themeSettings, ...newSettings };
+            setThemeSettings(updated);
+            applyTheme(updated);
+        });
+
+        transition.ready.then(() => {
+            const clipPath = [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`
+            ];
+            
+            document.documentElement.animate(
+                {
+                    clipPath: clipPath,
+                },
+                {
+                    duration: 500,
+                    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                    pseudoElement: '::view-transition-new(root)',
+                }
+            );
+        });
+
+        transition.finished.then(() => {
+            document.documentElement.classList.remove('theme-transitioning');
+        });
+    };
+
+    const toggleTheme = async (e) => {
+        if (e && typeof e.clientX === 'number') {
+            window.lastClickX = e.clientX;
+            window.lastClickY = e.clientY;
+        }
+        const newMode = themeSettings.displayMode === 'dark' ? 'light' : 'dark';
+        updateThemeLocally({ displayMode: newMode });
+        
+        try {
+            const originalSetting = settings?.find(s => s.key === 'display_mode');
+            await API.patch('/settings/bulk', {
+                settings: [{
+                    key: 'display_mode',
+                    value: newMode,
+                    category: originalSetting?.category || 'Branding',
+                    type: originalSetting?.type || 'text'
+                }]
+            });
+            refreshTheme();
+        } catch (error) {
+            console.error('Error persisting theme change:', error);
+        }
     };
 
     return (
-        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme }}>
+        <ThemeContext.Provider value={{ themeSettings, updateThemeLocally, refreshTheme, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     );

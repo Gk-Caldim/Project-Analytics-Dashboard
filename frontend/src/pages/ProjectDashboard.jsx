@@ -25,6 +25,7 @@ import { staggerContainer } from '../utils/animations';
 const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
 const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
 import Modal from '../components/ui/Modal';
+import { useTheme } from '../contexts/ThemeContext';
 
 
 import { HotTable } from '@handsontable/react';
@@ -167,6 +168,7 @@ const getDiversePalette = () => [
 ];
 
 const ProjectTitleDashboard = () => {
+  const { themeSettings } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -1318,9 +1320,12 @@ const ProjectTitleDashboard = () => {
   // Handle back to project dashboard
   const handleBackToProjectDashboard = () => {
     setSearchParams(prev => {
-      prev.delete('submoduleId');
-      return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('submoduleId');
+      return next;
     });
+    // Also clear selectedProjectFileId from Redux to stay in sync
+    dispatch(setSelectedProjectFileId(null));
   };
 
   // Handle project selection
@@ -2917,7 +2922,7 @@ const ProjectTitleDashboard = () => {
     }
 
 
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || document.body.classList.contains('dark');
+    const isDark = themeSettings.displayMode === 'dark';
     const textColor = isDark ? '#FFFFFF' : '#1e293b';
     const secondaryTextColor = isDark ? '#FFFFFF' : '#475569';
     const borderColor = isDark ? '#46525E' : '#CBD5E1';
@@ -3025,7 +3030,7 @@ const ProjectTitleDashboard = () => {
         emphasis: { iconStyle: { borderColor: textColor } }
       },
       dataZoom: xLabels.length > 10 ? [
-        { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: '2%' },
+        { type: 'slider', show: true, start: 0, end: Math.max(20, Math.floor(1000 / xLabels.length)), bottom: 2, height: 20, borderColor: borderColor, fillerColor: isDark ? 'rgba(96,165,250,0.15)' : 'rgba(59,130,246,0.12)', handleStyle: { color: isDark ? '#60a5fa' : '#3b82f6' }, textStyle: { color: secondaryTextColor, fontSize: 9 } },
         { type: 'inside', start: 0, end: 100 }
       ] : [],
       legend: {
@@ -3033,7 +3038,8 @@ const ProjectTitleDashboard = () => {
         type: 'scroll',
         orient: isMaximized ? 'vertical' : 'horizontal',
         right: isMaximized ? '2%' : 'auto',
-        bottom: isMaximized ? 'auto' : 0,
+        // When the slider is visible (xLabels > 10), lift the legend above the slider
+        bottom: isMaximized ? 'auto' : (xLabels.length > 10 ? 28 : 2),
         left: isMaximized ? 'auto' : 'center',
         top: isMaximized ? 'middle' : 'auto',
         itemWidth: 12,
@@ -3046,7 +3052,11 @@ const ProjectTitleDashboard = () => {
       grid: {
         left: isMaximized ? '3%' : '8%',
         right: isMaximized ? '15%' : '5%',
-        bottom: xLabels.length > 12 ? '20%' : (chartType === 'bar-rotated' ? '18%' : '15%'),
+        // Reserve space for: slider (~20px) + legend (~22px) + axis labels
+        // When slider is active (>10 labels) we need more bottom room
+        bottom: xLabels.length > 10
+          ? (isMaximized ? '18%' : '28%')
+          : (xLabels.length > 5 ? (chartType === 'bar-rotated' ? '20%' : '18%') : '14%'),
         top: '15%',
         containLabel: true
       },
@@ -3058,11 +3068,16 @@ const ProjectTitleDashboard = () => {
         type: 'category',
         data: xLabels,
         axisLabel: {
-          interval: 0,
+          // 'auto' lets ECharts skip overlapping labels; force all only for small sets
+          interval: xLabels.length > 10 ? 'auto' : 0,
           rotate: xLabels.length > 5 ? (chartType === 'bar-rotated' ? 45 : 35) : 0,
           formatter: formatXAxisValue,
           fontSize: 10,
-          color: secondaryTextColor
+          color: secondaryTextColor,
+          // Prevent labels from spilling outside the chart boundary
+          hideOverlap: true,
+          overflow: 'truncate',
+          width: xLabels.length > 15 ? 70 : 90
         },
         axisLine: { lineStyle: { color: borderColor } }
       },
@@ -3116,6 +3131,7 @@ const ProjectTitleDashboard = () => {
                 color: textColor,
                 fontSize: 10,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -3148,7 +3164,8 @@ const ProjectTitleDashboard = () => {
                 position: 'top',
                 color: textColor,
                 fontSize: 10,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                hideOverlap: true
               }
             }
           ]
@@ -3278,6 +3295,7 @@ const ProjectTitleDashboard = () => {
                 color: textColor,
                 fontSize: 10,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -3324,6 +3342,7 @@ const ProjectTitleDashboard = () => {
                 color: textColor,
                 fontSize: 9,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 formatter: (p) => p.value !== 0 ? p.value : ''
               }
             }
@@ -3349,7 +3368,8 @@ const ProjectTitleDashboard = () => {
               label: {
                 show: true,
                 position: 'top',
-                fontSize: 10
+                fontSize: 10,
+                hideOverlap: true
               }
             }
           ]
@@ -3398,6 +3418,7 @@ const ProjectTitleDashboard = () => {
                 position: 'top',
                 formatter: (p) => p.value,
                 fontWeight: 'bold',
+                hideOverlap: true,
                 color: isDark ? '#34d399' : '#047857'
               }
             }
@@ -3433,6 +3454,7 @@ const ProjectTitleDashboard = () => {
               fontSize: 9,
               color: secondaryTextColor,
               fontWeight: 'bold',
+              hideOverlap: true,
               formatter: (p) => p.value > 0 ? p.value : ''
             }
           }))
@@ -3464,7 +3486,7 @@ const ProjectTitleDashboard = () => {
           }}
           theme="v5"
           option={option}
-          style={{ height: isMaximized ? '350px' : (chartType === 'pie' ? '250px' : '285px'), width: '100%' }}
+          style={{ height: 'calc(100% - 40px)', width: '100%' }}
           notMerge={true}
         />
       </div>
@@ -3786,6 +3808,7 @@ const ProjectTitleDashboard = () => {
         onClose={() => setShowExplanation(false)}
         title="AI Insights"
         size="2xl"
+        overlayClassName="!z-[11000]"
         footer={
           <button
             onClick={() => setShowExplanation(false)}
@@ -3945,7 +3968,7 @@ const ProjectTitleDashboard = () => {
                   className={`px-3 py-1.5 text-xs font-bold border rounded-md transition-colors flex items-center justify-center cursor-pointer ${
                     showAxisSelector === maximizedChart 
                       ? 'bg-blue-600 border-blue-600 text-white' 
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-350 dark:border-slate-650 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                   }`}
                 >
                   AXES CONFIG
@@ -3967,7 +3990,7 @@ const ProjectTitleDashboard = () => {
               <select
                 value={chartTypes[activeProject.id]?.[maximizedChart] || 'bar'}
                 onChange={(e) => handleChartTypeChange(maximizedChart, e.target.value)}
-                className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-350 dark:border-slate-650 rounded-md outline-none cursor-pointer"
+                className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-md outline-none cursor-pointer"
               >
                 <option value="bar">Bar Chart</option>
                 <option value="line">Line Chart</option>
@@ -4083,7 +4106,7 @@ const ProjectTitleDashboard = () => {
                         </thead>
                         <tbody>
                           {sortedEntries.slice(0, 10).map(([x, y]) => (
-                            <tr key={x} className="border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <tr key={x} className="border-b border-slate-100 dark:border-slate-800 last:border-0 bg-white dark:bg-slate-850 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                               <td className="p-3 text-slate-700 dark:text-slate-250 font-medium">{x}</td>
                               <td className="p-3 text-slate-900 dark:text-slate-100 font-extrabold text-[13px]">
                                 {isNumeric ? (Math.round(y * 100) / 100).toLocaleString() : y}
@@ -4130,7 +4153,7 @@ const ProjectTitleDashboard = () => {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="px-3.5 py-1.5 text-xs bg-emerald-650 hover:bg-emerald-700 text-white rounded-md font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Download size={14} /> Export CSV
                 </button>
@@ -5270,11 +5293,11 @@ const AxisSelectorModal = ({
     <div className="absolute top-full right-0 mt-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 z-[200] w-72">
       {!showPrompt ? (
         <>
-          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-705 pb-3">
+          <div className="flex justify-between items-center mb-4 border-b border-slate-100 dark:border-slate-700 pb-3">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Configure Axes</h3>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 text-xs w-6 h-6 rounded-md hover:bg-slate-105 dark:hover:bg-slate-700 flex items-center justify-center font-bold"
+              className="text-slate-400 hover:text-slate-500 dark:hover:text-slate-200 text-xs w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center font-bold"
             >
               ✕
             </button>
@@ -5315,12 +5338,20 @@ const AxisSelectorModal = ({
             </select>
           </div>
 
-          <button
-            onClick={handleApply}
-            className="w-full py-2.5 bg-blue-650 hover:bg-blue-750 text-white rounded-md text-xs font-bold transition-all shadow-sm cursor-pointer"
-          >
-            Apply Configuration
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2 bg-slate-150 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-md text-xs font-bold transition-colors cursor-pointer border border-slate-200 dark:border-transparent"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleApply}
+              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold transition-colors shadow-sm cursor-pointer"
+            >
+              Apply
+            </button>
+          </div>
         </>
       ) : (
         <div>
@@ -5352,7 +5383,7 @@ const AxisSelectorModal = ({
             </button>
             <button
               onClick={() => setShowPrompt(false)}
-              className="py-1.5 text-center text-[10px] font-bold text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 cursor-pointer"
+              className="py-1.5 text-center text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
             >
               ← Back to selection
             </button>
