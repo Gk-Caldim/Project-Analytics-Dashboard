@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import API from '../../utils/api';
 import SearchableDropdown from '../../components/SearchableDropdown';
+import Skeleton from '../../components/ui/skeleton';
 import { setActiveProjectName } from '../../store/slices/navSlice';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -1324,13 +1325,31 @@ const BudgetMaster = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                       {loading || isParsing ? (
-                        <tr>
-                          <td colSpan={visibleColumns.length + 1} className="py-24 text-center">
-                            <p className="text-base font-bold text-blue-600 animate-pulse">
-                              {isParsing ? 'Parsing data...' : 'Loading budget...'}
-                            </p>
-                          </td>
-                        </tr>
+                        Array.from({ length: 6 }).map((_, rIdx) => (
+                          <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                            {visibleColumns.map((col, cIdx) => {
+                              const widths = ['w-8', 'w-16', 'w-24', 'w-32', 'w-20', 'w-28'];
+                              const widthClass = widths[(rIdx + cIdx) % widths.length];
+
+                              if (col.type === 'status') {
+                                return (
+                                  <td key={col.id} className="py-4 px-6">
+                                    <Skeleton className="h-5 w-16 rounded" />
+                                  </td>
+                                );
+                              }
+                              const isNum = isMonetary(col.label) || col.label === 'Unit count';
+                              return (
+                                <td key={col.id} className={`py-4 px-6 ${isNum ? 'text-right flex justify-end' : ''}`}>
+                                  <Skeleton className={`h-4 ${widthClass}`} />
+                                </td>
+                              );
+                            })}
+                            <td className="py-4 px-6 text-center sticky right-0 bg-app-surface dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
+                              <Skeleton className="h-6 w-12 rounded mx-auto" />
+                            </td>
+                          </tr>
+                        ))
                       ) : paginatedData.length === 0 ? (
                         <tr>
                           <td colSpan={visibleColumns.length + 1} className="py-32 text-center">
@@ -2233,7 +2252,16 @@ const BudgetMaster = () => {
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                     {fetchingHistory ? (
-                      <tr><td colSpan={6} className="py-12 text-center text-slate-400 dark:text-slate-300">Loading history...</td></tr>
+                      Array.from({ length: 5 }).map((_, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                          <td className="py-4 px-6"><Skeleton className="h-4 w-28" /></td>
+                          <td className="py-4 px-6"><Skeleton className="h-5 w-16 rounded" /></td>
+                          <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
+                          <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
+                          <td className="py-4 px-6"><Skeleton className="h-4 w-32" /></td>
+                          <td className="py-4 px-6 text-center"><Skeleton className="h-6 w-16 rounded mx-auto" /></td>
+                        </tr>
+                      ))
                     ) : paginatedHistoryData.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-24">
@@ -2341,9 +2369,37 @@ const BudgetMaster = () => {
 
             <div className="app-modal-body flex-1 flex flex-col min-h-0 !overflow-hidden p-6 sm:p-8">
               {fetchingAudit ? (
-                <div className="flex items-center justify-center py-24">
-                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-                  <span className="ml-3 text-sm font-bold text-slate-400 dark:text-slate-500">Loading audit logs...</span>
+                <div className="overflow-hidden rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Index</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Timestamp</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Action</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Performed By</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Role</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Budget</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Rows</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Attachment</th>
+                        <th className="py-3 px-5 text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">Synced</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 animate-pulse">
+                      {[...Array(5)].map((_, i) => (
+                        <tr key={i} className="hover:bg-indigo-50/40 dark:hover:bg-slate-700/20 transition-colors">
+                          <td className="py-3 px-5 text-xs font-bold"><Skeleton className="h-4 w-4 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-28 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-5 w-16 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-24 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-20 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-24 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-8 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-32 rounded" /></td>
+                          <td className="py-3 px-5"><Skeleton className="h-4 w-12 rounded" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : auditLogs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">

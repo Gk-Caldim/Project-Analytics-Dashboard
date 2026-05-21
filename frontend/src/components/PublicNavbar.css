@@ -44,11 +44,6 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  transition: transform 0.3s ease;
-}
-
-.public-logo-area:hover .public-logo-wrapper {
-  transform: rotate(90deg);
 }
 
 .public-logo-svg {
@@ -85,7 +80,7 @@
   padding: 6px 2px;
 }
 
-.public-nav-link:hover, 
+.public-nav-link:hover,
 .public-nav-link.active {
   color: #2563EB;
 }
@@ -161,15 +156,15 @@
   .public-nav-inner {
     padding: 0 20px;
   }
-  
+
   .public-nav-right {
     gap: 16px;
   }
-  
+
   .public-nav-link {
     display: none;
   }
-  
+
   .public-logo-text {
     font-size: 15px;
   }

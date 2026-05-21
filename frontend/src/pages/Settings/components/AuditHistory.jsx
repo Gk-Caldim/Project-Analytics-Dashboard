@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import API from '../../../utils/api';
 import dayjs from 'dayjs';
+import Skeleton from '../../../components/ui/skeleton';
 
 const AuditHistory = () => {
   const [logs, setLogs] = useState([]);
@@ -60,9 +61,69 @@ const AuditHistory = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-accent" />
-        <p className="text-text-muted text-xs font-bold tracking-widest uppercase">Fetching immutable ledger...</p>
+      <div className="space-y-12 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56 rounded" />
+            <Skeleton className="h-4 w-96 max-w-full rounded" />
+          </div>
+          <Skeleton className="h-11 w-40 rounded-full" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-app-surface border border-border p-6 rounded-none">
+          <div className="md:col-span-2">
+            <Skeleton className="h-11 w-full rounded" />
+          </div>
+          <div>
+            <Skeleton className="h-11 w-full rounded" />
+          </div>
+          <Skeleton className="h-11 w-full rounded-full" />
+        </div>
+
+        <div className="bg-app-surface border border-border rounded-none overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-app-panel border-b border-border">
+                  <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Timestamp</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Principal</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Operation</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest">Module</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-text-muted uppercase tracking-widest text-right">Identifier</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={idx} className="hover:bg-app-panel transition-colors">
+                    <td className="px-8 py-5">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-24 rounded" />
+                        <Skeleton className="h-3 w-16 rounded" />
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded shrink-0" />
+                        <Skeleton className="h-4 w-28 rounded" />
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <Skeleton className="h-6 w-24 rounded" />
+                    </td>
+                    <td className="px-8 py-5">
+                      <Skeleton className="h-4 w-16 rounded" />
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end">
+                        <Skeleton className="h-6 w-16 rounded" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     );
   }
