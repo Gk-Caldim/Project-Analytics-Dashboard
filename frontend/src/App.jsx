@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -43,12 +43,13 @@ const CalendarPage = React.lazy(() => import('./pages/calendar/CalendarPage'));
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ConfirmProvider } from './hooks/use-confirm';
 import { Toaster, toast } from 'react-hot-toast';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Sparkles, X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
-import { setBranding, setExchangeRates } from './store/slices/navSlice';
+import { setBranding, setExchangeRates, setServerOnline } from './store/slices/navSlice';
 import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
 import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -127,12 +128,112 @@ const CustomToast = ({ t, toast }) => {
 };
 
 function App() {
+  return (
+    <ThemeProvider>
+      <Toaster
+        position="top-center"
+        containerStyle={{
+          top: '10px',
+        }}
+        toastOptions={{
+          duration: 3000,
+        }}
+      >
+        {(t) => <CustomToast t={t} toast={toast} />}
+      </Toaster>
+
+      <ConfirmProvider>
+        <ErrorBoundary>
+          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
+              <AppContent />
+            </React.Suspense>
+          </Router>
+        </ErrorBoundary>
+      </ConfirmProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const wsRef = React.useRef(null);
   const reconnectTimerRef = React.useRef(null);
+  const wasOffline = React.useRef(false);
+
+  // Selector to read if server is online
+  const isServerOnline = useSelector(state => state.nav.isServerOnline);
 
   // Initialize inactivity logout (30 minutes)
   useInactivityTimeout(30 * 60 * 1000);
+
+  // Poll healthz endpoint to track backend status
+  // - Every 30s when server is online (reduce log noise)
+  // - Every 10s when offline (faster recovery detection)
+  // - Skipped entirely when the browser tab is hidden
+  React.useEffect(() => {
+    let active = true;
+    let timer = null;
+
+    const checkHealth = async () => {
+      // Don't poll hidden tabs — saves requests when app is backgrounded
+      if (document.visibilityState === 'hidden') return;
+
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+        const healthUrl = apiBase.replace(/\/api\/?$/, '/healthz');
+        // Direct axios call to bypass Axios client instance interceptor retries
+        const res = await axios.get(healthUrl, { timeout: 3000 });
+        if (active) {
+          if (res.data && res.data.status === 'ok') {
+            dispatch(setServerOnline(true));
+          } else {
+            dispatch(setServerOnline(false));
+          }
+        }
+      } catch (err) {
+        if (active) {
+          dispatch(setServerOnline(false));
+        }
+      }
+    };
+
+    const scheduleNext = (online) => {
+      if (timer) clearInterval(timer);
+      // Poll less frequently when healthy, more aggressively when recovering
+      timer = setInterval(checkHealth, online ? 30000 : 10000);
+    };
+
+    // Run health check on mount, then start interval
+    checkHealth();
+    scheduleNext(true); // start with 30s interval; offline handler adjusts it
+
+    // When tab becomes visible again, run an immediate check
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') checkHealth();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      active = false;
+      if (timer) clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [dispatch]);
+
+  // Handle transition from offline to online (reload to cleanly re-mount all state)
+  React.useEffect(() => {
+    if (isServerOnline === false) {
+      wasOffline.current = true;
+    } else if (isServerOnline === true && wasOffline.current) {
+      wasOffline.current = false;
+      toast.success("Backend server connected! Syncing data...");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    }
+  }, [isServerOnline]);
 
   const { data: settings } = useQuery({
     queryKey: ['settings'],
@@ -141,6 +242,7 @@ function App() {
       return response.data || [];
     },
     staleTime: 5 * 60 * 1000,
+    enabled: isServerOnline === true,
   });
 
   const { data: exchangeRates } = useQuery({
@@ -150,6 +252,7 @@ function App() {
       return response.data || null;
     },
     staleTime: 5 * 60 * 1000,
+    enabled: isServerOnline === true,
   });
 
   React.useEffect(() => {
@@ -179,6 +282,19 @@ function App() {
   }, [exchangeRates, dispatch]);
 
   React.useEffect(() => {
+    // Only connect WebSocket if server is online
+    if (isServerOnline === false) {
+      if (wsRef.current) {
+        const socket = wsRef.current;
+        socket.onclose = null;
+        socket.onerror = null;
+        socket.onopen = null;
+        socket.close();
+        wsRef.current = null;
+      }
+      return;
+    }
+
     let retryDelay = 5000;
 
     const connectWebSocket = () => {
@@ -241,79 +357,85 @@ function App() {
         wsRef.current = null;
       }
     };
-  }, [dispatch]);
+  }, [isServerOnline, dispatch]);
+
+  const showBanner = isServerOnline === false && (location.pathname.startsWith('/dashboard') || location.pathname === '/login');
 
   return (
-    <ThemeProvider>
-      <Toaster
-        position="top-center"
-        containerStyle={{
-          top: '10px',
-        }}
-        toastOptions={{
-          duration: 3000,
-        }}
-      >
-        {(t) => <CustomToast t={t} toast={toast} />}
-      </Toaster>
+    <div className="flex flex-col h-screen overflow-hidden">
+      {showBanner && (
+        <div className="h-10 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 dark:border-amber-500/10 px-6 flex items-center justify-between text-amber-800 dark:text-amber-300 text-xs font-semibold z-[99999] backdrop-blur-md shrink-0 select-none animate-in fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
+            <span>Backend server is offline or starting up. Retrying connection...</span>
+          </div>
+          <button
+            onClick={() => {
+              const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+              const healthUrl = apiBase.replace(/\/api\/?$/, '/healthz');
+              axios.get(healthUrl, { timeout: 3000 }).then(res => {
+                if (res.data && res.data.status === 'ok') {
+                  dispatch(setServerOnline(true));
+                }
+              }).catch(() => {});
+            }}
+            className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 transition-all font-bold uppercase tracking-wider text-[10px] text-amber-700 dark:text-amber-300 cursor-pointer active:scale-95 border-0"
+          >
+            Retry Now
+          </button>
+        </div>
+      )}
+      <div className="flex-1 min-h-0 relative">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          >
+            <Route index element={<Navigate to="projects" replace />} />
+            <Route path="projects" element={<ProjectDashboard />} />
+            <Route path="trackers" element={<UploadTrackers />} />
+            <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
+            
+            <Route path="masters" element={<Navigate to="employees" replace />} />
+            <Route path="masters/employees" element={<EmployeeMaster />} />
+            <Route path="masters/project-master" element={<ProjectMaster />} />
+            <Route path="masters/budget-master" element={<BudgetMaster />} />
 
-      <ConfirmProvider>
-        <ErrorBoundary>
-          <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <React.Suspense fallback={<div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-[#0f1115]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                
-                <Route
-                  path="/dashboard"
-                  element={
-                    <PrivateRoute>
-                      <Dashboard />
-                    </PrivateRoute>
-                  }
-                >
-                  <Route index element={<Navigate to="projects" replace />} />
-                  <Route path="projects" element={<ProjectDashboard />} />
-                  <Route path="trackers" element={<UploadTrackers />} />
-                  <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
-                  
-                  <Route path="masters" element={<Navigate to="employees" replace />} />
-                  <Route path="masters/employees" element={<EmployeeMaster />} />
-                  <Route path="masters/project-master" element={<ProjectMaster />} />
-                  <Route path="masters/budget-master" element={<BudgetMaster />} />
+            <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
+            
+            <Route path="mom" element={<MeetingCapturePage />} />
+            <Route path="mom/view" element={<MOMViewPage />} />
+            <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
+            <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
+            <Route path="mom/legacy" element={<MOMModule />} />
+            <Route path="saved-moms" element={<SavedMOMsPage />} />
+            <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="meeting/:id" element={<MeetingDetailsPage />} />
+            <Route path="settings/*" element={<SystemSettings />} />
+          </Route>
 
-                  <Route path="masters/project-detail/:id" element={<ProjectDetail />} />
-                  
-                  <Route path="mom" element={<MeetingCapturePage />} />
-                  <Route path="mom/view" element={<MOMViewPage />} />
-                  <Route path="mom/view/:meetingId" element={<MOMViewPage />} />
-                  <Route path="mom/transcript-viewer" element={<TranscriptViewer />} />
-                  <Route path="mom/legacy" element={<MOMModule />} />
-                  <Route path="saved-moms" element={<SavedMOMsPage />} />
-                  <Route path="schedule-meeting" element={<ScheduleMeetingPremiumPage />} />
-                  <Route path="calendar" element={<CalendarPage />} />
-                  <Route path="meeting/:id" element={<MeetingDetailsPage />} />
-                  <Route path="settings/*" element={<SystemSettings />} />
-                </Route>
+          <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/enterprise" element={<EnterprisePage />} />
+          
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/meetings" element={<MeetingsPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
 
-                <Route path="/workspace-dashboard" element={<WorkspaceDashboard />} />
-                <Route path="/customers" element={<CustomersPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/enterprise" element={<EnterprisePage />} />
-                
-                <Route path="/analytics" element={<AnalyticsPage />} />
-                <Route path="/meetings" element={<MeetingsPage />} />
-                <Route path="/budget" element={<BudgetPage />} />
-                <Route path="/governance" element={<GovernancePage />} />
-
-                <Route path="/" element={<LandingPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </React.Suspense>
-          </Router>
-        </ErrorBoundary>
-      </ConfirmProvider>
-    </ThemeProvider>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </div>
+    </div>
   );
 }
 

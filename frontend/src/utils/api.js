@@ -21,7 +21,23 @@ API.interceptors.request.use((config) => {
 
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const { config } = error;
+    const isGetRequest = config && config.method && config.method.toLowerCase() === 'get';
+    const isNetworkError = !error.response;
+    const isTimeout = error.code === 'ECONNABORTED';
+
+    // Retry only GET requests on network/timeout errors up to 3 times
+    if ((isNetworkError || isTimeout) && isGetRequest && config) {
+      config.__retryCount = config.__retryCount || 0;
+      if (config.__retryCount < 3) {
+        config.__retryCount += 1;
+        console.warn(`[API] Retrying GET request ${config.url} (Attempt ${config.__retryCount}/3) due to: ${error.message}`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return API(config);
+      }
+    }
+
     if (error.response && error.response.status === 401) {
       sessionStorage.clear();
       window.location.href = '/login';

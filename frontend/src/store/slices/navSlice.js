@@ -22,7 +22,8 @@ const initialState = {
   chatHistory: JSON.parse(sessionStorage.getItem('chat_history')) || [],
   currentChatId: null,
   notifications: [],
-  unreadNotifications: 0
+  unreadNotifications: 0,
+  isServerOnline: true
 };
 
 const navSlice = createSlice({
@@ -205,6 +206,9 @@ const navSlice = createSlice({
         n.id === updated.id ? { ...n, ...updated } : n
       );
       state.unreadNotifications = state.notifications.filter(n => !n.is_read).length;
+    },
+    setServerOnline: (state, action) => {
+      state.isServerOnline = action.payload;
     }
   },
 });
@@ -243,7 +247,8 @@ export const {
   setChatHistory,
   setNotifications,
   markNotificationsRead,
-  updateNotification
+  updateNotification,
+  setServerOnline
 } = navSlice.actions;
 
 export const fetchNotifications = () => async (dispatch) => {

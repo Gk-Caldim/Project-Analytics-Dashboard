@@ -3084,3 +3084,823 @@
     transform: rotate(90deg) scale(1.2);
   }
 }
+
+
+/* ============================================================
+   MeetingCapturePage — Dark Theme Overrides
+   ============================================================ */
+
+/* ── Root ── */
+[data-theme='dark'] .mcp-root {
+  background: linear-gradient(135deg, #1E242B 0%, #1a2035 100%);
+  color: #e2e8f0;
+}
+
+/* ── Top Bar ── */
+[data-theme='dark'] .mcp-topbar {
+  background: rgba(35, 44, 54, 0.9);
+  border-bottom-color: #334155;
+  backdrop-filter: blur(12px);
+}
+
+[data-theme='dark'] .mcp-breadcrumb {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-bc-link {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-bc-link:hover {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-bc-sep {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-bc-current {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-save-status {
+  background: #232c36;
+  border-color: #334155;
+  color: #475569;
+}
+
+/* ── Stepper ── */
+[data-theme='dark'] .mcp-steps {
+  background: #232c36;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-step2-bubble {
+  background: #2d3a47;
+  border-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-step2-connector {
+  background: #334155;
+}
+
+[data-theme='dark'] .mcp-step2-label {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-step-num {
+  border-color: #334155;
+  background: #2d3a47;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-step-connector {
+  background: #334155;
+}
+
+/* ── Left Panel ── */
+[data-theme='dark'] .mcp-left-panel {
+  background: #232c36;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .mcp-input-pane {
+  background: #232c36;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .mcp-panel-divider {
+  background: #334155;
+}
+
+[data-theme='dark'] .mcp-section-label {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-gate-hint {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-lp-label {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-lp-required {
+  color: #0D9488;
+}
+
+/* ── Form Inputs (setup panel) ── */
+[data-theme='dark'] .mcp-lp-input,
+[data-theme='dark'] .mcp-lp-select,
+[data-theme='dark'] .mcp-session-title-input,
+[data-theme='dark'] .mcp-project-select-minimal {
+  background: #1a2230 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+[data-theme='dark'] .mcp-lp-input:focus,
+[data-theme='dark'] .mcp-lp-select:focus,
+[data-theme='dark'] .mcp-session-title-input:focus,
+[data-theme='dark'] .mcp-project-select-minimal:focus {
+  border-color: #0D9488 !important;
+  box-shadow: 0 0 0 2px rgba(13,148,136,0.12) !important;
+}
+
+[data-theme='dark'] .mcp-lp-input::placeholder,
+[data-theme='dark'] .mcp-session-title-input::placeholder {
+  color: #334155 !important;
+}
+
+[data-theme='dark'] .mcp-lp-hint {
+  color: #475569;
+}
+
+/* ── Session card ── */
+[data-theme='dark'] .mcp-session-card {
+  background: #1a2230;
+  border-color: #334155;
+}
+
+/* ── Tab bar (Upload / Record) ── */
+[data-theme='dark'] .mcp-tab-bar {
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-tab {
+  background: #1e293b;
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-tab.active {
+  background: #0D9488;
+  color: #fff;
+}
+
+[data-theme='dark'] .mcp-tab:not(.active):hover {
+  background: #2d3a47;
+}
+
+/* ── Dropzone ── */
+[data-theme='dark'] .mcp-dropzone {
+  background: rgba(13,148,136,0.06);
+  border-color: #0D9488;
+}
+
+[data-theme='dark'] .mcp-dropzone:hover {
+  background: rgba(13,148,136,0.12);
+}
+
+[data-theme='dark'] .mcp-dropzone.drag-over {
+  background: rgba(13,148,136,0.15);
+}
+
+[data-theme='dark'] .mcp-dropzone.mcp-dropzone-disabled {
+  background: #1a2230;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-dropzone-title {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-dropzone-subtitle {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-dropzone-icon-wrap {
+  background: rgba(13,148,136,0.10);
+  color: #0D9488;
+}
+
+/* ── Upload container ── */
+[data-theme='dark'] .mcp-upload-container {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-upload-container:hover,
+[data-theme='dark'] .mcp-upload-container.drag-active {
+  border-color: #3b82f6;
+  background: #1a2230;
+}
+
+[data-theme='dark'] .mcp-upload-container h2 {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-upload-container p {
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-upload-hints {
+  color: #334155;
+}
+
+/* ── File card ── */
+[data-theme='dark'] .mcp-file-card {
+  background: rgba(13,148,136,0.08);
+  border-color: rgba(13,148,136,0.3);
+}
+
+/* ── Upload progress ── */
+[data-theme='dark'] .mcp-upload-progress-filename {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .mcp-progress-track {
+  background: #334155;
+}
+
+/* ── Record zone ── */
+[data-theme='dark'] .mcp-record-zone {
+  background: #1a2230;
+}
+
+[data-theme='dark'] .mcp-record-timer {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-record-timer-display {
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-record-ring {
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-record-ring.active {
+  border-color: rgba(239,68,68,0.3);
+}
+
+[data-theme='dark'] .mcp-record-status {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-record-main-btn {
+  background: #1E40AF;
+}
+
+/* ── Control buttons ── */
+[data-theme='dark'] .mcp-ctrl-btn {
+  border-color: #334155;
+  background: #2d3a47;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-ctrl-btn:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .mcp-ctrl-btn.danger {
+  background: #232c36;
+  border-color: rgba(239,68,68,0.3);
+  color: #f87171;
+}
+
+[data-theme='dark'] .mcp-ctrl-btn.danger:hover {
+  background: rgba(239,68,68,0.08);
+}
+
+/* ── Manual textarea ── */
+[data-theme='dark'] .mcp-manual-textarea {
+  background: #1a2230;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-manual-textarea:focus {
+  border-color: #0D9488;
+}
+
+[data-theme='dark'] .mcp-manual-hint {
+  background: #1e293b;
+  border-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-paste-area {
+  background: #1a2230;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-paste-area:focus {
+  border-color: #3b82f6;
+}
+
+/* ── Live preview card ── */
+[data-theme='dark'] .mcp-live-preview-card {
+  background: #1a2230;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-live-preview-label {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-lp-key {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-lp-val {
+  color: #cbd5e1;
+}
+
+/* ── Mic error ── */
+[data-theme='dark'] .mcp-mic-error {
+  background: rgba(239,68,68,0.08);
+  border-color: rgba(239,68,68,0.2);
+  color: #f87171;
+}
+
+/* ── Right Panel ── */
+[data-theme='dark'] .mcp-right-panel {
+  background: #1e293b;
+}
+
+[data-theme='dark'] .mcp-rp-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-rp-header-title {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-rp-empty {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-rp-empty-text {
+  color: #334155;
+}
+
+/* ── Input card / Preview card ── */
+[data-theme='dark'] .mcp-input-card,
+[data-theme='dark'] .mcp-preview-card {
+  background: rgba(35,44,54,0.85);
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-input-card-header {
+  background: rgba(26,34,48,0.5);
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-input-card-title {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-preview-header {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-preview-title {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-preview-count {
+  color: #475569;
+}
+
+/* ── Intelligence / Summary headers ── */
+[data-theme='dark'] .mcp-intelligence-header {
+  background: #232c36;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-intelligence-header-title {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-summary-bar {
+  background: #232c36;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-generate-btn-inline:disabled {
+  background: #334155;
+  color: #475569;
+}
+
+/* ── Cleanup banner ── */
+[data-theme='dark'] .mcp-cleanup-banner {
+  background: rgba(245,158,11,0.08);
+  border-left-color: rgba(245,158,11,0.5);
+}
+
+[data-theme='dark'] .mcp-cleanup-btn {
+  border-color: rgba(245,158,11,0.4);
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .mcp-cleanup-btn:hover {
+  background: rgba(245,158,11,0.10);
+}
+
+/* ── Dialogue / Entry rows ── */
+[data-theme='dark'] .mcp-dialogue-card {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-entry-row {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-entry-row:hover {
+  border-color: #475569;
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.2);
+}
+
+[data-theme='dark'] .mcp-entry-text,
+[data-theme='dark'] .mcp-entry-text-editable {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-entry-text-editable:focus {
+  background: rgba(59,130,246,0.08);
+}
+
+[data-theme='dark'] .mcp-entry-time {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-delete-btn {
+  color: #334155;
+}
+
+/* ── Metadata ── */
+[data-theme='dark'] .mcp-metadata-label {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-metadata-value {
+  color: #cbd5e1;
+}
+
+/* ── Speaker sidebar ── */
+[data-theme='dark'] .mcp-speaker-sidebar {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-speaker-sidebar-header {
+  background: #1a2230;
+  border-bottom-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-speaker-item {
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-speaker-name {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-speaker-count {
+  background: #2d3a47;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-speaker-edit-btn {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-speaker-edit-btn:hover {
+  color: #3b82f6;
+}
+
+[data-theme='dark'] .mcp-speaker-rename-input {
+  color: #e2e8f0;
+}
+
+/* ── Roster ── */
+[data-theme='dark'] .mcp-roster {
+  background: rgba(35,44,54,0.85);
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-roster-header {
+  border-bottom-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-roster-item:hover {
+  background: #2d3a47;
+}
+
+[data-theme='dark'] .mcp-roster-name {
+  color: #cbd5e1;
+}
+
+/* ── Speaker confirmation ── */
+[data-theme='dark'] .mcp-sidebar-pane {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-sidebar-header {
+  background: #1a2230;
+  border-bottom-color: #334155;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-confirm-subtext {
+  background: #1a2230;
+  border-bottom-color: #334155;
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-speaker-row {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-speaker-row:hover {
+  background: #2d3a47;
+}
+
+[data-theme='dark'] .mcp-speaker-name-input {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-speaker-role-input {
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-participant-card {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-participant-name {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-participant-role {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-participant-badge {
+  background: #2d3a47;
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-confirm-footer {
+  background: #232c36;
+  border-top-color: #334155;
+}
+
+[data-theme='dark'] .mcp-btn-ghost {
+  background: transparent;
+  border-color: #334155;
+  color: #64748b;
+}
+
+[data-theme='dark'] .mcp-btn-ghost:hover {
+  background: #2d3a47;
+}
+
+[data-theme='dark'] .mcp-confirm-footer-caption {
+  color: #475569;
+}
+
+/* ── CTA bar ── */
+[data-theme='dark'] .mcp-cta-bar {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-cta-count {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-cta-info {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-generate-btn:disabled {
+  background: #334155;
+  color: #475569;
+}
+
+/* ── Empty preview states ── */
+[data-theme='dark'] .mcp-preview-empty-title,
+[data-theme='dark'] .mcp-empty-preview h3 {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-preview-empty-desc,
+[data-theme='dark'] .mcp-empty-preview p {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-hint-pill {
+  background: #2d3a47;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-add-row-btn {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-add-row-btn:hover {
+  color: #60a5fa;
+}
+
+/* ── Queue Panel ── */
+[data-theme='dark'] .mcp-queue-panel {
+  background: #1e293b;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .mcp-queue-header {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-queue-title {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-queue-count {
+  background: rgba(13,148,136,0.12);
+  border-color: rgba(13,148,136,0.25);
+  color: #14b8a6;
+}
+
+[data-theme='dark'] .mcp-queue-empty {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-queue-list::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+[data-theme='dark'] .mcp-queue-item {
+  background: #232c36;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .mcp-queue-item:hover {
+  border-color: rgba(13,148,136,0.35);
+  box-shadow: 0 2px 8px rgba(13,148,136,0.10);
+}
+
+[data-theme='dark'] .mcp-queue-item.active {
+  border-color: #0D9488;
+  background: rgba(13,148,136,0.08);
+}
+
+[data-theme='dark'] .mcp-queue-item.confirmed {
+  border-color: #10b981;
+  background: rgba(16,185,129,0.06);
+}
+
+[data-theme='dark'] .mcp-queue-item.duplicate {
+  border-color: #f59e0b;
+  background: rgba(245,158,11,0.06);
+}
+
+[data-theme='dark'] .mcp-qi-index {
+  background: #2d3a47;
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-qi-name {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .mcp-qi-remove {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-qi-remove:hover {
+  color: #f87171;
+  background: rgba(239,68,68,0.10);
+}
+
+[data-theme='dark'] .mcp-qi-lines,
+[data-theme='dark'] .mcp-qi-size,
+[data-theme='dark'] .mcp-qi-time {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-qi-import-btn {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.3);
+  color: #fbbf24;
+}
+
+[data-theme='dark'] .mcp-qi-import-btn:hover {
+  background: rgba(245,158,11,0.2);
+}
+
+/* ── Rename modal ── */
+[data-theme='dark'] .mcp-rename-modal {
+  background: rgba(0,0,0,0.55);
+}
+
+[data-theme='dark'] .mcp-rename-card {
+  background: #1e293b;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+
+[data-theme='dark'] .mcp-rename-title {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .mcp-rename-input {
+  background: #232c36;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .mcp-rename-input:focus {
+  border-color: #3b82f6;
+}
+
+[data-theme='dark'] .mcp-rename-cancel {
+  color: #64748b;
+}
+
+/* ── Merged summary ── */
+[data-theme='dark'] .mcp-merged-summary {
+  background: rgba(16,185,129,0.06);
+  border-color: rgba(16,185,129,0.2);
+}
+
+[data-theme='dark'] .mcp-merged-summary-title {
+  color: #34d399;
+}
+
+[data-theme='dark'] .mcp-merged-summary-stats span {
+  background: rgba(16,185,129,0.12);
+  color: #34d399;
+}
+
+/* ── Setup header & collapse button ── */
+[data-theme='dark'] .mcp-setup-header {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .mcp-setup-header-label {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-setup-collapse-btn {
+  color: #475569;
+}
+
+[data-theme='dark'] .mcp-setup-collapse-btn:hover {
+  background: #2d3a47;
+  color: #e2e8f0;
+}
+
+/* ── Collapsed panel ── */
+[data-theme='dark'] .mcp-left-collapsed {
+  background: #1e293b;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .mcp-left-collapsed:hover {
+  background: #232c36;
+}
+
+[data-theme='dark'] .mcp-setup-collapsed-handle {
+  color: #334155;
+}
+
+[data-theme='dark'] .mcp-left-collapsed:hover .mcp-setup-collapsed-handle {
+  color: #0D9488;
+}
+
+/* ── Speaker pills ── */
+[data-theme='dark'] .mcp-speaker-pill {
+  background: rgba(13,148,136,0.12);
+  color: #34d399;
+}
+
+/* ── Filler chip ── */
+[data-theme='dark'] .mcp-filler-chip {
+  background: rgba(245,158,11,0.12);
+  color: #fbbf24;
+}
+
+/* ── Rec indicator ── */
+[data-theme='dark'] .mcp-rec-timer {
+  color: #64748b;
+}
+
+/* ── Record status ── */
+[data-theme='dark'] .mcp-record-status {
+  color: #475569;
+}
+
+/* ── Input label ── */
+[data-theme='dark'] .mcp-input-label {
+  color: #64748b;
+}
+

@@ -807,3 +807,281 @@
 .date-picker-cell.muted {
   color: #d1d5db;
 }
+
+
+/* ============================================================
+   CalendarGrid — Dark Theme Overrides
+   ============================================================ */
+
+/* ── Container & background ── */
+[data-theme='dark'] .calendar-grid-container {
+  background-color: #232c36;
+}
+
+/* ── Header row ── */
+[data-theme='dark'] .grid-header-row {
+  background: #232c36;
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .time-gutter-header {
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .week-num-label {
+  color: #334155;
+}
+
+[data-theme='dark'] .day-column-header {
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .day-column-header:hover {
+  background-color: #2a3441;
+}
+
+[data-theme='dark'] .day-abbr {
+  color: #475569;
+}
+
+[data-theme='dark'] .day-column-header.today-active .day-abbr {
+  color: #60a5fa;
+}
+
+[data-theme='dark'] .day-number {
+  color: #cbd5e1;
+}
+
+/* ── Scrollbar ── */
+[data-theme='dark'] .grid-scroll-area {
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+
+[data-theme='dark'] .grid-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── Time gutter ── */
+[data-theme='dark'] .time-gutter {
+  background: #232c36;
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .hour-label {
+  color: #334155;
+}
+
+/* ── Grid columns ── */
+[data-theme='dark'] .grid-columns-container {
+  background: #232c36;
+}
+
+[data-theme='dark'] .grid-day-column {
+  border-right-color: #334155;
+}
+
+[data-theme='dark'] .grid-day-column:hover {
+  background: rgba(59,130,246,0.025);
+}
+
+[data-theme='dark'] .grid-day-column.today-highlight {
+  background-color: rgba(59,130,246,0.04);
+}
+
+/* ── Grid lines ── */
+[data-theme='dark'] .hour-line {
+  background-color: rgba(255,255,255,0.05);
+}
+
+[data-theme='dark'] .half-hour-line {
+  border-top-color: rgba(255,255,255,0.03);
+}
+
+/* ── Now indicator dot ── */
+[data-theme='dark'] .now-dot {
+  box-shadow: 0 0 0 2px #232c36, 0 0 0 3px rgba(234,67,53,0.3);
+}
+
+@keyframes now-pulse-dark {
+  0%, 100% { box-shadow: 0 0 0 2px #232c36, 0 0 0 3px rgba(234,67,53,0.3); }
+  50%       { box-shadow: 0 0 0 2px #232c36, 0 0 0 5px rgba(234,67,53,0.5); }
+}
+
+[data-theme='dark'] .now-dot {
+  animation: now-pulse-dark 2s ease-in-out infinite;
+}
+
+/* ── Month view ── */
+[data-theme='dark'] .month-cell {
+  background-color: #232c36;
+}
+
+[data-theme='dark'] .month-cell:hover {
+  background-color: #2a3441;
+}
+
+[data-theme='dark'] .month-cell.other-month {
+  background-color: #1e2730;
+}
+
+[data-theme='dark'] .month-date-num {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .month-cell.other-month .month-date-num {
+  color: #334155;
+}
+
+[data-theme='dark'] .month-date-num:hover:not(.today) {
+  background-color: #2d3a47;
+}
+
+/* ── Zoho quick-create popup ── */
+[data-theme='dark'] .zoho-quick-popup {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+}
+
+[data-theme='dark'] .zoho-popup-warning {
+  background: rgba(245,158,11,0.12);
+  color: #fbbf24;
+  border-bottom-color: rgba(245,158,11,0.2);
+}
+
+[data-theme='dark'] .zoho-popup-close {
+  color: #475569;
+}
+
+[data-theme='dark'] .zoho-popup-close:hover {
+  color: #94a3b8;
+}
+
+[data-theme='dark'] .zoho-icon {
+  color: #475569;
+}
+
+[data-theme='dark'] .zoho-title-input {
+  color: #e2e8f0;
+  border-bottom-color: #334155;
+  background: transparent;
+}
+
+[data-theme='dark'] .zoho-title-input:focus {
+  border-bottom-color: #3b82f6;
+}
+
+[data-theme='dark'] .zoho-title-input::placeholder {
+  color: #334155;
+}
+
+[data-theme='dark'] .zoho-attendee-container {
+  background: #1a2230;
+  border-color: #334155;
+}
+
+[data-theme='dark'] .zoho-attendee-chip {
+  background: #2d3a47;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .zoho-inline-input {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .zoho-datetime-box {
+  background: #2d3a47;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .zoho-datetime-box:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .zoho-arrow {
+  color: #475569;
+}
+
+[data-theme='dark'] .zoho-select-box {
+  background: #2d3a47;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .zoho-select-box:hover {
+  background: #334155;
+}
+
+[data-theme='dark'] .zoho-platform-dropdown {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+
+[data-theme='dark'] .zoho-dropdown-item {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .zoho-dropdown-item:hover {
+  background: #2d3a47;
+}
+
+[data-theme='dark'] .zoho-popup-footer {
+  border-top-color: #334155;
+}
+
+[data-theme='dark'] .zoho-color-popover {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+/* ── Time picker ── */
+[data-theme='dark'] .premium-time-picker-dropdown {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+}
+
+/* ── Date picker dropdown ── */
+[data-theme='dark'] .date-picker-dropdown {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+}
+
+[data-theme='dark'] .date-picker-month {
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] .date-picker-nav-btn {
+  color: #475569;
+}
+
+[data-theme='dark'] .date-picker-nav-btn:hover {
+  background: #2d3a47;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .weekday-label {
+  color: #334155;
+}
+
+[data-theme='dark'] .date-picker-cell {
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .date-picker-cell:hover {
+  background: #2d3a47;
+}
+
+[data-theme='dark'] .date-picker-cell.today {
+  color: #60a5fa;
+  box-shadow: inset 0 0 0 1px #3b82f6;
+}
+
+[data-theme='dark'] .date-picker-cell.muted {
+  color: #334155;
+}
+
+
