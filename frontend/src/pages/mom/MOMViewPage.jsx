@@ -64,7 +64,17 @@ const MOMViewPage = () => {
   const [activeHighlightIdx, setActiveHighlightIdx] = useState(0);
 
   const { meetingId: urlMeetingId } = useParams();
-  const effectiveMeetingId = urlMeetingId || meetingId;
+
+  const pathMeetingId = useMemo(() => {
+    const parts = window.location.pathname.split('/');
+    const viewIdx = parts.indexOf('view');
+    if (viewIdx !== -1 && parts[viewIdx + 1]) {
+      return parts[viewIdx + 1];
+    }
+    return null;
+  }, []);
+
+  const effectiveMeetingId = urlMeetingId || pathMeetingId || meetingId;
 
   const [loading, setLoading] = useState(false);
   const [localTranscript, setLocalTranscript] = useState([]);
@@ -73,23 +83,26 @@ const MOMViewPage = () => {
 
   // ── Dual-Layer Route Synchronization & Session Hydration Fallback ──
   useEffect(() => {
-    if (urlMeetingId) {
-      sessionStorage.setItem('active_meeting_id', urlMeetingId);
+    const resolvedId = urlMeetingId || pathMeetingId;
+    if (resolvedId) {
+      sessionStorage.setItem('active_meeting_id', resolvedId);
     } else {
-      const storedId = sessionStorage.getItem('active_meeting_id');
-      if (storedId) {
-        console.log('[MOMViewPage] Syncing URL with SessionStorage active ID:', storedId);
-        navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
-      } else if (meetingId) {
+      if (meetingId) {
         console.log('[MOMViewPage] Syncing URL with Redux active ID:', meetingId);
         navigate(`/dashboard/mom/view/${meetingId}`, { replace: true });
       } else {
-        console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
-        toast.error('No active meeting selected. Returning to dashboard.');
-        navigate('/dashboard/mom', { replace: true });
+        const storedId = sessionStorage.getItem('active_meeting_id');
+        if (storedId) {
+          console.log('[MOMViewPage] Syncing URL with SessionStorage active ID:', storedId);
+          navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
+        } else {
+          console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
+          toast.error('No active meeting selected. Returning to dashboard.');
+          navigate('/dashboard/mom', { replace: true });
+        }
       }
     }
-  }, [urlMeetingId, meetingId, navigate]);
+  }, [urlMeetingId, pathMeetingId, meetingId, navigate]);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -102,16 +115,16 @@ const MOMViewPage = () => {
     }).catch(() => { });
 
     // ── Debug: log the meetingId on mount ──
-    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| redux meetingId:', meetingId);
+    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| pathMeetingId:', pathMeetingId, '| redux meetingId:', meetingId);
 
-    // Hydrate if meetingId is provided in URL and Redux is empty or needs refresh
-    if (urlMeetingId && (!momData || momData.length === 0 || meetingId !== urlMeetingId)) {
+    // Hydrate if effectiveMeetingId is provided and Redux is empty or needs refresh
+    if (effectiveMeetingId && (!momData || momData.length === 0 || meetingId !== effectiveMeetingId)) {
       setLoading(true);
       
       Promise.all([
-        API.get(`/meetings/${urlMeetingId}`).catch(() => null),
-        API.get(`/mom/${urlMeetingId}`).catch(() => null),
-        API.get(`/mom/issues/${urlMeetingId}`).catch(() => null),
+        API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
       ])
         .then(([meetingRes, momRes, issuesRes]) => {
           console.log('[MOMViewPage] API responses:', {
@@ -167,7 +180,7 @@ const MOMViewPage = () => {
             ];
             console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
           } else {
-            console.warn('[MOMViewPage] No data found from any source for meetingId:', urlMeetingId);
+            console.warn('[MOMViewPage] No data found from any source for meetingId:', effectiveMeetingId);
           }
 
           if (finalRows.length > 0) {
@@ -202,7 +215,7 @@ const MOMViewPage = () => {
         })
         .finally(() => setLoading(false));
     }
-  }, [urlMeetingId, dispatch]);
+  }, [effectiveMeetingId, dispatch]);
 
 
   // ── Derive sections from momData ─────────────────────────────────────

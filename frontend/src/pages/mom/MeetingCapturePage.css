@@ -2961,15 +2961,21 @@
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
 }
 
-/* When collapsed: shrink to a clean, minimal 16px wide bar */
+/* When collapsed: shrink to a clean, minimal 36px wide bar */
 .mcp-left-collapsed {
-  width: 16px !important;
-  min-width: 16px !important;
+  width: 36px !important;
+  min-width: 36px !important;
   padding: 0 !important;
   overflow: hidden;
   background: #F8FAFC;
   border-right: 1px solid #E2E8F0;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 24px !important;
+  box-sizing: border-box;
 }
 
 .mcp-left-collapsed:hover {
@@ -2987,30 +2993,46 @@
 }
 
 /* Super-clean, vertical toggle button shown when collapsed */
-.mcp-setup-collapsed-handle {
-  width: 16px;
-  height: 100%;
+.mcp-setup-collapsed-handle-v2 {
+  width: 100%;
   border: none;
   background: transparent;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   cursor: pointer;
   padding: 0;
-  color: #94A3B8;
+  color: #64748B;
   transition: color 0.2s ease;
 }
 
-.mcp-setup-collapsed-handle .mcp-ribbon-arrow-icon {
+.mcp-setup-collapsed-handle-v2 .mcp-ribbon-arrow-icon {
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  margin-bottom: 20px;
 }
 
-.mcp-left-collapsed:hover .mcp-setup-collapsed-handle {
+.mcp-left-collapsed:hover .mcp-setup-collapsed-handle-v2 {
   color: #0D9488;
 }
 
 .mcp-left-collapsed:hover .mcp-ribbon-arrow-icon {
-  transform: scale(1.2);
+  transform: scale(1.2) translateY(2px);
+}
+
+.mcp-vertical-text {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.mcp-left-collapsed:hover .mcp-vertical-text {
+  opacity: 1;
 }
 
 /* Panel header inside expanded view */
@@ -3072,16 +3094,31 @@
     min-height: 36px !important;
     border-right: none;
     border-bottom: 1px solid #E2E8F0;
+    padding-top: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .mcp-setup-collapsed-handle {
-    width: 100%;
+  .mcp-setup-collapsed-handle-v2 {
+    width: auto;
     height: 36px;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
-  .mcp-setup-collapsed-handle .mcp-ribbon-arrow-icon {
+  .mcp-setup-collapsed-handle-v2 .mcp-ribbon-arrow-icon {
     transform: rotate(90deg);
+    margin-bottom: 0 !important;
   }
   .mcp-left-collapsed:hover .mcp-ribbon-arrow-icon {
     transform: rotate(90deg) scale(1.2);
+  }
+  .mcp-vertical-text {
+    writing-mode: horizontal-tb;
+    transform: none;
+    font-size: 11px;
+    letter-spacing: 0.08em;
   }
 }
 
@@ -3869,11 +3906,11 @@
   background: #232c36;
 }
 
-[data-theme='dark'] .mcp-setup-collapsed-handle {
+[data-theme='dark'] .mcp-setup-collapsed-handle-v2 {
   color: #334155;
 }
 
-[data-theme='dark'] .mcp-left-collapsed:hover .mcp-setup-collapsed-handle {
+[data-theme='dark'] .mcp-left-collapsed:hover .mcp-setup-collapsed-handle-v2 {
   color: #0D9488;
 }
 

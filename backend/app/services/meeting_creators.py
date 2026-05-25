@@ -8,7 +8,7 @@ class MeetingCreator(ABC):
     """Base class for creating meetings on different platforms"""
 
     @abstractmethod
-    def create_meeting(self, meeting_data):
+    def create_meeting(self, meeting_data: dict) -> dict:
         """Create meeting and return {join_url, meeting_code}"""
         pass
 
@@ -183,6 +183,109 @@ class MicrosoftTeamsCreator(MeetingCreator):
             "meeting_code": event_data.get("id"),
             "attendees_invited": True,
         }
+
+
+class ZoomMeetingCreator(MeetingCreator):
+    """
+    Create a Zoom meeting using Server-to-Server OAuth credentials.
+    Requires account_id, client_id, and client_secret to fetch a machine-to-machine token.
+    """
+
+    def __init__(self, account_id: str, client_id: str, client_secret: str):
+        self.account_id = account_id
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.zoom_api_base = "https://api.zoom.us/v2"
+
+    def _get_access_token(self) -> str:
+        """Fetch Server-to-Server OAuth access token from Zoom"""
+        import base64
+        if not self.account_id or not self.client_id or not self.client_secret:
+            raise Exception("Zoom Server-to-Server OAuth credentials (Account ID/Client ID/Secret) are missing")
+
+        token_url = "https://zoom.us/oauth/token"
+        params = {
+            "grant_type": "account_credentials",
+            "account_id": self.account_id
+        }
+        
+        # Base64 encode client_id:client_secret for Basic Auth
+        auth_str = f"{self.client_id}:{self.client_secret}"
+        b64_auth = base64.b64encode(auth_str.encode("utf-8")).decode("utf-8")
+        
+        headers = {
+            "Authorization": f"Basic {b64_auth}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        response = requests.post(token_url, params=params, headers=headers, timeout=10)
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch Zoom OAuth token: {response.text}")
+
+        return response.json()["access_token"]
+
+    def create_meeting(self, meeting_data: dict) -> dict:
+        access_token = self._get_access_token()
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json"
+        }
+
+        # ── Parse date/time robustly ──────────────────────────────────
+        time_str = meeting_data["time"]
+        try:
+            if "AM" in time_str.upper() or "PM" in time_str.upper():
+                dt_obj = datetime.strptime(
+                    f"{meeting_data['date']} {time_str}", "%Y-%m-%d %I:%M %p"
+                )
+            else:
+                dt_obj = datetime.strptime(
+                    f"{meeting_data['date']} {time_str}", "%Y-%m-%d %H:%M"
+                )
+        except ValueError:
+            dt_obj = datetime.fromisoformat(
+                f"{meeting_data['date']}T{time_str.split(' ')[0]}:00"
+            )
+
+        # Zoom expects ISO 8601 string format, e.g. "2026-05-28T10:00:00"
+        start_time_iso = dt_obj.strftime("%Y-%m-%dT%H:%M:%S")
+
+        payload = {
+            "topic": meeting_data.get("title", "Scheduled Meeting"),
+            "type": 2,  # Scheduled Meeting
+            "start_time": start_time_iso,
+            "duration": meeting_data.get("duration_minutes", 60),
+            "timezone": meeting_data.get("timezone_name", "UTC"),
+            "agenda": meeting_data.get("description", ""),
+            "settings": {
+                "join_before_host": True,
+                "jbh_time": 0,
+                "mute_upon_entry": True,
+                "waiting_room": False,
+                "host_video": True,
+                "participant_video": True,
+            }
+        }
+
+        # Use 'me' to create meeting under the credentials owner
+        response = requests.post(
+            f"{self.zoom_api_base}/users/me/meetings",
+            headers=headers,
+            json=payload,
+            timeout=10
+        )
+
+        if response.status_code != 201:
+            raise Exception(f"Failed to create Zoom meeting: {response.text}")
+
+        event_data = response.json()
+        
+        return {
+            "join_url": event_data.get("join_url"),
+            "meeting_code": str(event_data.get("id")),
+            "attendees_invited": True,
+        }
+
 
 
 

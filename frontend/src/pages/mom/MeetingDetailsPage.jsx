@@ -2444,7 +2444,7 @@ const MeetingDetailsPage = () => {
                     {meeting.mom_generated ? (
                       <div className="z-mom-done">
                         <Check size={16} /> <span>Document Generated</span>
-                        <button className="z-btn-ghost" onClick={() => navigate(`/mom/view/${id}`)}>View</button>
+                        <button className="z-btn-ghost" onClick={() => navigate(`/dashboard/mom/view/${id}`)}>View</button>
                       </div>
                     ) : (
                       <button className="z-btn-primary w-full" onClick={handleGenerateMOM} disabled={generatingMom}>

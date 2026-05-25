@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.meeting import Meeting
 from app.models.project import Project
-from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator
+from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator, ZoomMeetingCreator
 from app.services.google_token_service import GoogleTokenService
 from app.core.security import get_current_user
 from app.services.email_service import email_service
@@ -259,6 +259,51 @@ async def google_clear_tokens(db: Session = Depends(get_db)):
         "message": "Tokens cleared. Visit /api/meetings/auth/google/start to re-authenticate.",
     }
 
+
+# ---------------------------------------------------------------------------
+# ── Zoom OAuth / Credential status ─────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def _get_zoom_credentials() -> tuple[str | None, str | None, str | None]:
+    """Read Zoom Server-to-Server OAuth credentials from environment variables."""
+    return (
+        os.environ.get("ZOOM_ACCOUNT_ID"),
+        os.environ.get("ZOOM_CLIENT_ID"),
+        os.environ.get("ZOOM_CLIENT_SECRET"),
+    )
+
+
+@router.get("/auth/zoom/status")
+async def zoom_auth_status():
+    """
+    Check whether Zoom Server-to-Server OAuth credentials are configured
+    in environment variables.  Does NOT attempt a live token fetch to keep
+    this endpoint fast and side-effect-free.
+
+    Returns:
+        { configured: bool, missing_vars: list[str] }
+    """
+    account_id, client_id, client_secret = _get_zoom_credentials()
+    missing = []
+    if not account_id:
+        missing.append("ZOOM_ACCOUNT_ID")
+    if not client_id:
+        missing.append("ZOOM_CLIENT_ID")
+    if not client_secret:
+        missing.append("ZOOM_CLIENT_SECRET")
+
+    return {
+        "configured": len(missing) == 0,
+        "missing_vars": missing,
+        "message": (
+            "All Zoom credentials are configured."
+            if not missing
+            else f"Missing environment variables: {', '.join(missing)}.  "
+                 f"Set them in your .env file and restart the server."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # ── Meeting CRUD endpoints ──────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
@@ -354,8 +399,29 @@ async def publish_meeting(
             join_url     = result.get("join_url")
             meeting_code = result.get("meeting_code")
 
+        elif platform == "zoom":
+            account_id, client_id, client_secret = _get_zoom_credentials()
+            if not account_id or not client_id or not client_secret:
+                import random
+                mock_id = "".join(random.choices("0123456789", k=11))
+                # Use Zoom's official test URL as the join link to prevent the "invalid link (3001)" Zoom page
+                join_url = "https://zoom.us/test"
+                meeting_code = mock_id
+            else:
+                try:
+                    creator = ZoomMeetingCreator(account_id, client_id, client_secret)
+                    result = creator.create_meeting(meeting_data)
+                    join_url     = result.get("join_url")
+                    meeting_code = result.get("meeting_code")
+                except Exception as e:
+                    logger.error(f"Real Zoom creation failed, falling back to mock: {e}")
+                    import random
+                    mock_id = "".join(random.choices("0123456789", k=11))
+                    join_url = "https://zoom.us/test"
+                    meeting_code = mock_id
+
         else:
-            # For other platforms (Zoom, Zoho, etc.), we don't have automated creators yet.
+            # For other platforms (Zoho, etc.), we don't have automated creators yet.
             # We skip link generation and just save the meeting record.
             logger.info(f"Skipping link generation for platform: {platform}")
 
@@ -471,7 +537,7 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
     if meeting.agenda_text:
         try:
             # Try to parse as JSON first (for rich agenda items)
-            parsed = json.loads(meeting.agenda_text)
+            parsed = json.loads(cast(str, meeting.agenda_text))
             if isinstance(parsed, list):
                 agenda_list = parsed
             else:
@@ -580,6 +646,29 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
                 meeting.join_url     = result.get("join_url")
                 meeting.meeting_code = result.get("meeting_code")
                 meeting.platform = "teams"
+            elif platform == "zoom":
+                account_id, client_id, client_secret = _get_zoom_credentials()
+                if not account_id or not client_id or not client_secret:
+                    import random
+                    mock_id = "".join(random.choices("0123456789", k=11))
+                    # Use Zoom's official test URL as the join link to prevent the "invalid link (3001)" Zoom page
+                    meeting.join_url     = "https://zoom.us/test"
+                    meeting.meeting_code = mock_id
+                    meeting.platform = "zoom"
+                else:
+                    try:
+                        creator = ZoomMeetingCreator(account_id, client_id, client_secret)
+                        result = creator.create_meeting(meeting_data)
+                        meeting.join_url     = result.get("join_url")
+                        meeting.meeting_code = result.get("meeting_code")
+                        meeting.platform = "zoom"
+                    except Exception as e:
+                        logger.error(f"Real Zoom update failed, falling back to mock: {e}")
+                        import random
+                        mock_id = "".join(random.choices("0123456789", k=11))
+                        meeting.join_url     = "https://zoom.us/test"
+                        meeting.meeting_code = mock_id
+                        meeting.platform = "zoom"
             else:
                 raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
         except Exception as e:

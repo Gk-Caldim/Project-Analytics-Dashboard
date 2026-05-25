@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { Calendar, Clock, Video, MapPin, Users, ChevronDown, X, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Users, ChevronDown, X, AlertCircle, AlignLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import './CalendarGrid.css';
 import { EVENT_COLORS } from '../../constants';
@@ -157,9 +157,18 @@ const MicrosoftLogo = () => (
   </svg>
 );
 
+const ZoomLogo = () => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#2D8CFF"/>
+    <path d="M6 8.5C6 7.67157 6.67157 7 7.5 7H13.5C14.3284 7 15 7.67157 15 8.5V15.5C15 16.3284 14.3284 17 13.5 17H7.5C6.67157 17 6 16.3284 6 15.5V8.5Z" fill="white"/>
+    <path d="M16 10.2L18.4 8.4C18.7 8.2 19 8.4 19 8.7V15.3C19 15.6 18.7 15.8 18.4 15.6L16 13.8V10.2Z" fill="white"/>
+  </svg>
+);
+
 const PLATFORMS = [
   { id: 'meet', name: 'Google Meet', icon: <GoogleLogo /> },
-  { id: 'teams', name: 'Microsoft Teams', icon: <MicrosoftLogo /> }
+  { id: 'teams', name: 'Microsoft Teams', icon: <MicrosoftLogo /> },
+  { id: 'zoom', name: 'Zoom Meeting', icon: <ZoomLogo /> }
 ];
 
 
@@ -176,6 +185,7 @@ const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }
   const [attendeeInput, setAttendeeInput] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState(PLATFORMS[0]);
   const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
+  const [agenda, setAgenda] = useState('');
   
   // UI States
   const [activePicker, setActivePicker] = useState(null); // 'date', 'startTime', 'endTime', 'platform', 'color'
@@ -198,7 +208,8 @@ const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }
       endTime, 
       platform: selectedPlatform.id,
       attendees,
-      color: eventColor
+      color: eventColor,
+      agenda: agenda.trim()
     });
   };
 
@@ -358,27 +369,43 @@ const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }
                     initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
                     className="zoho-platform-dropdown"
                   >
-                    {PLATFORMS.map(p => (
-                      <div 
-                        key={p.id} 
-                        className="zoho-dropdown-item"
-                        onClick={() => { setSelectedPlatform(p); setActivePicker(null); }}
-                      >
-                        {p.icon}
-                        <span>{p.name}</span>
-                      </div>
-                    ))}
+                    {PLATFORMS.map(p => {
+                      return (
+                        <div 
+                          key={p.id} 
+                           className="zoho-dropdown-item"
+                          onClick={() => { setSelectedPlatform(p); setActivePicker(null); }}
+                        >
+                          {p.icon}
+                          <span>{p.name}</span>
+                        </div>
+                      );
+                    })}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
         </div>
+
+        {/* Agenda Row */}
+        <div className="zoho-row items-start">
+          <div className="zoho-icon-col pt-1"><AlignLeft size={18} className="zoho-icon" /></div>
+          <div className="zoho-input-col">
+            <textarea
+              className="zoho-agenda-textarea"
+              placeholder="Add agenda or description..."
+              value={agenda}
+              onChange={(e) => setAgenda(e.target.value)}
+              rows={2}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="zoho-popup-footer">
         <button className="zoho-btn-save" onClick={handleSave} disabled={!title.trim()}>Save</button>
-        <button className="zoho-btn-more" onClick={() => onMoreOptions({ date, startTime, attendees })}>More Options</button>
+        <button className="zoho-btn-more" onClick={() => onMoreOptions({ date, startTime, attendees, agenda: agenda.trim() })}>More Options</button>
       </div>
     </motion.div>
   );

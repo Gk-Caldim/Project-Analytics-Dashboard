@@ -326,7 +326,6 @@ const CalendarPage = () => {
       toast.error('Failed to delete meeting', { id: loadingToast });
     }
   };
-
   const handleQuickSave = async (title, quickData) => {
     if (!title?.trim()) {
       toast.error('Please enter a title');
@@ -355,7 +354,7 @@ const CalendarPage = () => {
         duration_minutes: durationMin,
         platform: quickData.platform || 'meet',
         attendees: quickData.attendees || [],
-        agenda_text: 'Quickly scheduled from calendar.',
+        agenda_text: quickData.agenda || 'Quickly scheduled from calendar.',
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         // Bonus: inherit active project when user is viewing a project calendar
         project_id: activeCalendarFilter && activeCalendarFilter !== 'personal' ? activeCalendarFilter : null,

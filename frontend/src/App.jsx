@@ -359,10 +359,11 @@ function AppContent() {
     };
   }, [isServerOnline, dispatch]);
 
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname === '/workspace-dashboard';
   const showBanner = isServerOnline === false && (location.pathname.startsWith('/dashboard') || location.pathname === '/login');
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className={isDashboardRoute ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
       {showBanner && (
         <div className="h-10 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 dark:border-amber-500/10 px-6 flex items-center justify-between text-amber-800 dark:text-amber-300 text-xs font-semibold z-[99999] backdrop-blur-md shrink-0 select-none animate-in fade-in duration-300">
           <div className="flex items-center gap-2">

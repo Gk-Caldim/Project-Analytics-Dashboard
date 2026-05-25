@@ -841,8 +841,9 @@ const MeetingCapturePage = () => {
           {/* ── Collapsed Super-Clean Handle ── */}
           {!isSetupOpen && (
             <CollapsibleTrigger asChild>
-              <button className="mcp-setup-collapsed-handle" aria-label="Expand setup panel" title="Expand Setup Panel">
-                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" />
+              <button className="mcp-setup-collapsed-handle-v2" aria-label="Expand setup panel" title="Expand Setup Panel">
+                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" style={{ flexShrink: 0 }} />
+                <span className="mcp-vertical-text">SHOW SETUP</span>
               </button>
             </CollapsibleTrigger>
           )}

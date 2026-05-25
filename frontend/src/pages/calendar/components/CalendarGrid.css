@@ -669,6 +669,30 @@
   margin-top: 4px;
 }
 
+.zoho-agenda-textarea {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #374151;
+  font-family: var(--font-primary);
+  background-color: #f9fafb;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s, background-color 0.15s;
+  min-height: 48px;
+}
+
+.zoho-agenda-textarea:focus {
+  border-color: #2563eb;
+  background-color: #fff;
+}
+
+.zoho-agenda-textarea::placeholder {
+  color: #9ca3af;
+}
+
 /* 3-Column TimePicker (Premium Override) */
 .premium-time-picker-dropdown {
   width: 220px;
@@ -978,6 +1002,21 @@
 [data-theme='dark'] .zoho-attendee-container {
   background: #1a2230;
   border-color: #334155;
+}
+
+[data-theme='dark'] .zoho-agenda-textarea {
+  background: #1a2230;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .zoho-agenda-textarea:focus {
+  border-color: #3b82f6;
+  background: #1e293b;
+}
+
+[data-theme='dark'] .zoho-agenda-textarea::placeholder {
+  color: #475569;
 }
 
 [data-theme='dark'] .zoho-attendee-chip {

@@ -73,6 +73,14 @@ const MicrosoftLogo = () => (
   </svg>
 );
 
+const ZoomLogo = () => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#2D8CFF"/>
+    <path d="M6 8.5C6 7.67157 6.67157 7 7.5 7H13.5C14.3284 7 15 7.67157 15 8.5V15.5C15 16.3284 14.3284 17 13.5 17H7.5C6.67157 17 6 16.3284 6 15.5V8.5Z" fill="white"/>
+    <path d="M16 10.2L18.4 8.4C18.7 8.2 19 8.4 19 8.7V15.3C19 15.6 18.7 15.8 18.4 15.6L16 13.8V10.2Z" fill="white"/>
+  </svg>
+);
+
 const DatePopover = ({ selectedDate, onSelect, onClose }) => {
   const [viewDate, setViewDate] = useState(dayjs(selectedDate));
   
@@ -123,7 +131,8 @@ const DatePopover = ({ selectedDate, onSelect, onClose }) => {
 // --- Mock Platform & Defaults ---
 const PLATFORMS = [
   { id: 'meet', name: 'Google Meet', connected: true, icon: <GoogleLogo /> },
-  { id: 'teams', name: 'Microsoft Teams', connected: false, icon: <MicrosoftLogo /> }
+  { id: 'teams', name: 'Microsoft Teams', connected: false, icon: <MicrosoftLogo /> },
+  { id: 'zoom', name: 'Zoom Meeting', connected: true, icon: <ZoomLogo /> }
 ];
 
 
@@ -205,14 +214,19 @@ const ScheduleMeetingPremiumPage = () => {
   const [connectedPlatforms, setConnectedPlatforms] = useState(() => {
     try {
       const saved = localStorage.getItem('caldim_connected_platforms');
-      return saved ? JSON.parse(saved) : { meet: true, teams: false };
+      const parsed = saved ? JSON.parse(saved) : {};
+      return { meet: true, teams: false, zoom: false, ...parsed };
     } catch {
-      return { meet: true, teams: false };
+      return { meet: true, teams: false, zoom: false };
     }
   });
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
-  const [agenda, setAgenda] = useState([]);
+  const [agenda, setAgenda] = useState(() => {
+    const p = new URLSearchParams(location.search);
+    const urlAgenda = p.get('agenda');
+    return urlAgenda ? [urlAgenda] : [];
+  });
   const [timezone, setTimezone] = useState(new Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [reminder, setReminder] = useState(15);
   const [projectId, setProjectId] = useState('');
@@ -440,28 +454,31 @@ const ScheduleMeetingPremiumPage = () => {
     setEndTime(newEndTimeStr);
   };
 
+  const PLATFORM_NAMES = { meet: 'Google Meet', teams: 'Microsoft Teams', zoom: 'Zoom' };
+
   const handleConnectPlatform = (e, platformId) => {
     e.stopPropagation();
-    const toastId = toast.loading(`Connecting to ${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'}...`);
-    
+    const name = PLATFORM_NAMES[platformId] || platformId;
+    const toastId = toast.loading(`Connecting to ${name}...`);
     setTimeout(() => {
       setConnectedPlatforms(prev => {
         const next = { ...prev, [platformId]: true };
         localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
         return next;
       });
-      toast.success(`${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'} connected!`, { id: toastId });
+      toast.success(`${name} connected!`, { id: toastId });
     }, 1200);
   };
 
   const handleDisconnectPlatform = (e, platformId) => {
     e.stopPropagation();
+    const name = PLATFORM_NAMES[platformId] || platformId;
     setConnectedPlatforms(prev => {
       const next = { ...prev, [platformId]: false };
       localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
       return next;
     });
-    toast.success(`${platformId === 'teams' ? 'Microsoft Teams' : 'Google Meet'} disconnected.`);
+    toast.success(`${name} disconnected.`);
   };
 
   const handleCheckAvailability = () => {
@@ -513,9 +530,9 @@ const ScheduleMeetingPremiumPage = () => {
     setCustomInput('');
     setShowCustomInput(false);
   };
-
   const handlePublish = async () => {
     if (!isFormValid || isPublishing) return;
+
     setIsPublishing(true);
     const loadingToast = toast.loading(isEditMode ? 'Saving Changes...' : 'Sending Invites...');
     try {
