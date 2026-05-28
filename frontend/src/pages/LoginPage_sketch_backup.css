@@ -1,0 +1,467 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LoginPage.css — Bright Light Editorial Split-Screen Layout
+   Cohesive Vercel/Linear/Samsung developer-grade alignment.
+   - Background Canvas: #F4F1EA (Exact warm natural sketch paper tone)
+   - Left side: Heavy translucent overlay (98%) for ultra-crisp text readability.
+   - Right side: Clear transparent overlay (0% opacity) with object-fit contain,
+                 ensuring the illustration is never cropped or cut off, showing
+                 every detail in sharp, clear, natural charcoal strokes.
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap');
+
+/* ── ROOT SCREEN CANVAS ───────────────────────────────────────────── */
+.ws-login-root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #F4F1EA; /* Natural warm sketch paper backing */
+  color: #111111;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ── BACKGROUND IMAGE (z-index 0) ────────────────────────────────── */
+.ws-bg-image {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 65%; /* Takes up the right 65% of the screen */
+  height: 100%;
+  object-fit: contain; /* Ensures the drawing is never cropped or cut off! */
+  object-position: right center;
+  z-index: 0;
+  opacity: 1; /* Pure, crisp original illustration clarity */
+  pointer-events: none;
+  mix-blend-mode: multiply; /* Blends the light background seamlessly with the warm paper canvas */
+}
+
+/* ── GRADIENT OVERLAY (z-index 1) ────────────────────────────────── */
+/* Solid left (98%) to shield form fields. Clear right (0%) to let sketch render with 100% clarity */
+.ws-bg-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: 
+    /* Top vertical fade to prevent carded look */
+    linear-gradient(180deg, rgba(244, 241, 234, 1) 0%, rgba(244, 241, 234, 0) 15%),
+    /* Bottom vertical fade to prevent carded look */
+    linear-gradient(0deg, rgba(244, 241, 234, 1) 0%, rgba(244, 241, 234, 0) 15%),
+    /* Left horizontal fade */
+    linear-gradient(
+      90deg, 
+      rgba(244, 241, 234, 1) 0%, 
+      rgba(244, 241, 234, 0.98) 32%, 
+      rgba(244, 241, 234, 0.4) 65%, 
+      rgba(244, 241, 234, 0) 100%
+    );
+  pointer-events: none;
+}
+
+/* ── DOT GRID MATRIX (z-index 2) ─────────────────────────────────── */
+.ws-dot-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='2' cy='2' r='0.8' fill='%23111111'/%3E%3C/svg%3E");
+  opacity: 0.03; /* Soft charcoal micro-grids */
+  pointer-events: none;
+}
+
+/* ── FOREGROUND CONTENT (z-index 3) ──────────────────────────────── */
+.ws-foreground {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  box-sizing: border-box;
+}
+
+/* ── LEFT ZONE (420px Form Column) ───────────────────────────────── */
+.ws-left-zone {
+  width: 420px;
+  min-width: 420px;
+  height: 100vh;
+  padding: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  background: transparent;
+  border-right: 1px solid rgba(17, 17, 17, 0.03);
+}
+
+/* BRAND LOGO HEADER */
+.ws-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.ws-brand-icon {
+  display: flex;
+  align-items: center;
+  color: #111111;
+}
+
+.ws-brand-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(17, 17, 17, 0.6);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* MIDDLE FORM BLOCK - NO BACKGROUND / NO BORDERS */
+.ws-form-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin: auto 0;
+  width: 100%;
+}
+
+.ws-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 48px;
+  font-weight: 400;
+  color: #111111;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.ws-heading.ws-no-subtext {
+  margin-bottom: 28px;
+}
+
+.ws-subtext {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: #5C5A55; /* Warm pencil dark gray */
+  margin: 0 0 32px 0;
+  letter-spacing: 0.01em;
+}
+
+.ws-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ws-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ws-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #5C5A55;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ENTERPRISE OUTLINE FIELDS */
+.ws-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.75); /* Clean white tint over paper */
+  border: 1px solid #A6A39D; /* Soft pencil outline border */
+  border-radius: 3px;
+  color: #111111;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ws-input::placeholder {
+  color: #9A9790;
+}
+
+.ws-input:focus {
+  border-color: #111111; /* Graphite focus border */
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.05);
+}
+
+/* Autocomplete override to preserve warm white look */
+.ws-input:-webkit-autofill,
+.ws-input:-webkit-autofill:hover, 
+.ws-input:-webkit-autofill:focus, 
+.ws-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #111111 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* PASSWORD EYE ICON TOGGLE */
+.ws-pw-row {
+  position: relative;
+}
+
+.ws-pw-row .ws-input {
+  padding-right: 42px;
+}
+
+.ws-pw-eye {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9A9790;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.14s;
+}
+
+.ws-pw-eye:hover {
+  color: #111111;
+}
+
+/* OPTIONS ROW: Remember Me Checkbox & Gold link */
+.ws-form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.ws-remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5C5A55;
+  cursor: pointer;
+  user-select: none;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+}
+
+.ws-checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: #111111;
+  cursor: pointer;
+}
+
+.ws-link-gold {
+  color: #B5893D; /* Legible warm gold for light paper backings */
+  text-decoration: none;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  transition: color 0.14s;
+}
+
+.ws-link-gold:hover {
+  color: #8F6627;
+  text-decoration: underline;
+}
+
+/* ALERTS & ERROR FEEDBACK */
+.ws-error {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: #B91C1C;
+  background: #FEF2F2;
+  border: 1px solid #FEE2E2;
+  border-radius: 3px;
+  padding: 10px 12px;
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+.ws-success {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: #047857;
+  background: #F0FDF4;
+  border: 1px solid #DCFCE7;
+  border-radius: 3px;
+  padding: 10px 12px;
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+/* SOLID GRAPHITE SIGN IN BUTTON */
+.ws-submit {
+  width: 100%;
+  background: #111111; /* Enterprise graphite black */
+  color: #FFFFFF;
+  border: none;
+  border-radius: 2px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 14px;
+  cursor: pointer;
+  transition: background-color 0.16s, transform 0.1s;
+  box-shadow: none;
+}
+
+.ws-submit:hover:not(:disabled) {
+  background: #27272A;
+}
+
+.ws-submit:active:not(:disabled) {
+  transform: scale(0.995);
+}
+
+.ws-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* REQUEST DEMO ROW LINK */
+.ws-demo-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.ws-link-demo {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  color: #5C5A55;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.14s;
+}
+
+.ws-link-demo:hover {
+  color: #111111;
+  text-decoration: underline;
+}
+
+.ws-req-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: #111111;
+  margin: 0 0 4px 0;
+}
+
+/* SSL SECURITY FOOTER */
+.ws-trust {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9CA3AF;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  user-select: none;
+}
+
+.ws-trust-icon {
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+/* ── RIGHT ZONE (Flexible quote & trust area) ─────────────────────── */
+.ws-right-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* Bottom-aligned quote and trust */
+  padding: 64px;
+  padding-left: 80px;
+  box-sizing: border-box;
+}
+
+.ws-right-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 580px;
+}
+
+/* Playfair Pull-Quote */
+.ws-quote {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: #374151; /* Legible warm graphite charcoal */
+  border-left: 2px solid #B5893D; /* Gold quote line */
+  padding-left: 18px;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.01em;
+}
+
+/* CLIENT TRUST NAMES */
+.ws-trust-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-trust-by {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9CA3AF;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ws-clients {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4B4945; /* Warm dark client names */
+  letter-spacing: 0.1em;
+}
+
+.ws-dot {
+  color: rgba(17, 17, 17, 0.15);
+  user-select: none;
+  padding: 0 2px;
+}
+
+/* ── ADAPTIVE RESPONSIVENESS ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .ws-bg-image {
+    display: none; /* Hide sketch on smaller screens */
+  }
+
+  .ws-bg-overlay {
+    background: #F4F1EA; /* Pure warm paper baseline */
+  }
+
+  .ws-left-zone {
+    width: 100%;
+    min-width: 100%;
+    padding: 40px 24px;
+  }
+
+  .ws-right-zone {
+    display: none; /* Hide quotes and clients on tablet/mobiles */
+  }
+
+  .ws-heading {
+    font-size: 36px;
+  }
+}

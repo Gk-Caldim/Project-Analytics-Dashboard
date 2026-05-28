@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search, Repeat } from 'lucide-react';
 import { Textarea } from "../../components/ui/textarea";
 import { useConfirm } from "../../hooks/use-confirm";
 import {
@@ -233,6 +233,7 @@ const ScheduleMeetingPremiumPage = () => {
   const [projects, setProjects] = useState([]);
   const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
   const [description, setDescription] = useState('');
+  const [recurrence, setRecurrence] = useState('none');
 
   // Custom addition UI inputs
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -365,6 +366,33 @@ const ScheduleMeetingPremiumPage = () => {
     if (m === 0) return `${h} hr`;
     return `${h} hr ${m} min`;
   }, [startTime, endTime]);
+
+  const getOrdinal = (n) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+
+  const recurrenceOptions = useMemo(() => {
+    const d = dayjs(date);
+    const dayName = d.isValid() ? d.format('dddd') : 'day';
+    const dom = d.isValid() ? d.date() : 1;
+    const monthDay = d.isValid() ? d.format('MMMM D') : '';
+    
+    return [
+      { key: 'none',     label: 'Does not repeat' },
+      { key: 'daily',    label: 'Daily' },
+      { key: 'weekly',   label: `Weekly on ${dayName}` },
+      { key: 'weekday',  label: 'Every weekday (Monday - Friday)' },
+      { key: 'monthly',  label: `Monthly on the ${getOrdinal(dom)}` },
+      { key: 'yearly',   label: `Yearly on ${monthDay}` }
+    ];
+  }, [date]);
+
+  const recurrenceLabel = useMemo(() => {
+    const found = recurrenceOptions.find(o => o.key === recurrence);
+    return found ? found.label : 'Does not repeat';
+  }, [recurrence, recurrenceOptions]);
 
   // Dynamic Validation tracking
   const remainingFields = useMemo(() => {
@@ -541,7 +569,8 @@ const ScheduleMeetingPremiumPage = () => {
         duration_minutes: parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime),
         platform, attendees, agenda_text: agenda.join('\n'),
         timezone, project_id: projectId || null,
-        reminder_minutes: reminder, description, color: eventColor
+        reminder_minutes: reminder, description, color: eventColor,
+        recurrence
       };
       
       let response;
@@ -921,6 +950,32 @@ const ScheduleMeetingPremiumPage = () => {
                     <Globe size={13} />
                     <span>{timezone.split('/').pop().replace('_', ' ')} ({is24Hour ? '24h' : '12h'})</span>
                   </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                  <Repeat size={13} className="text-blue-600" />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        type="button"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer select-none"
+                      >
+                        {recurrenceLabel}
+                        <ChevronDown size={12} className="opacity-70" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-[200px] bg-white border border-slate-200 rounded-lg shadow-xl p-1 z-50">
+                      {recurrenceOptions.map(opt => (
+                        <DropdownMenuItem
+                          key={opt.key}
+                          onClick={() => setRecurrence(opt.key)}
+                          className="w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none text-slate-700 focus:bg-slate-50 focus:text-slate-900"
+                        >
+                          {opt.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </div>

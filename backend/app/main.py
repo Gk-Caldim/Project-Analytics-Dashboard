@@ -19,7 +19,7 @@ from app.middleware.logging_middleware import ForbiddenLoggingMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-import secure
+import secure  # type: ignore
 from app.core.limiter import limiter
 
 
@@ -52,7 +52,7 @@ from app.models.mom_sync_history import MomSyncHistory # noqa: F401
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.notification import Notification # noqa: F401
- # noqa: F401
+from app.models.password_reset_token import PasswordResetToken # noqa: F401
 
 # Import routers
 from app.api.auth import router as auth_router
@@ -76,14 +76,38 @@ from app.api.enterprise import router as enterprise_router
 from app.api.currency import router as currency_router
 from app.crud.role import seed_default_roles
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    db = next(get_db())
+    try:
+        seed_default_roles(db)
+        # ── Idempotent join_code migration ─────────────────────────────────
+        # Adds the join_code column + backfills existing projects if not done yet.
+        from app.scripts.join_code_migration import run_join_code_migration
+        run_join_code_migration(db)
+        
+        # ── Idempotent recurrence migration ───────────────────────────────
+        # Adds the recurrence columns to the meetings table if not done yet.
+        from app.scripts.recurrence_migration import run_recurrence_migration
+        run_recurrence_migration(db)
+        
+        # Start background procurement scheduler
+        from app.services.scheduler_service import init_scheduler
+        init_scheduler()
+    finally:
+        db.close()
+    yield
+
 app = FastAPI(
     title="Industrial Analytics Platform",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Add Rate Limiting state and handler
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 app.add_middleware(SlowAPIMiddleware)
 
 
@@ -128,7 +152,7 @@ def add_cors_headers(response: JSONResponse, request: Request):
         is_allowed = True
         
     if is_allowed:
-        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Origin"] = origin  # type: ignore
     else:
         response.headers["Access-Control-Allow-Origin"] = FRONTEND_URL
     
@@ -154,22 +178,7 @@ async def test_websocket_endpoint(websocket: WebSocket, client_id: str):
     except WebSocketDisconnect:
         logger.info(f"🔌 TEST WS DISCONNECTED: {client_id}")
 
-@app.on_event("startup")
-async def startup_event():
-    Base.metadata.create_all(bind=engine)
-    db = next(get_db())
-    try:
-        seed_default_roles(db)
-        # ── Idempotent join_code migration ─────────────────────────────────
-        # Adds the join_code column + backfills existing projects if not done yet.
-        from app.scripts.join_code_migration import run_join_code_migration
-        run_join_code_migration(db)
-        
-        # Start background procurement scheduler
-        from app.services.scheduler_service import init_scheduler
-        init_scheduler()
-    finally:
-        db.close()
+# Startup lifecycle is now fully managed by the lifespan context manager defined above.
 
 
 @app.exception_handler(RequestValidationError)

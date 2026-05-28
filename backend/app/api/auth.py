@@ -16,6 +16,7 @@ from app.models.user import User
 from app.models.role import Role # Import Role model
 from app.models.application_access import ApplicationAccess
 from app.models.access_request import AccessRequest
+from app.models.password_reset_token import PasswordResetToken
 from app.schemas.application_access import AccessRequestCreate, AccessRequestOut
 from typing import List
 
@@ -25,7 +26,7 @@ def get_user_login_response(db: Session, employee: Employee = None, access: Appl
     Helper to generate a consistent login response across different auth sources.
     Prioritizes Employee profile if available.
     """
-    if employee:
+    if employee is not None:
         user_role = db.query(Role).filter(Role.name == (employee.role or "User")).first()
         permissions = user_role.permissions if user_role else []
         
@@ -51,7 +52,7 @@ def get_user_login_response(db: Session, employee: Employee = None, access: Appl
             },
         }
     
-    if access:
+    if access is not None:
         access_token = create_access_token({
             "sub": f"access_{access.id}",
             "email": access.email,
@@ -71,7 +72,7 @@ def get_user_login_response(db: Session, employee: Employee = None, access: Appl
             },
         }
 
-    if user_obj:
+    if user_obj is not None:
         access_token = create_access_token({
             "sub": f"user_{user_obj.id}",
             "email": user_obj.email,
@@ -95,7 +96,7 @@ def get_user_login_response(db: Session, employee: Employee = None, access: Appl
     
     return None
 
-def safe_verify_password(password: str, hashed_password: str) -> bool:
+def safe_verify_password(password: str, hashed_password: str | None) -> bool:
     if not hashed_password:
         return False
     try:
@@ -163,22 +164,102 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
 
 # ---------- FORGOT PASSWORD ----------
 @router.post("/forgot-password")
-def forgot_password(data: dict, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def forgot_password(request: Request, data: dict, db: Session = Depends(get_db)):
+    import secrets
+    from datetime import datetime, timedelta, timezone
+    from app.core.config import FRONTEND_URL
+
     email = data.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
-        
+    
+    email_stripped = email.strip().lower()
+
     # Check if email exists in any of our user sources
-    exists = db.query(ApplicationAccess).filter(ApplicationAccess.email == email).first() or \
-             db.query(Employee).filter(Employee.email == email).first() or \
-             db.query(User).filter(User.email == email).first()
+    exists = db.query(ApplicationAccess).filter(ApplicationAccess.email == email_stripped).first() or \
+             db.query(Employee).filter(Employee.email == email_stripped).first() or \
+             db.query(User).filter(User.email == email_stripped).first()
              
     if not exists:
          raise HTTPException(status_code=404, detail="Email not found in our records")
          
-    # In a real app, we would send an email here. 
-    # For this prototype, we just return success to confirm "real-time" validation.
+    # Generate secure reset token
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
+
+    reset_token = PasswordResetToken(
+        email=email_stripped,
+        token=token,
+        expires_at=expires_at,
+        used=False
+    )
+    db.add(reset_token)
+    db.commit()
+
+    # Formulate reset link (fallback to localhost if FRONTEND_URL is not set)
+    frontend_base = FRONTEND_URL or "http://localhost:5173"
+    reset_link = f"{frontend_base.rstrip('/')}/reset-password?token={token}&email={email_stripped}"
+
+    # Print reset link to terminal for easy local testing
+    print("\n" + "="*80)
+    print(f"🔒 PASSWORD RESET LINK GENERATED FOR: {email_stripped}")
+    print(f"🔗 URL: {reset_link}")
+    print("="*80 + "\n")
+
+    # In a real app, we would send an email here.
     return {"message": "Reset link sent successfully"}
+
+# ---------- RESET PASSWORD ----------
+@router.post("/reset-password")
+@limiter.limit("5/minute")
+def reset_password(request: Request, data: dict, db: Session = Depends(get_db)):
+    from datetime import datetime, timezone
+    from app.core.security import hash_password
+
+    token = data.get("token")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not token or not email or not password:
+        raise HTTPException(status_code=400, detail="Token, email, and password are required")
+
+    email_stripped = email.strip().lower()
+
+    # Find the token record in database
+    token_record = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == token,
+        PasswordResetToken.email == email_stripped,
+        PasswordResetToken.used == False,
+        PasswordResetToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
+    ).first()
+
+    if not token_record:
+        raise HTTPException(status_code=400, detail="Invalid, expired, or already used reset token")
+
+    # Hash the new password
+    hashed_pw = hash_password(password)
+
+    # 1. Update ApplicationAccess table
+    access_record = db.query(ApplicationAccess).filter(ApplicationAccess.email == email_stripped).first()
+    if access_record:
+        access_record.hashed_password = hashed_pw
+
+    # 2. Update Employees table directly (legacy fallback)
+    employee_record = db.query(Employee).filter(Employee.email == email_stripped).first()
+    if employee_record:
+        employee_record.hashed_password = hashed_pw
+
+    # 3. Update User table (final fallback)
+    user_record = db.query(User).filter(User.email == email_stripped).first()
+    if user_record:
+        user_record.hashed_password = hashed_pw
+
+    # Mark the token as used
+    token_record.used = True
+    db.commit()
+
+    return {"message": "Password reset successfully"}
 
 # ---------- ME ----------
 @router.get("/me")

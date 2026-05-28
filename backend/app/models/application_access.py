@@ -6,9 +6,9 @@ from datetime import datetime
 class ApplicationAccess(Base):
     __tablename__ = "application_access"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=True)
-    email = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id: int = Column(Integer, primary_key=True, autoincrement=True)
+    employee_id: int | None = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=True)
+    email: str = Column(String, unique=True, nullable=False)
+    hashed_password: str = Column(String, nullable=False)
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)
+    updated_at: datetime = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

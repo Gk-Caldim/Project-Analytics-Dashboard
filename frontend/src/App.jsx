@@ -36,6 +36,7 @@ const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
 const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const CalendarPage = React.lazy(() => import('./pages/calendar/CalendarPage'));
@@ -389,6 +390,7 @@ function AppContent() {
       <div className="flex-1 min-h-0 relative">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           <Route
             path="/dashboard"
