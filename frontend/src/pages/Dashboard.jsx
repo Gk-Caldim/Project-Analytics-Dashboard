@@ -696,7 +696,8 @@ const Dashboard = () => {
     dispatch(setActiveView('dashboard'));
     dispatch(setActiveModule('upload-trackers'));
     dispatch(setSelectedUploadFileId(fileModule.trackerId));
-    navigate('/dashboard/trackers');
+    // Include ?file= so UploadTrackers URL-sync and breadcrumbs work correctly
+    navigate(`/dashboard/trackers?file=${encodeURIComponent(fileModule.trackerId)}`);
   };
 
   // ==========================================================================

@@ -1105,7 +1105,7 @@ const UploadTrackers = () => {
   };
 
   // ==========================================================================
-  // FIXED: Open file directly - Added API fallback and selection logic
+  // FIXED: Open file directly - Build fileData from { headers, data } response
   // ==========================================================================
   const openFileDirectly = async (trackerId) => {
     console.log('Opening file directly:', trackerId);
@@ -1122,10 +1122,41 @@ const UploadTrackers = () => {
     try {
       console.log('Fetching file data from API...');
       const response = await API.get(`/datasets/${trackerId}/excel-view`);
-      if (response.data && response.data.fileData) {
-        setSelectedFileContent(response.data.fileData);
+      const responseData = response.data;
+
+      // The API returns { headers, data } (same as showExcelViewer uses).
+      // Build the formattedFileData structure that FileContentViewer expects.
+      let formattedFileData = null;
+
+      if (responseData && responseData.fileData) {
+        // Already wrapped — use directly
+        formattedFileData = responseData.fileData;
+      } else if (responseData && (responseData.headers || responseData.data)) {
+        // Flat { headers, data } shape — wrap it (mirrors showExcelViewer logic)
+        const headers = responseData.headers || [];
+        const data = responseData.data || [];
+        formattedFileData = {
+          fileName: tracker.fileName,
+          headers,
+          data,
+          sheets: [{
+            name: 'Sheet1',
+            headers,
+            data,
+          }],
+        };
+      }
+
+      if (formattedFileData) {
+        setSelectedFileContent(formattedFileData);
         setSelectedFileTrackerInfo(tracker);
         setInitialFileLoaded(true);
+        // Update URL param so the breadcrumb and back-navigation work
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          next.set('file', String(trackerId));
+          return next;
+        });
         showNotification(`Opened file: ${getDisplayFileName(tracker.fileName, tracker.project)}`);
       } else {
         showNotification('File data not found on server.', 'error');
