@@ -1437,8 +1437,13 @@ const UploadTrackers = () => {
         <>
           {/* UPLOAD AREA */}
           <PermissionGuard permission="upload_tracker">
-            <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded p-4 sm:p-6 shadow-sm">
-              <div className="text-center">
+            <div className="mb-6">
+              <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-border dark:border-slate-800">
+                  <h2 className="text-base font-semibold text-text-primary dark:text-slate-100">Upload Your Trackers</h2>
+                </div>
+                <div className="p-4 sm:p-6">
+                  <div className="text-center">
                 <div
                   className="border-2 border-dashed border-border dark:border-slate-700 rounded-xl p-4 sm:p-8 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors bg-slate-50/30 dark:bg-slate-800/30"
                   onClick={openUploadModal}
@@ -1482,11 +1487,16 @@ const UploadTrackers = () => {
                 )}
               </div>
             </div>
+            </div>
+          </div>
           </PermissionGuard>
 
           {/* MAIN BORDER CONTAINER */}
           <PermissionGuard permission="view_tracker">
-            <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded mx-0 shadow-sm">
+            <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded mx-0 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border dark:border-slate-800">
+                <h2 className="text-base font-semibold text-text-primary dark:text-slate-100">History of Uploaded Trackers</h2>
+              </div>
 
               {/* TOOLBAR SECTION */}
               <div className="p-4 border-b border-border dark:border-slate-800">
