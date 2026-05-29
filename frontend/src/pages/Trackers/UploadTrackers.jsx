@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { setSelectedUploadFileId } from '../../store/slices/navSlice';
 import {
@@ -157,6 +157,7 @@ const capitalizeFirstLetter = (str) => {
 
 const UploadTrackers = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const loadingFileIdRef = useRef(null);
   const selectedFileId = useSelector(state => state.nav.selectedUploadFileId);
@@ -1105,7 +1106,10 @@ const UploadTrackers = () => {
   };
 
   // ==========================================================================
-  // FIXED: Open file directly - Build fileData from { headers, data } response
+  // Open file directly - fetches file content and shows it.
+  // NOTE: callers (eye click, filename click, sidebar click) are responsible
+  // for setting the ?file= URL param BEFORE calling openFileDirectly, so we
+  // must NOT call setSearchParams here or it creates duplicate history entries.
   // ==========================================================================
   const openFileDirectly = async (trackerId) => {
     console.log('Opening file directly:', trackerId);
@@ -1120,7 +1124,6 @@ const UploadTrackers = () => {
 
     setFetchingData(true);
     try {
-      console.log('Fetching file data from API...');
       const response = await API.get(`/datasets/${trackerId}/excel-view`);
       const responseData = response.data;
 
@@ -1151,12 +1154,9 @@ const UploadTrackers = () => {
         setSelectedFileContent(formattedFileData);
         setSelectedFileTrackerInfo(tracker);
         setInitialFileLoaded(true);
-        // Update URL param so the breadcrumb and back-navigation work
-        setSearchParams(prev => {
-          const next = new URLSearchParams(prev);
-          next.set('file', String(trackerId));
-          return next;
-        });
+        // ⚠️ Do NOT call setSearchParams here — the caller already set ?file=
+        // before triggering openFileDirectly. Calling it again pushes a
+        // duplicate history entry, breaking back/forward navigation.
         showNotification(`Opened file: ${getDisplayFileName(tracker.fileName, tracker.project)}`);
       } else {
         showNotification('File data not found on server.', 'error');
@@ -1419,34 +1419,14 @@ const UploadTrackers = () => {
           fileData={selectedFileContent}
           trackerInfo={selectedFileTrackerInfo}
           onBack={() => {
-            // ==========================================================================
-            // FIXED: Proper back navigation - Reset all states
-            // ==========================================================================
-            console.log('Back button clicked - navigating to parent module');
-
-            // Clear local state
-            setSelectedFileContent(null);
-            setSelectedFileTrackerInfo(null);
-            setInitialFileLoaded(false); // ← CRITICAL: Reset the flag
-
-            // Update URL without file parameter via React Router (triggers re-render)
-            setSearchParams(prev => {
-              const next = new URLSearchParams(prev);
-              next.delete('file');
-              return next;
-            });
-
-            // Call onClearSelection to notify parent Dashboard
-            if (onClearSelection) {
-              onClearSelection(); // This sets selectedUploadFileId to null in Dashboard
-            }
-
-            // Dispatch event as backup
-            window.dispatchEvent(new CustomEvent('returnToDashboard', {
-              detail: { from: 'uploadTrackers' }
-            }));
-
-            console.log('Back navigation complete - should show table view');
+            // Use the real browser history to go back.
+            // The previous history entry is /trackers (without ?file=) because:
+            //   - eye click pushed /trackers?file=X on top of /trackers
+            //   - sidebar click pushed /trackers?file=X on top of wherever the user was
+            // navigate(-1) goes to that previous entry, then the searchParams
+            // useEffect detects ?file is gone and clears selectedUploadFileId,
+            // and the selectedFileId effect clears local state (content, tracker info, flag).
+            navigate(-1);
           }}
           onSaveData={null}
           viewOnly={true}
