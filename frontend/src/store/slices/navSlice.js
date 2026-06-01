@@ -213,6 +213,34 @@ const navSlice = createSlice({
     },
     setCurrentMeetingTitle: (state, action) => {
       state.currentMeetingTitle = action.payload;
+    },
+    resetNavState: (state) => {
+      const navKeys = [
+        'active_module', 'expanded_modules', 'selected_upload_file_id',
+        'selected_project_file_id', 'active_project_name', 'navigation_history',
+        'chat_history', 'exchange_rates', 'active_view', 'company_logo',
+        'company_name', 'base_currency', 'sidebar_dashboard_limit',
+        'sidebar_dashboard_mode'
+      ];
+      navKeys.forEach(k => sessionStorage.removeItem(k));
+
+      state.activeModule = 'project-dashboard';
+      state.expandedModules = { 'project-dashboard': true, 'masters': false, 'upload-trackers': false };
+      state.selectedUploadFileId = null;
+      state.selectedProjectFileId = null;
+      state.activeProjectName = null;
+      state.navigationHistory = [];
+      state.chatHistory = [];
+      state.activeView = 'dashboard';
+      state.companyLogo = null;
+      state.companyName = 'Industrial Analytics Platform';
+      state.baseCurrency = 'USD ($)';
+      state.sidebarDashboardLimit = 10;
+      state.sidebarDashboardMode = 'custom';
+      state.exchangeRates = { 'USD': 1, 'INR': 95.43, 'EUR': 0.92 };
+      state.notifications = [];
+      state.unreadNotifications = 0;
+      state.currentMeetingTitle = null;
     }
   },
 });
@@ -253,7 +281,8 @@ export const {
   markNotificationsRead,
   updateNotification,
   setServerOnline,
-  setCurrentMeetingTitle
+  setCurrentMeetingTitle,
+  resetNavState
 } = navSlice.actions;
 
 export const fetchNotifications = () => async (dispatch) => {

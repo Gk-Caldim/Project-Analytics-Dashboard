@@ -40,6 +40,8 @@ API.interceptors.response.use(
 
     if (error.response && error.response.status === 401) {
       sessionStorage.clear();
+      localStorage.removeItem('project_dashboard_modules');
+      localStorage.removeItem('upload_tracker_modules');
       window.location.href = '/login';
     }
     return Promise.reject(error);

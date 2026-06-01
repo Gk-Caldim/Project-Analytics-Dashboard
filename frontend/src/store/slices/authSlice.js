@@ -55,4 +55,36 @@ export const refreshUserProfile = () => async (dispatch) => {
   }
 };
 
+/**
+ * Centralized logout thunk — resets all slices and clears every storage key written
+ * during a session. Pass the React Query queryClient instance to also clear the cache.
+ *
+ * Usage:
+ *   dispatch(performLogout(queryClient)); // with React Query cache clear
+ *   dispatch(performLogout());            // without (e.g. from AuthContext)
+ */
+export const performLogout = (queryClient) => async (dispatch) => {
+  // Lazy-import to avoid circular dependency at module evaluation time
+  const { resetNavState } = await import('./navSlice');
+  const { resetProjectState } = await import('./projectSlice');
+
+  // 1. Clear auth state + sessionStorage token/user
+  dispatch(logout());
+
+  // 2. Reset nav/sidebar state + all navSlice sessionStorage keys
+  dispatch(resetNavState());
+
+  // 3. Reset project state + projectSlice sessionStorage key
+  dispatch(resetProjectState());
+
+  // 4. Clear localStorage sidebar module caches (written by Dashboard.jsx)
+  localStorage.removeItem('project_dashboard_modules');
+  localStorage.removeItem('upload_tracker_modules');
+
+  // 5. Optionally clear React Query in-memory cache
+  if (queryClient && typeof queryClient.clear === 'function') {
+    queryClient.clear();
+  }
+};
+
 export default authSlice.reducer;

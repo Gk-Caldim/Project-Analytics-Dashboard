@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDispatch, useSelector } from 'react-redux';
 import ReactDOM from 'react-dom';
 import {
@@ -18,7 +18,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead
 } from '../store/slices/navSlice';
-import { logout } from '../store/slices/authSlice';
+import { logout, performLogout } from '../store/slices/authSlice';
 import Sidebar from '../components/Sidebar';
 import AgentView from './AgentView';
 import {
@@ -62,6 +62,7 @@ const Dashboard = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { themeSettings, toggleTheme } = useTheme();
+  const queryClient = useQueryClient();
 
   // Get state from Redux
   const user = useSelector(state => state.auth.user);
@@ -467,7 +468,7 @@ const Dashboard = () => {
   }, [profileMenuOpen]);
 
   const handleLogout = () => {
-    dispatch(logout());
+    dispatch(performLogout(queryClient));
     navigate('/login', { replace: true });
   };
 

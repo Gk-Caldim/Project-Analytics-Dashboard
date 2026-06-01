@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { setUser as setReduxUser } from '../store/slices/authSlice';
+import { setUser as setReduxUser, performLogout } from '../store/slices/authSlice';
 import API from '../utils/api';
 
 const AuthContext = createContext({});
@@ -76,8 +76,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
+    dispatch(performLogout());
     setUser(null);
     window.location.href = '/login';
   };
