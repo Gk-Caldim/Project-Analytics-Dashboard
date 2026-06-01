@@ -461,13 +461,18 @@ const ProjectTitleDashboard = () => {
       const response = await API.get('/projects/all/structures');
       return response.data;
     },
-    staleTime: 0,
+    // Align with Dashboard.jsx: use cached data on navigation to prevent empty flash.
+    // staleTime: 0 caused an immediate background refetch every time the ProjectDashboard
+    // mounted, leaving a window where projects appeared empty until the new fetch settled.
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
     if (!structuresData) return;
     try {
-      const structures = structuresData;
+      // Guard: if the API ever returns a non-array shape, forEach would throw a TypeError.
+      // Without this check the silent try-catch would swallow the error and leave projects empty.
+      const structures = Array.isArray(structuresData) ? structuresData : [];
 
         const newProjects = (() => {
           const uniqueProjectsMap = new Map();
@@ -535,14 +540,14 @@ const ProjectTitleDashboard = () => {
               existingProject.dbProjectId = struct.project_id;
             }
 
-            // Collect all submodules and uploads from all structures matching this name
-            existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
+            // Collect uploads from all structures matching this project name.
+            // NOTE: We do NOT spread struct.modules here. Raw API module objects have
+            // `module_name` (not `name`) and no `id` field. Spreading them into
+            // existingProject.submodules caused all undefined-id entries to collapse
+            // to a single junk entry via the Map dedup, while the structured entries
+            // added below (lines ~575-590) were still appended — creating noise.
+            // Structured submodules are built correctly in the flatModules block below.
             existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
-
-            // Deduplicate submodules by ID/Name using a Map for O(N) performance
-            const subMap = new Map();
-            existingProject.submodules.forEach(s => { if (!subMap.has(s.id)) subMap.set(s.id, s); });
-            existingProject.submodules = Array.from(subMap.values());
 
             // Deduplicate uploads by upload_id using a Map for O(N) performance
             const uploadMap = new Map();

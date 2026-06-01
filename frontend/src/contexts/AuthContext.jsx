@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     if (token) {
       validateToken();
     } else {
@@ -78,6 +78,9 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('keepMeSignedIn');
     setUser(null);
     window.location.href = '/login';
   };

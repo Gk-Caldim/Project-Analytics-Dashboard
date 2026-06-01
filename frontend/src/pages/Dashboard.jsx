@@ -186,24 +186,36 @@ const Dashboard = () => {
       const structures = Array.isArray(structuresData) ? structuresData : [];
       console.log('[Dashboard] dynamic modules processed:', structures.length);
 
+      // KEY FIX: Key the Map by normalized project NAME (not project_id).
+      // The API can return the same project name under multiple project_id values.
+      // Keying by project_id caused the sidebar to render one entry per project_id,
+      // resulting in duplicate project entries (e.g. TATA appearing twice).
+      // By keying on name we merge all uploads into one sidebar entry per project name.
       const dashProjectsMap = new Map();
 
       structures.forEach(struct => {
         if (!struct.project_id) return;
 
         const projectName = capitalizeFirstLetter(struct.project_name || 'Uncategorized');
-        const projectKey = struct.project_id;
+        // Use normalized name as map key so same-named projects merge into one sidebar entry
+        const projectKey = projectName;
+        const stableModuleId = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-        const projectModule = {
-          id: projectKey,
-          moduleId: `project-${projectKey}`,
-          dbProjectId: projectKey,
-          name: projectName,
-          projectName: projectName,
-          type: 'project',
-          context: 'project-dashboard',
-          submodules: []
-        };
+        // Create entry on first encounter; reuse on subsequent structs with same name
+        if (!dashProjectsMap.has(projectKey)) {
+          dashProjectsMap.set(projectKey, {
+            id: stableModuleId,
+            moduleId: `project-${stableModuleId}`,
+            dbProjectId: struct.project_id,
+            name: projectName,
+            projectName: projectName,
+            type: 'project',
+            context: 'project-dashboard',
+            submodules: []
+          });
+        }
+
+        const projectModule = dashProjectsMap.get(projectKey);
 
         // Only show uploaded tracker FILE names in the sidebar.
         // Do NOT use struct.modules — those contain row-level data (CCV, Intake, Exhaust, etc.)
@@ -215,12 +227,12 @@ const Dashboard = () => {
             const trackerName = fileName.replace(/\.[^/.]+$/, '');
             const trackerId = u.upload_id;
 
-            // Avoid duplicates
+            // Avoid duplicates across merged structs
             if (!projectModule.submodules.some(s => s.trackerId === trackerId)) {
               projectModule.submodules.push({
                 id: `tracker-file-${trackerId}`,
                 trackerId: trackerId,
-                dbProjectId: projectKey,
+                dbProjectId: struct.project_id,
                 name: trackerName,
                 displayName: trackerName,
                 type: 'tracker',
@@ -230,9 +242,6 @@ const Dashboard = () => {
             }
           });
         }
-
-
-        dashProjectsMap.set(projectKey, projectModule);
       });
 
       const finalList = Array.from(dashProjectsMap.values());

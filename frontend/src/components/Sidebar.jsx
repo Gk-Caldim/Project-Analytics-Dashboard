@@ -129,6 +129,7 @@ const Sidebar = ({
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
+                            key="project-dashboard-anim"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -165,19 +166,19 @@ const Sidebar = ({
                                                 return (
                                                     <div key={pm.id || idx} className="py-1">
                                                         <div
-                                                            className="flex items-center justify-between px-6 py-2 cursor-pointer group"
+                                                            className="sidebar-sub-item flex items-center justify-between w-full"
                                                             onClick={(e) => toggleModuleExpansion(uniqueId, e)}
                                                         >
-                                                            <span className="text-[13px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
+                                                            <span className="truncate font-medium">{pm.name}</span>
                                                             {pm.submodules?.length > 0 && (
-                                                                <div className="opacity-100 group-hover:opacity-100 transition-opacity">
-                                                                    {isProjExpanded ? <ChevronDown size={12} className="text-white/70" /> : <ChevronRight size={12} className="text-white/70" />}
+                                                                <div className="transition-opacity opacity-50 hover:opacity-100">
+                                                                    {isProjExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        {isProjExpanded && pm.submodules && (
-                                                            <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                                        {isProjExpanded && pm.submodules && pm.submodules.length > 0 && (
+                                                            <div className="sidebar-tree-container">
                                                                 {pm.submodules.map(fileModule => {
                                                                     const isSelected = isFileSelected(fileModule, 'project-dashboard');
                                                                     return (
@@ -241,6 +242,7 @@ const Sidebar = ({
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
+                            key="mom-anim"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -306,6 +308,7 @@ const Sidebar = ({
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
+                            key="project-dashboard-anim"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -358,6 +361,7 @@ const Sidebar = ({
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
+                            key="project-dashboard-anim"
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -381,20 +385,19 @@ const Sidebar = ({
                                     if (!pm.submodules || pm.submodules.length === 0) return null;
 
                                     return (
-                                        <div key={pm.id || idx} className="py-0.5">
+                                        <div key={pm.id || idx} className="py-1">
                                             <div
-                                                className="flex items-center justify-between px-6 py-1.5 cursor-pointer group"
+                                                className="sidebar-sub-item flex items-center justify-between w-full"
                                                 onClick={(e) => { e.stopPropagation(); toggleModuleExpansion(uniqueId, e); }}
                                             >
-                                                <span className="text-[11px] font-bold text-white/30 uppercase tracking-widest truncate">{pm.name}</span>
-                                                {isProjExpanded
-                                                    ? <ChevronDown size={11} className="text-white/50" />
-                                                    : <ChevronRight size={11} className="text-white/50" />
-                                                }
+                                                <span className="truncate font-medium">{pm.name}</span>
+                                                <div className="transition-opacity opacity-50 hover:opacity-100">
+                                                    {isProjExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                </div>
                                             </div>
 
-                                            {isProjExpanded && (
-                                                <div className="sidebar-tree-container ml-4 border-l border-white/5">
+                                            {isProjExpanded && pm.submodules && pm.submodules.length > 0 && (
+                                                <div className="sidebar-tree-container">
                                                     {pm.submodules.map(fileModule => {
                                                         const isSelected = isFileSelected(fileModule, 'upload-trackers');
                                                         return (

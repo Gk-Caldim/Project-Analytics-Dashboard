@@ -1,0 +1,435 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LoginPage.css — Enterprise Clean Design
+   Style: Minimal, light, centered-card. No gradients, no animations.
+   Palette: Page #f5f5f5 · Card #ffffff · Navy #0f1f3d · Gray text #6b7280
+   Font: Inter (Google Fonts), fallback system sans-serif
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── RESET & BASE ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── PAGE SHELL ───────────────────────────────────────────────────── */
+.ep-page {
+  min-height: 100vh;
+  width: 100%;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px 32px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #111827;
+}
+
+/* ── LOGO AREA (above card) ───────────────────────────────────────── */
+.ep-logo-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 28px;
+  user-select: none;
+}
+
+.ep-logo-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.ep-logo-sub {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+/* ── CARD ─────────────────────────────────────────────────────────── */
+.ep-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #c9cdd4;
+  border-radius: 10px;
+  padding: 44px 40px;
+}
+
+/* ── CARD HEADER ──────────────────────────────────────────────────── */
+.ep-card-header {
+  margin-bottom: 32px;
+}
+
+.ep-heading {
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 8px;
+  letter-spacing: -0.015em;
+}
+
+.ep-subtext {
+  font-size: 14px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+/* ── FORM ─────────────────────────────────────────────────────────── */
+.ep-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── FIELD ────────────────────────────────────────────────────────── */
+.ep-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ep-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── INPUT ────────────────────────────────────────────────────────── */
+.ep-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #b8bfc9;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ep-input::placeholder {
+  color: #9ca3af;
+}
+
+.ep-input:focus {
+  border-color: #0f1f3d;
+  box-shadow: 0 0 0 3px rgba(15, 31, 61, 0.08);
+}
+
+/* Password field has right padding for the eye button */
+.ep-input-pw {
+  padding-right: 44px;
+}
+
+/* ── INPUT WRAPPER (for password show/hide) ───────────────────────── */
+.ep-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Show/hide password toggle */
+.ep-pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.ep-pw-toggle:hover {
+  color: #374151;
+}
+
+/* ── OPTIONS ROW (checkbox + forgot link) ─────────────────────────── */
+.ep-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -4px;
+}
+
+.ep-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ep-checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #0f1f3d;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ep-link-muted {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f1f3d;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ep-link-muted:hover {
+  color: #162d5a;
+  text-decoration: underline;
+}
+
+/* ── ERROR / SUCCESS MESSAGES ─────────────────────────────────────── */
+.ep-error {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+.ep-success {
+  font-size: 13px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+/* ── PRIMARY BUTTON ───────────────────────────────────────────────── */
+.ep-btn {
+  width: 100%;
+  padding: 11px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  line-height: 1.4;
+}
+
+.ep-btn-primary {
+  background: #0f1f3d;
+  color: #ffffff;
+}
+
+.ep-btn-primary:hover:not(:disabled) {
+  background: #1a3260;
+}
+
+.ep-btn-primary:active:not(:disabled) {
+  background: #0a1629;
+}
+
+.ep-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── SECONDARY BUTTON (Microsoft SSO) ────────────────────────────── */
+.ep-btn-secondary {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #b8bfc9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.ep-btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Microsoft four-square logo */
+.ep-ms-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* ── DIVIDER ──────────────────────────────────────────────────────── */
+.ep-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+}
+
+.ep-divider::before,
+.ep-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.ep-divider-text {
+  font-size: 12px;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+/* ── CARD FOOTER TEXT (request access / sign in link) ────────────── */
+.ep-card-footer-text {
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.ep-link-inline {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  color: #0f1f3d;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.ep-link-inline:hover {
+  color: #162d5a;
+}
+
+/* ── PAGE FOOTER ──────────────────────────────────────────────────── */
+.ep-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.ep-footer-link {
+  font-size: 11px;
+  color: #9ca3af;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ep-footer-link:hover {
+  color: #6b7280;
+  text-decoration: underline;
+}
+
+/* Security link — contains inline icon, needs flex alignment */
+.ep-footer-link--security {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ep-footer-sep {
+  font-size: 11px;
+  color: #e5e7eb;
+}
+
+.ep-footer-copy {
+  font-size: 11px;
+  color: #c4c7ce;
+}
+
+/* ── AUTOFILL OVERRIDE (keep light field background on autofill) ─── */
+.ep-input:-webkit-autofill,
+.ep-input:-webkit-autofill:hover,
+.ep-input:-webkit-autofill:focus,
+.ep-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  border-color: #d1d5db !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── PASSWORD STRENGTH REQUIREMENTS ───────────────────────────────── */
+.ep-pw-requirements {
+  margin: 6px 0 10px 0;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.ep-requirements-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.ep-requirements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ep-requirements-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  transition: color 0.15s ease;
+}
+
+.ep-requirements-item.met {
+  color: #166534;
+}
+
+.ep-requirements-item.unmet {
+  color: #6b7280;
+}
+
+.ep-requirements-icon-met {
+  color: #166534;
+  flex-shrink: 0;
+}
+
+.ep-requirements-icon-unmet {
+  color: #b91c1c;
+  flex-shrink: 0;
+}
+
+/* ── RESPONSIVE ───────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .ep-card {
+    padding: 28px 20px;
+    border-radius: 8px;
+  }
+
+  .ep-page {
+    padding: 32px 12px 24px;
+    justify-content: flex-start;
+  }
+}

@@ -161,6 +161,79 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
+def _send_reset_email_background(email: str, reset_link: str):
+    import os
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    # Load SMTP settings
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    try:
+        smtp_port = int(os.getenv("SMTP_PORT", 587))
+    except ValueError:
+        smtp_port = 587
+    smtp_username = os.getenv("SMTP_USERNAME") or os.getenv("SMTP_USER")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+    sender_email = os.getenv("SENDER_EMAIL") or smtp_username
+
+    if not smtp_username or not smtp_password:
+        print("[SMTP] Warning: SMTP credentials are not configured in environment variables.")
+        return
+
+    # Construct email message
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "Password Reset - Industrial Analytics Dashboard"
+    message["From"] = sender_email
+    message["To"] = email
+
+    text_content = (
+        "Hello,\n\n"
+        "We received a request to reset your password. You can do so by clicking the link below:\n"
+        f"{reset_link}\n\n"
+        "This link will expire in 15 minutes.\n"
+        "If you did not request a password reset, please ignore this email.\n\n"
+        "Best regards,\n"
+        "Industrial Analytics Dashboard Team"
+    )
+
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px;">
+          <h2 style="color: #c8341a; border-bottom: 2px solid #c8341a; padding-bottom: 10px;">Password Reset Request</h2>
+          <p>Hello,</p>
+          <p>We received a request to reset the password for your account on the <strong>Industrial Analytics Dashboard</strong>.</p>
+          <p>You can reset your password by clicking the button below:</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background-color: #c8341a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Reset Password</a>
+          </p>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px;"><a href="{reset_link}">{reset_link}</a></p>
+          <p style="color: #666; font-size: 13px;">Please note: This link is valid for 15 minutes. If you did not make this request, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #999; text-align: center;">Industrial Analytics Workspace &copy; 2026</p>
+        </div>
+      </body>
+    </html>
+    """
+
+    message.attach(MIMEText(text_content, "plain"))
+    message.attach(MIMEText(html_content, "html"))
+
+    try:
+        # Establish connection
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(sender_email, email, message.as_string())
+        server.quit()
+        print(f"[SMTP] Success: Password reset email successfully sent to {email}")
+    except Exception as e:
+        print(f"[SMTP] Error: Failed to send reset email to {email} - {e}")
+
 
 # ---------- FORGOT PASSWORD ----------
 @router.post("/forgot-password")
@@ -173,16 +246,20 @@ def forgot_password(request: Request, data: dict, db: Session = Depends(get_db))
     email = data.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
-    
+
     email_stripped = email.strip().lower()
 
-    # Check if email exists in any of our user sources
-    exists = db.query(ApplicationAccess).filter(ApplicationAccess.email == email_stripped).first() or \
-             db.query(Employee).filter(Employee.email == email_stripped).first() or \
-             db.query(User).filter(User.email == email_stripped).first()
-             
+    # Always return the same message regardless of whether the email exists.
+    # This prevents email enumeration attacks (never reveal if an address is registered).
+    exists = (
+        db.query(ApplicationAccess).filter(ApplicationAccess.email == email_stripped).first()
+        or db.query(Employee).filter(Employee.email == email_stripped).first()
+        or db.query(User).filter(User.email == email_stripped).first()
+    )
+
+    # Silently return success if email is not found — no 404 exposed to the client.
     if not exists:
-         raise HTTPException(status_code=404, detail="Email not found in our records")
+        return {"message": "If that email exists in our system, a reset link has been sent."}
          
     # Generate secure reset token
     token = secrets.token_urlsafe(32)
@@ -197,18 +274,26 @@ def forgot_password(request: Request, data: dict, db: Session = Depends(get_db))
     db.add(reset_token)
     db.commit()
 
-    # Formulate reset link (fallback to localhost if FRONTEND_URL is not set)
+    # Build the reset URL
     frontend_base = FRONTEND_URL or "http://localhost:5173"
     reset_link = f"{frontend_base.rstrip('/')}/reset-password?token={token}&email={email_stripped}"
 
-    # Print reset link to terminal for easy local testing
+    # Always print to console as a fallback for local development
     print("\n" + "="*80)
-    print(f"🔒 PASSWORD RESET LINK GENERATED FOR: {email_stripped}")
-    print(f"🔗 URL: {reset_link}")
+    print(f"🔒 PASSWORD RESET LINK FOR: {email_stripped}")
+    print(f"🔗 {reset_link}")
     print("="*80 + "\n")
 
-    # In a real app, we would send an email here.
-    return {"message": "Reset link sent successfully"}
+    # Fire-and-forget: send the actual email in the background
+    import threading
+    thread = threading.Thread(
+        target=_send_reset_email_background,
+        args=(email_stripped, reset_link),
+        daemon=True
+    )
+    thread.start()
+
+    return {"message": "If that email is registered, a reset link has been sent."}
 
 # ---------- RESET PASSWORD ----------
 @router.post("/reset-password")
@@ -261,7 +346,72 @@ def reset_password(request: Request, data: dict, db: Session = Depends(get_db)):
 
     return {"message": "Password reset successfully"}
 
-# ---------- ME ----------
+# ---------- REFRESH TOKEN ----------
+@router.post("/refresh")
+@limiter.limit("10/minute")
+def refresh_token(request: Request, data: dict, db: Session = Depends(get_db)):
+    """
+    Exchange a valid refresh_token for a new access_token + rotated refresh_token.
+    The sub field encodes the same prefixes used at login:
+      - plain int  → Employee.id
+      - "access_N" → ApplicationAccess.id
+      - "user_N"   → User.id
+    Returns 401 if the token is missing, wrong type, expired, or user not found.
+    """
+    from jose import jwt, JWTError
+    from app.core.config import JWT_SECRET, JWT_ALGORITHM
+
+    incoming = data.get("refresh_token")
+    if not incoming:
+        raise HTTPException(status_code=400, detail="refresh_token is required")
+
+    try:
+        payload = jwt.decode(incoming, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type")
+
+    sub = str(payload.get("sub", ""))
+
+    # --- Resolve user by sub prefix (mirrors login logic) ---
+    if sub.startswith("access_"):
+        access_id = int(sub.split("_")[1])
+        access = db.query(ApplicationAccess).filter(ApplicationAccess.id == access_id).first()
+        if not access:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        employee = db.query(Employee).filter(Employee.id == access.employee_id).first() if access.employee_id else None
+        if not employee:
+            employee = db.query(Employee).filter(Employee.email == access.email).first()
+        response = get_user_login_response(db, employee=employee, access=access)
+
+    elif sub.startswith("user_"):
+        user_id = int(sub.split("_")[1])
+        user_obj = db.query(User).filter(User.id == user_id).first()
+        if not user_obj:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        employee = db.query(Employee).filter(
+            (Employee.email == user_obj.email) | (Employee.employee_id == user_obj.employee_id)
+        ).first()
+        response = get_user_login_response(db, employee=employee, user_obj=user_obj)
+
+    else:
+        try:
+            employee_id_int = int(sub)
+        except ValueError:
+            raise HTTPException(status_code=401, detail="Invalid token subject")
+        employee = db.query(Employee).filter(Employee.id == employee_id_int).first()
+        if not employee:
+            raise HTTPException(status_code=401, detail="User no longer exists")
+        response = get_user_login_response(db, employee=employee)
+
+    if not response:
+        raise HTTPException(status_code=401, detail="Could not build auth response")
+
+    return response
+
+
 @router.get("/me")
 def me(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
     sub = str(current_user["sub"])
