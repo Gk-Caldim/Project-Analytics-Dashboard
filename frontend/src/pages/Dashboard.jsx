@@ -370,6 +370,33 @@ const Dashboard = () => {
     else if (path.includes('/dashboard/settings')) dispatch(setActiveModule('system-settings'));
   }, [location.pathname, dispatch, mastersSubmodules, otherModules]);
 
+  // Sync Redux state when query params change (browser back/forward on same pathname).
+  // The pathname effect above only fires when the path changes; this handles cases like
+  // /trackers → /trackers?file=123 or /projects?projectId=X → /projects.
+  useEffect(() => {
+    const path = location.pathname;
+    const params = new URLSearchParams(location.search);
+
+    if (path.includes('/dashboard/trackers')) {
+      const fileId = params.get('file');
+      if (!fileId) {
+        // No file param → user navigated back to tracker list
+        dispatch(setSelectedUploadFileId(null));
+      }
+    }
+
+    if (path.includes('/dashboard/projects')) {
+      const submoduleId = params.get('submoduleId');
+      const projectId = params.get('projectId');
+      if (!submoduleId) {
+        dispatch(setSelectedProjectFileId(null));
+      }
+      if (!projectId) {
+        dispatch(setActiveProjectName(null));
+      }
+    }
+  }, [location.search, location.pathname, dispatch]);
+
   // DateTime
   useEffect(() => {
     const updateDateTime = () => {
@@ -697,7 +724,8 @@ const Dashboard = () => {
     dispatch(setActiveView('dashboard'));
     dispatch(setActiveModule('upload-trackers'));
     dispatch(setSelectedUploadFileId(fileModule.trackerId));
-    navigate('/dashboard/trackers');
+    // Include ?file= so UploadTrackers URL-sync and breadcrumbs work correctly
+    navigate(`/dashboard/trackers?file=${encodeURIComponent(fileModule.trackerId)}`);
   };
 
   // ==========================================================================
@@ -895,47 +923,9 @@ const Dashboard = () => {
             {/* Left - Title & Back Button */}
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => {
-                  if (activeView === 'agent') {
-                    dispatch(setActiveView('dashboard'));
-                  } else if (activeModule === 'project-dashboard') {
-                    const urlProjectId = searchParams.get('projectId');
-                    const urlSubmoduleId = searchParams.get('submoduleId');
-                    if (urlSubmoduleId) {
-                      // Submodule → Project dashboard: just remove submoduleId
-                      setSearchParams(prev => {
-                        const next = new URLSearchParams(prev);
-                        next.delete('submoduleId');
-                        return next;
-                      });
-                    } else if (urlProjectId) {
-                      // Project dashboard → Projects list: clear all params + Redux state
-                      setSearchParams({});
-                      dispatch(setSelectedProjectFileId(null));
-                      dispatch(setActiveProjectName(null));
-                      window.dispatchEvent(new CustomEvent('resetProjectDashboardMain'));
-                    } else {
-                      navigate(-1);
-                    }
-                  } else if (activeModule === 'upload-trackers') {
-                    const urlFileId = searchParams.get('file');
-                    if (urlFileId) {
-                      // File view → Tracker list: clear file param + Redux state
-                      setSearchParams(prev => {
-                        const next = new URLSearchParams(prev);
-                        next.delete('file');
-                        return next;
-                      });
-                      dispatch(setSelectedUploadFileId(null));
-                    } else {
-                      navigate(-1);
-                    }
-                  } else {
-                    navigate(-1);
-                  }
-                }}
+                onClick={() => navigate(-1)}
                 className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
-                title={activeView === 'agent' ? "Back to Dashboard" : "Go Back"}
+                title="Go Back"
               >
                 <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
               </button>
