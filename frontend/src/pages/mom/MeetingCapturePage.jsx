@@ -11,7 +11,8 @@ import {
   Upload, Mic, Edit3, ChevronRight, Home, Layout,
   Play, Square, Pause, X, Plus, Edit2, Check,
   FileText, Loader, AlertCircle, CheckCircle, Clock,
-  FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle
+  FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle,
+  Eye, EyeOff
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
@@ -284,7 +285,10 @@ const MeetingCapturePage = () => {
   const [projectId, setProjectId] = useState(searchParams.get('projectId') || '');
   const [projectName, setProjectName] = useState('');
   const reduxProjects = useSelector(s => s.project?.projects) || [];
-  const [projects, setProjects] = useState([]);
+  const [localProjects, setLocalProjects] = useState([]);
+  const projects = useMemo(() => {
+    return reduxProjects.length > 0 ? reduxProjects : localProjects;
+  }, [reduxProjects, localProjects]);
   const isProjectLinked = Boolean(projectId);
   const meetingId = useMemo(() => searchParams.get('id') || searchParams.get('meetingId') || 'unscheduled', [searchParams]);
 
@@ -294,6 +298,8 @@ const MeetingCapturePage = () => {
   const [transcripts, setTranscripts] = useState([]);
   const hasTranscripts = transcripts.length > 0;
   const [isSetupOpen, setIsSetupOpen] = useState(true);
+  const [hideFillers, setHideFillers] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
 
   useEffect(() => {
     if (hasTranscripts) {
@@ -355,22 +361,20 @@ const MeetingCapturePage = () => {
         // Set meeting title early but don't update state yet during render
         let titleToSet = '';
         const promises = [];
-        
+
         if (!(reduxProjects && reduxProjects.length > 0)) {
           promises.push(
             API.get('/projects/')
-              .then(r => setProjects(r.data?.projects || r.data || []))
+              .then(r => setLocalProjects(r.data?.projects || r.data || []))
               .catch(() => { })
           );
-        } else {
-          setProjects(reduxProjects);
         }
-        
+
         if (meetingId && meetingId !== 'unscheduled') {
           titleToSet = `Meeting #${meetingId}`;
           promises.push(
             API.get(`/transcript/${meetingId}`)
-              .then(r => { 
+              .then(r => {
                 if (r.data?.transcript_data) {
                   const existingEntries = r.data.transcript_data.map((e, i) => ({
                     ...e,
@@ -398,11 +402,11 @@ const MeetingCapturePage = () => {
               .catch(() => { })
           );
         }
-        
+
         if (promises.length > 0) {
           await Promise.all(promises);
         }
-        
+
         // Defer setState calls until after Promise.all completes
         if (titleToSet) {
           setMeetingTitle(titleToSet);
@@ -419,7 +423,7 @@ const MeetingCapturePage = () => {
   useEffect(() => {
     if (projectId && projects.length > 0) {
       // Find by either dbProjectId (integer) or id (slug/integer)
-      const p = projects.find(proj => 
+      const p = projects.find(proj =>
         String(proj.dbProjectId || proj.id || proj.project_id) === String(projectId)
       );
       if (p) setProjectName(p.name || p.project_name);
@@ -659,6 +663,28 @@ const MeetingCapturePage = () => {
       return;
     }
     setGenerating(true);
+    setGenProgress(13);
+
+    const progressInterval = setInterval(() => {
+      setGenProgress(prev => {
+        if (prev >= 95) return 95;
+        // Large jumps early, smaller as we get closer
+        const diff = 95 - prev;
+        const step = Math.max(1, Math.min(8, Math.floor(diff * 0.15 + Math.random() * 3)));
+        return Math.min(95, prev + step);
+      });
+    }, 450);
+
+    const finishSuccess = (destId) => {
+      clearInterval(progressInterval);
+      setGenProgress(100);
+      setTimeout(() => {
+        dispatch(setActiveModule('mom-module'));
+        setGenerating(false);
+        navigate(`/dashboard/mom/view/${destId}`);
+      }, 500);
+    };
+
     try {
       const payload = {
         transcript: dialogueEntries.map(e => ({
@@ -677,33 +703,53 @@ const MeetingCapturePage = () => {
         ];
         if (aiRows.length > 0) aiRows[0]._rawEntries = mergedEntries;
         dispatch(setMomData(aiRows));
+        
         if (aiRows.length === 0) {
           const fallback = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
           if (fallback.length > 0) {
             dispatch(setMomData(fallback));
-            dispatch(setActiveModule('mom-module'));
-            navigate(`/dashboard/mom/view/${meetingId}`);
+            try {
+              sessionStorage.setItem(`mom_rows_${meetingId}`, JSON.stringify(fallback));
+              sessionStorage.setItem(`mom_ctx_${meetingId}`, JSON.stringify({ meetingId, meetingName: meetingTitle, projectId, projectName }));
+            } catch (_e) { }
+            finishSuccess(meetingId);
             return;
           }
+          clearInterval(progressInterval);
+          setGenProgress(0);
           setGenError('Generation produced no content. Check transcript format.');
           setGenerating(false);
           return;
         }
         setGenError(null);
         const destId = resp.data.sync_id || resp.data.meeting_id || meetingId;
-        dispatch(setActiveModule('mom-module'));
-        navigate(`/dashboard/mom/view/${destId}`);
+        try {
+          sessionStorage.setItem(`mom_rows_${destId}`, JSON.stringify(aiRows));
+          sessionStorage.setItem(`mom_ctx_${destId}`, JSON.stringify({ meetingId: destId, meetingName: meetingTitle, projectId, projectName }));
+        } catch (_e) { }
+        finishSuccess(destId);
+      } else {
+        throw new Error('API returned unsuccessful response');
       }
     } catch (_) {
       const rows = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
       if (rows.length > 0) rows[0]._rawEntries = mergedEntries;
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
       dispatch(setMomData(rows));
-      if (rows.length === 0) { setGenError('Generation produced no content.'); setGenerating(false); return; }
+      if (rows.length === 0) {
+        clearInterval(progressInterval);
+        setGenProgress(0);
+        setGenError('Generation produced no content.');
+        setGenerating(false);
+        return;
+      }
       setGenError(null);
-      dispatch(setActiveModule('mom-module'));
-      navigate(`/dashboard/mom/view/${meetingId}`);
-    } finally { setGenerating(false); }
+      try {
+        sessionStorage.setItem(`mom_rows_${meetingId}`, JSON.stringify(rows));
+        sessionStorage.setItem(`mom_ctx_${meetingId}`, JSON.stringify({ meetingId, meetingName: meetingTitle, projectId, projectName }));
+      } catch (_e) { }
+      finishSuccess(meetingId);
+    }
   };
 
 
@@ -726,11 +772,7 @@ const MeetingCapturePage = () => {
     return (
       <div className="mcp-root mom-theme">
         {/* Top Bar Skeleton */}
-        <div className="mcp-topbar">
-          <nav className="mcp-breadcrumb">
-            <Skeleton className="h-5 w-44 rounded" />
-          </nav>
-        </div>
+        <div className="mcp-topbar" />
 
         {/* Steps Skeleton */}
         <div className="mcp-steps flex gap-4 items-center" style={{ margin: '16px 24px' }}>
@@ -795,28 +837,13 @@ const MeetingCapturePage = () => {
   return (
     <div className="mcp-root mom-theme">
       {/* ── Top Bar ── */}
-      <div className="mcp-topbar">
-        <nav className="mcp-breadcrumb">
-          <Link to="/dashboard" className="mcp-bc-link"><Home size={12} />Dashboard</Link>
-          <ChevronRight size={12} className="mcp-bc-sep" />
-          <span className="mcp-bc-current">Meeting Intelligence</span>
-        </nav>
-        {hasConfirmed && (
-          <button
-            className="mcp-generate-topbar-btn"
-            onClick={handleGenerate}
-            disabled={generating}
-          >
-            {generating ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</> : <><Sparkles size={14} /> Generate MOM</>}
-          </button>
-        )}
-      </div>
+      <div className="mcp-topbar" />
 
       {/* ── Progress Steps ── */}
       <div className="mcp-steps">
         {[
           { label: 'CAPTURE', done: hasTranscripts, active: !hasTranscripts },
-          { label: 'REVIEW',  done: hasConfirmed,   active: hasTranscripts && !hasConfirmed },
+          { label: 'REVIEW', done: hasConfirmed, active: hasTranscripts && !hasConfirmed },
           { label: 'GENERATE', done: false, active: hasConfirmed, locked: !hasConfirmed },
         ].map((step, i, arr) => (
           <React.Fragment key={step.label}>
@@ -841,8 +868,9 @@ const MeetingCapturePage = () => {
           {/* ── Collapsed Super-Clean Handle ── */}
           {!isSetupOpen && (
             <CollapsibleTrigger asChild>
-              <button className="mcp-setup-collapsed-handle" aria-label="Expand setup panel" title="Expand Setup Panel">
-                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" />
+              <button className="mcp-setup-collapsed-handle-v2" aria-label="Expand setup panel" title="Expand Setup Panel">
+                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" style={{ flexShrink: 0 }} />
+                <span className="mcp-vertical-text">SHOW SETUP</span>
               </button>
             </CollapsibleTrigger>
           )}
@@ -1004,14 +1032,44 @@ const MeetingCapturePage = () => {
                 ? activeTranscript.status === 'confirmed' ? `✓ ${activeTranscript.fileName}` : `REVIEWING · ${activeTranscript.fileName}`
                 : 'TRANSCRIPT REVIEW'}
             </span>
-            {activeTranscript && activeTranscript.status === 'reviewing' && (
-              <button
-                className="mcp-confirm-btn"
-                onClick={() => confirmTranscript(activeTranscript.id)}
-              >
-                <Check size={14} /> Confirm Transcript
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
+              {activeTranscript && activeTranscript.status === 'reviewing' && (
+                <button
+                  className="mcp-confirm-btn"
+                  onClick={() => confirmTranscript(activeTranscript.id)}
+                >
+                  <Check size={14} /> Confirm Transcript
+                </button>
+              )}
+              {hasConfirmed && (
+                <button
+                  className="mcp-generate-btn-rp"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#0D9488',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    boxShadow: '0 2px 4px rgba(13, 148, 136, 0.2)'
+                  }}
+                >
+                  {generating ? (
+                    <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</>
+                  ) : (
+                    <><Sparkles size={14} /> Generate MOM</>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Active transcript filler banner */}
@@ -1050,7 +1108,92 @@ const MeetingCapturePage = () => {
           })()}
 
           <div className="mcp-rp-body" ref={previewBodyRef}>
-            {!activeTranscript ? (
+            {generating ? (
+              <div className="mcp-ai-parsing-container" style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: '400px',
+                padding: '40px',
+                background: '#ffffff',
+                borderRadius: '16px',
+                textAlign: 'center',
+                height: '100%',
+                boxSizing: 'border-box'
+              }}>
+                {/* Visual Accent Pulsing Sparkles / Zoho style icon */}
+                <div style={{
+                  position: 'relative',
+                  marginBottom: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: '#F0FDFA',
+                  border: '1px solid #99F6E4',
+                  boxShadow: '0 8px 24px rgba(13, 148, 136, 0.08)'
+                }}>
+                  <Sparkles size={36} color="#0D9488" style={{
+                    animation: 'pulse 2s infinite ease-in-out'
+                  }} />
+                  <div style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    border: '2px solid #0D9488',
+                    opacity: 0.4,
+                    animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+                  }} />
+                </div>
+
+                {/* Parsing Stage Header */}
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  color: '#0F172A',
+                  marginBottom: '32px',
+                  letterSpacing: '-0.01em'
+                }}>
+                  AI parsing pipeline active
+                </h3>
+
+
+                {/* Custom Horizontal Progress track & fill */}
+                <div style={{
+                  width: '100%',
+                  maxWidth: '320px',
+                  position: 'relative'
+                }}>
+                  <div className="mcp-progress-track" style={{ height: '6px', background: '#F1F5F9' }}>
+                    <div className="mcp-progress-fill" style={{
+                      width: `${genProgress}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, #0D9488 0%, #06B6D4 100%)',
+                      transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }} />
+                  </div>
+                  
+                  {/* Floating badge showing actual simulated percentage */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: '12px'
+                  }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#0D9488', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      AI Parsing Stage
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
+                      {Math.round(genProgress)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : !activeTranscript ? (
               <div className="mcp-rp-empty">
                 <FileText size={32} strokeWidth={1.2} color="#CBD5E1" />
                 <span className="mcp-rp-empty-text">Select a transcript from the queue to review</span>

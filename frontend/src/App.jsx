@@ -36,6 +36,7 @@ const CustomersPage = React.lazy(() => import('./pages/CustomersPage'));
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const ResetPasswordPage = React.lazy(() => import('./pages/ResetPasswordPage'));
 const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const CalendarPage = React.lazy(() => import('./pages/calendar/CalendarPage'));
@@ -359,10 +360,11 @@ function AppContent() {
     };
   }, [isServerOnline, dispatch]);
 
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname === '/workspace-dashboard';
   const showBanner = isServerOnline === false && (location.pathname.startsWith('/dashboard') || location.pathname === '/login');
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className={isDashboardRoute ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
       {showBanner && (
         <div className="h-10 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 dark:border-amber-500/10 px-6 flex items-center justify-between text-amber-800 dark:text-amber-300 text-xs font-semibold z-[99999] backdrop-blur-md shrink-0 select-none animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
@@ -388,6 +390,7 @@ function AppContent() {
       <div className="flex-1 min-h-0 relative">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           
           <Route
             path="/dashboard"

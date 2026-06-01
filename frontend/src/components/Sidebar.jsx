@@ -2,11 +2,11 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { slideInLeft } from '../utils/animations';
-import { 
-    Layout as LayoutIcon, 
-    Calendar, 
-    Database, 
-    FileUp, 
+import {
+    Layout as LayoutIcon,
+    Calendar,
+    Database,
+    FileUp,
     Settings,
     ChevronDown,
     ChevronRight,
@@ -18,54 +18,54 @@ import { setSidebarCollapsed } from '../store/slices/navSlice';
 
 // ─── Hamburger Icon Component ───────────────────────────────────────────────
 const HamburgerIcon = ({ collapsed }) => {
-  const isCollapsed = !!collapsed;
+    const isCollapsed = !!collapsed;
 
-  const path1Variants = {
-    collapsed: { d: "M 3 5 L 17 5" },
-    expanded: { d: "M 5 5 L 15 15" }
-  };
+    const path1Variants = {
+        collapsed: { d: "M 3 5 L 17 5" },
+        expanded: { d: "M 5 5 L 15 15" }
+    };
 
-  const path2Variants = {
-    collapsed: { d: "M 3 10 L 13 10", opacity: 1 },
-    expanded: { d: "M 10 10 L 10 10", opacity: 0 }
-  };
+    const path2Variants = {
+        collapsed: { d: "M 3 10 L 13 10", opacity: 1 },
+        expanded: { d: "M 10 10 L 10 10", opacity: 0 }
+    };
 
-  const path3Variants = {
-    collapsed: { d: "M 3 15 L 17 15" },
-    expanded: { d: "M 5 15 L 15 5" }
-  };
+    const path3Variants = {
+        collapsed: { d: "M 3 15 L 17 15" },
+        expanded: { d: "M 5 15 L 15 5" }
+    };
 
-  const activeState = isCollapsed ? "collapsed" : "expanded";
+    const activeState = isCollapsed ? "collapsed" : "expanded";
 
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round">
-      <motion.path
-        variants={path1Variants}
-        animate={activeState}
-        initial={activeState}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-      />
-      <motion.path
-        variants={path2Variants}
-        animate={activeState}
-        initial={activeState}
-        transition={{ duration: 0.2, ease: "easeInOut" }}
-      />
-      <motion.path
-        variants={path3Variants}
-        animate={activeState}
-        initial={activeState}
-        transition={{ duration: 0.25, ease: "easeInOut" }}
-      />
-    </svg>
-  );
+    return (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.0" strokeLinecap="round">
+            <motion.path
+                variants={path1Variants}
+                animate={activeState}
+                initial={activeState}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+            />
+            <motion.path
+                variants={path2Variants}
+                animate={activeState}
+                initial={activeState}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+            />
+            <motion.path
+                variants={path3Variants}
+                animate={activeState}
+                initial={activeState}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+            />
+        </svg>
+    );
 };
 
 // ─── Logo Block ─────────────────────────────────────────────────────────────
 const LogoBlock = ({ collapsed, onToggle }) => (
     <div className={`h-[72px] flex items-center border-b border-white/5 transition-all duration-300 ${collapsed ? 'justify-center px-0' : 'px-6 justify-between'}`}>
         {!collapsed && <div className="text-white text-2xl font-bold tracking-[0.15em] font-primary">CALDIM</div>}
-        <button 
+        <button
             onClick={onToggle}
             className={`w-9 h-9 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-white transition-all border border-white/10 hover:border-white/20`}
             title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -91,8 +91,8 @@ const Sidebar = ({
     hasAccess
 }) => {
     const dispatch = useDispatch();
-    const { 
-        sidebarDashboardLimit = 10, 
+    const {
+        sidebarDashboardLimit = 10,
         sidebarDashboardMode = 'custom',
         navigationHistory = [],
         sidebarCollapsed = false,
@@ -125,7 +125,7 @@ const Sidebar = ({
                         </div>
                     )}
                 </div>
-                
+
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
@@ -143,9 +143,9 @@ const Sidebar = ({
                                             .map(h => h.dbProjectId || h.id)
                                             .filter(id => id);
                                         const uniqueRecentIds = [...new Set(recentProjectIds)].slice(0, 2);
-                                        
+
                                         if (uniqueRecentIds.length > 0) {
-                                            displayedModules = projectDashboardModules.filter(pm => 
+                                            displayedModules = projectDashboardModules.filter(pm =>
                                                 uniqueRecentIds.includes(pm.id || pm.projectId)
                                             );
                                         } else {
@@ -154,7 +154,7 @@ const Sidebar = ({
                                     } else {
                                         displayedModules = projectDashboardModules.slice(0, sidebarDashboardLimit);
                                     }
-                                    
+
                                     return (
                                         <>
                                             {displayedModules.map((pm, idx) => {
@@ -164,7 +164,7 @@ const Sidebar = ({
 
                                                 return (
                                                     <div key={pm.id || idx} className="py-1">
-                                                        <div 
+                                                        <div
                                                             className="flex items-center justify-between px-6 py-2 cursor-pointer group"
                                                             onClick={(e) => toggleModuleExpansion(uniqueId, e)}
                                                         >
@@ -175,7 +175,7 @@ const Sidebar = ({
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        
+
                                                         {isProjExpanded && pm.submodules && (
                                                             <div className="sidebar-tree-container ml-4 border-l border-white/5">
                                                                 {pm.submodules.map(fileModule => {
@@ -198,7 +198,7 @@ const Sidebar = ({
                                                 );
                                             })}
                                             {sidebarDashboardMode === 'recent' && projectDashboardModules.length > 2 && (
-                                                <div 
+                                                <div
                                                     className="sidebar-sub-item text-[11px] text-white/30 italic hover:text-white/60 mt-2 px-10"
                                                     onClick={() => handleModuleClick('project-dashboard')}
                                                 >
@@ -237,7 +237,7 @@ const Sidebar = ({
                         </div>
                     )}
                 </div>
-                
+
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
@@ -302,7 +302,7 @@ const Sidebar = ({
                         </div>
                     )}
                 </div>
-                
+
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div
@@ -354,7 +354,7 @@ const Sidebar = ({
                         </div>
                     )}
                 </div>
-                
+
                 <AnimatePresence>
                     {!sidebarCollapsed && isExpanded && (
                         <motion.div

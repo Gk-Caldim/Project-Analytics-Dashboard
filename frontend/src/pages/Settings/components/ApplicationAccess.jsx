@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import API from '../../../utils/api';
 import { toast } from 'react-hot-toast';
+import Skeleton from '../../../components/ui/skeleton';
 
 const ApplicationAccess = () => {
   const [users, setUsers] = useState([]);
@@ -124,9 +125,60 @@ const ApplicationAccess = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-hover)]" />
-        <p className="text-[var(--text-muted)] text-xs font-bold tracking-widest uppercase">Syncing account directory...</p>
+      <div className="space-y-12 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56 rounded" />
+            <Skeleton className="h-4 w-96 max-w-full rounded" />
+          </div>
+          <Skeleton className="h-11 w-44 rounded-full" />
+        </div>
+
+        <div className="bg-[var(--surface)] border border-[var(--border-subtle)]/50 rounded-none overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[var(--elevated-card)] border-b border-[var(--border-subtle)]/50">
+                  <th className="px-8 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">User Profile</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Identity</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Security Level</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Joined</th>
+                  <th className="px-8 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)]/20">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={idx} className="rounded-full">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-32 rounded" />
+                          <Skeleton className="h-3 w-24 rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <Skeleton className="h-4 w-40 rounded" />
+                    </td>
+                    <td className="px-8 py-5">
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                    </td>
+                    <td className="px-8 py-5">
+                      <Skeleton className="h-4 w-20 rounded" />
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end gap-4">
+                        <Skeleton className="h-4 w-4 rounded" />
+                        <Skeleton className="h-4 w-4 rounded" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     );
   }

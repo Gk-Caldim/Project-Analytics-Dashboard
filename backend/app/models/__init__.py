@@ -14,3 +14,4 @@ from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project_sub_category import ProjectSubCategory
 from app.models.upload import Upload
+from app.models.password_reset_token import PasswordResetToken

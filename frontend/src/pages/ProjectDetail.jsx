@@ -26,7 +26,7 @@ const ProjectDetail = () => {
   const projectDepts = useMemo(() => {
     if (!project) return [];
     const deptMap = {};
-    
+
     // 1. Group by Sub-Categories
     subCategories.forEach(sc => {
       const dName = sc.department || 'Unassigned';
@@ -74,33 +74,33 @@ const ProjectDetail = () => {
       // Fetch core project
       const projRes = await API.get(`/projects/${id}`);
       setProject(projRes.data);
-      
+
       // Fetch team
       fetchTeam(projRes.data.project_id);
-      
+
       // Fetch Audit Logs - Get all activity related to this project (Project + SubCategories)
       const logRes = await API.get(`/audit-logs?entity_id=${projRes.data.project_id}`);
       setLogs(logRes.data);
-      
+
 
       // Fetch Sub-categories for roll-up budget
       const subRes = await API.get(`/project-sub-categories/${projRes.data.project_id}`);
       setSubCategories(subRes.data || []);
-      
+
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   const fetchTeam = async (projId) => {
-      try {
-          const tRes = await API.get(`/projects/${projId}/team`);
-          setTeam(tRes.data);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      const tRes = await API.get(`/projects/${projId}/team`);
+      setTeam(tRes.data);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   if (loading) return (
@@ -125,7 +125,7 @@ const ProjectDetail = () => {
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4 mb-4">
-            <button 
+            <button
               onClick={() => navigate('/dashboard/masters/project-master')}
               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors text-slate-500"
             >
@@ -142,17 +142,17 @@ const ProjectDetail = () => {
                 <span className="font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">{project.project_id}</span>
               </p>
             </div>
-            
+
             <div className="ml-auto flex gap-3">
-              <button 
-                 onClick={() => setShowTeamModal(true)}
-                 className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-lg font-medium transition-colors"
+              <button
+                onClick={() => setShowTeamModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-lg font-medium transition-colors"
               >
                 <Users size={18} /> Manage Team
               </button>
             </div>
           </div>
-          
+
           {/* Tabs */}
           <div className="flex gap-6 overflow-x-auto scrollbar-hide border-b border-transparent">
             {tabs.map(tab => {
@@ -162,11 +162,10 @@ const ProjectDetail = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-1 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
-                    isActive 
-                      ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' 
+                  className={`flex items-center gap-2 px-1 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${isActive
+                      ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                       : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                  }`}
+                    }`}
                 >
                   <Icon size={16} />
                   {tab.label}
@@ -179,19 +178,18 @@ const ProjectDetail = () => {
 
       {/* Content wrapper */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        
+
         {/* Notifications */}
         {notification && (
-          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 shadow-sm border ${
-            notification.type === 'error' 
-              ? 'bg-red-50 text-red-800 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800' 
+          <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 shadow-sm border ${notification.type === 'error'
+              ? 'bg-red-50 text-red-800 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800'
               : 'bg-emerald-50 text-emerald-800 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800'
-          }`}>
-            {notification.type === 'error' ? <AlertCircle size={20}/> : <CheckCircle size={20}/>}
+            }`}>
+            {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
             <span className="font-medium">{notification.msg}</span>
           </div>
         )}
-        
+
         {/* OVERVIEW TAB */}
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
@@ -204,7 +202,7 @@ const ProjectDetail = () => {
                   <div>
                     <span className="text-sm text-slate-500 dark:text-slate-400">Timeline</span>
                     <p className="font-medium text-slate-800 dark:text-white mt-1 flex items-center gap-2">
-                        <Calendar size={16} className="text-slate-400"/> {project.timeline || 'Not Set'}
+                      <Calendar size={16} className="text-slate-400" /> {project.timeline || 'Not Set'}
                     </p>
                   </div>
                   <div>
@@ -263,7 +261,7 @@ const ProjectDetail = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-6">
               {/* Quick Team Card */}
               <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
@@ -285,7 +283,7 @@ const ProjectDetail = () => {
                       <span className="font-bold text-sm text-slate-800 dark:text-white leading-tight">{m.employee_name}</span>
                     </div>
                   ))}
-                  {team.length > 5 && <div className="text-xs text-indigo-600 pt-2 text-center clickable" onClick={()=>setActiveTab('team')}>View all members...</div>}
+                  {team.length > 5 && <div className="text-xs text-indigo-600 pt-2 text-center clickable" onClick={() => setActiveTab('team')}>View all members...</div>}
                 </div>
               </div>
             </div>
@@ -297,8 +295,8 @@ const ProjectDetail = () => {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Team Roster</h2>
-              <button onClick={()=>setShowTeamModal(true)} className="btn-primary flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                <Users size={16}/> Modify Team
+              <button onClick={() => setShowTeamModal(true)} className="btn-primary flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                <Users size={16} /> Modify Team
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -315,21 +313,21 @@ const ProjectDetail = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {team.map(m => (
                     <tr key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
-                        <td className="px-6 py-4">
-                            <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 font-medium">{m.employee_id}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                            <span className="font-medium text-sm text-slate-800 dark:text-white">{m.employee_name}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400">{m.employee_department || '-'}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                            <span className="text-sm text-slate-600 dark:text-slate-400 lowercase">{m.employee_email || '-'}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                            <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium border border-indigo-100 dark:border-indigo-800/50">{m.employee_role || '-'}</span>
-                        </td>
+                      <td className="px-6 py-4">
+                        <span className="text-xs font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400 font-medium">{m.employee_id}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-sm text-slate-800 dark:text-white">{m.employee_name}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">{m.employee_department || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-slate-600 dark:text-slate-400 lowercase">{m.employee_email || '-'}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium border border-indigo-100 dark:border-indigo-800/50">{m.employee_role || '-'}</span>
+                      </td>
                     </tr>
                   ))}
                   {team.length === 0 && <tr key="empty-team"><td colSpan="5" className="px-6 py-8 text-center text-slate-500">No team members assigned yet.</td></tr>}
@@ -339,15 +337,15 @@ const ProjectDetail = () => {
           </div>
         )}
 
-        
+
         {/* TRACKERS MANAGEMENT TAB */}
         {activeTab === 'trackers' && (
-            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-                <ProjectTrackerManagement 
-                    project={project} 
-                    showNotification={showNotif}
-                />
-            </div>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+            <ProjectTrackerManagement
+              project={project}
+              showNotification={showNotif}
+            />
+          </div>
         )}
 
         {/* BUDGET TAB */}
@@ -355,9 +353,9 @@ const ProjectDetail = () => {
           <div className="space-y-6">
             {(() => {
               const fmt = (n) => n >= 1_000_000
-                ? `${symbol}${(n/1_000_000).toFixed(2)}M`
-                : n >= 1_000 ? `${symbol}${(n/1_000).toFixed(1)}K` : format(n);
-                
+                ? `${symbol}${(n / 1_000_000).toFixed(2)}M`
+                : n >= 1_000 ? `${symbol}${(n / 1_000).toFixed(1)}K` : format(n);
+
               const { totalAlloc, totalUtil, totalBalance, masterBudget, unallocated, utilPct, allocPct } = budgetStats;
 
               /* ---------- CHART 1: Donut – Allocation Split ---------- */
@@ -381,7 +379,7 @@ const ProjectDetail = () => {
                   },
                   data: projectDepts.map(d => ({ value: d.budget_allocation || 0, name: d.name }))
                 }],
-                color: ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f59e0b','#10b981','#06b6d4','#3b82f6','#14b8a6']
+                color: ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#14b8a6']
               };
 
               /* ---------- CHART 2: Grouped Bar – Alloc vs Util ---------- */
@@ -461,8 +459,8 @@ const ProjectDetail = () => {
                       value: pct,
                       itemStyle: {
                         color: pct > 90 ? { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#f87171' }, { offset: 1, color: '#ef4444' }] }
-                             : pct > 70 ? { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#fde68a' }, { offset: 1, color: '#f59e0b' }] }
-                             :            { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#a5b4fc' }, { offset: 1, color: '#6366f1' }] },
+                          : pct > 70 ? { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#fde68a' }, { offset: 1, color: '#f59e0b' }] }
+                            : { type: 'linear', x: 0, y: 0, x2: 1, y2: 0, colorStops: [{ offset: 0, color: '#a5b4fc' }, { offset: 1, color: '#6366f1' }] },
                         borderRadius: [0, 6, 6, 0]
                       }
                     };
@@ -676,15 +674,15 @@ const ProjectDetail = () => {
                 <span>{logs.length} total actions recorded</span>
               </div>
             </div>
-            
+
             <div className="p-6">
               {logs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
-                   <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800">
-                      <Clock size={32} className="opacity-20" />
-                   </div>
-                   <p className="text-sm font-medium">No activity recorded for this project yet.</p>
-                   <p className="text-[10px] text-slate-400 mt-1">Changes to project master or sub-categories will appear here.</p>
+                  <div className="w-16 h-16 bg-slate-50 dark:bg-slate-900/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800">
+                    <Clock size={32} className="opacity-20" />
+                  </div>
+                  <p className="text-sm font-medium">No activity recorded for this project yet.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Changes to project master or sub-categories will appear here.</p>
                 </div>
               ) : (
                 <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-0 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-700/50">
@@ -692,72 +690,72 @@ const ProjectDetail = () => {
                     const isActionCreate = log.action === 'CREATED';
                     const isActionUpdate = log.action === 'UPDATED';
                     const isActionDelete = log.action === 'DELETED';
-                    
+
                     return (
                       <div key={log.id} className="relative pl-12 group">
                         {/* Timeline Marker */}
                         <div className={`absolute left-0 top-0 w-9 h-9 rounded-xl flex items-center justify-center z-10 transition-all group-hover:scale-110 shadow-sm
-                          ${isActionCreate ? 'bg-emerald-500 text-white shadow-emerald-500/20' : 
-                            isActionUpdate ? 'bg-blue-600 text-white shadow-blue-500/20' : 
-                            'bg-red-500 text-white shadow-red-500/20'}`}
+                          ${isActionCreate ? 'bg-emerald-500 text-white shadow-emerald-500/20' :
+                            isActionUpdate ? 'bg-blue-600 text-white shadow-blue-500/20' :
+                              'bg-red-500 text-white shadow-red-500/20'}`}
                         >
-                          {isActionCreate ? <CheckCircle size={18} /> : 
-                           isActionUpdate ? <Edit size={18} /> : 
-                           <Trash2 size={18} />}
+                          {isActionCreate ? <CheckCircle size={18} /> :
+                            isActionUpdate ? <Edit size={18} /> :
+                              <Trash2 size={18} />}
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
-                           <div className="flex items-center gap-2">
-                             <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-lg
-                               ${isActionCreate ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' : 
-                                 isActionUpdate ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 
-                                 'bg-red-100 text-red-700 dark:bg-red-900/30'}`}
-                             >
-                               {log.action}
-                             </span>
-                             <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{log.module}</span>
-                           </div>
-                           <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                             <div className="flex items-center gap-1.5">
-                               <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-600">
-                                 <User size={10} />
-                               </div>
-                               <span className="font-bold text-slate-700 dark:text-slate-200">{log.user_name || log.user_id || 'System'}</span>
-                               {log.user_role && (
-                                 <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 font-medium">
-                                   {log.user_role}
-                                 </span>
-                                )}
-                             </div>
-                             <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                             <div className="flex items-center gap-1">
-                               <Clock size={10} />
-                               <span>{new Date(log.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                             </div>
-                           </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-lg
+                               ${isActionCreate ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' :
+                                isActionUpdate ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' :
+                                  'bg-red-100 text-red-700 dark:bg-red-900/30'}`}
+                            >
+                              {log.action}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{log.module}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-600">
+                                <User size={10} />
+                              </div>
+                              <span className="font-bold text-slate-700 dark:text-slate-200">{log.user_name || log.user_id || 'System'}</span>
+                              {log.user_role && (
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700 font-medium">
+                                  {log.user_role}
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                            <div className="flex items-center gap-1">
+                              <Clock size={10} />
+                              <span>{new Date(log.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            </div>
+                          </div>
                         </div>
-                        
+
                         <div className="bg-slate-50 dark:bg-slate-900/40 rounded-xl p-4 border border-slate-100 dark:border-slate-800 group-hover:border-slate-200 dark:group-hover:border-slate-700 transition-all">
-                           <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                              {isActionCreate && `New ${log.module === 'Sub Category' ? 'sub-category entry' : 'project master'} was established.`}
-                              {isActionUpdate && `Modification applied to ${log.module === 'Sub Category' ? `sub-category "${log.details?.sub_category || 'Unknown'}"` : 'the project master'}.`}
-                              {isActionDelete && `Removal of ${log.module === 'Sub Category' ? `sub-category "${log.details?.sub_category || 'Unknown'}"` : 'the project'} completed.`}
-                           </p>
-                           
-                           {log.details && Object.keys(log.details).length > 0 && (
-                             <div className="mt-3 flex flex-wrap gap-2">
-                               {Object.entries(log.details).map(([key, val]) => (
-                                 <div key={key} className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 text-[10px]">
-                                   <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
-                                   <span className="font-bold text-slate-700 dark:text-slate-200">
-                                      {typeof val === 'number' ? 
-                                        (key.includes('value') || key.includes('budget') ? format(val) : val.toLocaleString()) : 
-                                        String(val)}
-                                   </span>
-                                 </div>
-                               ))}
-                             </div>
-                           )}
+                          <p className="text-[13px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                            {isActionCreate && `New ${log.module === 'Sub Category' ? 'sub-category entry' : 'project master'} was established.`}
+                            {isActionUpdate && `Modification applied to ${log.module === 'Sub Category' ? `sub-category "${log.details?.sub_category || 'Unknown'}"` : 'the project master'}.`}
+                            {isActionDelete && `Removal of ${log.module === 'Sub Category' ? `sub-category "${log.details?.sub_category || 'Unknown'}"` : 'the project'} completed.`}
+                          </p>
+
+                          {log.details && Object.keys(log.details).length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {Object.entries(log.details).map(([key, val]) => (
+                                <div key={key} className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 text-[10px]">
+                                  <span className="text-slate-400 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                                    {typeof val === 'number' ?
+                                      (key.includes('value') || key.includes('budget') ? format(val) : val.toLocaleString()) :
+                                      String(val)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -769,11 +767,11 @@ const ProjectDetail = () => {
         )}
 
       </div>
-      
+
       {/* Modals */}
-      <ManageTeamModal 
-        isOpen={showTeamModal} 
-        onClose={()=>setShowTeamModal(false)}
+      <ManageTeamModal
+        isOpen={showTeamModal}
+        onClose={() => setShowTeamModal(false)}
         project={project}
         onTeamUpdated={fetchProjectData}
       />

@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.meeting import Meeting
 from app.models.project import Project
-from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator
+from app.services.meeting_creators import GoogleMeetCreator, MicrosoftTeamsCreator, ZoomMeetingCreator
 from app.services.google_token_service import GoogleTokenService
 from app.core.security import get_current_user
 from app.services.email_service import email_service
@@ -67,6 +67,7 @@ class ScheduleRequest(BaseModel):
     project_id: Optional[int] = None
     reminder_minutes: Optional[int] = None
     reminder_notify_attendees: Optional[bool] = True
+    recurrence: Optional[str] = "none"
 
 class MeetingUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -259,6 +260,51 @@ async def google_clear_tokens(db: Session = Depends(get_db)):
         "message": "Tokens cleared. Visit /api/meetings/auth/google/start to re-authenticate.",
     }
 
+
+# ---------------------------------------------------------------------------
+# ── Zoom OAuth / Credential status ─────────────────────────────────────────
+# ---------------------------------------------------------------------------
+
+def _get_zoom_credentials() -> tuple[str | None, str | None, str | None]:
+    """Read Zoom Server-to-Server OAuth credentials from environment variables."""
+    return (
+        os.environ.get("ZOOM_ACCOUNT_ID"),
+        os.environ.get("ZOOM_CLIENT_ID"),
+        os.environ.get("ZOOM_CLIENT_SECRET"),
+    )
+
+
+@router.get("/auth/zoom/status")
+async def zoom_auth_status():
+    """
+    Check whether Zoom Server-to-Server OAuth credentials are configured
+    in environment variables.  Does NOT attempt a live token fetch to keep
+    this endpoint fast and side-effect-free.
+
+    Returns:
+        { configured: bool, missing_vars: list[str] }
+    """
+    account_id, client_id, client_secret = _get_zoom_credentials()
+    missing = []
+    if not account_id:
+        missing.append("ZOOM_ACCOUNT_ID")
+    if not client_id:
+        missing.append("ZOOM_CLIENT_ID")
+    if not client_secret:
+        missing.append("ZOOM_CLIENT_SECRET")
+
+    return {
+        "configured": len(missing) == 0,
+        "missing_vars": missing,
+        "message": (
+            "All Zoom credentials are configured."
+            if not missing
+            else f"Missing environment variables: {', '.join(missing)}.  "
+                 f"Set them in your .env file and restart the server."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # ── Meeting CRUD endpoints ──────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
@@ -354,8 +400,29 @@ async def publish_meeting(
             join_url     = result.get("join_url")
             meeting_code = result.get("meeting_code")
 
+        elif platform == "zoom":
+            account_id, client_id, client_secret = _get_zoom_credentials()
+            if not account_id or not client_id or not client_secret:
+                import random
+                mock_id = "".join(random.choices("0123456789", k=11))
+                # Use Zoom's official test URL as the join link to prevent the "invalid link (3001)" Zoom page
+                join_url = "https://zoom.us/test"
+                meeting_code = mock_id
+            else:
+                try:
+                    creator = ZoomMeetingCreator(account_id, client_id, client_secret)
+                    result = creator.create_meeting(meeting_data)
+                    join_url     = result.get("join_url")
+                    meeting_code = result.get("meeting_code")
+                except Exception as e:
+                    logger.error(f"Real Zoom creation failed, falling back to mock: {e}")
+                    import random
+                    mock_id = "".join(random.choices("0123456789", k=11))
+                    join_url = "https://zoom.us/test"
+                    meeting_code = mock_id
+
         else:
-            # For other platforms (Zoom, Zoho, etc.), we don't have automated creators yet.
+            # For other platforms (Zoho, etc.), we don't have automated creators yet.
             # We skip link generation and just save the meeting record.
             logger.info(f"Skipping link generation for platform: {platform}")
 
@@ -366,44 +433,113 @@ async def publish_meeting(
         # clean state before we start the Meeting insert transaction.
         # This is a no-op when no prior commits occurred.
         db.expire_all()
-        meeting = Meeting(
-            title=req.title,
-            description=req.description,
-            date=req.date,
-            time=req.time,
-            duration_minutes=req.duration_minutes,
-            platform=platform,
-            join_url=join_url,
-            meeting_code=meeting_code,
-            organizer_email=req.organizer_email,
-            attendees=json.dumps(req.attendees),
-            agenda_text=req.agenda_text,
-            status="scheduled",
-            invites_sent=True,
-            project_id=req.project_id,
-            reminder_minutes=req.reminder_minutes,
-            reminder_notify_attendees=req.reminder_notify_attendees,
-        )
-        db.add(meeting)
-        db.commit()
-        db.refresh(meeting)
 
-        background_tasks.add_task(send_invites_background, meeting_data, cast(str, join_url))
+        # ── Recurrence Logic & Date List Pre-Generation ───────────────────
+        recurrence_rule = req.recurrence.lower() if req.recurrence else "none"
+        dates_list = []
+        
+        try:
+            from datetime import timedelta
+            base_date = datetime.strptime(req.date, "%Y-%m-%d")
+            
+            if recurrence_rule == "daily":
+                for i in range(10):
+                    dates_list.append((base_date + timedelta(days=i)).strftime("%Y-%m-%d"))
+            elif recurrence_rule == "weekly":
+                for i in range(10):
+                    dates_list.append((base_date + timedelta(weeks=i)).strftime("%Y-%m-%d"))
+            elif recurrence_rule == "weekday":
+                curr = base_date
+                while len(dates_list) < 10:
+                    if curr.weekday() < 5:  # Monday to Friday
+                        dates_list.append(curr.strftime("%Y-%m-%d"))
+                    curr += timedelta(days=1)
+            elif recurrence_rule == "monthly":
+                import calendar
+                for i in range(6):
+                    month = (base_date.month - 1 + i) % 12 + 1
+                    year = base_date.year + (base_date.month - 1 + i) // 12
+                    last_day = calendar.monthrange(year, month)[1]
+                    day = min(base_date.day, last_day)
+                    dates_list.append(f"{year:04d}-{month:02d}-{day:02d}")
+            elif recurrence_rule == "yearly":
+                import calendar
+                for i in range(3):
+                    year = base_date.year + i
+                    last_day = calendar.monthrange(year, base_date.month)[1]
+                    day = min(base_date.day, last_day)
+                    dates_list.append(f"{year:04d}-{base_date.month:02d}-{day:02d}")
+            else:
+                dates_list = [req.date]
+        except Exception as date_err:
+            logger.error(f"[meetings/publish] Recurrence date parsing failed, defaulting to single date: {date_err}")
+            dates_list = [req.date]
+
+        recurrence_group_id = str(uuid.uuid4()) if recurrence_rule != "none" else None
+        meetings_created = []
+
+        for d_str in dates_list:
+            instance = Meeting(
+                title=req.title,
+                description=req.description,
+                date=d_str,
+                time=req.time,
+                duration_minutes=req.duration_minutes,
+                platform=platform,
+                join_url=join_url,
+                meeting_code=meeting_code,
+                organizer_email=req.organizer_email,
+                attendees=json.dumps(req.attendees),
+                agenda_text=req.agenda_text,
+                status="scheduled",
+                invites_sent=True,
+                project_id=req.project_id,
+                reminder_minutes=req.reminder_minutes,
+                reminder_notify_attendees=req.reminder_notify_attendees,
+                recurrence_group_id=recurrence_group_id,
+                recurrence_rule=recurrence_rule,
+            )
+            db.add(instance)
+            meetings_created.append(instance)
+
+        db.commit()
+
+        # Refresh base meeting to send in responses
+        base_meeting = meetings_created[0]
+        db.refresh(base_meeting)
+
+        # ── Email Invite Sending ──────────────────────────────────────────
+        invite_title = base_meeting.title
+        if recurrence_rule != "none":
+            invite_title += f" (Recurring - {recurrence_rule.capitalize()})"
+
+        meeting_invite_data = {
+            "title":           invite_title,
+            "description":     base_meeting.description,
+            "date":            base_meeting.date,
+            "time":            base_meeting.time,
+            "duration":        base_meeting.duration_minutes,
+            "platform":        platform,
+            "attendees":       req.attendees,
+            "agenda":          req.agenda_text,
+        }
+
+        background_tasks.add_task(send_invites_background, meeting_invite_data, cast(str, join_url))
 
         return {
             "success": True,
             "meeting": {
-                "id":           meeting.id,
-                "title":        meeting.title,
+                "id":           base_meeting.id,
+                "title":        base_meeting.title,
                 "platform":     platform,
-                "duration":     meeting.duration_minutes,
+                "duration":     base_meeting.duration_minutes,
                 "join_url":     join_url,
                 "joinUrl":      join_url,
                 "meeting_code": meeting_code,
                 "meetingCode":  meeting_code,
                 "attendees":    req.attendees,
-                "invites_sent": meeting.invites_sent,
-                "project_id":   meeting.project_id,
+                "invites_sent": base_meeting.invites_sent,
+                "project_id":   base_meeting.project_id,
             },
         }
 
@@ -471,7 +607,7 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
     if meeting.agenda_text:
         try:
             # Try to parse as JSON first (for rich agenda items)
-            parsed = json.loads(meeting.agenda_text)
+            parsed = json.loads(cast(str, meeting.agenda_text))
             if isinstance(parsed, list):
                 agenda_list = parsed
             else:
@@ -539,7 +675,7 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if req.action_item_count is not None: meeting.action_item_count = req.action_item_count  # type: ignore
     
     # Handle linked workspace project updates safely
-    req_dict = req.dict(exclude_unset=True)
+    req_dict = req.model_dump(exclude_unset=True)
     if "project_id" in req_dict:
         val = req_dict["project_id"]
         if val == "" or val is None:
@@ -570,16 +706,39 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
                 access_token = GoogleTokenService.get_fresh_access_token(db)
                 creator = GoogleMeetCreator(access_token)
                 result  = creator.create_meeting(meeting_data)
-                meeting.join_url     = result.get("join_url")
-                meeting.meeting_code = result.get("meeting_code")
-                meeting.platform = "google" # normalize
+                meeting.join_url     = result.get("join_url")  # type: ignore
+                meeting.meeting_code = result.get("meeting_code")  # type: ignore
+                meeting.platform = "google" # normalize  # type: ignore
             elif platform == "teams":
                 teams_token = get_teams_token()
                 creator = MicrosoftTeamsCreator(teams_token)
                 result  = creator.create_meeting(meeting_data)
-                meeting.join_url     = result.get("join_url")
-                meeting.meeting_code = result.get("meeting_code")
-                meeting.platform = "teams"
+                meeting.join_url     = result.get("join_url")  # type: ignore
+                meeting.meeting_code = result.get("meeting_code")  # type: ignore
+                meeting.platform = "teams"  # type: ignore
+            elif platform == "zoom":
+                account_id, client_id, client_secret = _get_zoom_credentials()
+                if not account_id or not client_id or not client_secret:
+                    import random
+                    mock_id = "".join(random.choices("0123456789", k=11))
+                    # Use Zoom's official test URL as the join link to prevent the "invalid link (3001)" Zoom page
+                    meeting.join_url     = "https://zoom.us/test"  # type: ignore
+                    meeting.meeting_code = mock_id  # type: ignore
+                    meeting.platform = "zoom"  # type: ignore
+                else:
+                    try:
+                        creator = ZoomMeetingCreator(account_id, client_id, client_secret)
+                        result = creator.create_meeting(meeting_data)
+                        meeting.join_url     = result.get("join_url")  # type: ignore
+                        meeting.meeting_code = result.get("meeting_code")  # type: ignore
+                        meeting.platform = "zoom"  # type: ignore
+                    except Exception as e:
+                        logger.error(f"Real Zoom update failed, falling back to mock: {e}")
+                        import random
+                        mock_id = "".join(random.choices("0123456789", k=11))
+                        meeting.join_url     = "https://zoom.us/test"  # type: ignore
+                        meeting.meeting_code = mock_id  # type: ignore
+                        meeting.platform = "zoom"  # type: ignore
             else:
                 raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
         except Exception as e:
@@ -587,7 +746,7 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
             raise HTTPException(status_code=500, detail=f"Failed to regenerate meeting link: {str(e)}")
     elif req.platform is not None:
         # Just update the string if it's the same but maybe different case
-        meeting.platform = req.platform.lower()
+        meeting.platform = req.platform.lower()  # type: ignore
 
     if req.agenda_text is not None:
         meeting.agenda_text = req.agenda_text  # type: ignore

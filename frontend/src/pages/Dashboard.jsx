@@ -74,7 +74,8 @@ const Dashboard = () => {
     sidebarCollapsed,
     companyLogo,
     companyName,
-    activeView
+    activeView,
+    currentMeetingTitle
   } = useSelector(state => state.nav);
 
   // MOM context for sidebar label
@@ -833,7 +834,7 @@ const Dashboard = () => {
     } else if (path.includes('/dashboard/mom')) {
       addCrumb('Minutes of Meeting', '/dashboard/mom', path === '/dashboard/mom');
       if (path.includes('/dashboard/mom/view')) {
-        addCrumb('MOM View', null, true);
+        addCrumb(currentMeetingTitle || 'MOM View', null, true);
       } else if (path.includes('/dashboard/mom/transcript-viewer')) {
         addCrumb('Transcript Viewer', null, true);
       } else if (path.includes('/dashboard/mom/legacy')) {
@@ -847,7 +848,7 @@ const Dashboard = () => {
       addCrumb('Calendar Console', null, true);
     } else if (path.includes('/dashboard/meeting/')) {
       addCrumb('Calendar Console', '/dashboard/calendar');
-      addCrumb('Meeting Details', null, true);
+      addCrumb(currentMeetingTitle || 'Meeting Details', null, true);
     } else if (path.includes('/dashboard/settings')) {
       addCrumb('System Settings', null, true);
     } else {

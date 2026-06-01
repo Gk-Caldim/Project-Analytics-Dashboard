@@ -42,33 +42,33 @@ import './SavedMOMsPage.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DATE_RANGES = [
-  { key: 'all',   label: 'All Time' },
+  { key: 'all', label: 'All Time' },
   { key: 'today', label: 'Today' },
-  { key: 'week',  label: 'This Week' },
+  { key: 'week', label: 'This Week' },
   { key: 'month', label: 'This Month' },
 ];
 
 const SORT_OPTIONS = [
-  { key: 'date_desc',  label: 'Latest First' },
-  { key: 'date_asc',   label: 'Oldest First' },
-  { key: 'name_asc',   label: 'Project A → Z' },
-  { key: 'name_desc',  label: 'Project Z → A' },
+  { key: 'date_desc', label: 'Latest First' },
+  { key: 'date_asc', label: 'Oldest First' },
+  { key: 'name_asc', label: 'Project A → Z' },
+  { key: 'name_desc', label: 'Project Z → A' },
 ];
 
 const CRITICALITY_COLORS = {
-  'High':     { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
-  'Medium':   { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
-  'Low':      { bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },
+  'High': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
+  'Medium': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+  'Low': { bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },
   'Critical': { bg: '#DC2626', color: '#FFFFFF', border: '#B91C1C' },
 };
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Closed', 'Pending', 'Resolved'];
 const STATUS_COLORS = {
-  'Open':        { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' }, // Same as Pending
-  'Pending':     { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' },
+  'Open': { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' }, // Same as Pending
+  'Pending': { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' },
   'In Progress': { bg: '#EFF6FF', color: '#1D4ED8', border: '#DBEAFE' },
-  'Closed':      { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' }, // Same as Resolved
-  'Resolved':    { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' },
+  'Closed': { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' }, // Same as Resolved
+  'Resolved': { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ const EditableCell = ({ value, onSave, multiline = false }) => {
   }
 
   return (
-    <div 
+    <div
       onClick={() => setIsEditing(true)}
       className="group flex items-start gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors"
     >
@@ -141,7 +141,7 @@ const StatusCell = ({ value, onSave }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button 
+        <button
           className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer outline-none hover:opacity-85 focus:ring-1 focus:ring-slate-400 select-none"
           style={{ background: style.bg, color: style.color, borderColor: style.border }}
         >
@@ -182,7 +182,7 @@ const DateCell = ({ value, onSave }) => {
   }
 
   return (
-    <div 
+    <div
       onClick={() => setIsEditing(true)}
       className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-blue-600 font-mono text-xs font-bold transition-colors"
     >
@@ -215,9 +215,8 @@ const FunctionCell = ({ value, onSave }) => {
           <DropdownMenuItem
             key={opt}
             onClick={() => onSave(opt)}
-            className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900 ${
-              value === opt ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'
-            }`}
+            className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900 ${value === opt ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'
+              }`}
           >
             {opt}
           </DropdownMenuItem>
@@ -292,54 +291,83 @@ const ActionItemsTable = ({ syncId }) => {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  // ── Update a single field via PATCH ──
+  // ── Update a single field via PATCH with Optimistic UI & Rollback ──
   const handleUpdateItem = async (itemId, field, value) => {
+    const originalItems = [...items];
+    const targetItem = items.find(item => item.id === itemId);
+    if (!targetItem) return;
+
+    // Optimistic Update in UI
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, [field]: value } : item
+    ));
+
     try {
       await API.patch(`/mom/action-items/${itemId}`, { field, value, sync_id: syncId });
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? { ...item, [field]: value } : item
-      ));
-      toast.success('Field updated', { icon: '✨', duration: 1500 });
-    } catch {
-      toast.error('Update failed');
+      toast.success('Field saved', { icon: '✨', duration: 1500 });
+    } catch (err) {
+      // Rollback on failure
+      setItems(originalItems);
+      const errMsg = err?.response?.data?.detail || err.message || 'Connection offline';
+      toast.error(`Failed to save: ${errMsg}. Restored original value.`, { duration: 3000 });
     }
   };
 
-  // ── Batch save all edited fields at once ──
+  // ── Batch save all edited fields at once with Optimistic UI & Transactional Drift Protection ──
   const handleSaveRow = async (itemId) => {
+    const originalItems = [...items];
+    const targetItem = items.find(item => item.id === itemId);
+    if (!targetItem) return;
+
+    // Optimistic Update in UI
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, ...editingRowData } : item
+    ));
+
+    const savedEditData = { ...editingRowData };
+
+    // Exit edit mode immediately for seamless Zoho UX
+    setEditingRowId(null);
+    setEditingRowData({});
+
     try {
-      // Flush each changed field one by one
-      const fields = Object.keys(editingRowData);
-      for (const field of fields) {
-        await API.patch(`/mom/action-items/${itemId}`, {
-          field,
-          value: editingRowData[field],
-          sync_id: syncId,
-        });
+      const fields = Object.keys(savedEditData);
+      const changedFields = fields.filter(field => savedEditData[field] !== targetItem[field]);
+      
+      if (changedFields.length > 0) {
+        // Fire all PATCH requests in parallel for optimal network speed
+        await Promise.all(
+          changedFields.map(field =>
+            API.patch(`/mom/action-items/${itemId}`, {
+              field,
+              value: savedEditData[field],
+              sync_id: syncId,
+            })
+          )
+        );
       }
-      setItems(prev => prev.map(item =>
-        item.id === itemId ? { ...item, ...editingRowData } : item
-      ));
       toast.success('Row saved', { icon: '✅', duration: 1500 });
-    } catch {
-      toast.error('Save failed');
-    } finally {
-      setEditingRowId(null);
-      setEditingRowData({});
+    } catch (err) {
+      // Rollback on failure
+      setItems(originalItems);
+      const errMsg = err?.response?.data?.detail || err.message || 'Connection offline';
+      toast.error(`Failed to save row: ${errMsg}. Syncing with server...`, { duration: 3000 });
+      
+      // Re-fetch from server to guarantee absolute state consistency and prevent drift
+      await fetchItems();
     }
   };
-
   // ── Start editing a row — snapshot its current values ──
   const startEditRow = (item) => {
     setEditingRowId(item.id);
     setEditingRowData({
-      function:         item.function || 'General',
-      criticality:      item.criticality || 'Medium',
+      function: item.function || 'General',
+      criticality: item.criticality || 'Medium',
       discussion_point: item.discussion_point || '',
-      responsibility:   item.responsibility || '',
-      target:           item.target || '',
-      status:           item.status || 'Open',
-      action_taken:     item.action_taken || '',
+      responsibility: item.responsibility || '',
+      target: item.target || '',
+      status: item.status || 'Open',
+      action_taken: item.action_taken || '',
     });
   };
 
@@ -375,9 +403,39 @@ const ActionItemsTable = ({ syncId }) => {
 
   if (loading) {
     return (
-      <div className="p-8 flex flex-col items-center gap-3">
-        <Loader2 size={24} className="animate-spin text-blue-500" />
-        <span className="text-slate-400 text-xs font-medium">Fetching sync snapshot...</span>
+      <div className="flex flex-col gap-3 p-1 animate-pulse">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50">
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-12 text-center">S.No</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Function</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24">Criticality</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest">Action Point</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-40">Responsibility</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-32">Target</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-28">Status</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-48">Action Taken</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase text-slate-400 tracking-widest w-24 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {Array.from({ length: 3 }).map((_, rIdx) => (
+                <tr key={rIdx}>
+                  <td className="px-4 py-4"><Skeleton className="h-4 w-6 mx-auto rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-5 w-20 rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-5 w-16 rounded-full bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-4 w-5/6 rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-4 w-28 rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-4 w-24 rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-5 w-16 rounded-full bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-4 w-11/12 rounded bg-slate-200/60" /></td>
+                  <td className="px-4 py-4"><Skeleton className="h-6 w-12 mx-auto rounded bg-slate-200/60" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -436,11 +494,10 @@ const ActionItemsTable = ({ syncId }) => {
               return (
                 <tr
                   key={item.id}
-                  className={`transition-colors group ${
-                    isEditing
+                  className={`transition-colors group ${isEditing
                       ? 'bg-blue-50/30 ring-2 ring-inset ring-blue-300/40'
                       : 'hover:bg-slate-50/30'
-                  }`}
+                    }`}
                 >
                   {/* S.No */}
                   <td className="px-4 py-3 text-xs font-mono text-slate-400 text-center">
@@ -642,7 +699,7 @@ const ActionItemsTable = ({ syncId }) => {
                   className="cursor-pointer"
                 />
               </PaginationItem>
-              
+
               {Array.from({ length: totalPages }).map((_, i) => (
                 <PaginationItem key={i}>
                   <PaginationLink
@@ -654,7 +711,7 @@ const ActionItemsTable = ({ syncId }) => {
                   </PaginationLink>
                 </PaginationItem>
               ))}
-              
+
               <PaginationItem>
                 <PaginationNext
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -737,7 +794,7 @@ const SavedMOMsPage = () => {
     }
   }, []);
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchRecords().then((recs) => {
       if (highlightSyncId && recs && recs.length > 0) {
         const idx = recs.findIndex(r => r.sync_id === highlightSyncId);
@@ -745,7 +802,7 @@ const SavedMOMsPage = () => {
           const targetPage = Math.floor(idx / itemsPerPage) + 1;
           setCurrentPage(targetPage);
         }
-        
+
         // Delay slightly to allow records and the specific page to render
         setTimeout(() => {
           const el = document.getElementById(`sync-${highlightSyncId}`);
@@ -755,13 +812,13 @@ const SavedMOMsPage = () => {
           }
         }, 500);
       }
-    }); 
+    });
 
     // Listen for WebSocket broadcasts to auto-refresh the library
     const handleRemoteUpdate = () => {
       fetchRecords();
     };
-    
+
     window.addEventListener('ISSUE_SYNCED', handleRemoteUpdate);
     window.addEventListener('MOM_SAVED', handleRemoteUpdate);
 
@@ -785,13 +842,13 @@ const SavedMOMsPage = () => {
   const handleConfirmDelete = async () => {
     const { syncId, historyId, meetingId } = deleteConfirm;
     setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
-    
+
     const localFilterId = syncId && syncId !== 'null' ? syncId : null;
 
     try {
       // Pass all resolved identifiers to guarantee thorough hard deletion
       await API.delete(`/mom/syncs/${syncId || 'null'}?history_id=${historyId || ''}&meeting_id=${meetingId || ''}`);
-      
+
       setRecords(prev => prev.filter(r => {
         if (localFilterId && r.sync_id === localFilterId) return false;
         if (historyId && r.history_id === historyId) return false;
@@ -807,17 +864,17 @@ const SavedMOMsPage = () => {
 
   const filtered = useMemo(() => {
     return records.filter(r => {
-      const matchesSearch = !search || 
-        r.meeting_name.toLowerCase().includes(search.toLowerCase()) || 
+      const matchesSearch = !search ||
+        r.meeting_name.toLowerCase().includes(search.toLowerCase()) ||
         r.project_name.toLowerCase().includes(search.toLowerCase());
       const matchesProject = selectedProject === 'all' || r.project_name === selectedProject;
       return matchesSearch && matchesProject;
     });
   }, [records, search, selectedProject]);
 
-  const allProjects = useMemo(() => 
-    ['all', ...new Set(records.map(r => r.project_name))].filter(Boolean), 
-  [records]);
+  const allProjects = useMemo(() =>
+    ['all', ...new Set(records.map(r => r.project_name))].filter(Boolean),
+    [records]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const activePage = Math.min(currentPage, totalPages);
@@ -881,9 +938,9 @@ const SavedMOMsPage = () => {
       <div className="smp-filterbar">
         <div className="smp-search">
           <Search size={14} className="smp-search-ic" />
-          <input 
-            type="text" 
-            placeholder="Search meetings or projects..." 
+          <input
+            type="text"
+            placeholder="Search meetings or projects..."
             className="smp-search-input"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -964,16 +1021,16 @@ const SavedMOMsPage = () => {
                           </div>
                         </div>
                       </CollapsibleTrigger>
-                      
+
                       <div className="flex items-center gap-3">
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); triggerDeleteSync(rec); }}
                           className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
                           title="Hard Delete MOM"
                         >
                           <Trash2 size={16} />
                         </button>
-                        
+
                         <CollapsibleTrigger asChild>
                           <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-all cursor-pointer">
                             <ChevronRight size={18} className={`transition-transform duration-300 ${isRecordExpanded ? 'rotate-90 text-blue-500' : 'text-slate-300'}`} />
@@ -985,7 +1042,7 @@ const SavedMOMsPage = () => {
                     <CollapsibleContent className="overflow-hidden border-t border-slate-100">
                       <AnimatePresence initial={false}>
                         {isRecordExpanded && (
-                          <motion.div 
+                          <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -1041,13 +1098,13 @@ const SavedMOMsPage = () => {
                 <Pagination className="w-auto mx-0">
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
+                      <PaginationPrevious
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={activePage === 1}
                         className="cursor-pointer"
                       />
                     </PaginationItem>
-                    
+
                     {Array.from({ length: totalPages }).map((_, i) => (
                       <PaginationItem key={i}>
                         <PaginationLink
@@ -1059,9 +1116,9 @@ const SavedMOMsPage = () => {
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    
+
                     <PaginationItem>
-                      <PaginationNext 
+                      <PaginationNext
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={activePage === totalPages}
                         className="cursor-pointer"
@@ -1109,7 +1166,7 @@ const SavedMOMsPage = () => {
                   "{deleteConfirm.meetingName}"
                 </strong>
               </p>
-              
+
               <div className="smp-dialog-warning-box">
                 <strong style={{ display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.04em' }}>
                   ⚠️ CRITICAL SYSTEM CASCADE

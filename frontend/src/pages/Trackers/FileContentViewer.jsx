@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { toast } from 'react-hot-toast';
+import Skeleton from '../../components/ui/skeleton';
 
 // Delete Confirmation Modal Component (same as before)
 const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, message, type = 'column' }) => {
@@ -706,10 +707,149 @@ const FileContentViewer = ({
 
   if (isLoading) {
     return (
-      <div className="h-full flex flex-col bg-app-bg dark:bg-slate-950 p-4">
-        <div className="bg-app-surface dark:bg-slate-900 border border-border dark:border-slate-800 rounded-xl shadow-lg p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h3 className="text-lg font-bold text-text-primary dark:text-slate-100">Loading Data...</h3>
+      <div className="h-full flex flex-col bg-app-bg dark:bg-slate-950 overflow-hidden">
+        {/* Toolbar Skeleton */}
+        <div className="flex items-center justify-between p-3 border-b border-border dark:border-slate-800 bg-app-surface dark:bg-slate-900">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <Skeleton className="h-8 w-20 rounded-lg" />
+            )}
+            <div className="relative">
+              <Skeleton className="h-8 w-64 rounded-lg" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {!viewOnly && (
+              <>
+                <Skeleton className="h-8 w-8 rounded-lg" />
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Table Content Skeleton */}
+        <div className="flex-1 overflow-auto bg-app-bg dark:bg-slate-950 relative">
+          <table className="min-w-full text-sm border-separate border-spacing-0">
+            <thead className="sticky top-0 z-30">
+              <tr className="bg-slate-50 dark:bg-slate-900 border-b border-border dark:border-slate-800 shadow-sm">
+                <th className="py-3 px-3 border-r border-border dark:border-slate-800 bg-slate-100 dark:bg-slate-800 sticky left-0 z-50 w-12 text-center text-[10px] uppercase font-bold text-text-secondary dark:text-slate-400">
+                  #
+                </th>
+                {!viewOnly && (
+                  <th className="py-3 px-4 border-r border-border dark:border-slate-800 bg-slate-100 dark:bg-slate-900 sticky left-12 z-40 w-36">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center pr-2 border-r border-border dark:border-slate-800">
+                        <Skeleton className="h-4 w-4 rounded" />
+                      </div>
+                      <div className="flex items-center space-x-1 pl-2">
+                        <Skeleton className="h-6 w-6 rounded" />
+                        <Skeleton className="h-6 w-6 rounded" />
+                      </div>
+                    </div>
+                  </th>
+                )}
+                {/* 6 column headers with varying width skeletons */}
+                {['w-24', 'w-36', 'w-28', 'w-40', 'w-32', 'w-20'].map((widthClass, idx) => (
+                  <th
+                    key={idx}
+                    className="text-left py-3 px-6 font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap border-b border-r border-border dark:border-slate-800 bg-slate-50 dark:bg-slate-900"
+                  >
+                    <Skeleton className={`h-4 ${widthClass}`} />
+                  </th>
+                ))}
+                {!viewOnly && (
+                  <th className="py-3 px-4 border-b border-border dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-text-muted text-[10px] uppercase font-bold text-center w-20">
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-border dark:divide-slate-800">
+              {Array.from({ length: 10 }).map((_, rowIndex) => (
+                <tr
+                  key={rowIndex}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-900 even:bg-slate-50/30 dark:even:bg-slate-800/30"
+                >
+                  {/* Row index skeleton */}
+                  <td className="py-3 px-3 border-r border-border dark:border-slate-800 bg-slate-100 dark:bg-slate-800 sticky left-0 z-10 text-center text-[11px] font-bold text-text-muted">
+                    {rowIndex + 1}
+                  </td>
+
+                  {/* Row checkbox skeleton */}
+                  {!viewOnly && (
+                    <td className="py-3 px-4 border-r border-border dark:border-slate-800 bg-app-surface dark:bg-slate-900 sticky left-12 z-10">
+                      <div className="flex items-center justify-center">
+                        <Skeleton className="h-4 w-4 rounded" />
+                      </div>
+                    </td>
+                  )}
+
+                  {/* 6 data columns pulsing with random-like widths */}
+                  {[
+                    ['w-20', 'w-32', 'w-24', 'w-36', 'w-28', 'w-16'],
+                    ['w-24', 'w-28', 'w-20', 'w-40', 'w-24', 'w-12'],
+                    ['w-16', 'w-36', 'w-32', 'w-28', 'w-20', 'w-20'],
+                    ['w-28', 'w-24', 'w-16', 'w-32', 'w-36', 'w-16'],
+                    ['w-20', 'w-32', 'w-24', 'w-36', 'w-28', 'w-16'],
+                    ['w-24', 'w-28', 'w-20', 'w-40', 'w-24', 'w-12'],
+                    ['w-16', 'w-36', 'w-32', 'w-28', 'w-20', 'w-20'],
+                    ['w-28', 'w-24', 'w-16', 'w-32', 'w-36', 'w-16'],
+                    ['w-20', 'w-32', 'w-24', 'w-36', 'w-28', 'w-16'],
+                    ['w-24', 'w-28', 'w-20', 'w-40', 'w-24', 'w-12']
+                  ][rowIndex].map((widthClass, colIdx) => (
+                    <td
+                      key={colIdx}
+                      className="py-3 px-6 whitespace-nowrap border-r border-border dark:border-slate-800"
+                    >
+                      <Skeleton className={`h-4 ${widthClass}`} />
+                    </td>
+                  ))}
+
+                  {/* Row delete action button skeleton */}
+                  {!viewOnly && (
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex justify-center">
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Skeleton */}
+        <div className="p-3 sm:p-4 border-t border-border dark:border-slate-800 bg-app-surface dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 z-20 shadow-lg">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            {!viewOnly && (
+              <div className="flex gap-2 mr-2">
+                <Skeleton className="h-8 w-24 rounded-lg" />
+                <Skeleton className="h-8 w-24 rounded-lg" />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-5 w-24 rounded" />
+              <Skeleton className="h-8 w-12 rounded" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
+            <Skeleton className="h-5 w-36 rounded" />
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded" />
+              <div className="flex gap-1 px-1">
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+                <Skeleton className="h-8 w-8 rounded" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded" />
+            </div>
+          </div>
         </div>
       </div>
     );

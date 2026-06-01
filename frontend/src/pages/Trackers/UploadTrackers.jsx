@@ -21,6 +21,7 @@ import SearchableDropdown from '../../components/SearchableDropdown';
 import PermissionGuard from '../../components/PermissionGuard';
 import { trackerSidebarManager } from '../../utils/trackerSidebarManager';
 import { getCurrentUser } from '../../utils/userUtils';
+import Skeleton from '../../components/ui/skeleton';
 
 // Use shared trackerSidebarManager instead of internal implementation
 const sidebarManager = trackerSidebarManager;
@@ -184,7 +185,7 @@ const UploadTrackers = () => {
   const [employeeList, setEmployeeList] = useState([]);
   const [projectList, setProjectList] = useState([]);
 
-  const { data: uploadData, refetch: refetchUploads } = useQuery({
+  const { data: uploadData, isLoading, refetch: refetchUploads } = useQuery({
     queryKey: ['uploads'],
     queryFn: async () => {
       const response = await API.get('/uploads');
@@ -1631,59 +1632,103 @@ const UploadTrackers = () => {
                   </thead>
 
                   <tbody className="divide-y divide-border dark:divide-slate-800/50">
-                    {paginatedTrackers.map((tracker) => (
-                      <tr
-                        key={tracker.upload_id}
-                        className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors border-b border-border dark:border-slate-800 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50 dark:bg-blue-900/30' : 'even:bg-slate-50/30 dark:even:bg-slate-800/30'
-                          }`}
-                      >
-                        {/* Checkbox cell */}
-                        <td className="py-3 px-4 whitespace-nowrap w-10">
-                          <div className="flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedTrackers.includes(tracker.upload_id)}
-                              onChange={() => toggleTrackerSelection(tracker.upload_id)}
-                              className="h-4 w-4 text-blue-600 border-border dark:border-slate-600 rounded focus:ring-blue-500 bg-app-surface dark:bg-slate-800"
-                            />
-                          </div>
-                        </td>
-                        {visibleColumns.map(col => (
-                          <td key={col.id} className="py-3 px-4 whitespace-nowrap">
-                            <div className="text-text-primary dark:text-slate-200">
-                              {renderCellContent(col, tracker[col.id], tracker)}
+                    {isLoading ? (
+                      Array.from({ length: 5 }).map((_, rIdx) => (
+                        <tr
+                          key={rIdx}
+                          className="hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors border-b border-border dark:border-slate-800"
+                        >
+                          {/* Checkbox cell */}
+                          <td className="py-3 px-4 whitespace-nowrap w-10">
+                            <div className="flex items-center justify-center">
+                              <Skeleton className="h-4 w-4 rounded" />
                             </div>
                           </td>
-                        ))}
-                        <td className="py-3 px-4 whitespace-nowrap text-left">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => {
-                                dispatch(setSelectedUploadFileId(tracker.upload_id));
-                                setSearchParams(prev => {
-                                  const next = new URLSearchParams(prev);
-                                  next.set('file', String(tracker.upload_id));
-                                  return next;
-                                });
-                              }}
-                              className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
-                              title="View File"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </button>
-                            <PermissionGuard permission="delete_tracker">
-                              <button
-                                onClick={() => showDeleteConfirmation(tracker.upload_id, getDisplayFileName(tracker.fileName, tracker.project))}
-                                className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </PermissionGuard>
-                          </div>
+                          {visibleColumns.map((col, cIdx) => {
+                            const widths = ['w-24', 'w-32', 'w-20', 'w-28', 'w-16'];
+                            const widthClass = widths[(rIdx + cIdx) % widths.length];
+                            if (col.id === 'status') {
+                              return (
+                                <td key={col.id} className="py-3 px-4 whitespace-nowrap">
+                                  <Skeleton className="h-5 w-16 rounded-full" />
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={col.id} className="py-3 px-4 whitespace-nowrap">
+                                <Skeleton className={`h-4 ${widthClass}`} />
+                              </td>
+                            );
+                          })}
+                          <td className="py-3 px-4 whitespace-nowrap text-left w-20">
+                            <div className="flex items-center space-x-2">
+                              <Skeleton className="h-6 w-6 rounded-full" />
+                              <Skeleton className="h-6 w-6 rounded-full" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : paginatedTrackers.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 2} className="py-12 text-center text-text-secondary dark:text-slate-400 font-medium">
+                          No trackers found.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      paginatedTrackers.map((tracker) => (
+                        <tr
+                          key={tracker.upload_id}
+                          className={`hover:bg-blue-50/50 dark:hover:bg-blue-900/20 transition-colors border-b border-border dark:border-slate-800 ${selectedTrackers.includes(tracker.upload_id) ? 'bg-blue-50 dark:bg-blue-900/30' : 'even:bg-slate-50/30 dark:even:bg-slate-800/30'
+                            }`}
+                        >
+                          {/* Checkbox cell */}
+                          <td className="py-3 px-4 whitespace-nowrap w-10">
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedTrackers.includes(tracker.upload_id)}
+                                onChange={() => toggleTrackerSelection(tracker.upload_id)}
+                                className="h-4 w-4 text-blue-600 border-border dark:border-slate-600 rounded focus:ring-blue-500 bg-app-surface dark:bg-slate-800"
+                              />
+                            </div>
+                          </td>
+                          {visibleColumns.map(col => (
+                            <td key={col.id} className="py-3 px-4 whitespace-nowrap">
+                              <div className="text-text-primary dark:text-slate-200">
+                                {renderCellContent(col, tracker[col.id], tracker)}
+                              </div>
+                            </td>
+                          ))}
+                          <td className="py-3 px-4 whitespace-nowrap text-left">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => {
+                                  dispatch(setSelectedUploadFileId(tracker.upload_id));
+                                  setSearchParams(prev => {
+                                    const next = new URLSearchParams(prev);
+                                    next.set('file', String(tracker.upload_id));
+                                    return next;
+                                  });
+                                }}
+                                className="p-1.5 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors"
+                                title="View File"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <PermissionGuard permission="delete_tracker">
+                                <button
+                                  onClick={() => showDeleteConfirmation(tracker.upload_id, getDisplayFileName(tracker.fileName, tracker.project))}
+                                  className="p-1.5 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-full transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </PermissionGuard>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import API from '../../../utils/api';
 import { toast } from 'react-hot-toast';
+import Skeleton from '../../../components/ui/skeleton';
 
 const ROLE_ORDER = {
   'Super Admin': 1,
@@ -386,9 +387,38 @@ const AccessControl = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-hover)]" />
-        <p className="text-[var(--text-muted)] text-[10px] font-bold tracking-[0.3em] uppercase">Syncing roles...</p>
+      <div className="space-y-12 pb-24 font-inter animate-pulse">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56 rounded" />
+            <Skeleton className="h-4 w-96 max-w-full rounded" />
+          </div>
+          <Skeleton className="h-11 w-44 rounded-full" />
+        </div>
+
+        {/* Roles Grid Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="p-6 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-none flex flex-col justify-between min-h-[220px]"
+            >
+              <div className="space-y-6">
+                <div className="flex items-start justify-between">
+                  <Skeleton className="w-10 h-10 rounded-full" />
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                </div>
+                
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+              </div>
+
+              <Skeleton className="mt-8 w-full h-9 rounded-full" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

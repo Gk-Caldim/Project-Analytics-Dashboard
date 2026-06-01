@@ -23,7 +23,8 @@ const initialState = {
   currentChatId: null,
   notifications: [],
   unreadNotifications: 0,
-  isServerOnline: true
+  isServerOnline: true,
+  currentMeetingTitle: null
 };
 
 const navSlice = createSlice({
@@ -209,6 +210,9 @@ const navSlice = createSlice({
     },
     setServerOnline: (state, action) => {
       state.isServerOnline = action.payload;
+    },
+    setCurrentMeetingTitle: (state, action) => {
+      state.currentMeetingTitle = action.payload;
     }
   },
 });
@@ -248,7 +252,8 @@ export const {
   setNotifications,
   markNotificationsRead,
   updateNotification,
-  setServerOnline
+  setServerOnline,
+  setCurrentMeetingTitle
 } = navSlice.actions;
 
 export const fetchNotifications = () => async (dispatch) => {

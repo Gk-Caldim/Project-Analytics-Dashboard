@@ -21,6 +21,7 @@ import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
 import { Skeleton } from '../../components/ui/skeleton';
+import { setCurrentMeetingTitle } from '../../store/slices/navSlice';
 import './MOMViewPage.css';
 
 // ── Speaker colour palette ───────────────────────────────────────────────
@@ -64,7 +65,17 @@ const MOMViewPage = () => {
   const [activeHighlightIdx, setActiveHighlightIdx] = useState(0);
 
   const { meetingId: urlMeetingId } = useParams();
-  const effectiveMeetingId = urlMeetingId || meetingId;
+
+  const pathMeetingId = useMemo(() => {
+    const parts = window.location.pathname.split('/');
+    const viewIdx = parts.indexOf('view');
+    if (viewIdx !== -1 && parts[viewIdx + 1]) {
+      return parts[viewIdx + 1];
+    }
+    return null;
+  }, []);
+
+  const effectiveMeetingId = urlMeetingId || pathMeetingId || meetingId;
 
   const [loading, setLoading] = useState(false);
   const [localTranscript, setLocalTranscript] = useState([]);
@@ -73,23 +84,41 @@ const MOMViewPage = () => {
 
   // ── Dual-Layer Route Synchronization & Session Hydration Fallback ──
   useEffect(() => {
-    if (urlMeetingId) {
-      sessionStorage.setItem('active_meeting_id', urlMeetingId);
-    } else {
-      const storedId = sessionStorage.getItem('active_meeting_id');
-      if (storedId) {
-        console.log('[MOMViewPage] Syncing URL with SessionStorage active ID:', storedId);
-        navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
-      } else if (meetingId) {
-        console.log('[MOMViewPage] Syncing URL with Redux active ID:', meetingId);
-        navigate(`/dashboard/mom/view/${meetingId}`, { replace: true });
-      } else {
-        console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
-        toast.error('No active meeting selected. Returning to dashboard.');
-        navigate('/dashboard/mom', { replace: true });
-      }
+    const resolvedId = urlMeetingId || pathMeetingId;
+    if (resolvedId) {
+      sessionStorage.setItem('active_meeting_id', resolvedId);
+    } else if (meetingId) {
+      navigate(`/dashboard/mom/view/${meetingId}`, { replace: true });
     }
-  }, [urlMeetingId, meetingId, navigate]);
+    // No redirect when URL already has the ID — avoids wiping the page on refresh
+  }, [urlMeetingId, pathMeetingId, meetingId, navigate]);
+
+  // ── Persist momData + context to sessionStorage so refresh restores the table instantly ──
+  // Redux is in-memory only; this prevents the generated MOM from vanishing on F5.
+  // Also caches meeting context (name/project) because the 'unscheduled' backend endpoint
+  // returns no meeting record, so context must be restored from cache too.
+  useEffect(() => {
+    if (effectiveMeetingId && momData && momData.length > 0) {
+      try {
+        sessionStorage.setItem(`mom_rows_${effectiveMeetingId}`, JSON.stringify(momData));
+        sessionStorage.setItem(`mom_ctx_${effectiveMeetingId}`, JSON.stringify({
+          meetingId: meetingId || effectiveMeetingId,
+          meetingName,
+          projectId,
+          projectName,
+        }));
+      } catch (_) { /* sessionStorage quota exceeded — ignore */ }
+    }
+  }, [momData, effectiveMeetingId, meetingId, meetingName, projectId, projectName]);
+
+  useEffect(() => {
+    if (meetingName) {
+      dispatch(setCurrentMeetingTitle(meetingName));
+    }
+    return () => {
+      dispatch(setCurrentMeetingTitle(null));
+    };
+  }, [meetingName, dispatch]);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -102,16 +131,32 @@ const MOMViewPage = () => {
     }).catch(() => { });
 
     // ── Debug: log the meetingId on mount ──
-    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| redux meetingId:', meetingId);
+    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| pathMeetingId:', pathMeetingId, '| redux meetingId:', meetingId);
 
-    // Hydrate if meetingId is provided in URL and Redux is empty or needs refresh
-    if (urlMeetingId && (!momData || momData.length === 0 || meetingId !== urlMeetingId)) {
+    // Hydrate if effectiveMeetingId is provided and Redux is empty or needs refresh
+    if (effectiveMeetingId && (!momData || momData.length === 0 || meetingId !== effectiveMeetingId)) {
+      // ── Fast path for 'unscheduled' meetings ──────────────────────────────────
+      // The backend has no DB record for 'unscheduled', so intelligence_data is
+      // always null and all API priorities will fail. Read sessionStorage first,
+      // synchronously, to avoid ANY async race or double-mount timing issue.
+      if (effectiveMeetingId === 'unscheduled' || effectiveMeetingId?.startsWith('sync-')) {
+        try {
+          const cachedRows = JSON.parse(sessionStorage.getItem(`mom_rows_${effectiveMeetingId}`) || 'null');
+          const cachedCtx  = JSON.parse(sessionStorage.getItem(`mom_ctx_${effectiveMeetingId}`)  || 'null');
+          if (cachedRows && cachedRows.length > 0) {
+            dispatch(setMomDataRedux(cachedRows));
+            if (cachedCtx) dispatch({ type: 'mom/setMeetingContext', payload: cachedCtx });
+            return; // ← done, skip all API calls
+          }
+        } catch (_) { /* corrupt cache — fall through to API */ }
+      }
+
       setLoading(true);
       
       Promise.all([
-        API.get(`/meetings/${urlMeetingId}`).catch(() => null),
-        API.get(`/mom/${urlMeetingId}`).catch(() => null),
-        API.get(`/mom/issues/${urlMeetingId}`).catch(() => null),
+        API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
       ])
         .then(([meetingRes, momRes, issuesRes]) => {
           console.log('[MOMViewPage] API responses:', {
@@ -122,6 +167,20 @@ const MOMViewPage = () => {
 
           const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
           if (!m) {
+            // Before giving up, try the sessionStorage cache.
+            // This is the primary path for 'unscheduled' meetings: the backend has no
+            // real meeting record at that ID, but the cache has the generated rows.
+            try {
+              const cachedRows = JSON.parse(sessionStorage.getItem(`mom_rows_${effectiveMeetingId}`) || 'null');
+              const cachedCtx  = JSON.parse(sessionStorage.getItem(`mom_ctx_${effectiveMeetingId}`)  || 'null');
+              if (cachedRows && cachedRows.length > 0) {
+                dispatch(setMomDataRedux(cachedRows));
+                if (cachedCtx) {
+                  dispatch({ type: 'mom/setMeetingContext', payload: cachedCtx });
+                }
+                return; // successfully restored from sessionStorage — no error toast
+              }
+            } catch (_) { /* corrupt cache — fall through to error */ }
             toast.error("Failed to load meeting details.");
             return;
           }
@@ -134,11 +193,10 @@ const MOMViewPage = () => {
           if (momRes?.data?.mom_data && momRes.data.mom_data.length > 0) {
             // Priority 1: Saved edited MOM data from MOMSession
             finalRows = momRes.data.mom_data;
-            console.log('[MOMViewPage] Source: MOMSession.mom_data →', finalRows.length, 'rows');
-          } else if (issuesRes?.data?.success && issuesRes.data.rows?.length > 0) {
+          } else if (issuesRes?.data?.success && (issuesRes.data.moms?.length > 0 || issuesRes.data.rows?.length > 0)) {
             // Priority 2: Synced issues from the Issue table (written by /mom/issues POST)
-            finalRows = issuesRes.data.rows;
-            console.log('[MOMViewPage] Source: Issue table (synced) →', finalRows.length, 'rows');
+            // Backend returns field 'moms'; 'rows' kept as legacy fallback
+            finalRows = issuesRes.data.moms || issuesRes.data.rows;
           } else if (m.intelligence_data) {
             // Priority 3: Original AI generated data on the Meeting record
             const intel = m.intelligence_data;
@@ -165,9 +223,18 @@ const MOMViewPage = () => {
                 project_name: m.title
               }))
             ];
-            console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
-          } else {
-            console.warn('[MOMViewPage] No data found from any source for meetingId:', urlMeetingId);
+          }
+
+          // Priority 4 (refresh fallback): sessionStorage cache written when user first viewed this MOM.
+          // Covers the case where generate-mom succeeded but the rows were never persisted to the backend.
+          if (finalRows.length === 0) {
+            try {
+              const cached = sessionStorage.getItem(`mom_rows_${effectiveMeetingId}`);
+              if (cached) {
+                finalRows = JSON.parse(cached);
+                console.log('[MOMViewPage] Source: sessionStorage cache →', finalRows.length, 'rows');
+              }
+            } catch (_) { /* corrupt cache — ignore */ }
           }
 
           if (finalRows.length > 0) {
@@ -202,7 +269,7 @@ const MOMViewPage = () => {
         })
         .finally(() => setLoading(false));
     }
-  }, [urlMeetingId, dispatch]);
+  }, [effectiveMeetingId, dispatch]);
 
 
   // ── Derive sections from momData ─────────────────────────────────────
@@ -392,17 +459,6 @@ const MOMViewPage = () => {
             <div className="mvp-content-container">
               {/* ── Executive Header Card Skeleton ── */}
               <div className="mvp-top-container">
-                {/* Breadcrumb */}
-                <nav className="mvp-breadcrumb">
-                  <Skeleton className="h-4 w-16" />
-                  <ChevronRight size={12} className="text-gray-300" />
-                  <Skeleton className="h-4 w-16" />
-                  <ChevronRight size={12} className="text-gray-300" />
-                  <Skeleton className="h-4 w-32" />
-                  <ChevronRight size={12} className="text-gray-300" />
-                  <Skeleton className="h-4 w-20" />
-                </nav>
-
                 {/* Header Card — Zoho flat style */}
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
@@ -531,18 +587,6 @@ const MOMViewPage = () => {
             <div className="mvp-content-container">
               {/* ── Executive Header Card ── */}
               <div className="mvp-top-container">
-
-                {/* Breadcrumb */}
-                <nav className="mvp-breadcrumb">
-                  <Link to="/dashboard">Dashboard</Link>
-                  <ChevronRight size={12} />
-                  <Link to="/dashboard/calendar">Calendar</Link>
-                  <ChevronRight size={12} />
-                  <span>{session.name}</span>
-                  <ChevronRight size={12} />
-                  <span className="active">MOM Output</span>
-                </nav>
-
                 {/* Header Card — Zoho flat style */}
                 <div style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',

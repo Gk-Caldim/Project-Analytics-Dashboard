@@ -11,6 +11,7 @@ import { getEmployees } from "../../utils/employeeApi";
 import SearchableDropdown from "../../components/SearchableDropdown";
 import SubCategoryModal from "../../components/SubCategoryModal";
 import FilterDrawer from './components/FilterDrawer';
+import Skeleton from '../../components/ui/skeleton';
 
 import { useNavigate } from 'react-router-dom';
 import useCurrency from "../../hooks/useCurrency";
@@ -2664,9 +2665,122 @@ const ProjectMaster = () => {
 
           {/* Loading / Error State */}
           {loading && (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-100">
-              Loading data...
-            </div>
+            <>
+              {/* TOOLBAR SKELETON */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  {/* LEFT SIDE */}
+                  <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:gap-2 items-start sm:items-center">
+                    {/* Search skeleton */}
+                    <Skeleton className="w-full sm:w-48 h-10 border border-slate-200 dark:border-slate-700" />
+                    {/* Filter button skeleton */}
+                    <Skeleton className="w-24 h-10 border border-slate-200 dark:border-slate-700" />
+                    {/* Columns button skeleton */}
+                    <Skeleton className="w-24 h-10 border border-slate-200 dark:border-slate-700" />
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div className="flex gap-2 mt-2 sm:mt-0">
+                    <Skeleton className="w-28 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-28 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-10 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-10 h-10 border border-slate-200 dark:border-slate-700" />
+                  </div>
+                </div>
+              </div>
+
+              {/* TABLE SKELETON */}
+              <div className="master-table-scroll">
+                <div className="master-table-scroll-inner">
+                  <table className="master-table">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        {/* Checkbox column */}
+                        <th className="py-3 px-4 w-10">
+                          <Skeleton className="h-4 w-4 mx-auto" />
+                        </th>
+                        {visibleColumns.map((col) => (
+                          <th key={col.id} className="py-3 px-4 font-medium text-left">
+                            <Skeleton className="h-4 w-20" />
+                          </th>
+                        ))}
+                        {/* Actions Header */}
+                        <th className="px-6 py-3 text-right font-medium w-24">
+                          <Skeleton className="h-4 w-16 ml-auto" />
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/50">
+                      {Array.from({ length: pageSize }).map((_, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                          {/* Checkbox cell */}
+                          <td className="py-3 px-4 w-10">
+                            <Skeleton className="h-4 w-4 mx-auto" />
+                          </td>
+                          {visibleColumns.map((col, cIdx) => {
+                            // Give varying widths to table cell skeletons for rich, natural feeling
+                            const widths = ['w-12', 'w-16', 'w-20', 'w-24', 'w-28', 'w-32', 'w-36', 'w-40'];
+                            const widthClass = widths[(rIdx + cIdx) % widths.length];
+
+                            if (col.id === 'status') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <Skeleton className="w-1.5 h-1.5 rounded-full" />
+                                    <Skeleton className="h-5 w-16 rounded-full" />
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.id === 'budget' || col.id === 'utilized_budget' || col.id === 'balance_budget') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-100">
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                    <Skeleton className="h-4 w-16 rounded" />
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.id === 'detailed_view') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <Skeleton className="h-6 w-16 rounded" />
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={col.id} className="py-3 px-4">
+                                <Skeleton className={`h-4 ${widthClass}`} />
+                              </td>
+                            );
+                          })}
+                          {/* Actions cell */}
+                          <td className="py-3 px-4 text-right w-[100px]">
+                            <div className="flex justify-end gap-2">
+                              <Skeleton className="h-7 w-7 rounded" />
+                              <Skeleton className="h-7 w-7 rounded" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* FOOTER SKELETON */}
+              <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-2 bg-white dark:bg-slate-800 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-10 w-10 border border-slate-200 dark:border-slate-700" />
+                  <Skeleton className="h-10 w-10 border border-slate-200 dark:border-slate-700" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-8 w-32" />
+                </div>
+              </div>
+            </>
           )}
 
           {error && (

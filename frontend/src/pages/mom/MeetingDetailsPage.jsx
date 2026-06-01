@@ -1,7 +1,8 @@
 // Caldim Executive-Grade Meeting Details Page
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { setCurrentMeetingTitle } from '../../store/slices/navSlice';
 import {
   Video, Copy, Check, X, ArrowUpRight, Trash2,
   FileText, AlertCircle, Plus, GripVertical,
@@ -16,14 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '../../hooks/use-confirm';
 import { Spinner } from '../../components/ui/spinner';
 import { Skeleton } from '../../components/ui/skeleton';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "../../components/ui/breadcrumb";
+
 import {
   Popover,
   PopoverContent,
@@ -178,6 +172,7 @@ const getInitialsColor = (name = '') => {
 const MeetingDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const confirm = useConfirm();
   const currentUser = useSelector(s => s.auth?.user || s.user?.profile || null);
   const isHost = !currentUser || currentUser?.role === 'host' || currentUser?.role === 'admin';
@@ -491,6 +486,15 @@ const MeetingDetailsPage = () => {
   };
 
   useEffect(() => { fetchMeeting(); }, [id]);
+
+  useEffect(() => {
+    if (meeting?.title) {
+      dispatch(setCurrentMeetingTitle(meeting.title));
+    }
+    return () => {
+      dispatch(setCurrentMeetingTitle(null));
+    };
+  }, [meeting?.title, dispatch]);
 
   useEffect(() => {
     const fetchAllMeetings = async () => {
@@ -1420,10 +1424,7 @@ const MeetingDetailsPage = () => {
       <div className="z-header-zone">
         {/* Row 1 — Breadcrumb + Action bar */}
         <div className="z-header-row1">
-          <nav className="z-breadcrumb-bar">
-            <Skeleton className="h-5 w-48 rounded" />
-          </nav>
-          <div className="z-header-actions-bar flex gap-2">
+          <div className="z-header-actions-bar flex gap-2 ml-auto">
             <Skeleton className="h-8 w-24 rounded-lg" />
             <Skeleton className="h-8 w-32 rounded-lg" />
           </div>
@@ -1537,25 +1538,7 @@ const MeetingDetailsPage = () => {
 
         {/* Row 1 — Breadcrumb + Action bar */}
         <div className="z-header-row1">
-          <nav className="z-breadcrumb-bar">
-            <Link to="/dashboard" className="z-bc-link">Dashboard</Link>
-            <span className="z-bc-sep">›</span>
-            {projectName ? (
-              <Link to="/dashboard/projects" className="z-bc-link">Projects</Link>
-            ) : (
-              <Link to="/dashboard/calendar" className="z-bc-link">Calendar</Link>
-            )}
-            {projectName && (
-              <>
-                <span className="z-bc-sep">›</span>
-                <span className="z-bc-link">{projectName}</span>
-              </>
-            )}
-            <span className="z-bc-sep">›</span>
-            <span className="z-bc-current">{meeting?.title}</span>
-          </nav>
-
-          <div className="z-header-actions-bar">
+          <div className="z-header-actions-bar ml-auto">
             {/* Countdown pill */}
             {meetingStatus === 'upcoming' && countdown && !isLocked && (
               <span className="z-timer-pill">{countdown}</span>
@@ -2444,7 +2427,7 @@ const MeetingDetailsPage = () => {
                     {meeting.mom_generated ? (
                       <div className="z-mom-done">
                         <Check size={16} /> <span>Document Generated</span>
-                        <button className="z-btn-ghost" onClick={() => navigate(`/mom/view/${id}`)}>View</button>
+                        <button className="z-btn-ghost" onClick={() => navigate(`/dashboard/mom/view/${id}`)}>View</button>
                       </div>
                     ) : (
                       <button className="z-btn-primary w-full" onClick={handleGenerateMOM} disabled={generatingMom}>
