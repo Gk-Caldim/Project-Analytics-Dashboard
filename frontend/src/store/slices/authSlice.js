@@ -1,5 +1,8 @@
 import { createSlice } from '@reduxjs/toolkit';
 import API from '../../utils/api';
+import { resetNavState } from './navSlice';
+import { resetProjectState } from './projectSlice';
+import { resetMOM } from './momSlice';
 
 const initialState = {
   user: JSON.parse(sessionStorage.getItem('user')) || null,
@@ -63,11 +66,7 @@ export const refreshUserProfile = () => async (dispatch) => {
  *   dispatch(performLogout(queryClient)); // with React Query cache clear
  *   dispatch(performLogout());            // without (e.g. from AuthContext)
  */
-export const performLogout = (queryClient) => async (dispatch) => {
-  // Lazy-import to avoid circular dependency at module evaluation time
-  const { resetNavState } = await import('./navSlice');
-  const { resetProjectState } = await import('./projectSlice');
-
+export const performLogout = (queryClient) => (dispatch) => {
   // 1. Clear auth state + sessionStorage token/user
   dispatch(logout());
 
@@ -77,14 +76,19 @@ export const performLogout = (queryClient) => async (dispatch) => {
   // 3. Reset project state + projectSlice sessionStorage key
   dispatch(resetProjectState());
 
-  // 4. Clear localStorage sidebar module caches (written by Dashboard.jsx)
+  // 4. Reset MOM state
+  dispatch(resetMOM());
+
+  // 5. Clear localStorage sidebar module caches (written by Dashboard.jsx)
   localStorage.removeItem('project_dashboard_modules');
   localStorage.removeItem('upload_tracker_modules');
+  localStorage.removeItem('upload_trackers');
 
-  // 5. Optionally clear React Query in-memory cache
+  // 6. Optionally clear React Query in-memory cache
   if (queryClient && typeof queryClient.clear === 'function') {
     queryClient.clear();
   }
 };
+
 
 export default authSlice.reducer;

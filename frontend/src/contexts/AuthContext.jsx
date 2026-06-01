@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
 import { setUser as setReduxUser, performLogout } from '../store/slices/authSlice';
 import API from '../utils/api';
 
@@ -11,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -76,10 +78,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    dispatch(performLogout());
+    dispatch(performLogout(queryClient));
     setUser(null);
     window.location.href = '/login';
   };
+
 
   const value = {
     user,

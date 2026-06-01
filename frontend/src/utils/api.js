@@ -42,6 +42,7 @@ API.interceptors.response.use(
       sessionStorage.clear();
       localStorage.removeItem('project_dashboard_modules');
       localStorage.removeItem('upload_tracker_modules');
+      localStorage.removeItem('upload_trackers');
       window.location.href = '/login';
     }
     return Promise.reject(error);
