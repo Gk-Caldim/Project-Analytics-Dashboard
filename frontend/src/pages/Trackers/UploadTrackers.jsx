@@ -164,7 +164,7 @@ const UploadTrackers = () => {
   const selectedFileId = useSelector(state => state.nav.selectedUploadFileId);
   const authUser = useSelector(state => state.auth?.user);
   const isAdmin = authUser?.role === 'Admin' || authUser?.role === 'Super Admin' || authUser?.role === 'Project Manager';
-  
+
   const onClearSelection = () => dispatch(setSelectedUploadFileId(null));
   // Initial columns configuration
   const initialColumns = [
@@ -251,6 +251,64 @@ const UploadTrackers = () => {
     file: null
   });
   const [uploadFormErrors, setUploadFormErrors] = useState({});
+
+  // Project-filtered employees and departments for upload form
+  const [projectFilteredEmployees, setProjectFilteredEmployees] = useState([]);
+  const [projectFilteredDepartments, setProjectFilteredDepartments] = useState([]);
+
+  // When a project is selected in upload form, auto-populate related employees/department
+  const handleUploadProjectChange = (projectName) => {
+    setUploadForm(prev => ({ ...prev, project: projectName, employeeName: '', department: '' }));
+    if (uploadFormErrors.project) setUploadFormErrors(prev => ({ ...prev, project: '' }));
+
+    if (!projectName) {
+      setProjectFilteredEmployees([]);
+      setProjectFilteredDepartments([]);
+      return;
+    }
+
+    const selectedProject = projectList.find(p => p.name === projectName);
+    if (!selectedProject) {
+      setProjectFilteredEmployees([]);
+      setProjectFilteredDepartments([]);
+      return;
+    }
+
+    // Collect all names linked to this project
+    const linkedNames = new Set();
+    if (selectedProject.project_manager) linkedNames.add(selectedProject.project_manager.trim());
+    if (selectedProject.employee_name) linkedNames.add(selectedProject.employee_name.trim());
+    // assigned_to_name can be comma-separated (multi-assign)
+    if (selectedProject.assigned_to_name) {
+      selectedProject.assigned_to_name.split(',').forEach(n => {
+        const trimmed = n.trim();
+        if (trimmed) linkedNames.add(trimmed);
+      });
+    }
+
+    // Filter employees to only those linked to the project
+    const filteredEmps = employeeList.filter(e => linkedNames.has(e.name));
+
+    // Collect unique departments from those employees, also include project's own department
+    const deptSet = new Set();
+    if (selectedProject.department) deptSet.add(selectedProject.department);
+    filteredEmps.forEach(e => { if (e.department) deptSet.add(e.department); });
+
+    setProjectFilteredEmployees(
+      filteredEmps.map(e => ({
+        value: e.name,
+        label: `${e.name} · ${e.role || 'N/A'} · ${e.employee_id || e.id || '—'}`,
+      }))
+    );
+    setProjectFilteredDepartments([...deptSet]);
+
+    // Auto-set department if only one option
+    if (deptSet.size === 1) {
+      const singleDept = [...deptSet][0];
+      setUploadForm(prev => ({ ...prev, project: projectName, department: singleDept, employeeName: '', file: prev.file }));
+    }
+  };
+
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
@@ -341,7 +399,7 @@ const UploadTrackers = () => {
       }
 
       const trackerId = parseInt(selectedFileId, 10);
-      const isCorrectFileLoaded = initialFileLoaded && 
+      const isCorrectFileLoaded = initialFileLoaded &&
         (selectedFileTrackerInfo?.upload_id === trackerId || selectedFileTrackerInfo?.id === trackerId);
 
       if (!isCorrectFileLoaded && loadingFileIdRef.current !== trackerId) {
@@ -467,7 +525,7 @@ const UploadTrackers = () => {
     if (selectedTrackers.length === 0) return;
 
     const count = selectedTrackers.length;
-    
+
     // Show a temporary "Deleting..." notification if many files
     if (count > 2) {
       showNotification(`Deleting ${count} records...`, 'info');
@@ -488,11 +546,11 @@ const UploadTrackers = () => {
       });
 
       // Dispatch events to refresh views
-      window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', { 
-        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      window.dispatchEvent(new CustomEvent('uploadTrackerUpdate', {
+        detail: { type: 'bulk-delete', ids: selectedTrackers }
       }));
-      window.dispatchEvent(new CustomEvent('projectDashboardUpdate', { 
-        detail: { type: 'bulk-delete', ids: selectedTrackers } 
+      window.dispatchEvent(new CustomEvent('projectDashboardUpdate', {
+        detail: { type: 'bulk-delete', ids: selectedTrackers }
       }));
 
       // Reset selected file if it was among deleted ones
@@ -505,7 +563,7 @@ const UploadTrackers = () => {
       // Clear selection
       setSelectedTrackers([]);
       setSelectAll(false);
-      
+
       showNotification(`${count} upload${count > 1 ? 's' : ''} deleted successfully`);
       setShowBulkDeletePrompt({ show: false, count: 0 });
     } catch (error) {
@@ -514,14 +572,14 @@ const UploadTrackers = () => {
         response: error.response?.data,
         status: error.response?.status
       });
-      
+
       // Even if an error occurs, if the user reports it was deleted in backend, 
       // they might want to refresh the page to see current state.
       showNotification(
-        error.response?.data?.detail || 'An error occurred during deletion. Please refresh the page.', 
+        error.response?.data?.detail || 'An error occurred during deletion. Please refresh the page.',
         'error'
       );
-      
+
       // Close the prompt anyway to avoid stuck UI
       setShowBulkDeletePrompt({ show: false, count: 0 });
     }
@@ -588,20 +646,24 @@ const UploadTrackers = () => {
   // Upload functions
   const openUploadModal = () => {
     setShowUploadModal(true);
-    
+
+    // Reset project-scoped filter state
+    setProjectFilteredEmployees([]);
+    setProjectFilteredDepartments([]);
+
     const currentUserName = getCurrentUser();
     const currentUserProfile = employeeList.find(e => e.name === currentUserName);
     const userDept = currentUserProfile?.department || '';
-    
+
     // Filter projects based on assignment for non-admins
-    const userProjects = isAdmin 
-      ? projectList 
-      : projectList.filter(p => 
-          p.project_manager === currentUserName || 
-          p.employee_name === currentUserName || 
-          p.assigned_to_name === currentUserName
-        );
-    
+    const userProjects = isAdmin
+      ? projectList
+      : projectList.filter(p =>
+        p.project_manager === currentUserName ||
+        p.employee_name === currentUserName ||
+        p.assigned_to_name === currentUserName
+      );
+
     const defaultProject = userProjects.length === 1 ? userProjects[0].name : '';
 
     setUploadForm({
@@ -865,7 +927,7 @@ const UploadTrackers = () => {
       console.error('Error uploading file:', error);
       setUploading(false);
       setProgress(0);
-      
+
       let errorMessage = error.message;
       if (error.response?.data?.detail) {
         if (typeof error.response.data.detail === 'string') {
@@ -876,7 +938,7 @@ const UploadTrackers = () => {
           errorMessage = JSON.stringify(error.response.data.detail);
         }
       }
-      
+
       showNotification(`Error uploading file: ${errorMessage}`, 'error');
     }
   };
@@ -1094,11 +1156,10 @@ const UploadTrackers = () => {
       );
     } else if (col.id === 'status') {
       return (
-        <span className={`px-2 py-1 inline-flex text-[10px] leading-4 font-bold rounded-full ${
-          (value === 'Completed' || value === 'Success') 
-            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' 
+        <span className={`px-2 py-1 inline-flex text-[10px] leading-4 font-bold rounded-full ${(value === 'Completed' || value === 'Success')
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800'
             : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800'
-        }`}>
+          }`}>
           {value || 'Completed'}
         </span>
       );
@@ -1284,8 +1345,7 @@ const UploadTrackers = () => {
                     options={projectList.map(p => p.name)}
                     value={uploadForm.project}
                     onChange={(val) => {
-                      setUploadForm({ ...uploadForm, project: val });
-                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                      handleUploadProjectChange(val);
                     }}
                     placeholder="Select project"
                   />
@@ -1297,8 +1357,7 @@ const UploadTrackers = () => {
                     }
                     value={uploadForm.project}
                     onChange={(val) => {
-                      setUploadForm({ ...uploadForm, project: val });
-                      if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
+                      handleUploadProjectChange(val);
                     }}
                     placeholder={uploadForm.project ? uploadForm.project : "Select assigned project"}
                   />
@@ -1310,15 +1369,27 @@ const UploadTrackers = () => {
               <div>
                 <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Department *</label>
                 {isAdmin ? (
-                  <SearchableDropdown
-                    options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
-                    value={uploadForm.department}
-                    onChange={(val) => {
-                      setUploadForm({ ...uploadForm, department: val });
-                      if (uploadFormErrors.department) setUploadFormErrors({ ...uploadFormErrors, department: '' });
-                    }}
-                    placeholder="Select department"
-                  />
+                  uploadForm.project && projectFilteredDepartments.length > 0 ? (
+                    <SearchableDropdown
+                      options={projectFilteredDepartments}
+                      value={uploadForm.department}
+                      onChange={(val) => {
+                        setUploadForm(prev => ({ ...prev, department: val }));
+                        if (uploadFormErrors.department) setUploadFormErrors(prev => ({ ...prev, department: '' }));
+                      }}
+                      placeholder="Select department"
+                    />
+                  ) : (
+                    <SearchableDropdown
+                      options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
+                      value={uploadForm.department}
+                      onChange={(val) => {
+                        setUploadForm(prev => ({ ...prev, department: val }));
+                        if (uploadFormErrors.department) setUploadFormErrors(prev => ({ ...prev, department: '' }));
+                      }}
+                      placeholder="Select department"
+                    />
+                  )
                 ) : (
                   <div className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-text-secondary dark:text-slate-300 text-sm">
                     {uploadForm.department || 'No Department'}
@@ -1331,15 +1402,30 @@ const UploadTrackers = () => {
               <div>
                 <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Employee Name *</label>
                 {isAdmin ? (
-                  <SearchableDropdown
-                    options={employeeList.map(e => e.name)}
-                    value={uploadForm.employeeName}
-                    onChange={(val) => {
-                      setUploadForm({ ...uploadForm, employeeName: val });
-                      if (uploadFormErrors.employeeName) setUploadFormErrors({ ...uploadFormErrors, employeeName: '' });
-                    }}
-                    placeholder="Select employee name"
-                  />
+                  uploadForm.project && projectFilteredEmployees.length > 0 ? (
+                    <SearchableDropdown
+                      options={projectFilteredEmployees}
+                      value={uploadForm.employeeName}
+                      onChange={(val) => {
+                        setUploadForm(prev => ({ ...prev, employeeName: val }));
+                        if (uploadFormErrors.employeeName) setUploadFormErrors(prev => ({ ...prev, employeeName: '' }));
+                      }}
+                      placeholder="Select employee name"
+                    />
+                  ) : (
+                    <SearchableDropdown
+                      options={employeeList.map(e => ({
+                        value: e.name,
+                        label: `${e.name} · ${e.role || 'N/A'} · ${e.employee_id || e.id || '—'}`,
+                      }))}
+                      value={uploadForm.employeeName}
+                      onChange={(val) => {
+                        setUploadForm(prev => ({ ...prev, employeeName: val }));
+                        if (uploadFormErrors.employeeName) setUploadFormErrors(prev => ({ ...prev, employeeName: '' }));
+                      }}
+                      placeholder="Select employee name"
+                    />
+                  )
                 ) : (
                   <div className="w-full px-3 py-2 border border-border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-800 text-text-secondary dark:text-slate-300 text-sm">
                     {uploadForm.employeeName || 'Unknown User'}
@@ -1445,51 +1531,51 @@ const UploadTrackers = () => {
                 </div>
                 <div className="p-4 sm:p-6">
                   <div className="text-center">
-                <div
-                  className="border-2 border-dashed border-border dark:border-slate-700 rounded-xl p-4 sm:p-8 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors bg-slate-50/30 dark:bg-slate-800/30"
-                  onClick={openUploadModal}
-                >
-                  <div className="space-y-2 sm:space-y-3">
-                    <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-slate-400 dark:text-slate-500 mx-auto" />
-                    <div>
-                      <p className="font-medium text-sm sm:text-base text-text-primary dark:text-slate-100">Drag & drop files or click to browse</p>
-                      <p className="text-xs text-text-muted dark:text-slate-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
+                    <div
+                      className="border-2 border-dashed border-border dark:border-slate-700 rounded-xl p-4 sm:p-8 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors bg-slate-50/30 dark:bg-slate-800/30"
+                      onClick={openUploadModal}
+                    >
+                      <div className="space-y-2 sm:space-y-3">
+                        <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-slate-400 dark:text-slate-500 mx-auto" />
+                        <div>
+                          <p className="font-medium text-sm sm:text-base text-text-primary dark:text-slate-100">Drag & drop files or click to browse</p>
+                          <p className="text-xs text-text-muted dark:text-slate-500">Supports: Excel (.xlsx, .xls) (Max 50MB)</p>
+                        </div>
+                      </div>
                     </div>
+
+                    {selectedFile && (
+                      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <File className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-sm font-medium text-text-primary dark:text-slate-200">{getDisplayFileName(selectedFile.name)}</span>
+                          </div>
+                          <span className="text-xs text-text-secondary dark:text-slate-400">
+                            {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {uploading && (
+                      <div className="mt-4 sm:mt-6">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs sm:text-sm font-medium text-text-primary dark:text-slate-100">Uploading...</span>
+                          <span className="text-xs sm:text-sm text-text-secondary dark:text-slate-400">{progress}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 sm:h-2">
+                          <div
+                            className="bg-blue-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {selectedFile && (
-                  <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <File className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span className="text-sm font-medium text-text-primary dark:text-slate-200">{getDisplayFileName(selectedFile.name)}</span>
-                      </div>
-                      <span className="text-xs text-text-secondary dark:text-slate-400">
-                        {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {uploading && (
-                  <div className="mt-4 sm:mt-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs sm:text-sm font-medium text-text-primary dark:text-slate-100">Uploading...</span>
-                      <span className="text-xs sm:text-sm text-text-secondary dark:text-slate-400">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 sm:h-2">
-                      <div
-                        className="bg-blue-600 h-1.5 sm:h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
-            </div>
-          </div>
           </PermissionGuard>
 
           {/* MAIN BORDER CONTAINER */}
