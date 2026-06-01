@@ -234,7 +234,7 @@ const ProjectMaster = () => {
       .then(res => {
         const employees = res.data || [];
         setEmployeeList(employees);
-        
+
         const pmNames = employees.filter(e => e.role === 'Project Manager').map(e => e.name);
         setColumns(prev => prev.map(col => {
           if (col.id === 'project_manager') {
@@ -272,7 +272,7 @@ const ProjectMaster = () => {
 
   const hasProjectPermission = (project, permissionType) => {
     if (isAdmin) return true;
-    
+
     // Check role-level global master permissions
     if (permissionType === 'edit' && canEditProject) return true;
     if (permissionType === 'delete' && canDeleteProject) return true;
@@ -370,7 +370,7 @@ const ProjectMaster = () => {
     try {
       // Use bulk delete endpoint for better performance
       await API.post('/projects/bulk-delete', selectedProjects);
-      
+
       await fetchProjects();
       setSelectedProjects([]);
       setSelectAll(false);
@@ -456,11 +456,11 @@ const ProjectMaster = () => {
     if (col && col.db_id) {
       try {
         await API.delete(`/projects/columns/${col.db_id}`);
-        
+
         // Update local state immediately for better UX
         setCustomColumns(prev => prev.filter(c => c.db_id !== col.db_id));
         setColumns(prev => prev.filter(c => c.id !== columnId));
-        
+
         await fetchColumns(); // Re-sync with server
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
@@ -504,7 +504,7 @@ const ProjectMaster = () => {
     // Validate custom fields
     customColumns.forEach(col => {
       const value = project[col.id];
-      
+
       // Required check
       if (col.required && (value === undefined || value === null || value === '')) {
         errors[col.id] = `${col.label} is required`;
@@ -707,7 +707,7 @@ const ProjectMaster = () => {
     } catch (err) {
       console.error(err);
       let msg = err.response?.data?.detail || err.message;
-      
+
       // Specifically handle unique constraint violation for project_id
       if (msg && typeof msg === 'string' && msg.toLowerCase().includes('duplicate key value violates unique constraint')) {
         setValidationErrors(prev => ({ ...prev, project_id: 'This Project ID already exists. Please use a unique ID.' }));
@@ -716,7 +716,7 @@ const ProjectMaster = () => {
         // Check if the error might be a duplicate key from DB
         msg = 'A project with this ID might already exist. Please try a different ID.';
       }
-      
+
       toast.error('Error saving project: ' + msg);
     }
   };
@@ -823,7 +823,7 @@ const ProjectMaster = () => {
     const utilized = parseFloat(newProject.utilized_budget) || 0;
     const balance = budget - utilized;
     if (newProject.balance_budget !== balance) {
-        setNewProject(prev => ({ ...prev, balance_budget: balance }));
+      setNewProject(prev => ({ ...prev, balance_budget: balance }));
     }
   }, [newProject.budget, newProject.utilized_budget]);
 
@@ -833,7 +833,7 @@ const ProjectMaster = () => {
     const utilized = parseFloat(editForm.utilized_budget) || 0;
     const balance = budget - utilized;
     if (editForm.balance_budget !== balance) {
-        setEditForm(prev => ({ ...prev, balance_budget: balance }));
+      setEditForm(prev => ({ ...prev, balance_budget: balance }));
     }
   }, [editForm.budget, editForm.utilized_budget]);
 
@@ -1182,6 +1182,23 @@ const ProjectMaster = () => {
     label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`,
   }));
 
+  // Convert comma-separated assigned_to_name string -> react-select multi-value array
+  const assignedNamesToSelectValues = (namesStr) => {
+    if (!namesStr) return [];
+    const names = namesStr.split(',').map(n => n.trim()).filter(Boolean);
+    return names
+      .map(name => {
+        const emp = employeeList.find(e => e.name === name);
+        if (!emp) return null;
+        return {
+          value: String(emp.employee_id || emp.id),
+          label: `${emp.name} (${emp.employee_id || emp.id})`,
+          name: emp.name,
+        };
+      })
+      .filter(Boolean);
+  };
+
   // Filtered options for Project Manager and Team Lead roles
   const managerOptions = useMemo(() => {
     return employeeList
@@ -1256,10 +1273,10 @@ const ProjectMaster = () => {
   const handleUserSelectChange = (formType, field, selected) => {
     const setter = formType === 'new' ? setNewProject : setEditForm;
     const getter = formType === 'new' ? newProject : editForm;
-    
+
     const selectedIds = (selected || []).map(s => s.value);
     const currentList = getter[field] || [];
-    
+
     // Keep existing permissions for already selected users, add new ones with defaults
     const newList = selectedIds.map(id => {
       const existing = currentList.find(u => u.employeeId === id);
@@ -1269,7 +1286,7 @@ const ProjectMaster = () => {
         permissions: { ...defaultPermissions }
       };
     });
-    
+
     setter(prev => ({ ...prev, [field]: newList }));
     if (formType === 'new' && validationErrors[field]) {
       setValidationErrors(prev => ({ ...prev, [field]: '' }));
@@ -1295,7 +1312,7 @@ const ProjectMaster = () => {
             {users.map((user) => {
               const emp = employeeList.find(e => String(e.employee_id || e.id) === String(user.employeeId));
               const name = emp ? emp.name : user.employeeId;
-              
+
               return (
                 <tr key={user.employeeId} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-100">
@@ -1515,7 +1532,7 @@ const ProjectMaster = () => {
           }}
           className="text-indigo-600 hover:text-indigo-800 font-medium text-xs bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex items-center gap-1.5"
         >
-          <Eye size={14}/>
+          <Eye size={14} />
           Detailed View
         </button>
       );
@@ -1563,12 +1580,12 @@ const ProjectMaster = () => {
                   <h3 className="app-modal-title">Confirm Permanent Deletion</h3>
                 </div>
               </div>
-              
+
               <div className="app-modal-body">
                 <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
                   Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-slate-100">"{showDeletePrompt.name}"</span>?
                 </p>
-                
+
                 <div className="bg-slate-50 dark:bg-slate-900/50 rounded-md p-4 border border-slate-200 dark:border-slate-700 mb-6">
                   <h4 className="text-xs font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Impact Warning</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
@@ -1584,14 +1601,14 @@ const ProjectMaster = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
-                    onClick={cancelDelete} 
+                  <button
+                    onClick={cancelDelete}
                     className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
-                  <button 
-                    onClick={confirmDeleteProject} 
+                  <button
+                    onClick={confirmDeleteProject}
                     className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
@@ -1672,12 +1689,12 @@ const ProjectMaster = () => {
                   <h3 className="app-modal-title">Confirm Bulk Deletion</h3>
                 </div>
               </div>
-              
+
               <div className="app-modal-body">
                 <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
                   Are you sure you want to delete <span className="font-bold text-red-600 dark:text-red-400">{showBulkDeletePrompt.count} selected projects</span>?
                 </p>
-                
+
                 <div className="bg-red-50/50 dark:bg-red-900/10 rounded-md p-4 border border-red-100 dark:border-red-900/20 mb-6">
                   <h4 className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2">CRITICAL Bulk Action Warning</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
@@ -1686,14 +1703,14 @@ const ProjectMaster = () => {
                 </div>
 
                 <div className="flex gap-3">
-                  <button 
-                    onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} 
+                  <button
+                    onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })}
                     className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
-                  <button 
-                    onClick={confirmBulkDelete} 
+                  <button
+                    onClick={confirmBulkDelete}
                     className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Trash2 size={16} />
@@ -1742,10 +1759,10 @@ const ProjectMaster = () => {
                 <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
-                
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Select Data Type</label>
-                  <select 
+                  <select
                     value={newColumnType}
                     onChange={(e) => setNewColumnType(e.target.value)}
                     className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100"
@@ -1810,7 +1827,7 @@ const ProjectMaster = () => {
             </div>
           </div>
         )}
-         {/* Freeze Column Modal */}
+        {/* Freeze Column Modal */}
         {showFreezeColumnModal && (
           <div className="app-modal-overlay">
             <div className="app-modal-container max-w-md w-full mx-4">
@@ -2122,17 +2139,25 @@ const ProjectMaster = () => {
                         placeholder="Select Team Lead..."
                       />
                     </div>
-                    {/* Assign Employee */}
+                    {/* Assign Employees (multi-select) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employee</label>
-                      <SearchableDropdown
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employees</label>
+                      <ReactSelect
+                        isMulti
                         options={employeeOptions}
-                        value={newProject.assigned_to_id || ''}
-                        onChange={(val, option) => {
-                          handleNewProjectChange('assigned_to_id', val);
-                          handleNewProjectChange('assigned_to_name', option ? option.name : '');
+                        value={assignedNamesToSelectValues(newProject.assigned_to_name)}
+                        onChange={(selected) => {
+                          const names = (selected || []).map(s => s.name || s.label.split(' (')[0]).join(', ');
+                          handleNewProjectChange('assigned_to_name', names);
+                          handleNewProjectChange('assigned_to_id', null);
                         }}
-                        placeholder="Select Employee..."
+                        placeholder="Select Employees..."
+                        styles={getSelectStyles(false)}
+                        classNamePrefix="react-select"
+                        noOptionsMessage={() => 'No employees found'}
+                        isClearable={false}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
                       />
                     </div>
                     {/* Department */}
@@ -2401,17 +2426,25 @@ const ProjectMaster = () => {
                         placeholder="Select Team Lead..."
                       />
                     </div>
-                    {/* Assigned To */}
+                    {/* Assign Employees (multi-select) */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assigned To</label>
-                      <SearchableDropdown
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employees</label>
+                      <ReactSelect
+                        isMulti
                         options={employeeOptions}
-                        value={editForm.assigned_to_id || ''}
-                        onChange={(val, option) => {
-                          handleEditFormChange('assigned_to_id', val);
-                          handleEditFormChange('assigned_to_name', option ? option.name : '');
+                        value={assignedNamesToSelectValues(editForm.assigned_to_name)}
+                        onChange={(selected) => {
+                          const names = (selected || []).map(s => s.name || s.label.split(' (')[0]).join(', ');
+                          handleEditFormChange('assigned_to_name', names);
+                          handleEditFormChange('assigned_to_id', null);
                         }}
-                        placeholder="Select Employee..."
+                        placeholder="Select Employees..."
+                        styles={getSelectStyles(false)}
+                        classNamePrefix="react-select"
+                        noOptionsMessage={() => 'No employees found'}
+                        isClearable={false}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
                       />
                     </div>
                     {/* Department */}
@@ -2560,8 +2593,8 @@ const ProjectMaster = () => {
                 <div className="flex items-center gap-3 w-full">
                   {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                     <button
-                      onClick={(e) => { 
-                        e.preventDefault(); 
+                      onClick={(e) => {
+                        e.preventDefault();
                         setActiveSubCategoryProject(editForm);
                         setShowSubCategoryModal(true);
                       }}
@@ -2631,7 +2664,7 @@ const ProjectMaster = () => {
               <div className="app-modal-footer flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
                 {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                   <button
-                    onClick={() => { 
+                    onClick={() => {
                       setActiveSubCategoryProject(viewData);
                       setShowSubCategoryModal(true);
                     }}
@@ -3027,188 +3060,187 @@ const ProjectMaster = () => {
               {/* TABLE SECTION - SCROLLABLE */}
               <div className="master-table-scroll">
                 <div className="master-table-scroll-inner" onClick={() => activeDropdownColumn && setActiveDropdownColumn(null)}>
-                <table className="master-table">
-                  <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
-                    <tr className="border-b border-slate-200 dark:border-slate-700">
-                      {/* Checkbox column */}
-                      <th
-                        className={`text-left py-3 px-6 font-medium cursor-pointer w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''}`}
-                        style={{ left: isColumnFrozen(0) ? '0' : 'auto', zIndex: isColumnFrozen(0) ? 35 : 30 }}
-                      >
-                        <div className="flex items-center justify-center">
-                          <button onClick={toggleSelectAll} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-slate-100 transition-colors">
-                            {selectAll ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </th>
-                      {visibleColumns.map((col) => {
-                        const actualColumnIndex = columns.findIndex(c => c.id === col.id);
-                        return (
-                          <th
-                            key={col.id}
-                            className={`text-left py-3 px-8 font-medium whitespace-nowrap group ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''}`}
-                            style={{
-                              left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
-                              zIndex: isColumnFrozen(actualColumnIndex) ? 35 : 30
-                            }}
-                          >
-                            <div className="flex items-center justify-between space-x-2">
-                              <div className="flex items-center space-x-1.5 flex-1">
-                                <span className="font-medium text-[13px]">{col.label}</span>
-                                {col.required && <span className="text-red-400">*</span>}
-                              </div>
-                              <div className="flex items-center space-x-1 relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id);
-                                  }}
-                                  className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${activeDropdownColumn === col.id ? 'opacity-100 bg-slate-200 dark:bg-slate-600 text-slate-700' : ''}`}
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </button>
-                                {activeDropdownColumn === col.id && (
-                                  <div
-                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
-                                    onClick={(e) => e.stopPropagation()}
+                  <table className="master-table">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        {/* Checkbox column */}
+                        <th
+                          className={`text-left py-3 px-6 font-medium cursor-pointer w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''}`}
+                          style={{ left: isColumnFrozen(0) ? '0' : 'auto', zIndex: isColumnFrozen(0) ? 35 : 30 }}
+                        >
+                          <div className="flex items-center justify-center">
+                            <button onClick={toggleSelectAll} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-slate-100 transition-colors">
+                              {selectAll ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </th>
+                        {visibleColumns.map((col) => {
+                          const actualColumnIndex = columns.findIndex(c => c.id === col.id);
+                          return (
+                            <th
+                              key={col.id}
+                              className={`text-left py-3 px-8 font-medium whitespace-nowrap group ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''}`}
+                              style={{
+                                left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
+                                zIndex: isColumnFrozen(actualColumnIndex) ? 35 : 30
+                              }}
+                            >
+                              <div className="flex items-center justify-between space-x-2">
+                                <div className="flex items-center space-x-1.5 flex-1">
+                                  <span className="font-medium text-[13px]">{col.label}</span>
+                                  {col.required && <span className="text-red-400">*</span>}
+                                </div>
+                                <div className="flex items-center space-x-1 relative">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id);
+                                    }}
+                                    className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 ${activeDropdownColumn === col.id ? 'opacity-100 bg-slate-200 dark:bg-slate-600 text-slate-700' : ''}`}
                                   >
-                                    {col.sortable && (
-                                      <>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                          <ArrowUp className="h-3.5 w-3.5 text-slate-400" /> Sort Ascending
-                                        </button>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                          <ArrowDown className="h-3.5 w-3.5 text-slate-400" /> Sort Descending
-                                        </button>
-                                        <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
-                                      </>
-                                    )}
-                                    <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                      <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy name
-                                    </button>
-                                    <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                      <Edit className="h-3.5 w-3.5 text-slate-400" /> Edit column
-                                    </button>
-                                    <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                      {isColumnFrozen(actualColumnIndex) ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze column</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze column</>)}
-                                    </button>
-                                    <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
-                                      {frozenRows.length > 0 ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze row(s)</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze row(s)</>)}
-                                    </button>
-                                    <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
-                                    <button onClick={() => { handleDeleteColumn(col.id); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400">
-                                      <Trash2 className="h-3.5 w-3.5" /> Delete column
-                                    </button>
-                                  </div>
+                                    <ChevronDown className="h-4 w-4" />
+                                  </button>
+                                  {activeDropdownColumn === col.id && (
+                                    <div
+                                      className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {col.sortable && (
+                                        <>
+                                          <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                            <ArrowUp className="h-3.5 w-3.5 text-slate-400" /> Sort Ascending
+                                          </button>
+                                          <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                            <ArrowDown className="h-3.5 w-3.5 text-slate-400" /> Sort Descending
+                                          </button>
+                                          <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                                        </>
+                                      )}
+                                      <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                        <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy name
+                                      </button>
+                                      <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                        <Edit className="h-3.5 w-3.5 text-slate-400" /> Edit column
+                                      </button>
+                                      <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                        {isColumnFrozen(actualColumnIndex) ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze column</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze column</>)}
+                                      </button>
+                                      <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
+                                        {frozenRows.length > 0 ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze row(s)</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze row(s)</>)}
+                                      </button>
+                                      <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
+                                      <button onClick={() => { handleDeleteColumn(col.id); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 text-red-600 dark:text-red-400">
+                                        <Trash2 className="h-3.5 w-3.5" /> Delete column
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </th>
+                          );
+                        })}
+                        {/* Actions Header - Sticky Right */}
+                        <th className="sticky right-0 bg-slate-100 dark:bg-slate-700 z-20 px-6 py-3 text-right font-medium border-l border-slate-200 dark:border-slate-700 w-24">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100/80">
+                      {paginatedProjects.map((proj, rowIndex) => {
+                        const actualRowIndex = (currentPage - 1) * pageSize + rowIndex;
+                        const isRowCurrentlyFrozen = isRowFrozen(actualRowIndex);
+
+                        return (
+                          <tr
+                            key={proj.id}
+                            className={`group transition-colors duration-150 ${isRowCurrentlyFrozen ? 'frozen-row' : ''} ${selectedProjects.includes(proj.id) ? 'row-selected bg-blue-50/40' : 'hover:bg-slate-50/50'}`}
+                            style={{ top: isRowCurrentlyFrozen ? getFrozenRowTop(actualRowIndex) : 'auto' }}
+                          >
+                            {/* Checkbox cell */}
+                            <td
+                              className={`py-3 px-6 whitespace-nowrap w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''}`}
+                              style={{ left: isColumnFrozen(0) ? '0' : 'auto', zIndex: isColumnFrozen(0) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto' }}
+                            >
+                              <div className={`flex items-center justify-center ${selectedProjects.includes(proj.id) ? 'opacity-100' : 'master-table-checkbox-cell'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedProjects.includes(proj.id)}
+                                  onChange={() => toggleProjectSelection(proj.id)}
+                                  className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                                />
+                              </div>
+                            </td>
+                            {visibleColumns.map((col) => {
+                              const actualColumnIndex = columns.findIndex(c => c.id === col.id);
+                              return (
+                                <td
+                                  key={col.id}
+                                  className={`py-3 px-6 whitespace-nowrap ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''}`}
+                                  style={{ left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto', zIndex: isColumnFrozen(actualColumnIndex) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto' }}
+                                >
+                                  {renderCellContent(col, proj[col.id], proj)}
+                                </td>
+                              );
+                            })}
+                            {/* Actions Cell */}
+                            {/* Actions Cell - Sticky Right */}
+                            <td className={`sticky right-0 z-10 py-3 px-6 text-right whitespace-nowrap w-[100px] border-l border-slate-100 dark:border-slate-700 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${selectedProjects.includes(proj.id)
+                                ? 'bg-[#f8faff] dark:bg-[#1e293b]'
+                                : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50 transition-colors'
+                              }`}>
+                              <div className="flex items-center justify-end gap-1 transition-opacity duration-200">
+                                {hasProjectPermission(proj, 'edit') && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); startEditing(proj); }}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {hasProjectPermission(proj, 'delete') && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); showDeleteConfirmation(proj.id, proj.name); }}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
                                 )}
                               </div>
-                            </div>
-                          </th>
+                            </td>
+                          </tr>
                         );
                       })}
-                      {/* Actions Header - Sticky Right */}
-                      <th className="sticky right-0 bg-slate-100 dark:bg-slate-700 z-20 px-6 py-3 text-right font-medium border-l border-slate-200 dark:border-slate-700 w-24">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
 
-                  <tbody className="divide-y divide-slate-100/80">
-                    {paginatedProjects.map((proj, rowIndex) => {
-                      const actualRowIndex = (currentPage - 1) * pageSize + rowIndex;
-                      const isRowCurrentlyFrozen = isRowFrozen(actualRowIndex);
-
-                      return (
-                        <tr
-                          key={proj.id}
-                          className={`group transition-colors duration-150 ${isRowCurrentlyFrozen ? 'frozen-row' : ''} ${selectedProjects.includes(proj.id) ? 'row-selected bg-blue-50/40' : 'hover:bg-slate-50/50'}`}
-                          style={{ top: isRowCurrentlyFrozen ? getFrozenRowTop(actualRowIndex) : 'auto' }}
-                        >
-                          {/* Checkbox cell */}
-                          <td
-                            className={`py-3 px-6 whitespace-nowrap w-10 ${isColumnFrozen(0) ? 'frozen-column' : ''}`}
-                            style={{ left: isColumnFrozen(0) ? '0' : 'auto', zIndex: isColumnFrozen(0) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto' }}
-                          >
-                            <div className={`flex items-center justify-center ${selectedProjects.includes(proj.id) ? 'opacity-100' : 'master-table-checkbox-cell'}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedProjects.includes(proj.id)}
-                                onChange={() => toggleProjectSelection(proj.id)}
-                                className="h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
-                              />
-                            </div>
-                          </td>
-                          {visibleColumns.map((col) => {
-                            const actualColumnIndex = columns.findIndex(c => c.id === col.id);
-                            return (
-                              <td
-                                key={col.id}
-                                className={`py-3 px-6 whitespace-nowrap ${isColumnFrozen(actualColumnIndex) ? 'frozen-column' : ''}`}
-                                style={{ left: isColumnFrozen(actualColumnIndex) ? getFrozenColumnLeft(actualColumnIndex) : 'auto', zIndex: isColumnFrozen(actualColumnIndex) ? (isRowCurrentlyFrozen ? 25 : 15) : 'auto' }}
-                              >
-                                {renderCellContent(col, proj[col.id], proj)}
-                              </td>
-                            );
-                          })}
-                          {/* Actions Cell */}
-                          {/* Actions Cell - Sticky Right */}
-                          <td className={`sticky right-0 z-10 py-3 px-6 text-right whitespace-nowrap w-[100px] border-l border-slate-100 dark:border-slate-700 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${
-                            selectedProjects.includes(proj.id) 
-                              ? 'bg-[#f8faff] dark:bg-[#1e293b]' 
-                              : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 group-hover:bg-slate-50 dark:group-hover:bg-slate-700/50 transition-colors'
-                          }`}>
-                            <div className="flex items-center justify-end gap-1 transition-opacity duration-200">
-                              {hasProjectPermission(proj, 'edit') && (
+                      {/* Empty state */}
+                      {paginatedProjects.length === 0 && (
+                        <tr>
+                          <td colSpan={visibleColumns.length + 2} className="py-24">
+                            <div className="flex flex-col items-center justify-center text-center px-4">
+                              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
+                                <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                              </div>
+                              <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
+                              <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
+                                Your project list is currently empty. Start by creating a new project to track its progress and budget.
+                              </p>
+                              {canAddProject && (
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); startEditing(proj); }}
-                                  className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                  title="Edit"
+                                  onClick={handleAddProjectClick}
+                                  className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-all shadow-md shadow-blue-500/10 active:scale-[0.98]"
                                 >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                              )}
-                              {hasProjectPermission(proj, 'delete') && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); showDeleteConfirmation(proj.id, proj.name); }}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Plus className="h-5 w-5" />
+                                  Launch New Project
                                 </button>
                               )}
                             </div>
                           </td>
                         </tr>
-                      );
-                    })}
-
-                    {/* Empty state */}
-                    {paginatedProjects.length === 0 && (
-                      <tr>
-                        <td colSpan={visibleColumns.length + 2} className="py-24">
-                          <div className="flex flex-col items-center justify-center text-center px-4">
-                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
-                              <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
-                              Your project list is currently empty. Start by creating a new project to track its progress and budget.
-                            </p>
-                            {canAddProject && (
-                              <button
-                                onClick={handleAddProjectClick}
-                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-all shadow-md shadow-blue-500/10 active:scale-[0.98]"
-                              >
-                                <Plus className="h-5 w-5" />
-                                Launch New Project
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 

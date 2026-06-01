@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
 
-const SearchableDropdown = ({ 
-  options = [], 
-  value = '', 
-  onChange, 
+const SearchableDropdown = ({
+  options = [],
+  value = '',
+  onChange,
   placeholder = 'Select an option...',
   className = '',
   controlClassName = '',
@@ -128,12 +128,12 @@ const SearchableDropdown = ({
               <div className="px-3 py-6 text-center">
                 <p className="text-sm text-gray-400">No results found</p>
                 {searchTerm && (
-                   <button 
-                     onClick={() => handleSelect(searchTerm)}
-                     className="mt-2 text-xs text-blue-600 hover:underline font-medium"
-                   >
-                     Use "{searchTerm}" anyway
-                   </button>
+                  <button
+                    onClick={() => handleSelect(searchTerm)}
+                    className="mt-2 text-xs text-blue-600 hover:underline font-medium"
+                  >
+                    Use "{searchTerm}" anyway
+                  </button>
                 )}
               </div>
             )}

@@ -39,9 +39,13 @@ const projectSlice = createSlice({
         };
         sessionStorage.setItem('project_dashboard_configs', JSON.stringify(state.projects));
       }
+    },
+    resetProjectState: (state) => {
+      state.projects = [];
+      sessionStorage.removeItem('project_dashboard_configs');
     }
   },
 });
 
-export const { setProjects, updateProjectConfig } = projectSlice.actions;
+export const { setProjects, updateProjectConfig, resetProjectState } = projectSlice.actions;
 export default projectSlice.reducer;

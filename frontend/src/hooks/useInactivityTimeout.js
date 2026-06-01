@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout } from '../store/slices/authSlice';
+import { useQueryClient } from '@tanstack/react-query';
+import { performLogout } from '../store/slices/authSlice';
 
 /**
  * Hook to automatically log out the user after a period of inactivity.
@@ -8,6 +9,7 @@ import { logout } from '../store/slices/authSlice';
  */
 const useInactivityTimeout = (timeoutMs = 30 * 60 * 1000) => {
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useSelector((state) => state.auth);
   const timeoutRef = useRef(null);
 
@@ -19,7 +21,7 @@ const useInactivityTimeout = (timeoutMs = 30 * 60 * 1000) => {
     if (isAuthenticated) {
       timeoutRef.current = setTimeout(() => {
         console.log('Logging out due to inactivity...');
-        dispatch(logout());
+        dispatch(performLogout(queryClient));
         // Force redirect to login page
         window.location.href = '/login';
       }, timeoutMs);
