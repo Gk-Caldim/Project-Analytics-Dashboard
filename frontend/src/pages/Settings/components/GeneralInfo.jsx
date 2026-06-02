@@ -89,10 +89,10 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
         };
       });
       await API.patch('/settings/bulk', { settings: settingsToUpdate });
-      
+
       // Update Redux state
       if (localEdits.company_logo !== undefined || localEdits.company_name !== undefined || localEdits.base_currency !== undefined || localEdits.sidebar_dashboard_limit !== undefined || localEdits.sidebar_dashboard_mode !== undefined) {
-        dispatch(setBranding({ 
+        dispatch(setBranding({
           companyLogo: localEdits.company_logo !== undefined ? localEdits.company_logo : settings.find(s => s.key === 'company_logo')?.value,
           companyName: localEdits.company_name !== undefined ? localEdits.company_name : settings.find(s => s.key === 'company_name')?.value,
           baseCurrency: localEdits.base_currency !== undefined ? localEdits.base_currency : settings.find(s => s.key === 'base_currency')?.value,
@@ -124,64 +124,9 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
         <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
-      {/* Institution Identity Section */}
-      <div className="bg-app-surface border border-border p-8 rounded-none">
-        <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">Institution Identity</h3>
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* Logo Upload Box */}
-          <div className="space-y-4">
-            <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
-              Institution Logo
-            </label>
-            <div className="flex items-center gap-6">
-              <div className="relative group w-20 h-20 bg-app-panel border border-border flex items-center justify-center overflow-hidden">
-                {getValue('company_logo') ? (
-                  <img src={getValue('company_logo')} alt="Company Logo" className="object-contain w-full h-full p-2" />
-                ) : (
-                  <span className="text-text-muted text-xs font-bold uppercase">No Logo</span>
-                )}
-                {isUploadingLogo && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Loader2 className="w-5 h-5 text-white animate-spin" />
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="px-4 py-2 bg-app-panel hover:bg-border/30 border border-border text-xs font-semibold text-text-primary cursor-pointer transition-colors text-center">
-                  Upload Logo
-                  <input type="file" onChange={handleFileChange} className="hidden" accept="image/*" />
-                </label>
-                {getValue('company_logo') && (
-                  <button
-                    onClick={handleEditExistingLogo}
-                    className="px-4 py-2 hover:bg-border/30 text-xs font-semibold text-text-secondary transition-colors text-left"
-                  >
-                    Crop / Edit
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Company Name Box */}
-          <div className="flex-1 space-y-4 w-full">
-            <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
-              Institution Name
-            </label>
-            <input
-              type="text"
-              value={getValue('company_name') || 'Industrial Analytics Platform'}
-              onChange={(e) => handleUpdate('company_name', e.target.value)}
-              className="w-full max-w-md h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
-              placeholder="e.g. Acme Corp"
-            />
-          </div>
-        </div>
-      </div>
-
       <div className="bg-app-surface border border-border p-8 rounded-none">
         <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">System Preferences</h3>
-        
+
         <div className="space-y-12">
           {/* Base Currency Section */}
           <div className="space-y-4">
@@ -189,7 +134,7 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
               Base Currency
             </label>
             <div className="max-w-xs relative">
-              <select 
+              <select
                 value={getValue('base_currency') || 'USD ($)'}
                 onChange={(e) => handleUpdate('base_currency', e.target.value)}
                 className="w-full h-11 pl-4 pr-10 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium appearance-none cursor-pointer text-text-primary"
@@ -214,7 +159,7 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
           {/* Sidebar Management Section */}
           <div className="space-y-8">
             <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Sidebar Management</h4>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               {/* Dashboard Sub-modules Mode */}
               <div className="space-y-4">
@@ -223,8 +168,8 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
                 </label>
                 <div className="space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       name="dashboard_mode"
                       checked={getValue('sidebar_dashboard_mode') !== 'recent'}
                       onChange={() => handleUpdate('sidebar_dashboard_mode', 'custom')}
@@ -232,10 +177,10 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
                     />
                     <span className="text-sm text-text-secondary font-medium group-hover:text-brand-accent transition-colors">Custom Display Count</span>
                   </label>
-                  
+
                   <label className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       name="dashboard_mode"
                       checked={getValue('sidebar_dashboard_mode') === 'recent'}
                       onChange={() => handleUpdate('sidebar_dashboard_mode', 'recent')}
@@ -275,7 +220,7 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
 
       <div className="bg-app-surface border border-border p-8 rounded-none">
         <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">Budget Analysis & Proposal Settings</h3>
-        
+
         <div className="space-y-12">
           {/* Inflation Rates Row */}
           <div className="space-y-4">
@@ -398,10 +343,10 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
       </div>
 
       {isCropModalOpen && (
-        <ImageCropperModal 
-          image={imageToCrop} 
-          onCropComplete={handleCropComplete} 
-          onCancel={() => setIsCropModalOpen(false)} 
+        <ImageCropperModal
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setIsCropModalOpen(false)}
         />
       )}
 
