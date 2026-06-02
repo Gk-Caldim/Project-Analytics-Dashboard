@@ -116,6 +116,8 @@ const GeneralInfo = ({ settings, onSaveSuccess }) => {
     setLocalEdits({});
     toast.success('Changes discarded');
   };
+  // new commit
+  
 
   return (
     <div className="space-y-12">
