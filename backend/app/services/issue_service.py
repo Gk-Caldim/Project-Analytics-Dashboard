@@ -19,10 +19,7 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
-
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation, IssueAuditLog
 from app.models.project import Project
@@ -157,7 +154,7 @@ def get_or_404(db: Session, issue_id: int) -> Issue:
     return issue
 
 
-def create_issue(db: Session, payload: IssueCreate) -> Issue:
+def create_issue(db: Session, payload: IssueCreate, bypass_governance: bool = False) -> Issue:
     # ── Duplicate Prevention ──
     # Check: same title, owner, due_date, project_id
     duplicate = db.query(Issue).filter(
@@ -173,8 +170,9 @@ def create_issue(db: Session, payload: IssueCreate) -> Issue:
             detail="Duplicate issue detected"
         )
 
-    # ── Validation Rule: High priority must have due_date ──
-    if payload.priority == "High" and payload.due_date is None:
+    # ── Governance Rule: High priority must have due_date ──
+    # Bypassed for MOM batch route (endpoint pre-downgrades High→Medium when no date)
+    if not bypass_governance and payload.priority == "High" and payload.due_date is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="High priority issues must always have a due_date"
@@ -273,7 +271,12 @@ def list_issues(
     Filter support: project_id, status, owner, priority.
     Sort order: Overdue first, then nearest due_date.
     """
-    q = db.query(Issue)
+    q = db.query(Issue).options(
+        selectinload(Issue.actions),
+        selectinload(Issue.comments),
+        selectinload(Issue.escalations),
+        selectinload(Issue.audit_logs)
+    )
     
     if project_id is not None:
         q = q.filter(Issue.project_id == project_id)
@@ -286,7 +289,8 @@ def list_issues(
     if department_filter:
         q = q.filter(Issue.department == department_filter)
     
-    issues = q.all()
+    # Sort by ID ascending before ranking to ensure stable insertion order for MOM items
+    issues = q.order_by(Issue.id.asc()).all()
     
     # Dynamic health status calculation and sorting
     return rank_issues(issues)
@@ -305,6 +309,12 @@ def get_critical_issues(
 
     issues = (
         db.query(Issue)
+        .options(
+            selectinload(Issue.actions),
+            selectinload(Issue.comments),
+            selectinload(Issue.escalations),
+            selectinload(Issue.audit_logs)
+        )
         .filter(
             Issue.project_id == project_id, 
             Issue.status == "Open", 
@@ -356,27 +366,35 @@ def create_issue_from_mom_action(
     action: MOMActionItem,
     created_by: str = "MOM-Auto",
 ) -> Issue:
-    """Map a single MOM action item → Issue record."""
+    """Map a single MOM action item → Issue record. Governance bypass is active
+    because the endpoint pre-normalises priority before calling this function."""
     payload = IssueCreate(
         project_id=project_id,
         source="MOM",
-        title=action.title,
+        title=action.title or (action.description or "")[:50] or "MOM Action",
         description=action.description,
-        owner=action.owner,
+        owner=action.owner or "Unassigned",
         department=action.department,
-        priority=action.priority,
-        status=action.status,
+        priority=action.priority or "Medium",
+        status="Open",
         due_date=action.due_date,
         meeting_id=meeting_id,
         created_by=created_by,
     )
-    return create_issue(db, payload)
+    return create_issue(db, payload, bypass_governance=True)
 
 
 # ─── Analytics ───────────────────────────────────────────────────────────────
 
 def compute_analytics(db: Session, project_id: int) -> dict:
-    all_issues = db.query(Issue).filter(Issue.project_id == project_id).all()
+    all_issues = (
+        db.query(Issue)
+        .options(
+            selectinload(Issue.escalations)
+        )
+        .filter(Issue.project_id == project_id)
+        .all()
+    )
     for iss in all_issues:
         enrich_issue(iss)
 

@@ -7,16 +7,19 @@ from typing import List, Optional
 from sqlalchemy import func
 from app.models.employee_project import EmployeeProjectMap
 from app.models.project import Project
+from app.models.project_permission import ProjectPermission
+from app.models.application_access import ApplicationAccess
 
 def get_employees(db: Session, skip: int = 0, limit: int = 1000) -> List[Employee]:
     """Get all employees with their assigned project names"""
+    # Join both EmployeeProjectMap and direct Project link
     results = (
         db.query(
             Employee,
             func.string_agg(Project.name, ', ').label('project_names')
         )
         .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, EmployeeProjectMap.project_id == Project.project_id)
+        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id) | (Employee.employee_id == Project.assigned_to_id))
         .group_by(Employee.id)
         .offset(skip)
         .limit(limit)
@@ -38,7 +41,7 @@ def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
             func.string_agg(Project.name, ', ').label('project_names')
         )
         .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, EmployeeProjectMap.project_id == Project.project_id)
+        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id) | (Employee.employee_id == Project.assigned_to_id))
         .filter(Employee.id == employee_id)
         .group_by(Employee.id)
         .first()
@@ -59,7 +62,7 @@ def get_employee_by_employee_id(db: Session, employee_id: str) -> Optional[Emplo
     """Get employee by custom employee_id"""
     return db.query(Employee).filter(Employee.employee_id == employee_id).first()
 
-from app.models.application_access import ApplicationAccess
+from app.utils.validators import validate_custom_fields
 
 def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
     """Create a new employee and synchronized application access"""
@@ -69,6 +72,11 @@ def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
         if existing:
             raise ValueError(f"Employee with ID {employee.employee_id} already exists")
             
+    # Validate custom fields
+    validation_errors = validate_custom_fields(db, 'employee', employee.custom_fields)
+    if validation_errors:
+        raise ValueError("; ".join(validation_errors))
+
     data = employee.model_dump(exclude={"id"})
     password = data.pop("password", None)
     
@@ -102,6 +110,12 @@ def update_employee(db: Session, employee_id: int, employee: EmployeeUpdate) -> 
     
     update_data = employee.model_dump(exclude_unset=True)
     
+    # Validate custom fields if they are being updated
+    if "custom_fields" in update_data:
+        validation_errors = validate_custom_fields(db, 'employee', update_data["custom_fields"])
+        if validation_errors:
+            raise ValueError("; ".join(validation_errors))
+
     # Check if email is being updated
     old_email = db_employee.email
     new_email = update_data.get('email')
@@ -155,16 +169,53 @@ def delete_employee(db: Session, employee_id: int) -> bool:
     if not db_employee:
         return False
     
-    db.delete(db_employee)
-    db.commit()
-    return True
+    try:
+        # Manually cascade deletes
+        if db_employee.employee_id:
+            db.query(EmployeeProjectMap).filter(EmployeeProjectMap.employee_id == db_employee.employee_id).delete(synchronize_session=False)
+            db.query(ProjectPermission).filter(ProjectPermission.employee_id == db_employee.employee_id).delete(synchronize_session=False)
+            db.query(Project).filter(Project.employee_id == db_employee.employee_id).update({"employee_id": None}, synchronize_session=False)
+            
+        db.query(ApplicationAccess).filter(ApplicationAccess.employee_id == db_employee.id).delete(synchronize_session=False)
+        
+        db.delete(db_employee)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e
 
 def bulk_delete_employees(db: Session, employee_ids: List[int]) -> bool:
     """Bulk delete employees"""
     try:
+        employees = db.query(Employee).filter(Employee.id.in_(employee_ids)).all()
+        emp_str_ids = [e.employee_id for e in employees if e.employee_id]
+        
+        if emp_str_ids:
+            db.query(EmployeeProjectMap).filter(EmployeeProjectMap.employee_id.in_(emp_str_ids)).delete(synchronize_session=False)
+            db.query(ProjectPermission).filter(ProjectPermission.employee_id.in_(emp_str_ids)).delete(synchronize_session=False)
+            db.query(Project).filter(Project.employee_id.in_(emp_str_ids)).update({"employee_id": None}, synchronize_session=False)
+            
+        db.query(ApplicationAccess).filter(ApplicationAccess.employee_id.in_(employee_ids)).delete(synchronize_session=False)
+        
         db.query(Employee).filter(Employee.id.in_(employee_ids)).delete(synchronize_session=False)
         db.commit()
         return True
     except Exception as e:
         db.rollback()
         raise e
+
+def get_employees_by_role(db: Session, role: str) -> List[Employee]:
+    """Get all employees with a specific role"""
+    return db.query(Employee).filter(Employee.role.ilike(f"%{role}%")).all()
+
+def get_employee_statistics(db: Session) -> dict:
+    """Get employee count statistics grouped by role"""
+    results = db.query(Employee.role, func.count(Employee.id).label('count')).group_by(Employee.role).all()
+    
+    stats = {}
+    for role, count in results:
+        if role:  # Only include roles that are not null
+            stats[role] = count
+    
+    return stats

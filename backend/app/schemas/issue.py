@@ -15,8 +15,8 @@ from pydantic import BaseModel, field_validator, model_validator
 
 
 # ─── Enums / literals ────────────────────────────────────────────────────────
-PriorityLiteral = Literal["High", "Medium", "Low"]
-StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned", "Delayed"]
+PriorityLiteral = Literal["High", "Medium", "Low", "Critical"]
+StatusLiteral   = Literal["Open", "In Progress", "Closed", "Planned", "Delayed", "Pending", "Resolved", "PENDING", "RESOLVED"]
 SourceLiteral   = Literal["Manual", "MOM", "Tracker"]
 ActionStatusLiteral = Literal["Pending", "In Progress", "Done"]
 
@@ -128,14 +128,10 @@ class IssueCreate(BaseModel):
 
     @model_validator(mode="after")
     def apply_governance_rules(self) -> "IssueCreate":
-        # Rule 1: High priority MUST have a due date
-        if self.priority == "High" and self.due_date is None:
-            raise ValueError("due_date is required for High priority issues — governance policy forbids open-ended high priority issues")
-        
-        # Rule 2: Delayed items must have a due date. If missing, force to today to trigger immediate risk flagging.
+        # NOTE: High+no_due_date is enforced in the service layer (bypassed for MOM batch)
+        # Delayed items must have a due date — force to today for immediate risk flagging
         if self.status == "Delayed" and self.due_date is None:
             self.due_date = date.today()
-            
         return self
 
 
@@ -187,6 +183,7 @@ class IssueOut(BaseModel):
     health_status:  str          # dynamic: Overdue / At Risk / On Track
     due_date:       Optional[date] = None
     meeting_id:     Optional[str] = None
+    sync_id:        Optional[str] = None
     milestone_name: Optional[str] = None
     created_at:     datetime
     updated_at:     datetime
@@ -209,33 +206,34 @@ class IssueOut(BaseModel):
 
 class MOMActionItem(BaseModel):
     """Single action from a MOM meeting → maps to one Issue."""
-    title:       str
-    owner:       str
+    title:       Optional[str] = None   # Optional — endpoint uses description[:50] as fallback
+    owner:       Optional[str] = None   # Optional — endpoint skips rows with no owner
     department:  Optional[str] = None
     due_date:    Optional[date] = None
-    priority:    PriorityLiteral = "Medium"
-    status:      StatusLiteral = "Open"
+    priority:    Optional[str] = "Medium"   # Endpoint normalises / downgrades
+    status:      Optional[str] = "Open"     # Endpoint always writes 'Open' for new issues
     description: Optional[str] = None
-
-    @field_validator("owner")
-    @classmethod
-    def owner_required(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("owner is required for every MOM action item")
-        return v.strip()
 
     @model_validator(mode="after")
     def apply_mom_governance_rules(self) -> "MOMActionItem":
-        if self.priority == "High" and self.due_date is None:
-            raise ValueError("due_date is required for High priority MOM actions")
-        if self.status == "Delayed" and self.due_date is None:
-            self.due_date = date.today()
+        # Normalise priority to a valid literal, defaulting to Medium
+        valid_priorities = {"High", "Medium", "Low", "Critical"}
+        if self.priority not in valid_priorities:
+            self.priority = "Medium"
+        
+        # Dashboard expects exactly what is sent, so no coercion for new statuses
+        valid_statuses = {"Open", "In Progress", "Closed", "Planned", "Delayed", "Pending", "Resolved", "PENDING", "RESOLVED"}
+        if self.status not in valid_statuses:
+            self.status = "PENDING"
         return self
 
 
 class MOMIssueCreate(BaseModel):
     project_id:   int
     meeting_id:   Optional[str] = None   # FK to meetings.id (string UUID or int)
+    meeting_name: Optional[str] = None
+    date:         Optional[str] = None
+    mom_output_url: Optional[str] = None
     actions:      List[MOMActionItem]
 
     @field_validator("actions")

@@ -1,0 +1,340 @@
+/* ── REFINED & COMPATIBLE STYLES ── */
+
+.ws-login-root {
+  display: flex !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  background-color: #ffffff !important;
+  font-family: 'DM Sans', -apple-system, sans-serif !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* ── LEFT PANEL ── */
+.ws-login-root .ws-login-left {
+  flex: 1.1 !important;
+  background-color: #0D1B2A !important;
+  padding: 44px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  color: #ffffff !important;
+  box-sizing: border-box !important;
+}
+
+.ws-login-root .ws-left-content {
+  width: 100% !important;
+}
+
+.ws-login-root .ws-login-logo {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 64px !important;
+}
+
+.ws-login-root .ws-logo-mark {
+  width: 28px !important;
+  height: 28px !important;
+  background-color: #C8341A !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+
+.ws-login-root .ws-logo-text {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em !important;
+}
+
+.ws-login-root .ws-login-promo {
+  max-width: 440px !important;
+}
+
+.ws-login-root .ws-promo-headline {
+  font-family: 'Playfair Display', serif !important;
+  font-size: 32px !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  margin: 0 0 12px 0 !important;
+  color: #ffffff !important;
+}
+
+.ws-login-root .text-brand-red {
+  color: #C8341A !important;
+}
+
+.ws-login-root .ws-promo-subline {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 14px !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  margin: 0 0 44px 0 !important;
+  line-height: 1.5 !important;
+}
+
+.ws-login-root .ws-checklist {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+}
+
+.ws-login-root .ws-check-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  font-size: 13.5px !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.ws-login-root .ws-minimal-tick {
+  flex-shrink: 0 !important;
+  opacity: 0.8 !important;
+}
+
+.ws-login-root .ws-divider {
+  height: 1px !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  margin: 32px 0 !important;
+  border: none !important;
+}
+
+.ws-login-root .ws-modules-section {
+  width: 100% !important;
+}
+
+.ws-login-root .ws-section-label {
+  display: block !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  letter-spacing: 0.1em !important;
+  margin-bottom: 16px !important;
+  text-transform: uppercase !important;
+}
+
+.ws-login-root .ws-module-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 12px !important;
+}
+
+.ws-login-root .ws-module-card {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+}
+
+.ws-login-root .ws-mod-icon-box {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 8px !important;
+}
+
+.ws-login-root .ws-mod-name {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  margin-bottom: 2px !important;
+}
+
+.ws-login-root .ws-mod-stat {
+  font-size: 11.5px !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  line-height: 1.4 !important;
+}
+
+.ws-login-root .ws-mod-stat .val {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-weight: 600 !important;
+}
+
+.ws-login-root .ws-left-footer {
+  font-size: 11px !important;
+  color: rgba(255, 255, 255, 0.2) !important;
+  margin-top: 40px !important;
+}
+
+/* ── RIGHT PANEL ── */
+.ws-login-root .ws-login-right {
+  flex: 1 !important;
+  background-color: #F8F8F7 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 44px 52px !important;
+  color: #0D1B2A !important;
+}
+
+.ws-login-root .ws-login-form-container {
+  width: 100% !important;
+  max-width: 340px !important;
+  text-align: left !important;
+}
+
+.ws-login-root .ws-form-welcome {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #8A929E !important;
+  letter-spacing: 0.1em !important;
+  margin-bottom: 6px !important;
+}
+
+.ws-login-root .ws-form-title {
+  font-family: 'Playfair Display', serif !important;
+  font-size: 28px !important;
+  color: #0D1B2A !important;
+  margin: 0 0 6px 0 !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+}
+
+.ws-login-root .ws-form-subtext {
+  font-size: 14px !important;
+  color: #8A929E !important;
+  margin-bottom: 32px !important;
+}
+
+.ws-login-root .ws-login-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 22px !important;
+}
+
+.ws-login-root .ws-input-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.ws-login-root .ws-input-group label {
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #3D4653 !important;
+  margin-bottom: 2px !important;
+}
+
+.ws-login-root .ws-label-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.ws-login-root .ws-input-group input {
+  width: 100% !important;
+  padding: 12px 14px !important;
+  background-color: #ffffff !important;
+  border: 1px solid #E5E5E2 !important;
+  border-radius: 10px !important;
+  font-size: 14.5px !important;
+  color: #0D1B2A !important;
+  outline: none !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.ws-login-root .ws-input-group input::placeholder {
+  color: #C2C7CE !important;
+}
+
+.ws-login-root .ws-input-group input:focus {
+  border-color: #9AAFC4 !important;
+  box-shadow: 0 0 0 4px rgba(13, 27, 42, 0.05) !important;
+}
+
+.ws-login-root .ws-password-wrapper {
+  position: relative !important;
+  width: 100% !important;
+}
+
+.ws-login-root .ws-password-wrapper input {
+  padding-right: 44px !important;
+}
+
+.ws-login-root .ws-password-toggle {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: none !important;
+  border: none !important;
+  color: #C2C7CE !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 6px !important;
+  transition: color 0.15s ease !important;
+}
+
+.ws-login-root .ws-forgot-link {
+  font-size: 12.5px !important;
+  color: #C8341A !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.ws-login-root .ws-signin-btn {
+  background-color: #C8341A !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 14px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  margin-top: 8px !important;
+  width: 100% !important;
+}
+
+.ws-login-root .ws-signin-btn:hover {
+  background-color: #A0280F !important;
+}
+
+.ws-login-root .ws-access-footer {
+  text-align: center !important;
+  margin-top: 24px !important;
+  font-size: 14px !important;
+  color: #8A929E !important;
+}
+
+.ws-login-root .ws-request-link {
+  color: #C8341A !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.ws-login-root .ws-security-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  margin-top: 36px !important;
+  color: #C2C7CE !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.ws-login-root .ws-shield-icon {
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 1024px) {
+  .ws-login-root .ws-login-left {
+    display: none !important;
+  }
+}

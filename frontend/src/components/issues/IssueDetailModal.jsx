@@ -17,6 +17,7 @@ import {
   getIssue, updateIssue, addAction, addComment,
   STATUS_COLORS, PRIORITY_COLORS
 } from '../../api/issues';
+import toast from 'react-hot-toast';
 
 // ─── Escalation level label ───────────────────────────────────────────────────
 const ESCALATION_LABEL = { 1: 'Project Manager', 2: 'Department Head', 3: 'VP / Admin' };
@@ -24,9 +25,9 @@ const ESCALATION_COLOR = { 1: '#f97316', 2: '#ef4444', 3: '#7c3aed' };
 
 const SectionTitle = ({ children }) => (
   <div style={{
-    fontSize: '11px', fontWeight: 800, color: '#374151',
+    fontSize: '11px', fontWeight: 800, color: 'var(--text-secondary)',
     textTransform: 'uppercase', letterSpacing: '0.07em',
-    borderBottom: '1px solid #f3f4f6', paddingBottom: 6, marginBottom: 10,
+    borderBottom: '1px solid var(--border-subtle)', paddingBottom: 6, marginBottom: 10,
   }}>
     {children}
   </div>
@@ -63,14 +64,14 @@ const PriorityBadge = ({ priority }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
-  const [issue, setIssue]           = useState(initialIssue);
-  const [loading, setLoading]       = useState(false);
+  const [issue, setIssue] = useState(initialIssue);
+  const [loading, setLoading] = useState(false);
   const [editStatus, setEditStatus] = useState(false);
-  const [newStatus, setNewStatus]   = useState(initialIssue.status);
+  const [newStatus, setNewStatus] = useState(initialIssue.status);
   const [newComment, setNewComment] = useState('');
-  const [newAction, setNewAction]   = useState({ action_text: '', responsible_person: '', target_date: '' });
+  const [newAction, setNewAction] = useState({ action_text: '', responsible_person: '', target_date: '' });
   const [showAddAction, setShowAddAction] = useState(false);
-  const [saving, setSaving]         = useState(false);
+  const [saving, setSaving] = useState(false);
   const [commentSending, setCommentSending] = useState(false);
 
   // Reload full issue with relations on mount
@@ -100,14 +101,14 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditStatus(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update status');
+      toast.error(e?.response?.data?.detail || 'Failed to update status');
     } finally {
       setSaving(false);
     }
   };
 
   const [editOwner, setEditOwner] = useState(false);
-  const [newOwner, setNewOwner]   = useState(issue.owner);
+  const [newOwner, setNewOwner] = useState(issue.owner);
   const handleOwnerSave = async () => {
     try {
       setSaving(true);
@@ -116,14 +117,14 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditOwner(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update owner');
+      toast.error(e?.response?.data?.detail || 'Failed to update owner');
     } finally {
       setSaving(false);
     }
   };
 
   const [editDue, setEditDue] = useState(false);
-  const [newDue, setNewDue]   = useState(issue.due_date || '');
+  const [newDue, setNewDue] = useState(issue.due_date || '');
   const handleDueSave = async () => {
     try {
       setSaving(true);
@@ -132,7 +133,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setEditDue(false);
       onUpdated?.();
     } catch (e) {
-      alert(e?.response?.data?.detail || 'Failed to update due date');
+      toast.error(e?.response?.data?.detail || 'Failed to update due date');
     } finally {
       setSaving(false);
     }
@@ -146,7 +147,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setIssue(prev => ({ ...prev, comments: [...(prev.comments || []), comment] }));
       setNewComment('');
     } catch (e) {
-      alert('Failed to add comment');
+      toast.error('Failed to add comment');
     } finally {
       setCommentSending(false);
     }
@@ -166,7 +167,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
       setNewAction({ action_text: '', responsible_person: '', target_date: '' });
       setShowAddAction(false);
     } catch (e) {
-      alert('Failed to add action');
+      toast.error('Failed to add action');
     } finally {
       setSaving(false);
     }
@@ -179,7 +180,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
         <div style={styles.panelHeader}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em' }}>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', fontWeight: 600, letterSpacing: '0.05em' }}>
                 ISSUE #{issue.id} · {issue.source?.toUpperCase() || 'MANUAL'}
               </span>
               {issue.is_escalated && (
@@ -233,22 +234,22 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
           {/* ── Meta Grid ── */}
           <div style={styles.metaGrid}>
             <div style={styles.metaCell}>
-              <User size={14} color="#64748b" style={{ marginTop: 2 }} />
+              <User size={14} color="var(--text-muted)" style={{ marginTop: 2 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={styles.metaLabel}>Owner</div>
                   {!editOwner && (
                     <button onClick={() => setEditOwner(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                      <Edit2 size={10} color="#3b82f6" />
+                      <Edit2 size={10} color="var(--accent)" />
                     </button>
                   )}
                 </div>
                 {editOwner ? (
                   <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                    <input 
-                      value={newOwner} 
+                    <input
+                      value={newOwner}
                       onChange={e => setNewOwner(e.target.value)}
-                      style={styles.inlineInput} 
+                      style={styles.inlineInput}
                     />
                     <button onClick={handleOwnerSave} style={styles.inlineSave} disabled={saving}>✓</button>
                     <button onClick={() => setEditOwner(false)} style={styles.inlineCancel}>✕</button>
@@ -260,29 +261,29 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
             </div>
 
             <div style={styles.metaCell}>
-              <Calendar size={14} color={ds === 'Overdue' ? '#ef4444' : '#64748b'} style={{ marginTop: 2 }} />
+              <Calendar size={14} color={ds === 'Overdue' ? 'var(--red)' : 'var(--text-muted)'} style={{ marginTop: 2 }} />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={styles.metaLabel}>Due Date</div>
                   {!editDue && (
                     <button onClick={() => setEditDue(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
-                      <Edit2 size={10} color="#3b82f6" />
+                      <Edit2 size={10} color="var(--accent)" />
                     </button>
                   )}
                 </div>
                 {editDue ? (
                   <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
-                    <input 
+                    <input
                       type="date"
-                      value={newDue ? newDue.split('T')[0] : ''} 
+                      value={newDue ? newDue.split('T')[0] : ''}
                       onChange={e => setNewDue(e.target.value)}
-                      style={styles.inlineInput} 
+                      style={styles.inlineInput}
                     />
                     <button onClick={handleDueSave} style={styles.inlineSave} disabled={saving}>✓</button>
                     <button onClick={() => setEditDue(false)} style={styles.inlineCancel}>✕</button>
                   </div>
                 ) : (
-                  <div style={{ ...styles.metaValue, color: ds === 'Overdue' ? '#ef4444' : '#1e3a5f', fontWeight: ds === 'Overdue' ? 700 : 600 }}>
+                  <div style={{ ...styles.metaValue, color: ds === 'Overdue' ? 'var(--red)' : 'var(--text-primary)', fontWeight: ds === 'Overdue' ? 700 : 600 }}>
                     {issue.due_date ? new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No date set'}
                     {ds === 'Overdue' && <span style={{ fontSize: '10px', marginLeft: 4 }}>({issue.days_overdue}d overdue)</span>}
                   </div>
@@ -291,7 +292,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
             </div>
 
             <div style={styles.metaCell}>
-              <Building2 size={14} color="#64748b" style={{ marginTop: 2 }} />
+              <Building2 size={14} color="var(--text-muted)" style={{ marginTop: 2 }} />
               <div>
                 <div style={styles.metaLabel}>Department</div>
                 <div style={styles.metaValue}>{issue.department || '—'}</div>
@@ -299,7 +300,7 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
             </div>
 
             <div style={styles.metaCell}>
-              <Zap size={14} color="#f59e0b" style={{ marginTop: 2 }} />
+              <Zap size={14} color="var(--amber)" style={{ marginTop: 2 }} />
               <div>
                 <div style={styles.metaLabel}>Urgency</div>
                 <div style={styles.metaValue}>{issue.urgency_score}</div>
@@ -327,9 +328,9 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                     <div style={styles.auditDot} />
                     <div style={{ flex: 1 }}>
                       <div style={styles.auditText}>
-                        <span style={{ fontWeight: 700, color: '#1e3a5f' }}>{log.changed_by}</span> updated 
-                        <span style={{ fontWeight: 700, margin: '0 4px' }}>{log.field_changed}</span> 
-                        from <span style={styles.oldVal}>{log.old_value || 'None'}</span> 
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{log.changed_by}</span> updated
+                        <span style={{ fontWeight: 700, margin: '0 4px' }}>{log.field_changed}</span>
+                        from <span style={styles.oldVal}>{log.old_value || 'None'}</span>
                         to <span style={styles.newVal}>{log.new_value}</span>
                       </div>
                       <div style={styles.auditTime}>
@@ -350,16 +351,16 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                 <div key={e.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 12,
                   padding: '12px', borderRadius: 10, marginBottom: 8,
-                  backgroundColor: `${ESCALATION_COLOR[e.escalation_level]}08`,
-                  border: `1px solid ${ESCALATION_COLOR[e.escalation_level]}20`,
+                  backgroundColor: `${ESCALATION_COLOR[e.escalation_level]}15`,
+                  border: `1px solid ${ESCALATION_COLOR[e.escalation_level]}30`,
                 }}>
                   <AlertTriangle size={16} color={ESCALATION_COLOR[e.escalation_level]} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: ESCALATION_COLOR[e.escalation_level] }}>
                       LEVEL {e.escalation_level} — {ESCALATION_LABEL[e.escalation_level]?.toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#475569', marginTop: 4, fontStyle: 'italic' }}>"{e.reason}"</div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: 6, fontWeight: 600 }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: 4, fontStyle: 'italic' }}>"{e.reason}"</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: 6, fontWeight: 600 }}>
                       {new Date(e.escalated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
@@ -407,29 +408,29 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
 
             <div style={styles.actionList}>
               {(issue.actions || []).length === 0 && !showAddAction && (
-                <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '20px', backgroundColor: '#f9fafb', borderRadius: 8, border: '1px dashed #e2e8f0' }}>No action items recorded.</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg)', borderRadius: 8, border: '1px dashed var(--border-subtle)' }}>No action items recorded.</div>
               )}
               {(issue.actions || []).map(action => (
                 <div key={action.id} style={styles.actionRow}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 600 }}>{action.action_text}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>{action.action_text}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
                       {action.responsible_person && (
-                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                           <User size={10} /> {action.responsible_person}
-                         </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <User size={10} /> {action.responsible_person}
+                        </div>
                       )}
                       {action.target_date && (
-                         <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                           <Clock size={10} /> {new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                         </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={10} /> {new Date(action.target_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        </div>
                       )}
                     </div>
                   </div>
                   <div style={{
                     padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 800,
-                    backgroundColor: action.status === 'Done' ? '#dcfce7' : action.status === 'In Progress' ? '#dbeafe' : '#f1f5f9',
-                    color: action.status === 'Done' ? '#166534' : action.status === 'In Progress' ? '#1e40af' : '#475569',
+                    backgroundColor: action.status === 'Done' ? 'var(--green-50)' : action.status === 'In Progress' ? 'var(--blue-50)' : 'var(--elevated-card)',
+                    color: action.status === 'Done' ? 'var(--green-900)' : action.status === 'In Progress' ? 'var(--blue-900)' : 'var(--text-secondary)',
                     textTransform: 'uppercase'
                   }}>
                     {action.status}
@@ -448,12 +449,12 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
                   <div style={styles.commentAvatar}>{(c.created_by || 'U')[0].toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e3a5f' }}>{c.created_by}</span>
-                      <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                         {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{c.created_by}</span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        {new Date(c.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <div style={{ fontSize: '13px', color: '#475569', marginTop: 3, lineHeight: 1.5 }}>{c.comment_text}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: 3, lineHeight: 1.5 }}>{c.comment_text}</div>
                   </div>
                 </div>
               ))}
@@ -481,18 +482,18 @@ const IssueDetailModal = ({ issue: initialIssue, onClose, onUpdated }) => {
 const styles = {
   overlay: {
     position: 'fixed', inset: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     backdropFilter: 'blur(4px)',
     zIndex: 3000, display: 'flex', justifyContent: 'flex-end',
   },
   panel: {
-    backgroundColor: '#fff', width: '500px', maxWidth: '95vw',
+    backgroundColor: 'var(--surface)', width: '500px', maxWidth: '95vw',
     height: '100vh', display: 'flex', flexDirection: 'column',
     boxShadow: '-20px 0 50px rgba(0,0,0,0.1)',
   },
   panelHeader: {
-    padding: '24px 24px', borderBottom: '1px solid #f1f5f9',
-    backgroundColor: '#1e3a5f', color: '#fff',
+    padding: '24px 24px', borderBottom: '1px solid var(--border-subtle)',
+    backgroundColor: 'var(--accent)', color: '#fff',
   },
   panelTitle: {
     fontSize: '20px', fontWeight: 800, color: '#fff', lineHeight: '1.4',
@@ -510,26 +511,26 @@ const styles = {
   escBadge: {
     display: 'inline-flex', alignItems: 'center', gap: 4,
     padding: '2px 8px', borderRadius: '4px',
-    backgroundColor: '#fee2e2', color: '#dc2626',
+    backgroundColor: 'var(--red-50)', color: 'var(--red-900)',
     fontSize: '10px', fontWeight: 900, letterSpacing: '0.04em',
-    border: '1px solid #fecaca',
+    border: '1px solid var(--red-200)',
   },
   metaGrid: {
     display: 'grid', gridTemplateColumns: '1fr 1fr',
     gap: 20, marginBottom: 24,
-    padding: 16, backgroundColor: '#f8fafc',
-    borderRadius: 12, border: '1px solid #f1f5f9',
+    padding: 16, backgroundColor: 'var(--bg)',
+    borderRadius: 12, border: '1px solid var(--border-subtle)',
   },
   metaCell: {
     display: 'flex', alignItems: 'flex-start', gap: 10,
   },
-  metaLabel: { fontSize: '10px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
-  metaValue: { fontSize: '14px', color: '#1e293b', fontWeight: 600, marginTop: 2 },
+  metaLabel: { fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  metaValue: { fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600, marginTop: 2 },
   section: { marginBottom: 30 },
   descriptionBox: {
-    fontSize: '14px', color: '#475569', lineHeight: '1.6', 
-    backgroundColor: '#fff', padding: '12px 16px', borderRadius: 8,
-    border: '1px solid #f1f5f9',
+    fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6',
+    backgroundColor: 'var(--surface)', padding: '12px 16px', borderRadius: 8,
+    border: '1px solid var(--border-subtle)',
   },
   auditContainer: {
     display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8,
@@ -538,23 +539,23 @@ const styles = {
     display: 'flex', gap: 12, position: 'relative',
   },
   auditDot: {
-    width: 8, height: 8, borderRadius: '50%', backgroundColor: '#cbd5e1',
+    width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--border-subtle)',
     marginTop: 6, flexShrink: 0,
   },
   auditText: {
-    fontSize: '12px', color: '#64748b', lineHeight: '1.4',
+    fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4',
   },
   auditTime: {
-    fontSize: '10px', color: '#94a3b8', marginTop: 2, fontWeight: 600,
+    fontSize: '10px', color: 'var(--text-muted)', marginTop: 2, fontWeight: 600,
   },
-  oldVal: { color: '#94a3b8', textDecoration: 'line-through', fontWeight: 600 },
-  newVal: { color: '#059669', fontWeight: 700, backgroundColor: '#ecfdf5', padding: '1px 4px', borderRadius: 4 },
+  oldVal: { color: 'var(--text-muted)', textDecoration: 'line-through', fontWeight: 600 },
+  newVal: { color: 'var(--green-900)', fontWeight: 700, backgroundColor: 'var(--green-50)', padding: '1px 4px', borderRadius: 4 },
   actionList: {
     display: 'flex', flexDirection: 'column', gap: 10,
   },
   actionRow: {
     display: 'flex', alignItems: 'center', gap: 12,
-    padding: '12px', border: '1px solid #f1f5f9', borderRadius: 10,
+    padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: 10,
     transition: 'background 0.2s',
   },
   commentList: {
@@ -565,78 +566,80 @@ const styles = {
   },
   commentAvatar: {
     width: 32, height: 32, borderRadius: '50%',
-    backgroundColor: '#1e3a5f', color: '#fff',
+    backgroundColor: 'var(--accent)', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontSize: '13px', fontWeight: 800, flexShrink: 0,
-    boxShadow: '0 2px 4px rgba(30, 58, 95, 0.1)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
   },
   input: {
-    border: '1px solid #e2e8f0', borderRadius: '8px',
-    padding: '10px 14px', fontSize: '13px', color: '#1e293b',
+    border: '1px solid var(--border-subtle)', borderRadius: '8px',
+    padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)',
     outline: 'none', width: '100%',
+    backgroundColor: 'var(--surface)',
     transition: 'border-color 0.2s',
   },
   saveBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '8px 16px', borderRadius: '8px',
-    backgroundColor: '#1e3a5f', color: '#fff',
+    backgroundColor: 'var(--accent)', color: '#fff',
     fontSize: '13px', fontWeight: 700, border: 'none', cursor: 'pointer',
     transition: 'transform 0.1s, background 0.2s',
   },
   cancelBtn: {
     padding: '8px 16px', borderRadius: '8px',
-    backgroundColor: '#f1f5f9', color: '#64748b',
-    fontSize: '13px', fontWeight: 600, border: '1px solid #e2e8f0', cursor: 'pointer',
+    backgroundColor: 'var(--bg)', color: 'var(--text-secondary)',
+    fontSize: '13px', fontWeight: 600, border: '1px solid var(--border-subtle)', cursor: 'pointer',
   },
   ghostBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '6px 12px', borderRadius: '8px',
-    backgroundColor: '#eff6ff', color: '#2563eb',
-    fontSize: '11px', fontWeight: 700, border: '1px solid #dbeafe', cursor: 'pointer',
+    backgroundColor: 'var(--elevated-card)', color: 'var(--text-primary)',
+    fontSize: '11px', fontWeight: 700, border: '1px solid var(--border-subtle)', cursor: 'pointer',
   },
   statusEditBox: {
     display: 'flex', gap: 12, alignItems: 'center',
     padding: '16px', borderRadius: 12,
-    backgroundColor: '#f0f9ff', border: '1px solid #bae6fd',
+    backgroundColor: 'var(--bg)', border: '1px solid var(--border-subtle)',
     marginBottom: 20,
   },
   addActionBox: {
     padding: '16px', borderRadius: 12,
-    backgroundColor: '#f8fafc', border: '1px solid #e2e8f0',
+    backgroundColor: 'var(--bg)', border: '1px solid var(--border-subtle)',
     marginBottom: 16,
   },
   select: {
-    flex: 1, border: '1px solid #cbd5e1', borderRadius: '8px',
-    padding: '10px', fontSize: '13px', color: '#1e293b',
-    outline: 'none', backgroundColor: '#fff',
+    flex: 1, border: '1px solid var(--border-subtle)', borderRadius: '8px',
+    padding: '10px', fontSize: '13px', color: 'var(--text-primary)',
+    outline: 'none', backgroundColor: 'var(--surface)',
   },
   inlineInput: {
-    flex: 1, border: '1px solid #3b82f6', borderRadius: '4px',
-    padding: '2px 6px', fontSize: '12px', outline: 'none',
+    flex: 1, border: '1px solid var(--accent)', borderRadius: '4px',
+    padding: '2px 6px', fontSize: '12px', outline: 'none', backgroundColor: 'var(--surface)', color: 'var(--text-primary)',
   },
   inlineSave: {
-    background: '#10b981', color: '#fff', border: 'none', 
+    background: 'var(--green)', color: '#fff', border: 'none',
     borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
   },
   inlineCancel: {
-    background: '#ef4444', color: '#fff', border: 'none', 
+    background: 'var(--red)', color: '#fff', border: 'none',
     borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontWeight: 800,
   },
   commentInputBox: {
     display: 'flex', gap: 10,
-    backgroundColor: '#f8fafc', padding: 8, borderRadius: 12,
-    border: '1px solid #f1f5f9',
+    backgroundColor: 'var(--bg)', padding: 8, borderRadius: 12,
+    border: '1px solid var(--border-subtle)',
   },
   commentInput: {
     flex: 1, background: 'transparent', border: 'none',
-    padding: '8px 12px', fontSize: '13px', outline: 'none',
+    padding: '8px 12px', fontSize: '13px', outline: 'none', color: 'var(--text-primary)',
   },
   commentBtn: {
     width: 36, height: 36, borderRadius: '10px',
-    backgroundColor: '#1e3a5f', color: '#fff',
+    backgroundColor: 'var(--accent)', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     border: 'none', cursor: 'pointer',
   }
 };
 
 export default IssueDetailModal;
+

@@ -12,31 +12,38 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
+        slate: {
+          250: '#d7e1ea',
+          550: '#55657e',
+          750: '#293548',
+          850: '#172237',
+        },
         // Industrial Design System Colors
         app: {
-          bg: '#FFFFFF',
-          surface: '#F4F6F9',
-          panel: '#E6EAF2',
+          bg: 'var(--bg)',
+          surface: 'var(--surface)',
+          panel: 'var(--elevated-card)',
         },
         brand: {
-          primary: '#00939F',
-          accent: '#26C0CB',
+          primary: 'var(--brand-navy)',
+          accent: 'var(--accent)',
+          hover: 'var(--accent-hover)',
         },
         text: {
-          primary: '#1A1F2E',
-          secondary: 'rgba(26, 31, 46, 0.65)',
-          muted: 'rgba(26, 31, 46, 0.40)',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
         },
         border: {
-          DEFAULT: 'rgba(26, 31, 46, 0.08)',
-          strong: 'rgba(26, 31, 46, 0.15)',
+          DEFAULT: 'var(--border-subtle)',
+          strong: 'var(--border-strong)',
         },
         status: {
-          success: '#16A34A',
-          warning: '#D97706',
-          error: '#DC2626',
-          info: '#00939F',
-          neutral: '#6B7280',
+          success: 'var(--green)',
+          warning: 'var(--amber)',
+          error: 'var(--red)',
+          info: 'var(--brand-navy)',
+          neutral: 'var(--text-muted)',
         },
         // Legacy maroon colors for backward compatibility
         maroon: {

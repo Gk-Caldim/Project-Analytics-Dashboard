@@ -1,6 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Any, Dict, Optional
+import re
+from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from cachetools import TTLCache
+
+# Cache for heavy read operations
+structure_cache = TTLCache(maxsize=20, ttl=300) # 5 minutes ttl
 
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.schemas.project_column import ProjectColumnCreate, ProjectColumnUpdate, ProjectColumnOut
@@ -9,11 +16,18 @@ from app.crud import project_column as column_crud
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.utils.audit import log_activity, generate_diff_summary
+from app.models.budget import BudgetSummary # Added for cleanup
+from app.utils.suggestions import suggest_data_type
 
 router = APIRouter(
     prefix="/projects",
     tags=["Projects"]
 )
+
+@router.get("/columns/suggest")
+def get_column_suggestion(name: str):
+    """Suggest a data type for a column name"""
+    return {"suggested_type": suggest_data_type(name)}
 
 def check_project_permission(db_project, current_user, permission_type: str):
     """
@@ -24,14 +38,18 @@ def check_project_permission(db_project, current_user, permission_type: str):
     3. Project's team_lead list
     """
     # 1. Global Admin Check
-    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager"]:
+    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager", "Finance", "Head"]:
         return True
     
     employee_id = current_user.get("employee_id")
     if not employee_id:
         return False
         
-    # 2. Check EmployeeProjectMap
+    # 2. Check Direct Assignment (Team Lead or Assigned Employee)
+    if str(db_project.employee_id) == str(employee_id) or str(db_project.assigned_to_id) == str(employee_id):
+        return True
+
+    # 3. Check EmployeeProjectMap (Allocations)
     if hasattr(db_project, "allocations") and db_project.allocations:
         for alloc in db_project.allocations:
             if str(alloc.employee_id) == str(employee_id):
@@ -48,11 +66,32 @@ def list_projects(
     projects = crud_project.get_projects(db)
     
     # 1. Admin returns all
-    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager"]:
+    if current_user.get("role") in ["Admin", "Super Admin", "Project Manager", "Finance", "Head"]:
         return projects
         
     # 2. Others filter by "view" permission
     return [p for p in projects if check_project_permission(p, current_user, "view")]
+
+@router.get("/next-id")
+def get_next_project_id(db: Session = Depends(get_db)):
+    """Suggest the next available project ID based on the PRJxxx format"""
+    projects = db.query(crud_project.Project.project_id).all()
+    max_num = 0
+    
+    for (pid,) in projects:
+        if pid and pid.startswith("PRJ"):
+            # Extract numbers using regex
+            match = re.search(r'PRJ(\d+)', pid)
+            if match:
+                try:
+                    num = int(match.group(1))
+                    if num > max_num:
+                        max_num = num
+                except ValueError:
+                    continue
+    
+    next_id = f"PRJ{str(max_num + 1).zfill(3)}"
+    return {"next_id": next_id}
 
 @router.post("/", response_model=ProjectResponse)
 def add_project(
@@ -61,9 +100,10 @@ def add_project(
     current_user: dict = Depends(get_current_user)
 ):
     """Add a new project - Restricted to Admins"""
-    if current_user.get("role") not in ["Admin", "Super Admin", "Project Manager"]:
+    if current_user.get("role") not in ["Admin", "Super Admin", "Project Manager", "Finance", "Head"]:
         raise HTTPException(status_code=403, detail="Only Admins can create projects")
     db_project = crud_project.create_project(db, project)
+    structure_cache.clear()
     
     # Audit Log
     log_activity(
@@ -116,6 +156,7 @@ def update_project(
     diff_summary = generate_diff_summary(db_project, project)
     
     updated_project = crud_project.update_project(db, project_id, project)
+    structure_cache.clear()
     
     # Audit Log
     log_activity(
@@ -150,9 +191,17 @@ def delete_project(
     try:
         project_id_str = db_project.project_id
         success = crud_project.delete_project(db, project_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Project not found")
-            
+        structure_cache.clear()
+        
+        # Cleanup orphaned budget summary if exists
+        try:
+            db.query(BudgetSummary).filter(BudgetSummary.project_name == db_project.name).delete()
+            db.commit()
+        except Exception as budget_error:
+            # Non-critical if budget cleanup fails, but log it
+            print(f"Non-critical: Failed to cleanup budget for {db_project.name}: {budget_error}")
+            db.rollback()
+
         # Audit Log
         log_activity(
             db=db,
@@ -200,8 +249,20 @@ def bulk_delete_projects(
 
     try:
         success = crud_project.bulk_delete_projects(db, project_ids)
+        structure_cache.clear()
         if not success:
             raise HTTPException(status_code=404, detail="One or more projects not found")
+            
+        # Cleanup orphaned budget summaries
+        try:
+            # We don't have the names here easily, but we can delete by ID if project_id was stored, 
+            # or just skip for bulk if complex. Let's try to get names first.
+            # However, bulk delete is rare. Let's at least try to match by IDs if possible.
+            # But BudgetSummary doesn't have project_id (int).
+            pass 
+        except:
+            pass
+
         return {"message": f"{len(project_ids)} projects deleted successfully"}
     except Exception as e:
         # Handle foreign key constraint violation
@@ -284,6 +345,30 @@ def delete_column(column_id: int, db: Session = Depends(get_db)):
     return None
 
 
+class DashboardConfigUpdate(BaseModel):
+    dashboard_config: Dict[str, Any]
+
+@router.patch("/{project_id}/config")
+def update_dashboard_config(
+    project_id: int,
+    config_update: DashboardConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Updates only the dashboard configuration JSON for a project"""
+    db_project = crud_project.get_project(db, project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    if not check_project_permission(db_project, current_user, "edit"):
+        raise HTTPException(status_code=403, detail="You do not have permission to edit this project")
+        
+    # The frontend sends { "dashboard_config": { ... } }
+    db_project.dashboard_config = config_update.dashboard_config
+    db.commit()
+    db.refresh(db_project)
+    return {"message": "Dashboard configuration updated", "config": db_project.dashboard_config}
+
 # ---------------------------------------------------------------------------
 # GET /projects/{project_id}/structure
 # Real hierarchy: Project → Modules → milestone count
@@ -303,34 +388,34 @@ def get_project_structure(
     {
         "project_id": 1,
         "project_name": "...",
+        "dashboard_config": {...},
         "modules": [{ "module_name": "...", "milestones_count": N }],
         "uploads": [...]
     }
     """
     from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
-    from app.models.tracker import TrackerData
+    from app.models.tracker_ingestion import TrackerIngestion
+    from app.utils.analytics_utils import standardize_records
 
     project = db.query(crud_project.Project).filter(crud_project.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Flat distinct modules for this project (deduped across all uploads)
-    flat_modules_rows = (
-        db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.project_id == project_id,
-            TrackerData.module != None,
-            TrackerData.module != "",
-        )
-        .group_by(TrackerData.module)
-        .order_by(TrackerData.module)
-        .all()
-    )
+    # Fetch all ingestions for this project to build the module list
+    all_ingestions = db.query(TrackerIngestion).filter(TrackerIngestion.project_id == project_id).all()
+    
+    # Build flat deduplicated modules from JSONB
+    flat_modules_dict = {}
+    for ing in all_ingestions:
+        std_records = standardize_records(ing.data)
+        for r in std_records:
+            mod_name = r.get("module") or "Unknown"
+            flat_modules_dict[mod_name] = flat_modules_dict.get(mod_name, 0) + 1
+            
     flat_modules = [
-        {"module_name": r.module, "milestones_count": r.cnt}
-        for r in flat_modules_rows
-        if r.module
+        {"module_name": name, "milestones_count": count}
+        for name, count in flat_modules_dict.items()
     ]
 
     uploads = (
@@ -342,25 +427,30 @@ def get_project_structure(
 
     uploads_out = []
     for u in uploads:
-        # Group milestones by module for this specific upload
-        rows = (
-            db.query(TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-            .filter(
-                TrackerData.upload_id == u.id,
-                TrackerData.module != None,
-                TrackerData.module != "",
-            )
-            .group_by(TrackerData.module)
-            .all()
-        )
-        upload_modules = [
-            {"module_name": r.module, "milestones_count": r.cnt}
-            for r in rows
-            if r.module
-        ]
+        # Get modules for this specific upload
+        upload_ingestion = next((i for i in all_ingestions if i.upload_id == u.id), None)
+        upload_modules = []
+        
+        if upload_ingestion:
+            u_mod_dict = {}
+            std_u_records = standardize_records(upload_ingestion.data)
+            for r in std_u_records:
+                m_name = r.get("module") or "Unknown"
+                u_mod_dict[m_name] = u_mod_dict.get(m_name, 0) + 1
+            upload_modules = [
+                {"module_name": name, "milestones_count": count}
+                for name, count in u_mod_dict.items()
+            ]
+
+        if not upload_modules and (getattr(u, 'row_count') or 0) > 0 and (getattr(u, 'valid_row_count') or 0) == 0:
+            fallback_name = u.file_name.split('.')[0] if u.file_name else "Dataset"
+            upload_modules = [{"module_name": fallback_name, "milestones_count": u.row_count}]
+            if not any(m["module_name"] == fallback_name for m in flat_modules):
+                flat_modules.append({"module_name": fallback_name, "milestones_count": u.row_count})
 
         uploads_out.append({
             "upload_id":         u.id,
+            "dataset_id":        getattr(u, "dataset_id", None),
             "file_name":         u.file_name,
             "uploaded_at":       u.uploaded_at.strftime("%Y-%m-%d") if u.uploaded_at else None,
             "status":            u.status,
@@ -373,6 +463,12 @@ def get_project_structure(
     return {
         "project_id":   project_id,
         "project_name": project.name,
+        "dashboard_config": project.dashboard_config,
+        "budget": project.budget,
+        "utilized_budget": project.utilized_budget,
+        "balance_budget": project.balance_budget,
+        "project_manager": project.project_manager,
+        "employee_name": project.employee_name,
         "modules":      flat_modules,   # ← flat list — sidebar uses this
         "uploads":      uploads_out,
     }
@@ -384,84 +480,201 @@ def get_all_project_structures(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Returns structure for ALL projects that have tracker data.
-    Each project entry contains a flat deduplicated module list
-    (across all uploads) so the sidebar can render without any hardcoding.
+    Returns lightweight structure for ALL projects that have uploads.
+    Used exclusively by the sidebar — only needs file metadata, never row data.
+
+    Each project entry contains the list of uploaded files (name, id, counts).
+    Module-level breakdown is intentionally excluded here to avoid loading
+    10,000-row JSONB fields just for sidebar rendering.
     """
-    from sqlalchemy import func as sqlfunc
     from app.models.upload import Upload
-    from app.models.tracker import TrackerData
 
+    # Check cache first
+    cache_key = "all_structures"
+    if cache_key in structure_cache:
+        print(f"[CACHE HIT] Serving /all/structures from memory instantly!")
+        return structure_cache[cache_key]
+
+    print(f"[CACHE MISS] Fetching /all/structures from database...")
+    # Single query: projects joined with their uploads (metadata only, no JSONB)
     projects = db.query(crud_project.Project).all()
-    all_uploads = db.query(Upload).all()
-
-    # Build per-upload module map
-    all_rows = (
-        db.query(TrackerData.upload_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.module != None,
-            TrackerData.module != "",
+    all_uploads = (
+        db.query(
+            Upload.id,
+            Upload.project_id,
+            Upload.file_name,
+            Upload.uploaded_at,
+            Upload.status,
+            Upload.row_count,
+            Upload.valid_row_count,
+            Upload.invalid_row_count,
         )
-        .group_by(TrackerData.upload_id, TrackerData.module)
         .all()
     )
 
-    upload_modules: dict = {}
-    for r in all_rows:
-        if r.upload_id not in upload_modules:
-            upload_modules[r.upload_id] = []
-        if r.module:
-            upload_modules[r.upload_id].append({"module_name": r.module, "milestones_count": r.cnt})
-
-    # Build flat project → modules map (deduplicated across all uploads)
-    flat_rows = (
-        db.query(TrackerData.project_id, TrackerData.module, sqlfunc.count(TrackerData.id).label("cnt"))
-        .filter(
-            TrackerData.project_id != None,
-            TrackerData.module != None,
-            TrackerData.module != "",
-        )
-        .group_by(TrackerData.project_id, TrackerData.module)
-        .order_by(TrackerData.module)
-        .all()
-    )
-
-    project_flat_modules: dict = {}
-    for r in flat_rows:
-        if r.project_id not in project_flat_modules:
-            project_flat_modules[r.project_id] = []
-        if r.module:
-            project_flat_modules[r.project_id].append(
-                {"module_name": r.module, "milestones_count": r.cnt}
-            )
+    # Group uploads by project_id (no JSONB reads needed)
+    uploads_by_project = {}
+    for u in all_uploads:
+        uploads_by_project.setdefault(u.project_id, []).append(u)
 
     result = []
     for p in projects:
-        proj_uploads = [u for u in all_uploads if u.project_id == p.id]
-        flat_mods = project_flat_modules.get(p.id, [])
+        proj_uploads = uploads_by_project.get(p.id, [])
 
-        # Only include projects that actually have tracker data
-        if not proj_uploads and not flat_mods:
+        # Skip projects with no uploads at all
+        if not proj_uploads:
             continue
 
         uploads_out = []
         for u in proj_uploads:
             uploads_out.append({
                 "upload_id":         u.id,
+                "dataset_id":        None,          # not needed for sidebar
                 "file_name":         u.file_name,
                 "uploaded_at":       u.uploaded_at.strftime("%Y-%m-%d") if u.uploaded_at else None,
                 "status":            u.status,
                 "row_count":         u.row_count,
                 "valid_row_count":   u.valid_row_count,
                 "invalid_row_count": u.invalid_row_count,
-                "modules":           upload_modules.get(u.id, []),
+                "modules":           [],             # not needed for sidebar
             })
 
         result.append({
-            "project_id":   p.id,
-            "project_name": p.name,
-            "modules":      flat_mods,      # ← flat deduplicated module list
-            "uploads":      uploads_out,
+            "project_id":       p.id,
+            "project_name":     p.name,
+            "dashboard_config": p.dashboard_config,
+            "budget":           p.budget,
+            "utilized_budget":  p.utilized_budget,
+            "balance_budget":   p.balance_budget,
+            "project_manager":  p.project_manager,
+            "employee_name":    p.employee_name,
+            "modules":          [],         # sidebar uses uploads[], not modules[]
+            "uploads":          uploads_out,
         })
 
+    # Save to cache
+    structure_cache[cache_key] = result
     return result
+
+
+# ============================================================================
+# GROUP CALENDAR JOIN-CODE ENDPOINTS
+# ============================================================================
+
+# ── Pydantic contracts ──────────────────────────────────────────────────────
+
+class JoinCodeResponse(BaseModel):
+    """Returned only to admins/PMs who request a project's join code."""
+    project_id: int
+    project_name: str
+    join_code: str
+
+
+class VerifyJoinCodeRequest(BaseModel):
+    """Payload sent by the frontend when a user tries to subscribe to a group calendar."""
+    # min_length stops trivially empty strings before they hit the DB.
+    code: str = Field(..., min_length=1, max_length=9)
+
+
+class VerifiedProjectInfo(BaseModel):
+    """Safe subset of project data returned on a successful code verification.
+    Intentionally excludes sensitive fields (budget, manager, etc.)."""
+    project_id: int
+    name: str
+    color: Optional[str] = None  # from custom_fields if set
+
+
+# ── Privileged: reveal a project's join code (admin / PM only) ─────────────
+
+@router.get(
+    "/{project_id}/join-code",
+    response_model=JoinCodeResponse,
+    summary="Get a project's calendar join code (Admin/PM only)",
+)
+def get_project_join_code(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns the join code for a project so it can be shared with collaborators.
+
+    Access: Admin, Super Admin, Project Manager roles only.
+    Rationale: restricting to named senior roles prevents any employee from
+    freely harvesting codes for projects they are merely assigned to.
+    """
+    ALLOWED_ROLES = {"Admin", "Super Admin", "Project Manager"}
+    if current_user.get("role") not in ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Only Admins and Project Managers can view join codes.",
+        )
+
+    db_project = crud_project.get_project(db, project_id)
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    if not db_project.join_code:
+        # Should not happen after migration, but handle gracefully.
+        raise HTTPException(
+            status_code=503,
+            detail="Join code not yet generated for this project. Try again shortly.",
+        )
+
+    return JoinCodeResponse(
+        project_id=db_project.id,
+        project_name=db_project.name,
+        join_code=db_project.join_code,
+    )
+
+
+# ── Public (authenticated): verify a code and subscribe ────────────────────
+
+@router.post(
+    "/verify-join-code",
+    response_model=VerifiedProjectInfo,
+    summary="Verify a calendar join code and get project info",
+)
+def verify_join_code(
+    payload: VerifyJoinCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Any authenticated user may submit a join code.
+    On match: returns the safe project subset needed by the frontend.
+    On failure: always returns 404 with a generic message — never reveals
+    whether the project exists, preventing enumeration attacks.
+
+    The frontend stores the returned project_id in localStorage; no server-side
+    subscription record is created (stateless approach — simpler, sufficient for
+    current scale).
+    """
+    # Normalise: uppercase + strip whitespace so "zoho-8a3f" matches "ZOHO-8A3F"
+    code = payload.code.strip().upper()
+
+    from app.models.project import Project as ProjectModel
+    db_project = (
+        db.query(ProjectModel)
+        .filter(ProjectModel.join_code == code)
+        .first()
+    )
+
+    if db_project is None:
+        # Deliberately identical error for wrong code AND non-existent code.
+        # This prevents a user from guessing whether a project exists.
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid or expired join code.",
+        )
+
+    # Extract color from custom_fields if stored there (frontend convention)
+    color = None
+    if isinstance(db_project.custom_fields, dict):
+        color = db_project.custom_fields.get("color")
+
+    return VerifiedProjectInfo(
+        project_id=db_project.id,
+        name=db_project.name,
+        color=color,
+    )

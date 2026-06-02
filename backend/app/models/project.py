@@ -20,10 +20,35 @@ class Project(Base):
     end_date = Column(DateTime, nullable=True)
     timeline_months = Column(Integer, nullable=True)
     department = Column(String, nullable=True)
-    employee_id = Column(String, ForeignKey("employees.employee_id"), nullable=True)
+    employee_id = Column(String, ForeignKey("employees.employee_id", ondelete="SET NULL"), nullable=True)
     employee_name = Column(String, nullable=True)
+    assigned_to_id = Column(String, ForeignKey("employees.employee_id", ondelete="SET NULL"), nullable=True)
+    assigned_to_name = Column(String, nullable=True)
     custom_fields = Column(JSONB, default={})
+    dashboard_config = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # ── Group Calendar Join Code ──────────────────────────────────────────
+    # A unique 9-char code (e.g. "ABCD-EF12") that gates calendar subscriptions.
+    # NEVER exposed in the standard ProjectResponse schema — admin-only endpoint only.
+    # nullable=True for backward compat; the startup migration fills existing rows.
+    join_code = Column(String(9), unique=True, nullable=True, index=True)
 
     # Relationship to Employee model
     employee = relationship("Employee", foreign_keys=[employee_id], primaryjoin="Project.employee_id == Employee.employee_id")
+
+    # Cascade relationships
+    sub_categories = relationship(
+        "ProjectSubCategory",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == ProjectSubCategory.project_id",
+        foreign_keys="[ProjectSubCategory.project_id]"
+    )
+    allocations = relationship(
+        "EmployeeProjectMap",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        primaryjoin="Project.project_id == EmployeeProjectMap.project_id",
+        foreign_keys="[EmployeeProjectMap.project_id]"
+    )

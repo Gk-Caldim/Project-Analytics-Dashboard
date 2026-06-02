@@ -4,27 +4,29 @@
  * Backend frozen: uses existing momSlice + POST /mom/issues API
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
   ChevronRight, Home, Layout, AlertTriangle, Bell,
   CheckCircle, GitBranch, Trash2, Download, Clipboard,
   ChevronDown, ChevronUp, Loader, Zap, Check, Edit3,
-  FileText, Plus, MessageSquare, Target
+  FileText, Plus, MessageSquare, Target, MoreHorizontal, Users,
+  FolderOpen, Mail, X, Settings, Clock, Edit2, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
-import { updateMomRow, deleteMomRow, saveMOM, setMomData as setMomDataRedux } from '../../store/slices/momSlice';
+import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingContext } from '../../store/slices/momSlice';
 import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
+import { Skeleton } from '../../components/ui/skeleton';
 import './MOMViewPage.css';
 
 // ── Speaker colour palette ───────────────────────────────────────────────
 const SPEAKER_COLORS = [
   { bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED' },
-  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' },
+  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#1e293b' },
   { bg: '#D1FAE5', text: '#065F46', dot: '#059669' },
   { bg: '#FEE2E2', text: '#991B1B', dot: '#DC2626' },
   { bg: '#FEF3C7', text: '#92400E', dot: '#D97706' },
@@ -49,12 +51,58 @@ const MOMViewPage = () => {
 
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
-  const [selProject, setSelProject] = useState(String(projectId || ''));
   const [discussionOpen, setDiscussionOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // ── Transcript Search & Highlight State ──
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeHighlightIdx, setActiveHighlightIdx] = useState(0);
+
+  const { meetingId: urlMeetingId } = useParams();
+
+  const pathMeetingId = useMemo(() => {
+    const parts = window.location.pathname.split('/');
+    const viewIdx = parts.indexOf('view');
+    if (viewIdx !== -1 && parts[viewIdx + 1]) {
+      return parts[viewIdx + 1];
+    }
+    return null;
+  }, []);
+
+  const effectiveMeetingId = urlMeetingId || pathMeetingId || meetingId;
+
+  const [loading, setLoading] = useState(false);
+  const [localTranscript, setLocalTranscript] = useState([]);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [pickerProjectId, setPickerProjectId] = useState('');
+
+  // ── Dual-Layer Route Synchronization & Session Hydration Fallback ──
+  useEffect(() => {
+    const resolvedId = urlMeetingId || pathMeetingId;
+    if (resolvedId) {
+      sessionStorage.setItem('active_meeting_id', resolvedId);
+    } else {
+      if (meetingId) {
+        console.log('[MOMViewPage] Syncing URL with Redux active ID:', meetingId);
+        navigate(`/dashboard/mom/view/${meetingId}`, { replace: true });
+      } else {
+        const storedId = sessionStorage.getItem('active_meeting_id');
+        if (storedId) {
+          console.log('[MOMViewPage] Syncing URL with SessionStorage active ID:', storedId);
+          navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
+        } else {
+          console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
+          toast.error('No active meeting selected. Returning to dashboard.');
+          navigate('/dashboard/mom', { replace: true });
+        }
+      }
+    }
+  }, [urlMeetingId, pathMeetingId, meetingId, navigate]);
 
   useEffect(() => {
     API.get('/projects').then(r => {
@@ -65,11 +113,110 @@ const MOMViewPage = () => {
     API.get('/employees').then(r => {
       setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => { });
-  }, []);
 
-  useEffect(() => {
-    if (projectId && !selProject) setSelProject(String(projectId));
-  }, [projectId]);
+    // ── Debug: log the meetingId on mount ──
+    console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| pathMeetingId:', pathMeetingId, '| redux meetingId:', meetingId);
+
+    // Hydrate if effectiveMeetingId is provided and Redux is empty or needs refresh
+    if (effectiveMeetingId && (!momData || momData.length === 0 || meetingId !== effectiveMeetingId)) {
+      setLoading(true);
+      
+      Promise.all([
+        API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
+        API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
+      ])
+        .then(([meetingRes, momRes, issuesRes]) => {
+          console.log('[MOMViewPage] API responses:', {
+            meeting: meetingRes?.data?.success,
+            momData: momRes?.data?.mom_data?.length ?? 0,
+            syncedIssues: issuesRes?.data?.total ?? 0,
+          });
+
+          const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
+          if (!m) {
+            toast.error("Failed to load meeting details.");
+            return;
+          }
+
+          const transcript = m.transcript || [];
+          setLocalTranscript(transcript);
+
+          let finalRows = [];
+
+          if (momRes?.data?.mom_data && momRes.data.mom_data.length > 0) {
+            // Priority 1: Saved edited MOM data from MOMSession
+            finalRows = momRes.data.mom_data;
+            console.log('[MOMViewPage] Source: MOMSession.mom_data →', finalRows.length, 'rows');
+          } else if (issuesRes?.data?.success && issuesRes.data.rows?.length > 0) {
+            // Priority 2: Synced issues from the Issue table (written by /mom/issues POST)
+            finalRows = issuesRes.data.rows;
+            console.log('[MOMViewPage] Source: Issue table (synced) →', finalRows.length, 'rows');
+          } else if (m.intelligence_data) {
+            // Priority 3: Original AI generated data on the Meeting record
+            const intel = m.intelligence_data;
+            finalRows = [
+              ...(intel?.action_items || []).map(a => ({ 
+                id: Math.random(), 
+                function: 'General', 
+                criticality: a.priority || 'Medium', 
+                discussion_point: a.description, 
+                responsibility: a.owner, 
+                target: a.due_date || 'TBD', 
+                status: 'Pending', 
+                project_id: m.project_id,
+                project_name: m.title
+              })),
+              ...(intel?.decisions || []).map(d => ({ 
+                id: Math.random(), 
+                function: 'Decision', 
+                criticality: 'Medium', 
+                discussion_point: d, 
+                responsibility: 'Everyone', 
+                status: 'Resolved', 
+                project_id: m.project_id,
+                project_name: m.title
+              }))
+            ];
+            console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
+          } else {
+            console.warn('[MOMViewPage] No data found from any source for meetingId:', effectiveMeetingId);
+          }
+
+          if (finalRows.length > 0) {
+            finalRows[0]._rawEntries = transcript;
+          }
+
+          dispatch(setMomDataRedux(finalRows));
+
+          // Resolve actual project name from the projects list
+          const resolvedProjectName = (() => {
+            if (!m.project_id) return '';
+            // projects may not be loaded yet — use inline lookup then settle for m.project_name if available
+            const found = projects.find(p =>
+              String(p.dbProjectId || p.id || p.project_id) === String(m.project_id)
+            );
+            return found?.name || m.project_name || '';
+          })();
+
+          dispatch({ 
+            type: 'mom/setMeetingContext', 
+            payload: { 
+              meetingId: m.id, 
+              meetingName: m.title, 
+              projectId: m.project_id,
+              projectName: resolvedProjectName,
+            } 
+          });
+        })
+        .catch(err => {
+          console.error("Hydration failed", err);
+          toast.error("Failed to load saved meeting data.");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [effectiveMeetingId, dispatch]);
+
 
   // ── Derive sections from momData ─────────────────────────────────────
   const rows = momData || [];
@@ -77,28 +224,28 @@ const MOMViewPage = () => {
   // Executive Summary counts
   const execSummary = useMemo(() => {
     const risks = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical').length;
-    const attention = rows.filter(r => r.status === 'Pending' || r.status === 'Blocked').length;
-    const completed = rows.filter(r => r.status === 'Done' || r.status === 'Closed').length;
-    const decisions = rows.filter(r => r._rawEntries?.some(e => e.type === 'event' && e.label === 'Decisions') || false).length;
-    return { risks, attention, completed, decisions };
+    const pending = rows.filter(r => r.status === 'Pending' || r.status === 'Open').length;
+    const resolved = rows.filter(r => r.status === 'Done' || r.status === 'Closed' || r.status === 'Resolved').length;
+    return { risks, pending, resolved, total: rows.length };
   }, [rows]);
 
-  // Discussion entries from raw transcript stored per row
+  // Discussion entries from raw transcript stored per row or local state
   const transcriptEntries = useMemo(() => {
+    if (localTranscript && localTranscript.length > 0) return localTranscript;
     for (const row of rows) {
       if (Array.isArray(row._rawEntries) && row._rawEntries.length > 0) {
         return row._rawEntries;
       }
     }
     return [];
-  }, [rows]);
+  }, [rows, localTranscript]);
 
   // Participation Metrics
   const participationData = useMemo(() => {
     const stats = {};
     let totalWords = 0;
     transcriptEntries.forEach(e => {
-      if (e.type === 'speech' && e.speaker && e.text) {
+      if (e.type === 'dialogue' && e.speaker && e.text) {
         const words = e.text.trim().split(/\s+/).length;
         if (!stats[e.speaker]) stats[e.speaker] = { name: e.speaker, value: 0 };
         stats[e.speaker].value += words;
@@ -107,6 +254,23 @@ const MOMViewPage = () => {
     });
     return Object.values(stats).sort((a, b) => b.value - a.value);
   }, [transcriptEntries]);
+
+  const metaDisplay = useMemo(() => {
+    let durText = '—';
+    const durEntry = transcriptEntries.find(e => e.type === 'metadata' && (e.field === 'DURATION' || e.label === 'Duration'));
+    if (durEntry && durEntry.value) {
+      durText = durEntry.value.replace(/minutes?|min/gi, '').trim();
+    }
+
+    const participantNames = Array.from(new Set(transcriptEntries.filter(e => e.type === 'dialogue' && e.speaker).map(e => e.speaker)));
+    return { duration: durText, participants: participantNames };
+  }, [transcriptEntries]);
+
+  const session = useMemo(() => ({
+    name: meetingName || 'Untitled Session',
+    metadata: metaDisplay,
+    lastSavedTime: lastSaved ? new Date(lastSaved).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'
+  }), [meetingName, metaDisplay, lastSaved]);
 
   const chartOption = useMemo(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c} words ({d}%)' },
@@ -129,6 +293,89 @@ const MOMViewPage = () => {
     ]
   }), [participationData]);
 
+  // ── Search & Highlight Handlers ──
+  const matches = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    const res = [];
+    transcriptEntries.forEach((entry, entryIdx) => {
+      if (entry.type === 'dialogue' && entry.text) {
+        const textLower = entry.text.toLowerCase();
+        const searchLower = searchTerm.toLowerCase();
+        if (textLower.includes(searchLower)) {
+          res.push(entryIdx);
+        }
+      }
+    });
+    return res;
+  }, [transcriptEntries, searchTerm]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setActiveHighlightIdx(0);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (matches.length > 0) {
+        if (e.shiftKey) {
+          setActiveHighlightIdx(prev => (prev - 1 + matches.length) % matches.length);
+        } else {
+          setActiveHighlightIdx(prev => (prev + 1) % matches.length);
+        }
+      }
+    }
+  };
+
+  const handlePrevMatch = () => {
+    if (matches.length > 0) {
+      setActiveHighlightIdx(prev => (prev - 1 + matches.length) % matches.length);
+    }
+  };
+
+  const handleNextMatch = () => {
+    if (matches.length > 0) {
+      setActiveHighlightIdx(prev => (prev + 1) % matches.length);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setActiveHighlightIdx(0);
+  };
+
+  // Scroll active match into viewport
+  useEffect(() => {
+    if (discussionOpen && matches.length > 0 && activeHighlightIdx < matches.length) {
+      const entryIdx = matches[activeHighlightIdx];
+      const element = document.getElementById(`transcript-entry-${entryIdx}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeHighlightIdx, matches, discussionOpen]);
+
+  const highlightText = useCallback((text, highlight, isActiveEntry) => {
+    if (!highlight || !highlight.trim()) return text;
+    const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = text.split(new RegExp(`(${escapedHighlight})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === highlight.toLowerCase() ? (
+            <mark
+              key={i}
+              className={isActiveEntry ? "mvp-transcript-mark-active" : "mvp-transcript-mark"}
+            >
+              {part}
+            </mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  }, []);
+
   // ── Handlers ──────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback((id, data) => {
@@ -138,44 +385,6 @@ const MOMViewPage = () => {
   const handleDelete = useCallback((id) => {
     dispatch(deleteMomRow(id));
   }, [dispatch]);
-
-  const handleSyncIssues = useCallback(async () => {
-    if (!selProject) { toast.error('Select a project before syncing'); return; }
-    const highRows = rows.filter(r => r.criticality === 'High' || r.criticality === 'Critical' || (r.status === 'Pending') || (r.status === 'Blocked'));
-    if (highRows.length === 0) { toast.error('No High/Critical rows to sync'); return; }
-
-    const actions = highRows
-      .filter(r => r.responsibility?.trim())
-      .map(r => ({
-        title: (r.discussion_point || '').slice(0, 50),
-        description: r.discussion_point || '',
-        owner: r.responsibility || '',
-        department: r.function,
-        priority: r.criticality === 'Critical' || r.criticality === 'High' ? 'High' : 'Medium',
-        due_date: (() => { const d = Date.parse(r.target); return isNaN(d) ? null : new Date(d).toISOString().split('T')[0]; })(),
-        status: r.status === 'Done' || r.status === 'Closed' ? 'Closed' : 'Open',
-      }));
-
-    if (actions.length === 0) { toast.error('Rows missing Responsibility — fill Owner column first'); return; }
-
-    setSyncing(true);
-    const t = toast.loading('Syncing to Issue Engine…');
-    try {
-      const resp = await API.post('/mom/issues', { project_id: Number(selProject), actions });
-      setSyncResult(resp.data);
-      setShowSyncModal(true);
-
-      if (resp.data.issues_created > 0) {
-        toast.success(`✓ ${resp.data.issues_created} issues created`, { id: t });
-      } else if (resp.data.missing_dates_downgraded > 0) {
-        toast.success(`⬇ ${resp.data.missing_dates_downgraded} priority downgraded`, { id: t });
-      } else {
-        toast.error(`No issues created (${resp.data.issues_skipped} skipped)`, { id: t });
-      }
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Sync failed', { id: t });
-    } finally { setSyncing(false); }
-  }, [selProject, rows]);
 
   const handleCopy = useCallback(() => {
     const header = 'Priority\tAction\tOwner\tDue Date\tStatus';
@@ -187,326 +396,625 @@ const MOMViewPage = () => {
     });
   }, [rows]);
 
-  const handleSave = useCallback(async () => {
-    const targetProject = selProject || projectId;
-    if (!targetProject) {
-      toast.error('Select a project before committing changes');
-      return;
-    }
 
-    const saveToast = toast.loading('Persisting MOM structure...');
-    try {
-      // 1. Save MOM metadata
-      await dispatch(saveMOM({ 
-        meetingId, 
-        meetingName, 
-        projectId: Number(targetProject), 
-        projectName, 
-        momData: rows 
-      })).unwrap();
-      
-      // 2. Intelligence Auto-Sync
-      toast.loading('Syncing to Intelligence Engine...', { id: saveToast });
-      
-      const actionableRows = rows.filter(r => r.responsibility?.trim() && r.discussion_point?.trim());
-      
-      if (actionableRows.length > 0) {
-        const actions = actionableRows.map(r => ({
-          title: (r.discussion_point || '').slice(0, 50),
-          description: r.discussion_point || '',
-          owner: r.responsibility || '',
-          department: r.function,
-          priority: (r.criticality === 'Critical' || r.criticality === 'High' || r.status === 'Blocked' || r.status === 'Delayed') ? 'High' : 'Medium',
-          due_date: (() => { 
-            const d = Date.parse(r.target); 
-            return isNaN(d) ? null : new Date(d).toISOString().split('T')[0]; 
-          })(),
-          status: 'Open',
-        }));
+  if (loading) {
+    return (
+      <div className="mvp-root-wrapper">
+        <div className="mvp-main-content">
+          <div className="mvp-root">
+            <div className="mvp-content-container">
+              {/* ── Executive Header Card Skeleton ── */}
+              <div className="mvp-top-container">
+                {/* Breadcrumb */}
+                <nav className="mvp-breadcrumb">
+                  <Skeleton className="h-4 w-16" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-16" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-32" />
+                  <ChevronRight size={12} className="text-gray-300" />
+                  <Skeleton className="h-4 w-20" />
+                </nav>
 
-        const syncResp = await API.post('/mom/issues', { 
-          project_id: Number(targetProject), 
-          meeting_id: meetingId,
-          actions 
-        });
-        
-        setSyncResult(syncResp.data);
-        toast.success(`Pipeline Secure: MOM saved & ${syncResp.data.issues_created} issues synced.`, { id: saveToast });
-      } else {
-        toast.success('MOM saved. No actionable items found for sync.', { id: saveToast });
-      }
-    } catch (err) {
-      toast.error(`Pipeline Error: ${err.message || 'Unknown failure'}`, { id: saveToast });
-    }
-  }, [dispatch, meetingId, meetingName, selProject, projectId, projectName, rows]);
+                {/* Header Card — Zoho flat style */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
+                  padding: '20px 24px', background: '#fff',
+                  border: '1px solid #E2E8F0', borderRadius: '10px',
+                  gap: '24px'
+                }}>
+                  {/* Left: session identity */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <Skeleton className="h-6 w-80" />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                      <Skeleton className="h-4 w-28" />
+                    </div>
+                    {/* Slim meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Clock style={{ width: 12, height: 12, color: '#CBD5E1' }} />
+                        <Skeleton className="h-4 w-12" />
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Users style={{ width: 12, height: 12, color: '#CBD5E1' }} />
+                        <Skeleton className="h-4 w-24" />
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <Skeleton className="h-4 w-36" />
+                    </div>
+                  </div>
 
-  // ── Auto-save (Debounced) ──
-  useEffect(() => {
-    // Skip auto-save if we just loaded or are in an error state
-    if (!meetingId || status === 'loading' || status === 'error') return;
+                  {/* Right: controls bar */}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                    justifyContent: 'center', gap: '12px', flexShrink: 0
+                  }}>
+                    {/* Row 1: Project & Status Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Skeleton className="h-6 w-28 rounded-[4px]" />
+                      <Skeleton className="h-4 w-16" />
+                    </div>
+                    {/* Row 2: Buttons Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Skeleton className="h-9 w-32 rounded-[6px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-    const handler = setTimeout(() => {
-      // Only auto-save if there's actual data and it's not currently saving
-      if (rows.length > 0 && status !== 'saving') {
-        handleSave();
-      }
-    }, 2000);
+              {/* ── Body ── */}
+              <div className="mvp-body">
+                {/* ── 1. The Dynamic Metrics Band ── */}
+                <div className="mvp-section">
+                  <div className="mvp-stats-band" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    
+                    {/* KEY RISKS */}
+                    <div className="mvp-stat-item risks" style={{ 
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FECACA', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <AlertTriangle size={16} /> Key Risks
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
 
-    return () => clearTimeout(handler);
-  }, [rows, meetingId, handleSave, status]);
+                    {/* PENDING ACTIONS */}
+                    <div className="mvp-stat-item pending" style={{ 
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FDE68A', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Clock size={16} /> Pending Actions
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
 
-  // ── Render ─────────────────────────────────────────────────────────────
-  return (
-    <div className="mvp-root">
+                    {/* RESOLVED */}
+                    <div className="mvp-stat-item resolved" style={{ 
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)', 
+                      border: '1px solid #BBF7D0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <CheckCircle size={16} /> Resolved
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
 
-      {/* ── Top Bar ── */}
-      <div className="mvp-topbar">
-        <nav className="mvp-breadcrumb">
-          <Link to="/dashboard" className="mvp-bc-link"><Home style={{ width: 12, height: 12 }} />Dashboard</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <Link to="/dashboard/meetings" className="mvp-bc-link"><Layout style={{ width: 12, height: 12 }} />Meetings</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <Link to="/dashboard/mom" className="mvp-bc-link"><Edit3 style={{ width: 12, height: 12 }} />Capture</Link>
-          <ChevronRight className="mvp-bc-sep" style={{ width: 12, height: 12 }} />
-          <span className="mvp-bc-current">MOM</span>
-        </nav>
+                    {/* TOTAL ACTIONS */}
+                    <div className="mvp-stat-item total" style={{ 
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', 
+                      border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Target size={16} /> Total Actions
+                      </div>
+                      <Skeleton className="h-8 w-12 mt-1" />
+                    </div>
+                  </div>
+                </div>
 
-        <div className="mvp-topbar-actions">
-          <div className={`mvp-save-status${status === 'saving' ? ' saving' : status === 'saved' ? ' saved' : ''}`}>
-            {status === 'saving' && <Loader style={{ width: 10, height: 10 }} className="animate-spin" />}
-            {status === 'saved' && <CheckCircle style={{ width: 10, height: 10 }} />}
-            {status === 'saving' ? 'Saving…' : status === 'saved' && lastSaved
-              ? `Saved ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-              : 'Auto-save Enabled'}
+                {/* ── 2. The Meeting Table ── */}
+                <div style={{ marginTop: '24px' }}>
+                  <MeetingTable
+                    meetings={[]}
+                    loading={true}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <button className="mvp-action-btn" onClick={handleCopy}>
-            {copied ? <><Check style={{ width: 12, height: 12 }} />Copied</> : <><Clipboard style={{ width: 12, height: 12 }} />Copy CSV</>}
-          </button>
-          <button className="mvp-action-btn" onClick={() => window.print()}>
-            <Download style={{ width: 12, height: 12 }} />PDF / Print
-          </button>
-          <button className="mvp-action-btn primary" onClick={handleSave} disabled={status === 'saving'}>
-            {status === 'saving' ? <Loader style={{ width: 12, height: 12 }} className="animate-spin" /> : <Check style={{ width: 12, height: 12 }} />}
-            Save
-          </button>
         </div>
       </div>
+    );
+  }
 
-      {/* ── Sync Result Modal ── */}
-      <MOMSyncResultModal
-        show={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        result={syncResult}
-      />
+  return (
+    <>
+      <div className="mvp-root-wrapper">
+        <div className="mvp-main-content">
+          <div className="mvp-root">
+            <div className="mvp-content-container">
+              {/* ── Executive Header Card ── */}
+              <div className="mvp-top-container">
 
-      {/* ── Body ── */}
-      <div className="mvp-body">
+                {/* Breadcrumb */}
+                <nav className="mvp-breadcrumb">
+                  <Link to="/dashboard">Dashboard</Link>
+                  <ChevronRight size={12} />
+                  <Link to="/dashboard/calendar">Calendar</Link>
+                  <ChevronRight size={12} />
+                  <span>{session.name}</span>
+                  <ChevronRight size={12} />
+                  <span className="active">MOM Output</span>
+                </nav>
 
-        {/* ── Sync Status Alert ── */}
-        {syncResult && (
-          <div style={{
-            backgroundColor: syncResult.issues_created > 0 ? '#dcfce7' : '#fef3c7',
-            border: `1px solid ${syncResult.issues_created > 0 ? '#86efac' : '#fcd34d'}`,
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            fontSize: '13px',
-            fontWeight: '600',
-            color: syncResult.issues_created > 0 ? '#166534' : '#854d0e'
-          }}>
-            <span>{syncResult.issues_created > 0 ? '✓' : '⚠'}</span>
-            <span>
-              {syncResult.issues_created > 0
-                ? `Successfully created ${syncResult.issues_created} issue${syncResult.issues_created !== 1 ? 's' : ''}`
-                : `No issues created (${syncResult.issues_skipped} skipped)`}
-              {syncResult.missing_dates_downgraded > 0 && `, ${syncResult.missing_dates_downgraded} priority downgraded`}
-            </span>
-            <button
-              onClick={() => setShowSyncModal(true)}
-              style={{
-                marginLeft: 'auto',
-                background: 'none',
-                border: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontWeight: '700',
-                textDecoration: 'underline'
-              }}
-            >
-              View Details
-            </button>
-            <button
-              onClick={() => setSyncResult(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: '16px',
-                padding: '0 4px'
-              }}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* ── 1. Executive Summary ── */}
-        <div className="mvp-section mvp-fade-up">
-          <div className="mvp-section-header">
-            <span className="mvp-section-title">Executive Summary</span>
-            <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 500 }}>
-              {meetingName || 'Meeting MOM'}{projectName ? ` · ${projectName}` : ''}
-            </span>
-          </div>
-          <div className="mvp-exec-grid">
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon red">
-                <AlertTriangle style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.risks}</div>
-                <div className="mvp-exec-label">Key Risks</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon amber">
-                <Bell style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.attention}</div>
-                <div className="mvp-exec-label">Attention Items</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon green">
-                <CheckCircle style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{execSummary.completed}</div>
-                <div className="mvp-exec-label">Completed</div>
-              </div>
-            </div>
-            <div className="mvp-exec-card">
-              <div className="mvp-exec-icon blue">
-                <GitBranch style={{ width: 16, height: 16 }} />
-              </div>
-              <div className="mvp-exec-body">
-                <div className="mvp-exec-value">{rows.length}</div>
-                <div className="mvp-exec-label">Total Actions</div>
-              </div>
-            </div>
-
-            {participationData.length > 0 && (
-              <div className="mvp-exec-card participation" style={{ flex: 1.5, minWidth: 320, padding: '12px 16px' }}>
-                <div className="mvp-exec-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div className="mvp-exec-label" style={{ marginBottom: 4 }}>Voice Participation</div>
-                  <div style={{ height: 130, width: '100%' }}>
-                    <ReactECharts option={chartOption} style={{ height: '100%', width: '100%' }} />
+                {/* Header Card — Zoho flat style */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
+                  padding: '20px 24px', background: '#fff',
+                  border: '1px solid #E2E8F0', borderRadius: '10px',
+                  gap: '24px'
+                }}>
+                  {/* Left: session identity */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <h1 style={{ fontSize: '18px', fontWeight: 600, color: '#0F172A', margin: 0, lineHeight: 1.2 }}>
+                        {session.name}
+                      </h1>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>
+                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </div>
+                    {/* Slim meta row */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
+                        <Clock style={{ width: 12, height: 12, color: '#94A3B8' }} />
+                        {session.metadata.duration !== '—' ? `${session.metadata.duration} min` : '—'}
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748B' }}>
+                        <Users style={{ width: 12, height: 12, color: '#94A3B8' }} />
+                        {session.metadata.participants.length > 0 ? `${session.metadata.participants.length} participants` : '—'}
+                      </span>
+                      <span style={{ width: 1, height: 12, background: '#E2E8F0' }} />
+                      <span style={{ fontSize: '13px', color: '#64748B' }}>
+                        {session.lastSavedTime !== '—' ? `Last saved: ${session.lastSavedTime}` : 'not yet'}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="mvp-exec-body" style={{ borderLeft: '1px solid #f0f0f0', paddingLeft: 12, minWidth: 100, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <div className="mvp-exec-label">Top Contributor</div>
-                  <div className="mvp-exec-value" style={{ fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {participationData[0]?.name || 'N/A'}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, marginTop: 4 }}>
-                    {participationData[0]?.value || 0} words shared
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* ── 2. The Original Meeting Table ── */}
-        <div style={{ marginTop: '24px' }}>
-          <MeetingTable
-            meetings={rows}
-            employees={employees}
-            onUpdateMeeting={handleUpdate}
-            onDeleteMeeting={handleDelete}
-            lockedProjectId={projectId ? String(projectId) : undefined}
-          />
-        </div>
+                  {/* Right: controls bar — Split into two right-aligned rows */}
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+                    justifyContent: 'center', gap: '12px', flexShrink: 0
+                  }}>
+                     {/* Row 1: Project & Status Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+                      {projectName ? (
+                        <div style={{
+                          padding: '4px 12px', borderRadius: '4px',
+                          background: '#F0FDFA', color: '#0D9488',
+                          border: '1px solid #99F6E4',
+                          fontSize: '12px', fontWeight: 700,
+                          whiteSpace: 'nowrap', maxWidth: '180px',
+                          overflow: 'hidden', textOverflow: 'ellipsis'
+                        }} title={projectName}>
+                          {projectName}
+                        </div>
+                      ) : (
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={() => setShowProjectPicker(v => !v)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '4px 12px', borderRadius: '4px',
+                              background: '#FFFBEB', color: '#D97706',
+                              border: '1px solid #FDE68A',
+                              fontSize: '12px', fontWeight: 700,
+                              cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            No Project Linked <ChevronDown size={12} />
+                          </button>
+                          {showProjectPicker && (
+                            <div style={{
+                              position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+                              background: '#fff', border: '1px solid #E2E8F0',
+                              borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.12)',
+                              zIndex: 200, minWidth: '220px', overflow: 'hidden'
+                            }}>
+                              <div style={{ padding: '10px 14px', borderBottom: '1px solid #F1F5F9', fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                Link a Project
+                              </div>
+                              <div style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                                {projects.length === 0 && (
+                                  <div style={{ padding: '16px', fontSize: '12px', color: '#94A3B8', textAlign: 'center' }}>No projects found</div>
+                                )}
+                                {projects.map(p => {
+                                  const pid = p.dbProjectId || p.id || p.project_id;
+                                  const pname = p.name || p.project_name;
+                                  return (
+                                    <button
+                                      key={pid}
+                                      onClick={() => {
+                                        dispatch(setMeetingContext({ projectId: String(pid), projectName: pname }));
+                                        setShowProjectPicker(false);
+                                        toast.success(`Linked to ${pname}`);
+                                      }}
+                                      style={{
+                                        width: '100%', textAlign: 'left',
+                                        padding: '10px 14px', fontSize: '13px',
+                                        color: '#1E293B', background: 'transparent',
+                                        border: 'none', cursor: 'pointer',
+                                        borderBottom: '1px solid #F8FAFC',
+                                        fontWeight: 500
+                                      }}
+                                      onMouseEnter={e => e.currentTarget.style.background = '#F0FDFA'}
+                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                      {pname}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-        {/* ── 3. Discussion Section (Collapsible) ── */}
-        <div className="mvp-section mvp-fade-up">
-          <div className="mvp-discussion-wrap">
-            <div
-              className="mvp-discussion-header"
-              onClick={() => setDiscussionOpen(o => !o)}
-            >
-              <span className="mvp-section-title">
-                <FileText style={{ width: 12, height: 12 }} />
-                Discussion Transcript
-                <span style={{ fontSize: 11, fontWeight: 500, color: '#9ca3af', textTransform: 'none', letterSpacing: 0 }}>
-                  · {transcriptEntries.length} lines
-                </span>
-              </span>
-              {discussionOpen
-                ? <ChevronUp style={{ width: 16, height: 16, color: '#9ca3af' }} />
-                : <ChevronDown style={{ width: 16, height: 16, color: '#9ca3af' }} />}
-            </div>
-
-            <AnimatePresence>
-              {discussionOpen && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
-                  className="mvp-discussion-body-wrap"
-                >
-                  <div className="mvp-discussion-body">
-                    {transcriptEntries.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>
-                        No transcript data available. Raw transcript is preserved per meeting session.
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        fontSize: '11px', fontWeight: 700, color: '#059669',
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }} />
+                        On Track
                       </div>
-                    ) : (
-                      transcriptEntries.map((entry, i) => {
+                    </div>
+
+                    {/* Row 2: Buttons Group */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+
+                      <button
+                        onClick={() => setDiscussionOpen(true)}
+                        style={{
+                          height: '36px', padding: '7px 16px',
+                          background: 'white', color: '#0D9488',
+                          border: '1px solid #0D9488', borderRadius: '6px',
+                          fontSize: '13px', fontWeight: 500, fontFamily: 'inherit',
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <MessageSquare size={14} />
+                        View Transcript
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Body ── */}
+              <div className="mvp-body">
+                {/* ── 1. The Dynamic Metrics Band ── */}
+                <div className="mvp-section">
+                  <div className="mvp-stats-band" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    
+                    {/* KEY RISKS */}
+                    <div className="mvp-stat-item risks" style={{ 
+                      background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FECACA', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCA5A5', opacity: 0.2 }}>
+                        <AlertTriangle size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <AlertTriangle size={16} /> Key Risks
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#991B1B', lineHeight: 1 }}>{execSummary.risks}</div>
+                    </div>
+
+                    {/* PENDING ACTIONS */}
+                    <div className="mvp-stat-item pending" style={{ 
+                      background: 'linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%)', 
+                      border: '1px solid #FDE68A', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#FCD34D', opacity: 0.2 }}>
+                        <Clock size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Clock size={16} /> Pending Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#92400E', lineHeight: 1 }}>{execSummary.pending}</div>
+                    </div>
+
+                    {/* RESOLVED */}
+                    <div className="mvp-stat-item resolved" style={{ 
+                      background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%)', 
+                      border: '1px solid #BBF7D0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#86EFAC', opacity: 0.2 }}>
+                        <CheckCircle size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803D', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <CheckCircle size={16} /> Resolved
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 800, color: '#166534', lineHeight: 1 }}>{execSummary.resolved}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#15803D', opacity: 0.8 }}>
+                          {execSummary.resolved === 0 ? 'None yet' : 'Tasks completed'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* TOTAL ACTIONS */}
+                    <div className="mvp-stat-item total" style={{ 
+                      background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)', 
+                      border: '1px solid #E2E8F0', borderRadius: '8px', padding: '16px',
+                      display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', overflow: 'hidden'
+                    }}>
+                      <div style={{ position: 'absolute', right: '-10px', top: '-10px', color: '#CBD5E1', opacity: 0.2 }}>
+                        <Target size={64} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontWeight: 600, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <Target size={16} /> Total Actions
+                      </div>
+                      <div style={{ fontSize: '32px', fontWeight: 800, color: '#334155', lineHeight: 1 }}>{execSummary.total}</div>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* ── 2. The Original Meeting Table ── */}
+                <div style={{ marginTop: '24px' }}>
+                  {loading ? (
+                    <div style={{ padding: '48px', textAlign: 'center', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                      <Loader size={24} className="animate-spin" style={{ color: '#0D9488', margin: '0 auto 12px' }} />
+                      <p style={{ fontSize: '13px', color: '#94A3B8' }}>Loading action items…</p>
+                    </div>
+                  ) : rows.length > 0 ? (
+                    <MeetingTable
+                      meetings={rows}
+                      employees={employees}
+                      onUpdateMeeting={handleUpdate}
+                      onDeleteMeeting={handleDelete}
+                      lockedProjectId={projectId ? String(projectId) : undefined}
+                    />
+                  ) : (
+                    <div style={{ padding: '48px', textAlign: 'center', background: '#fff', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                      <p style={{ fontSize: '15px', color: '#1E293B', fontWeight: 500 }}>
+                        No action items generated
+                      </p>
+                      <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '6px' }}>
+                        This meeting has no synced action items yet.
+                      </p>
+                      <Link 
+                        to="/dashboard/saved-moms" 
+                        style={{ fontSize: '13px', color: '#0D9488', marginTop: '16px', display: 'inline-block', fontWeight: 500 }}
+                      >
+                        ← Back to Saved MOMs
+                      </Link>
+                    </div>
+                  )}
+
+                </div>
+
+                <style>{`
+                  @keyframes greenPulse {
+                    0% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0.4); }
+                    70% { box-shadow: 0 0 0 6px rgba(22, 101, 52, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(22, 101, 52, 0); }
+                  }
+                  .pulse-green {
+                    animation: greenPulse 2s infinite;
+                  }
+                `}</style>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <MOMSyncResultModal
+          isOpen={showSyncModal}
+          onClose={() => setShowSyncModal(false)}
+          results={syncResult}
+        />
+
+        {/* Discussion Drawer (Simplified) */}
+        <AnimatePresence>
+          {discussionOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setDiscussionOpen(false)}
+                style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', zIndex: 1000 }}
+              />
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '480px', background: '#fff', boxShadow: '-10px 0 40px rgba(0,0,0,0.1)', zIndex: 1001, display: 'flex', flexDirection: 'column' }}
+              >
+                <div style={{ padding: '24px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#F0FDFA', color: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <MessageSquare size={20} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Raw Discussion</h3>
+                      <p style={{ margin: 0, fontSize: '12px', color: '#64748B' }}>Full transcript history for this session</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setDiscussionOpen(false)} style={{ padding: '8px', borderRadius: '50%', border: 'none', background: '#F1F5F9', color: '#64748B', cursor: 'pointer' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Search Bar Container */}
+                <div style={{ padding: '12px 24px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search discussion dialogue..."
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleSearchKeyDown}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px 8px 36px',
+                        fontSize: '13px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '6px',
+                        outline: 'none',
+                        fontFamily: 'inherit',
+                        background: '#fff',
+                        transition: 'border-color 0.15s ease'
+                      }}
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={clearSearch}
+                        style={{
+                          position: 'absolute',
+                          right: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          color: '#94A3B8',
+                          padding: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {searchTerm && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '12px', color: '#64748B', minWidth: '45px', textAlign: 'center', fontWeight: 500 }}>
+                        {matches.length > 0 ? `${activeHighlightIdx + 1}/${matches.length}` : '0/0'}
+                      </span>
+                      <button
+                        disabled={matches.length === 0}
+                        onClick={handlePrevMatch}
+                        style={{
+                          padding: '6px',
+                          borderRadius: '4px',
+                          border: '1px solid #E2E8F0',
+                          background: '#fff',
+                          cursor: matches.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: matches.length > 0 ? 1 : 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Previous Match"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        disabled={matches.length === 0}
+                        onClick={handleNextMatch}
+                        style={{
+                          padding: '6px',
+                          borderRadius: '4px',
+                          border: '1px solid #E2E8F0',
+                          background: '#fff',
+                          cursor: matches.length > 0 ? 'pointer' : 'not-allowed',
+                          opacity: matches.length > 0 ? 1 : 0.5,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        title="Next Match"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                  {transcriptEntries.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {transcriptEntries.map((entry, idx) => {
                         if (entry.type === 'event') {
                           return (
-                            <div key={i} className="mvp-transcript-event">
-                              <span style={{
-                                background: entry.bg || '#fef9c3', color: entry.textColor || '#92400e',
-                                padding: '1px 7px', borderRadius: 4, fontSize: 10, fontWeight: 800
-                              }}>
-                                {entry.label}
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 500 }}>{entry.text}</span>
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                              <Zap size={14} style={{ color: '#0D9488' }} />
+                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>{entry.label}</span>
                             </div>
                           );
                         }
-                        const spkColor = getSpeakerColor(entry.speaker);
+                        const color = getSpeakerColor(entry.speaker);
+                        const isMatch = matches.includes(idx);
+                        const isActiveMatch = matches.length > 0 && matches[activeHighlightIdx] === idx;
                         return (
-                          <div key={i} className="mvp-transcript-line">
-                            <div className="mvp-transcript-speaker">
-                              <span
-                                className="mvp-tspk-pill"
-                                style={{ background: entry.bg || spkColor.bg, color: entry.textColor || spkColor.text }}
-                              >
-                                {entry.speaker || 'Unknown'}
-                              </span>
+                          <div
+                            key={idx}
+                            id={`transcript-entry-${idx}`}
+                            className={isActiveMatch ? "mvp-transcript-active-bubble" : ""}
+                            style={{
+                              display: 'flex',
+                              gap: '12px',
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              borderLeft: '4px solid transparent',
+                              transition: 'all 0.2s ease',
+                              background: isActiveMatch ? '#FFFBEB' : 'transparent',
+                              borderLeftColor: isActiveMatch ? '#F59E0B' : 'transparent',
+                            }}
+                          >
+                            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: color.bg, color: color.text, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
+                              {entry.speaker?.split(' ').map(n => n[0]).join('').toUpperCase() || '??'}
                             </div>
-                            <span className="mvp-transcript-time">{entry.time}</span>
-                            <span className="mvp-transcript-text">{entry.text}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{entry.speaker}</span>
+                                <span style={{ fontSize: '10px', color: '#94A3B8' }}>{entry.time}</span>
+                              </div>
+                              <div style={{ fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
+                                {highlightText(entry.text, searchTerm, isActiveMatch)}
+                              </div>
+                            </div>
                           </div>
                         );
-                      })
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94A3B8', textAlign: 'center' }}>
+                      <MessageSquare size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
+                      <p style={{ fontSize: '14px' }}>No discussion data available for this meeting.</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </>
   );
 };
 

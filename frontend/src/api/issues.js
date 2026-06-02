@@ -139,15 +139,15 @@ export const derivedStatus = (issue) => {
 };
 
 export const STATUS_COLORS = {
-  Overdue:    { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5', dot: '#ef4444' },
-  'At Risk':  { bg: '#fff7ed', text: '#9a3412', border: '#fdba74', dot: '#f97316' },
-  'On Track': { bg: '#f0fdf4', text: '#166534', border: '#86efac', dot: '#22c55e' },
-  Closed:     { bg: '#f3f4f6', text: '#6b7280', border: '#d1d5db', dot: '#9ca3af' },
-  Open:       { bg: '#f0fdf4', text: '#166534', border: '#86efac', dot: '#22c55e' },
+  Overdue:    { bg: 'var(--red-50)', text: 'var(--red-900)', border: 'var(--red-50)', dot: 'var(--red)' },
+  'At Risk':  { bg: 'var(--amber)', text: '#000', border: 'var(--amber)', dot: 'var(--amber)' },
+  'On Track': { bg: 'var(--green-50)', text: 'var(--green-900)', border: 'var(--green-50)', dot: 'var(--green)' },
+  Closed:     { bg: 'var(--elevated-card)', text: 'var(--text-muted)', border: 'var(--border-subtle)', dot: 'var(--text-muted)' },
+  Open:       { bg: 'var(--green-50)', text: 'var(--green-900)', border: 'var(--green-50)', dot: 'var(--green)' },
 };
 
 export const PRIORITY_COLORS = {
-  High:   { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
-  Medium: { bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
-  Low:    { bg: '#f0f9ff', text: '#0c4a6e', border: '#7dd3fc' },
+  High:   { bg: 'var(--red-50)', text: 'var(--red-900)', border: 'var(--red-50)' },
+  Medium: { bg: 'var(--amber)', text: '#000', border: 'var(--amber)' },
+  Low:    { bg: 'var(--blue-50)', text: 'var(--blue-900)', border: 'var(--blue-50)' },
 };

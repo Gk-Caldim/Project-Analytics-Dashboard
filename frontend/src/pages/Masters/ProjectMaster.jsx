@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Filter, Download, Eye, EyeOff, Briefcase, DollarSign, Users, TrendingUp, CheckCircle, Clock, AlertTriangle, FileText, Calendar, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, ArrowUp, ArrowDown, Copy, FolderTree } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -9,6 +10,8 @@ import API from "../../utils/api";
 import { getEmployees } from "../../utils/employeeApi";
 import SearchableDropdown from "../../components/SearchableDropdown";
 import SubCategoryModal from "../../components/SubCategoryModal";
+import FilterDrawer from './components/FilterDrawer';
+import Skeleton from '../../components/ui/skeleton';
 
 import { useNavigate } from 'react-router-dom';
 import useCurrency from "../../hooks/useCurrency";
@@ -16,11 +19,17 @@ import useCurrency from "../../hooks/useCurrency";
 const ProjectMaster = () => {
   const navigate = useNavigate();
   const { format, symbol, code, convert } = useCurrency();
+
+  const showNotification = (message, type = 'success') => {
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast(message);
+  };
   // Fixed columns matching backend Project model
   const initialColumns = [
     { id: 'project_id', label: 'Project ID', visible: true, sortable: true, type: 'text', required: true },
     { id: 'name', label: 'Project Name', visible: true, sortable: true, type: 'text', required: true },
-    { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: true },
+    { id: 'budget', label: 'Budget', visible: true, sortable: true, type: 'number', required: false },
     { id: 'department', label: 'Department', visible: true, sortable: true, type: 'text', required: false },
     { id: 'project_manager', label: 'Project Manager', visible: true, sortable: true, type: 'select', required: false },
     { id: 'start_date', label: 'Start Date', visible: true, sortable: true, type: 'date', required: false },
@@ -29,7 +38,8 @@ const ProjectMaster = () => {
     { id: 'status', label: 'Status', visible: true, sortable: true, type: 'select', required: true },
 
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
-    { id: 'employee_name', label: 'Employee Name', visible: false, sortable: true, type: 'employee_name', required: false },
+    { id: 'employee_name', label: 'Team Lead', visible: true, sortable: true, type: 'employee_name', required: false },
+    { id: 'assigned_to_name', label: 'Assigned Employee', visible: true, sortable: true, type: 'text', required: false },
     { id: 'utilized_budget', label: 'Utilized Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'balance_budget', label: 'Balance Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'detailed_view', label: 'Detailed View', visible: true, sortable: false, type: 'detailed_view_button', required: false },
@@ -57,24 +67,17 @@ const ProjectMaster = () => {
   const [showDeletePrompt, setShowDeletePrompt] = useState(null);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+  const [newColumnType, setNewColumnType] = useState('text');
+  const [suggestedType, setSuggestedType] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50, 100];
 
-  // Load columns from localStorage - Aggressive refresh with new key
-  const [columns, setColumns] = useState(() => {
-    const CURRENT_STORAGE_KEY = 'master_project_data_config_v5';
-    // Clean up all old project_columns_v* and master_project_data_config_v* keys
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('project_columns_v') || key.startsWith('master_project_data_config_v')) {
-        localStorage.removeItem(key);
-      }
-    });
-    const savedColumns = localStorage.getItem(CURRENT_STORAGE_KEY);
-    return savedColumns ? JSON.parse(savedColumns) : initialColumns;
-  });
+  // Columns state
+  const [columns, setColumns] = useState(initialColumns);
+  const [customColumns, setCustomColumns] = useState([]);
 
   const [editingColumn, setEditingColumn] = useState(null);
   const [tempColumnName, setTempColumnName] = useState('');
@@ -96,10 +99,18 @@ const ProjectMaster = () => {
   const [showExportConfirmPrompt, setShowExportConfirmPrompt] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+  const [dynamicRoles, setDynamicRoles] = useState([]);
 
-  // Filter Dropdown state
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  // Filter states
+  const [activeFilters, setActiveFilters] = useState({
+    department: [],
+    status: [],
+    project_manager: [],
+    employee_name: []
+  });
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
+  const [showColumnDropdown, setShowColumnDropdown] = useState(false);
+  const [showAllChips, setShowAllChips] = useState(false);
   const [filterDraft, setFilterDraft] = useState({});
 
   // Column header dropdown state
@@ -129,7 +140,7 @@ const ProjectMaster = () => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
   const API_URL = `${API_BASE_URL}/projects`;
 
-  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', 'employee_id', 'employee_name', 'detailed_view', 'created_at', 'updated_at'];
+  const fixedColumnIds = ['id', 'project_id', 'name', 'status', 'budget', 'utilized_budget', 'balance_budget', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months', 'employee_id', 'employee_name', 'assigned_to_id', 'assigned_to_name', 'detailed_view', 'created_at', 'updated_at'];
 
   const defaultPermissions = {
     view: true,
@@ -160,6 +171,8 @@ const ProjectMaster = () => {
       timeline_months: projectData.timeline_months ? parseInt(projectData.timeline_months) : null,
       employee_id: projectData.employee_id || null,
       employee_name: projectData.employee_name || null,
+      assigned_to_id: projectData.assigned_to_id || null,
+      assigned_to_name: projectData.assigned_to_name || null,
       custom_fields: {}
     };
 
@@ -172,13 +185,6 @@ const ProjectMaster = () => {
     return payload;
   };
 
-  // Show notification
-  const showNotification = (message, type = 'success') => {
-    setNotification({ show: true, message, type });
-    setTimeout(() => {
-      setNotification({ show: false, message: '', type: '' });
-    }, 3000);
-  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -189,14 +195,37 @@ const ProjectMaster = () => {
     setLoading(true);
     setError(null);
     try {
+      await fetchColumns();
       await fetchProjects();
       await fetchEmployees();
     } catch (err) {
       console.error("Error loading data:", err);
       setError("Failed to load data. Please try again.");
-      showNotification('Failed to load data', 'error');
+      toast.error('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchColumns = async () => {
+    try {
+      const res = await API.get('/projects/columns/all');
+      if (Array.isArray(res.data)) {
+        const formattedCustomCols = res.data.map(col => ({
+          id: col.column_name,
+          db_id: col.id, // Keep track of database ID for updates/deletes
+          label: col.column_label,
+          visible: true,
+          sortable: true,
+          type: col.data_type || 'text',
+          data_type: col.data_type || 'text',
+          required: col.is_required
+        }));
+        setCustomColumns(formattedCustomCols);
+        setColumns([...initialColumns, ...formattedCustomCols]);
+      }
+    } catch (err) {
+      console.error("Error fetching columns", err);
     }
   };
 
@@ -205,6 +234,7 @@ const ProjectMaster = () => {
       .then(res => {
         const employees = res.data || [];
         setEmployeeList(employees);
+        
         const pmNames = employees.filter(e => e.role === 'Project Manager').map(e => e.name);
         setColumns(prev => prev.map(col => {
           if (col.id === 'project_manager') {
@@ -228,12 +258,17 @@ const ProjectMaster = () => {
   };
 
   const { user: currentUser } = useSelector(state => state.auth);
-  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager';
+  const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'Super Admin' || currentUser?.role === 'Project Manager' || currentUser?.role === 'Finance' || currentUser?.role === 'Head';
 
-  const canAddProject = isAdmin || currentUser?.permissions?.includes('Project Master:ADD');
-  const canEditProject = isAdmin || currentUser?.permissions?.includes('Project Master:EDIT');
-  const canDeleteProject = isAdmin || currentUser?.permissions?.includes('Project Master:DELETE');
-  const canAddCustomColumns = isAdmin || currentUser?.permissions?.includes('Project Master:CUSTOM_COLUMNS');
+  const hasProjPerm = (action) => {
+    const userPerms = currentUser?.permissions || [];
+    return userPerms.includes(`Project Master:${action}`) || userPerms.includes(action);
+  };
+
+  const canAddProject = isAdmin || hasProjPerm('ADD');
+  const canEditProject = isAdmin || hasProjPerm('EDIT');
+  const canDeleteProject = isAdmin || hasProjPerm('DELETE');
+  const canAddCustomColumns = isAdmin || hasProjPerm('CUSTOM_COLUMNS');
 
   const hasProjectPermission = (project, permissionType) => {
     if (isAdmin) return true;
@@ -255,13 +290,9 @@ const ProjectMaster = () => {
     setTempFrozenColumns([]);
     setCurrentPage(1);
     await fetchData();
-    showNotification('Data refreshed successfully');
+    toast.success('Data refreshed successfully');
   };
 
-  // Save columns to localStorage
-  useEffect(() => {
-    localStorage.setItem('master_project_data_config_v4', JSON.stringify(columns));
-  }, [columns]);
 
   // Checkbox Functions
   const toggleSelectAll = () => {
@@ -295,12 +326,12 @@ const ProjectMaster = () => {
   // Bulk edit function - Modified to handle single row only
   const handleBulkEdit = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to edit', 'error');
+      toast.error('Please select at least one project to edit');
       return;
     }
 
     if (selectedProjects.length > 1) {
-      showNotification('Only one row can be edited at a time', 'error');
+      toast.error('Only one row can be edited at a time');
       return;
     }
 
@@ -323,7 +354,7 @@ const ProjectMaster = () => {
   // Bulk delete function
   const handleBulkDelete = () => {
     if (selectedProjects.length === 0) {
-      showNotification('Please select at least one project to delete', 'error');
+      toast.error('Please select at least one project to delete');
       return;
     }
 
@@ -345,11 +376,11 @@ const ProjectMaster = () => {
       setSelectAll(false);
       setCurrentPage(1);
       setShowBulkDeletePrompt({ show: false, count: 0 });
-      showNotification(`${count} projects deleted successfully`);
+      toast.success(`${count} projects deleted successfully`);
     } catch (err) {
       console.error(err);
       const errorMsg = err.response?.data?.detail || 'Error during bulk delete process';
-      showNotification(errorMsg, 'error');
+      toast.error(errorMsg);
     }
   };
 
@@ -359,14 +390,32 @@ const ProjectMaster = () => {
     setTempColumnName(currentLabel);
   };
 
-  const saveEditColumn = (columnId) => {
+  const saveEditColumn = async (columnId) => {
     if (tempColumnName.trim()) {
-      setColumns(columns.map(col =>
-        col.id === columnId ? { ...col, label: tempColumnName } : col
-      ));
-      setEditingColumn(null);
-      setTempColumnName('');
-      showNotification('Column updated successfully');
+      const col = columns.find(c => c.id === columnId);
+      if (!col.db_id) {
+        // This is a fixed column, we only update it locally if needed
+        setColumns(columns.map(c =>
+          c.id === columnId ? { ...c, label: tempColumnName } : c
+        ));
+        setEditingColumn(null);
+        setTempColumnName('');
+        toast.success('Column updated locally');
+        return;
+      }
+
+      try {
+        await API.put(`/projects/columns/${col.db_id}`, {
+          column_label: tempColumnName
+        });
+        await fetchColumns();
+        setEditingColumn(null);
+        setTempColumnName('');
+        toast.success('Column updated successfully');
+      } catch (err) {
+        console.error(err);
+        toast.error('Error updating column');
+      }
     }
   };
 
@@ -377,7 +426,7 @@ const ProjectMaster = () => {
 
   const handleDeleteColumn = (columnId) => {
     const column = columns.find(col => col.id === columnId);
-    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(columnId);
+    const isFixedColumn = fixedColumnIds.includes(columnId);
 
     if (isFixedColumn) {
       setShowDeleteColumnPrompt({
@@ -398,14 +447,34 @@ const ProjectMaster = () => {
     });
   };
 
-  const confirmDeleteColumn = () => {
+  const confirmDeleteColumn = async () => {
     if (!showDeleteColumnPrompt) return;
 
     const columnId = showDeleteColumnPrompt.id;
-    setColumns(columns.filter(col => col.id !== columnId));
-    setShowDeleteColumnPrompt(null);
-    setShowColumnModal(false);
-    showNotification('Column deleted successfully');
+    const col = columns.find(c => c.id === columnId);
+
+    if (col && col.db_id) {
+      try {
+        await API.delete(`/projects/columns/${col.db_id}`);
+        
+        // Update local state immediately for better UX
+        setCustomColumns(prev => prev.filter(c => c.db_id !== col.db_id));
+        setColumns(prev => prev.filter(c => c.id !== columnId));
+        
+        await fetchColumns(); // Re-sync with server
+        setShowDeleteColumnPrompt(null);
+        setShowColumnModal(false);
+        toast.success('Column deleted successfully');
+      } catch (err) {
+        console.error(err);
+        toast.error('Error deleting column');
+      }
+    } else {
+      setShowDeleteColumnPrompt(null);
+      if (col && !col.db_id) {
+        toast.error('Cannot delete fixed column');
+      }
+    }
   };
 
   // Sorting
@@ -424,30 +493,72 @@ const ProjectMaster = () => {
   // Validation
   const validateProjectForm = (project) => {
     const errors = {};
-    // Only validate the fields shown in the form modal
-    const formFieldIds = ['project_id', 'name', 'budget', 'status', 'project_manager', 'department', 'start_date', 'end_date', 'timeline_months'];
-    for (const col of columns) {
-      if (!formFieldIds.includes(col.id) || !col.required) continue;
-      if (!project[col.id]?.toString().trim()) {
+    const requiredFixedFields = ['project_id', 'name', 'status'];
+
+    requiredFixedFields.forEach(field => {
+      if (!project[field] || (typeof project[field] === 'string' && !project[field].trim())) {
+        errors[field] = `${field.replace('_', ' ').charAt(0).toUpperCase() + field.replace('_', ' ').slice(1)} is required`;
+      }
+    });
+
+    // Validate custom fields
+    customColumns.forEach(col => {
+      const value = project[col.id];
+      
+      // Required check
+      if (col.required && (value === undefined || value === null || value === '')) {
         errors[col.id] = `${col.label} is required`;
       }
-      if (col.type === 'number') {
-        const numValue = parseFloat(project[col.id]);
-        if (isNaN(numValue) || numValue < 0) {
-          errors[col.id] = `${col.label} must be a valid positive number`;
+
+      // Type checks
+      if (value) {
+        if (['integer', 'decimal', 'currency', 'number'].includes(col.type)) {
+          if (isNaN(parseFloat(value))) {
+            errors[col.id] = `${col.label} must be a number`;
+          }
+        } else if (col.type === 'email') {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+            errors[col.id] = `Invalid email format for ${col.label}`;
+          }
+        } else if (col.type === 'phone') {
+          if (!/^\d{10}$/.test(value.toString())) {
+            errors[col.id] = `${col.label} must be exactly 10 digits`;
+          }
         }
       }
-    }
+    });
+
     return errors;
   };
 
+  // Unique values for filters
+  const filterOptions = useMemo(() => {
+    return {
+      department: [...new Set(projects.map(p => p.department).filter(Boolean))].sort(),
+      status: [...new Set(projects.map(p => p.status).filter(Boolean))].sort(),
+      project_manager: [...new Set(projects.map(p => p.project_manager).filter(Boolean))].sort(),
+      employee_name: [...new Set(projects.map(p => p.employee_name).filter(Boolean))].sort()
+    };
+  }, [projects]);
+
   // Filter projects
   const filteredProjects = projects.filter(proj => {
-    const matchesSearch = Object.values(proj).some(value =>
+    // Basic validation
+    if (!proj.name) return false;
+
+    // Search term check
+    const matchesSearch = searchTerm === '' || Object.values(proj).some(value =>
       String(value).toLowerCase().includes(searchTerm.toLowerCase())
     );
+    if (!matchesSearch) return false;
 
-    return matchesSearch;
+    // Bulk filter checks
+    if (activeFilters.department.length > 0 && !activeFilters.department.includes(proj.department)) return false;
+    if (activeFilters.status.length > 0 && !activeFilters.status.includes(proj.status)) return false;
+    if (activeFilters.project_manager.length > 0 && !activeFilters.project_manager.includes(proj.project_manager)) return false;
+    if (activeFilters.employee_name.length > 0 && !activeFilters.employee_name.includes(proj.employee_name)) return false;
+
+    return true;
   });
 
   // Sort projects
@@ -515,7 +626,7 @@ const ProjectMaster = () => {
   };
 
   // Handle Add Project button click
-  const handleAddProjectClick = () => {
+  const handleAddProjectClick = async () => {
     setShowAddProjectModal(true);
     setValidationErrors({});
     const initialProject = {};
@@ -528,6 +639,17 @@ const ProjectMaster = () => {
         initialProject[col.id] = '';
       }
     });
+
+    // Suggest next project ID
+    try {
+      const res = await API.get('/projects/next-id');
+      if (res.data && res.data.next_id) {
+        initialProject.project_id = res.data.next_id;
+      }
+    } catch (err) {
+      console.error("Error fetching next project ID:", err);
+    }
+
     setNewProject(initialProject);
   };
 
@@ -545,6 +667,7 @@ const ProjectMaster = () => {
     setValidationErrors(errors);
 
     if (Object.keys(errors).length > 0) {
+      toast.error('Please fix the validation errors');
       return;
     }
 
@@ -557,17 +680,47 @@ const ProjectMaster = () => {
       };
       const payload = transformProjectForSave(convertedForm);
       await API.post('/projects', payload);
+
+      // If a budget file was attached, sync it to Budget Master
+      if (newProject._budgetFile) {
+        try {
+          const fd = new FormData();
+          fd.append('project_name', newProject.name);
+          fd.append('overall_budget', convertedForm.budget || 0);
+          fd.append('uploaded_by', 'System');
+          fd.append('budget_data', JSON.stringify([]));
+          fd.append('sync_to_project', false);
+          fd.append('file', newProject._budgetFile);
+          await API.post(`/budget/${encodeURIComponent(newProject.name)}`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (budgetErr) {
+          console.warn('Budget file upload failed:', budgetErr);
+        }
+      }
+
       await fetchProjects();
       setShowAddProjectModal(false);
       setValidationErrors({});
       setCurrentPage(1);
-      showNotification('Project added successfully');
+      toast.success(newProject._budgetFile ? 'Project added and budget synced successfully' : 'Project added successfully');
     } catch (err) {
       console.error(err);
-      const msg = err.response?.data?.detail || err.message;
-      showNotification('Error saving project: ' + msg, 'error');
+      let msg = err.response?.data?.detail || err.message;
+      
+      // Specifically handle unique constraint violation for project_id
+      if (msg && typeof msg === 'string' && msg.toLowerCase().includes('duplicate key value violates unique constraint')) {
+        setValidationErrors(prev => ({ ...prev, project_id: 'This Project ID already exists. Please use a unique ID.' }));
+        msg = 'Project ID already exists. Please use a unique ID.';
+      } else if (err.response?.status === 500 && (msg === "Internal Server Error" || !msg)) {
+        // Check if the error might be a duplicate key from DB
+        msg = 'A project with this ID might already exist. Please try a different ID.';
+      }
+      
+      toast.error('Error saving project: ' + msg);
     }
   };
+
 
   // Cancel adding new project
   const cancelNewProject = () => {
@@ -590,11 +743,11 @@ const ProjectMaster = () => {
         if (paginatedProjects.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         }
-        showNotification('Project deleted successfully');
+        toast.success('Project deleted successfully');
       } catch (err) {
         console.error(err);
         const msg = err.response?.data?.detail || err.message;
-        showNotification('Error deleting project: ' + msg, 'error');
+        toast.error('Error deleting project: ' + msg);
       }
     }
   };
@@ -622,6 +775,7 @@ const ProjectMaster = () => {
     const errors = validateProjectForm(editForm);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
+      toast.error('Please fix the validation errors');
       return;
     }
 
@@ -640,11 +794,11 @@ const ProjectMaster = () => {
       setValidationErrors({});
       setSelectedProjects([]);
       setSelectAll(false);
-      showNotification('Project updated successfully');
+      toast.success('Project updated successfully');
     } catch (err) {
       console.error(err);
       const msg = err.response?.data?.detail || err.message;
-      showNotification('Error updating project: ' + msg, 'error');
+      toast.error('Error updating project: ' + msg);
     }
   };
 
@@ -684,10 +838,20 @@ const ProjectMaster = () => {
   }, [editForm.budget, editForm.utilized_budget]);
 
   // Add new column
-  const handleAddColumn = () => {
+  const handleAddColumn = async () => {
     if (!newColumnName.trim()) {
-      showNotification('Please enter a column name', 'error');
+      toast.error('Please enter a column name');
       return;
+    }
+
+    try {
+      const res = await API.get(`/projects/columns/suggest?name=${encodeURIComponent(newColumnName)}`);
+      if (res.data && res.data.suggested_type) {
+        setSuggestedType(res.data.suggested_type);
+        setNewColumnType(res.data.suggested_type);
+      }
+    } catch (err) {
+      console.error("Error fetching suggestion", err);
     }
 
     setShowColumnAddPrompt({
@@ -696,29 +860,35 @@ const ProjectMaster = () => {
     });
   };
 
-  const confirmAddColumn = () => {
+  const confirmAddColumn = async () => {
     if (newColumnName.trim()) {
       const newColumnId = newColumnName.toLowerCase().replace(/\s+/g, '_');
 
       if (columns.find(col => col.id === newColumnId)) {
-        showNotification('Column with this name already exists', 'error');
+        toast.error('Column with this name already exists');
         return;
       }
 
-      const newColumn = {
-        id: newColumnId,
-        label: newColumnName,
-        visible: true,
-        sortable: true,
-        type: 'text',
-        required: false
-      };
+      try {
+        await API.post('/projects/columns/create', {
+          column_name: newColumnId,
+          column_label: newColumnName,
+          data_type: newColumnType,
+          is_required: false,
+          validation_rules: {}
+        });
 
-      setColumns([...columns, newColumn]);
-      setNewColumnName('');
-      setShowColumnAddPrompt({ show: false, columnName: '' });
-      setShowColumnModal(false);
-      showNotification('Column added successfully');
+        await fetchColumns();
+        setNewColumnName('');
+        setNewColumnType('text');
+        setSuggestedType('');
+        setShowColumnAddPrompt({ show: false, columnName: '' });
+        setShowColumnModal(false);
+        toast.success('Column added successfully');
+      } catch (err) {
+        console.error(err);
+        toast.error('Error adding column');
+      }
     }
   };
 
@@ -739,7 +909,7 @@ const ProjectMaster = () => {
 
   const handleCopyColumnName = (label) => {
     navigator.clipboard.writeText(label);
-    showNotification('Column name copied');
+    toast.success('Column name copied');
     setActiveDropdownColumn(null);
   };
 
@@ -747,10 +917,10 @@ const ProjectMaster = () => {
     let newFrozen = [...frozenColumns];
     if (newFrozen.includes(colIndex)) {
       newFrozen = newFrozen.filter(idx => idx !== colIndex);
-      showNotification('Column unfrozen');
+      toast.success('Column unfrozen');
     } else {
       newFrozen = [...new Set([...newFrozen, colIndex])].sort((a, b) => a - b);
-      showNotification('Column frozen');
+      toast.success('Column frozen');
     }
     setFrozenColumns(newFrozen);
     setTempFrozenColumns(newFrozen);
@@ -760,7 +930,7 @@ const ProjectMaster = () => {
   // Export functions
   const handleExportClick = (format) => {
     if (sortedProjects.length === 0) {
-      showNotification('No data to export', 'error');
+      toast.error('No data to export');
       return;
     }
 
@@ -793,7 +963,7 @@ const ProjectMaster = () => {
         XLSX.utils.book_append_sheet(wb, ws, "Projects");
         XLSX.writeFile(wb, "projects.xlsx");
         setShowExportDropdown(false);
-        showNotification('Export to Excel completed successfully');
+        toast.success('Export to Excel completed successfully');
         return;
       case 'csv':
         content = convertToCSV(dataToExport);
@@ -808,7 +978,7 @@ const ProjectMaster = () => {
       case 'pdf':
         exportToPDF(dataToExport);
         setShowExportDropdown(false);
-        showNotification('Export to PDF completed successfully');
+        toast.success('Export to PDF completed successfully');
         return;
     }
 
@@ -823,7 +993,7 @@ const ProjectMaster = () => {
     window.URL.revokeObjectURL(url);
 
     setShowExportDropdown(false);
-    showNotification(`Export to ${format.toUpperCase()} completed successfully`);
+    toast.success(`Export to ${format.toUpperCase()} completed successfully`);
     setShowExportConfirmPrompt(null);
   };
 
@@ -899,9 +1069,9 @@ const ProjectMaster = () => {
     setShowFreezeRowModal(false);
 
     if (tempFrozenRows.length > 0) {
-      showNotification(`${tempFrozenRows.length} row(s) frozen`);
+      toast.success(`${tempFrozenRows.length} row(s) frozen`);
     } else {
-      showNotification('All rows unfrozen');
+      toast.success('All rows unfrozen');
     }
   };
 
@@ -910,9 +1080,9 @@ const ProjectMaster = () => {
     setShowFreezeColumnModal(false);
 
     if (tempFrozenColumns.length > 0) {
-      showNotification(`${tempFrozenColumns.length} column(s) frozen`);
+      toast.success(`${tempFrozenColumns.length} column(s) frozen`);
     } else {
-      showNotification('All columns unfrozen');
+      toast.success('All columns unfrozen');
     }
   };
 
@@ -1017,8 +1187,10 @@ const ProjectMaster = () => {
     return employeeList
       .filter(e => e.role === 'Project Manager')
       .map(e => ({
-        value: String(e.employee_id || e.id),
-        label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`,
+        value: e.name,
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
       }));
   }, [employeeList]);
 
@@ -1027,11 +1199,30 @@ const ProjectMaster = () => {
       .filter(e => e.role === 'Team Lead')
       .map(e => ({
         value: String(e.employee_id || e.id),
-        label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`,
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
       }));
   }, [employeeList]);
 
-  // Convert stored array of structured objects → react-select option objects
+  const employeeOptions = useMemo(() => {
+    return employeeList
+      .filter(e => e.role === 'Employee')
+      .map(e => ({
+        value: String(e.employee_id || e.id),
+        label: `${e.name} (${e.employee_id || e.id})`,
+        name: e.name,
+        employee_id: e.employee_id || e.id
+      }));
+  }, [employeeList]);
+
+  // Unique departments from employee master
+  const departmentOptions = useMemo(() => {
+    const uniqueDepts = [...new Set(employeeList.map(e => e.department).filter(Boolean))].sort();
+    return uniqueDepts.map(dept => ({ value: dept, label: dept }));
+  }, [employeeList]);
+
+  // Convert stored array of structured objects Ã¢â€ â€™ react-select option objects
   const idsToSelectValues = (users) => {
     if (!Array.isArray(users)) return [];
     return users
@@ -1090,9 +1281,9 @@ const ProjectMaster = () => {
     if (!users || users.length === 0) return null;
 
     return (
-      <div className="mt-4 overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900/40">
+      <div className="mt-4 overflow-hidden border border-slate-200 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-900/40">
         <table className="w-full text-xs text-left">
-          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold uppercase tracking-wider">
+          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-100 font-semibold uppercase tracking-wider">
             <tr>
               <th className="px-3 py-2">Selected User</th>
               <th className="px-2 py-2 text-center">View</th>
@@ -1107,7 +1298,7 @@ const ProjectMaster = () => {
               
               return (
                 <tr key={user.employeeId} className="hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-300">
+                  <td className="px-3 py-2.5 font-medium text-slate-700 dark:text-slate-100">
                     <div className="flex flex-col">
                       <span>{name}</span>
                       <span className="text-[10px] text-slate-400 font-mono">ID: {user.employeeId}</span>
@@ -1148,13 +1339,13 @@ const ProjectMaster = () => {
 
   // Render input fields
   const renderInput = (col, value, onChange, error, isModal = false) => {
-    const inputClass = `w-full px-3 py-2 text-sm border ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded focus:outline-none focus:ring-1 focus:ring-black`;
+    const inputClass = `w-full px-3 py-2 text-sm border ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all dark:bg-slate-800 dark:text-slate-100 placeholder:text-slate-500`;
 
     const statusOptions = ['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'];
 
     if (col.id === 'status' || col.type === 'select') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <select
           value={value || (col.id === 'status' ? 'Planning' : '')}
           onChange={e => onChange(col.id, e.target.value)}
@@ -1182,7 +1373,7 @@ const ProjectMaster = () => {
       const selectedValues = idsToSelectValues(Array.isArray(value) ? value : (value ? [value] : []));
       return (
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">
             {col.label} {col.required && <span className="text-red-500">*</span>}
           </label>
           <ReactSelect
@@ -1208,7 +1399,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'manager_select') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => e.name)}
           value={value}
@@ -1221,7 +1412,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'employee_id') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => String(e.employee_id || e.id))}
           value={value}
@@ -1238,7 +1429,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'employee_name') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <SearchableDropdown
           options={employeeList.map(e => e.name)}
           value={value}
@@ -1255,7 +1446,7 @@ const ProjectMaster = () => {
 
     if (col.type === 'number') return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <input
           type="number"
           value={value || ''}
@@ -1274,7 +1465,7 @@ const ProjectMaster = () => {
 
     return (
       <div>
-        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
+        <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">{col.label} {col.required && <span className="text-red-500">*</span>}</label>
         <input
           type="text"
           value={value || ''}
@@ -1293,14 +1484,14 @@ const ProjectMaster = () => {
   const renderCellContent = (col, value, row) => {
     if (col.id === 'status') {
       const colorMap = {
-        'Planning': 'bg-blue-100 text-blue-700',
-        'In Progress': 'bg-yellow-100 text-yellow-700',
-        'Completed': 'bg-emerald-100 text-emerald-700',
-        'On Hold': 'bg-slate-100 text-slate-600',
-        'Delayed': 'bg-red-100 text-red-700',
-        'Active': 'bg-emerald-100 text-emerald-700',
-        'Inactive': 'bg-red-100 text-red-700',
-        'Pending': 'bg-slate-100 text-slate-600'
+        'Planning': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'In Progress': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+        'Completed': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        'On Hold': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+        'Delayed': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        'Active': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        'Inactive': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+        'Pending': 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
       };
       return (
         <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${colorMap[value] || 'bg-slate-100 text-slate-600'}`}>
@@ -1310,7 +1501,7 @@ const ProjectMaster = () => {
     }
     if (['budget', 'utilized_budget', 'balance_budget'].includes(col.id)) {
       return (
-        <span className={`text-sm font-medium ${col.id === 'balance_budget' && (parseFloat(value) || 0) < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+        <span className={`text-sm font-semibold ${col.id === 'balance_budget' && (parseFloat(value) || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-100'}`}>
           {format(parseFloat(value) || 0)}
         </span>
       );
@@ -1322,7 +1513,7 @@ const ProjectMaster = () => {
             e.stopPropagation();
             navigate(`/dashboard/masters/project-detail/${row.id}`);
           }}
-          className="text-indigo-600 hover:text-indigo-800 font-medium text-xs bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex items-center gap-1.5"
+          className="text-indigo-600 hover:text-indigo-800 font-medium text-xs bg-indigo-50 px-3 py-1.5 rounded-md border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex items-center gap-1.5"
         >
           <Eye size={14}/>
           Detailed View
@@ -1330,12 +1521,12 @@ const ProjectMaster = () => {
       );
     }
     if (col.id === 'project_id') {
-      return <span className="text-[13px] text-slate-500 dark:text-slate-400 font-mono tracking-tight">{value || '-'}</span>;
+      return <span className="text-[13px] text-slate-500 dark:text-slate-100 font-mono tracking-tight">{value || '-'}</span>;
     }
 
     if (col.type === 'manager_multiselect' || col.type === 'team_lead_multiselect') {
       const users = Array.isArray(value) ? value : [];
-      if (users.length === 0) return <span className="text-sm text-slate-400">—</span>;
+      if (users.length === 0) return <span className="text-sm text-slate-400 dark:text-slate-500">—</span>;
       return (
         <div className="flex flex-wrap gap-1">
           {users.map((user, i) => {
@@ -1343,7 +1534,7 @@ const ProjectMaster = () => {
             const emp = employeeList.find(e => String(e.employee_id || e.id) === String(id));
             const label = emp ? emp.name : id;
             return (
-              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 whitespace-nowrap">
+              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap">
                 {label}
               </span>
             );
@@ -1351,7 +1542,7 @@ const ProjectMaster = () => {
         </div>
       );
     }
-    return <span className="text-sm text-slate-700">{Array.isArray(value) ? value.join(', ') : (value || '-')}</span>;
+    return <span className="text-sm text-slate-700 dark:text-slate-100">{Array.isArray(value) ? value.join(', ') : (value || '-')}</span>;
   };
 
   const visibleColumns = columns.filter(col => col.visible);
@@ -1359,41 +1550,54 @@ const ProjectMaster = () => {
   return (
     <div className="master-table-container">
       <>
-        {/* Notification Banner */}
-        {notification.show && (
-          <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-            notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-              'bg-blue-100 text-blue-800 border border-blue-200'
-            }`}>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">{notification.message}</span>
-              <button
-                onClick={() => setNotification({ show: false, message: '', type: '' })}
-                className="ml-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Delete Project Prompt */}
         {showDeletePrompt && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Delete</h3>
-                <button onClick={cancelDelete} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
-                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
-                </button>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full">
+              <div className="app-modal-header border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <h3 className="app-modal-title">Confirm Permanent Deletion</h3>
+                </div>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">Delete project <span className="font-medium">{showDeletePrompt.name}</span>?</p>
-                <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={cancelDelete} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmDeleteProject} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+              
+              <div className="app-modal-body">
+                <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
+                  Are you sure you want to delete project <span className="font-bold text-slate-900 dark:text-slate-100">"{showDeletePrompt.name}"</span>?
+                </p>
+                
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-md p-4 border border-slate-200 dark:border-slate-700 mb-6">
+                  <h4 className="text-xs font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Impact Warning</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
+                    This action is <span className="text-red-600 dark:text-red-400 font-semibold underline">irreversible</span>. The following associated data will also be permanently deleted:
+                  </p>
+                  <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-100 list-disc list-inside">
+                    <li>Active Issues & Actions</li>
+                    <li>Meeting Records & MOMs</li>
+                    <li>Budget & Tracker Data</li>
+                    <li>Employee Allocations</li>
+                    <li>Custom Fields & Files</li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={cancelDelete} 
+                    className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmDeleteProject} 
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Delete Permanently
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1401,28 +1605,28 @@ const ProjectMaster = () => {
 
         {/* Delete Column Prompt */}
         {showDeleteColumnPrompt && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">
                   {showDeleteColumnPrompt.title}
                 </h3>
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
+              <div className="app-modal-body py-4">
                 {showDeleteColumnPrompt.type === 'warning' ? (
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                     {showDeleteColumnPrompt.message}
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                       Are you sure you want to delete column
                       <span className="font-medium">
                         {" "}{showDeleteColumnPrompt.columnLabel}
@@ -1435,10 +1639,10 @@ const ProjectMaster = () => {
                 )}
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer pt-3">
                 <button
                   onClick={() => setShowDeleteColumnPrompt(null)}
-                  className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors"
                 >
                   {showDeleteColumnPrompt.type === 'warning' ? 'OK' : 'Cancel'}
                 </button>
@@ -1446,7 +1650,7 @@ const ProjectMaster = () => {
                 {showDeleteColumnPrompt.type === 'delete' && (
                   <button
                     onClick={confirmDeleteColumn}
-                    className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                    className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                   >
                     Delete
                   </button>
@@ -1458,23 +1662,44 @@ const ProjectMaster = () => {
 
         {/* Bulk Delete Prompt */}
         {showBulkDeletePrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Delete</h3>
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
-                  <X className="h-4 w-4 sm:h-5 sm:w-5" />
-                </button>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full">
+              <div className="app-modal-header border-red-100 dark:border-red-900/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-md text-red-600 dark:text-red-400">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <h3 className="app-modal-title">Confirm Bulk Deletion</h3>
+                </div>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-                  Are you sure you want to delete {showBulkDeletePrompt.count} selected project{showBulkDeletePrompt.count > 1 ? 's' : ''}?
+              
+              <div className="app-modal-body">
+                <p className="text-sm text-slate-600 dark:text-slate-100 mb-4">
+                  Are you sure you want to delete <span className="font-bold text-red-600 dark:text-red-400">{showBulkDeletePrompt.count} selected projects</span>?
                 </p>
-                <p className="text-xs text-red-600 mt-1">This action cannot be undone.</p>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmBulkDelete} className="px-3 py-1.5 text-xs sm:text-sm bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
+                
+                <div className="bg-red-50/50 dark:bg-red-900/10 rounded-md p-4 border border-red-100 dark:border-red-900/20 mb-6">
+                  <h4 className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2">CRITICAL Bulk Action Warning</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-100 leading-relaxed">
+                    This will <span className="font-bold">permanently wipe</span> all data for multiple projects at once. This includes all related issues, meetings, trackers, and files across all selected items.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowBulkDeletePrompt({ show: false, count: 0 })} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-100 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={confirmBulkDelete} 
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Delete {showBulkDeletePrompt.count} Projects
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1482,22 +1707,22 @@ const ProjectMaster = () => {
 
         {/* Bulk Edit Prompt */}
         {showBulkEditPrompt.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Bulk Edit</h3>
-                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Bulk Edit</h3>
+                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              <div className="app-modal-body py-4">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to edit {showBulkEditPrompt.count} selected project{showBulkEditPrompt.count > 1 ? 's' : ''}?
                 </p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmBulkEdit} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Edit</button>
+              <div className="app-modal-footer">
+                <button onClick={() => setShowBulkEditPrompt({ show: false, count: 0 })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
+                <button onClick={confirmBulkEdit} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Edit</button>
               </div>
             </div>
           </div>
@@ -1505,22 +1730,56 @@ const ProjectMaster = () => {
 
         {/* Add Column Prompt */}
         {showColumnAddPrompt.show && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[60]">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Add New Column</h3>
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+          <div className="app-modal-overlay z-[60]">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Add New Column</h3>
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              <div className="app-modal-body space-y-4">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Are you sure you want to add column "<span className="font-medium">{showColumnAddPrompt.columnName}</span>"?
                 </p>
+                
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-slate-100 uppercase tracking-wider mb-2">Select Data Type</label>
+                  <select 
+                    value={newColumnType}
+                    onChange={(e) => setNewColumnType(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none dark:text-slate-100"
+                  >
+                    <option value="text">Text</option>
+                    <option value="long_text">Long Text</option>
+                    <option value="integer">Integer</option>
+                    <option value="decimal">Decimal</option>
+                    <option value="currency">Currency</option>
+                    <option value="percentage">Percentage</option>
+                    <option value="boolean">Boolean</option>
+                    <option value="date">Date</option>
+                    <option value="datetime">DateTime</option>
+                    <option value="phone">Phone</option>
+                    <option value="email">Email</option>
+                    <option value="url">URL</option>
+                    <option value="dropdown">Dropdown</option>
+                    <option value="multi_select">Multi Select</option>
+                    <option value="status">Status</option>
+                    <option value="priority">Priority</option>
+                    <option value="user">User</option>
+                    <option value="file">File</option>
+                    <option value="json">JSON</option>
+                  </select>
+                  {suggestedType && (
+                    <p className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Smart suggestion: {suggestedType}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
-                <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Add Column</button>
+              <div className="app-modal-footer">
+                <button onClick={() => setShowColumnAddPrompt({ show: false, columnName: '' })} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
+                <button onClick={confirmAddColumn} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Add Column</button>
               </div>
             </div>
           </div>
@@ -1528,56 +1787,51 @@ const ProjectMaster = () => {
 
         {/* Export Confirmation Prompt */}
         {showExportConfirmPrompt?.show && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-sm w-full mx-4">
-              <div className="flex items-center justify-between mb-3 sm:mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">Confirm Export</h3>
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-sm w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Confirm Export</h3>
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
-              <div className="mb-4">
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              <div className="app-modal-body py-4">
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-100">
                   Export {showExportConfirmPrompt.count} project{showExportConfirmPrompt.count > 1 ? 's' : ''} as {showExportConfirmPrompt.format.toUpperCase()}?
                 </p>
               </div>
-              <div className="flex justify-end space-x-2">
-                <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80">Cancel</button>
+              <div className="app-modal-footer">
+                <button onClick={() => setShowExportConfirmPrompt(null)} className="px-3 py-1.5 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors">Cancel</button>
                 <button onClick={() => {
                   handleExport(showExportConfirmPrompt.format);
                   setShowExportConfirmPrompt(null);
-                }} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Export</button>
+                }} className="px-3 py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Export</button>
               </div>
             </div>
           </div>
         )}
-
-        {/* Freeze Column Modal */}
+         {/* Freeze Column Modal */}
         {showFreezeColumnModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Freeze Columns
-                  </span>
-                </h3>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Freeze Columns</h3>
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
-                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Select columns to freeze (they will remain visible while scrolling horizontally)</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="app-modal-body">
+                <p className="text-xs text-slate-600 dark:text-slate-100 mb-3">Select columns to freeze (they will remain visible while scrolling horizontally)</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
 
                   {visibleColumns.map((column) => {
                     const actualColumnIndex = columns.findIndex(col => col.id === column.id);
                     return (
-                      <div key={column.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded">
+                      <div key={column.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/20">
                         <input
                           type="checkbox"
                           id={`freeze-${column.id}`}
@@ -1589,13 +1843,13 @@ const ProjectMaster = () => {
                               setTempFrozenColumns(tempFrozenColumns.filter(idx => idx !== actualColumnIndex));
                             }
                           }}
-                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
+                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3 cursor-pointer"
                         />
-                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer flex-1">
+                        <label htmlFor={`freeze-${column.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1 select-none">
                           {column.label}
                         </label>
                         {tempFrozenColumns.includes(actualColumnIndex) && (
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Frozen</span>
+                          <span className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">Frozen</span>
                         )}
                       </div>
                     );
@@ -1603,16 +1857,16 @@ const ProjectMaster = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeColumnModal(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeColumns}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   Apply Freeze
                 </button>
@@ -1623,29 +1877,25 @@ const ProjectMaster = () => {
 
         {/* Freeze Row Modal */}
         {showFreezeRowModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Freeze Rows
-                  </span>
-                </h3>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">Freeze Rows</h3>
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4">
-                <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Select rows to freeze (they will remain visible while scrolling vertically)</p>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="app-modal-body">
+                <p className="text-xs text-slate-600 dark:text-slate-100 mb-3">Select rows to freeze (they will remain visible while scrolling vertically)</p>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {paginatedProjects.map((proj, index) => {
                     const actualRowIndex = (currentPage - 1) * pageSize + index;
                     return (
-                      <div key={proj.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded">
+                      <div key={proj.id} className="flex items-center p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/20">
                         <input
                           type="checkbox"
                           id={`freeze-row-${proj.id}`}
@@ -1657,13 +1907,13 @@ const ProjectMaster = () => {
                               setTempFrozenRows(tempFrozenRows.filter(idx => idx !== actualRowIndex));
                             }
                           }}
-                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3"
+                          className="h-4 w-4 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 mr-3 cursor-pointer"
                         />
-                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer flex-1">
+                        <label htmlFor={`freeze-row-${proj.id}`} className="text-sm text-slate-700 dark:text-slate-100 cursor-pointer flex-1 select-none">
                           Row {actualRowIndex + 1}: {proj.name} ({proj.id})
                         </label>
                         {tempFrozenRows.includes(actualRowIndex) && (
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Frozen</span>
+                          <span className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded">Frozen</span>
                         )}
                       </div>
                     );
@@ -1671,16 +1921,16 @@ const ProjectMaster = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2">
+              <div className="app-modal-footer">
                 <button
                   onClick={() => setShowFreezeRowModal(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
+                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleFreezeRows}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                 >
                   Apply Freeze
                 </button>
@@ -1691,112 +1941,109 @@ const ProjectMaster = () => {
 
         {/* Column Management Modal */}
         {showColumnModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <div></div>
-                <button onClick={() => setShowColumnModal(false)} className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-md w-full mx-4">
+              <div className="app-modal-header">
+                <h3 className="app-modal-title">
+                  Custom Column Management
+                </h3>
+                <button onClick={() => setShowColumnModal(false)} className="app-modal-close-btn">
                   <X className="h-4 w-4 sm:h-5 sm:w-5" />
                 </button>
               </div>
 
-              <div className="mb-4 p-3 rounded">
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base -mt-5 mb-2">
-                  <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded">
-                    Add New Custom Column
-                  </span>
-                </h3>
-
-                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                  <input
-                    type="text"
-                    placeholder="Column name (e.g., Start Date)"
-                    value={newColumnName}
-                    onChange={(e) => setNewColumnName(e.target.value)}
-                    className="flex-grow px-3 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded"
-                  />
-                  <button
-                    onClick={handleAddColumn}
-                    className="px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
-                  >
-                    Add Column
-                  </button>
+              <div className="app-modal-body space-y-4">
+                <div className="p-3 border border-slate-200 dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900/20">
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2 uppercase tracking-wide">Add New Custom Column</h4>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Column name (e.g., Start Date)"
+                      value={newColumnName}
+                      onChange={(e) => setNewColumnName(e.target.value)}
+                      className="flex-grow px-3 py-2 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100 placeholder-slate-400"
+                    />
+                    <button
+                      onClick={handleAddColumn}
+                      className="px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap transition-colors"
+                    >
+                      Add Column
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <h4 className="text-xs sm:text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">Available Columns</h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {columns.map((column) => {
-                    const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(column.id);
-                    const isEditing = editingColumn === column.id;
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2 uppercase tracking-wide">Available Columns</h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {columns.map((column) => {
+                      const isFixedColumn = ['id', 'name', 'status', 'budget', 'timeline'].includes(column.id);
+                      const isEditing = editingColumn === column.id;
 
-                    return (
-                      <div key={column.id} className="flex items-center justify-between p-2 border border-slate-200 dark:border-slate-700 rounded">
-                        <div className="flex items-center space-x-2">
-                          {isEditing ? (
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="text"
-                                value={tempColumnName}
-                                onChange={(e) => setTempColumnName(e.target.value)}
-                                className="px-2 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded"
-                              />
-                              <button
-                                onClick={() => saveEditColumn(column.id)}
-                                className="p-1 text-green-600 hover:text-green-800"
-                                title="Save"
-                              >
-                                <Check className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                              <button
-                                onClick={cancelEditColumn}
-                                className="p-1 text-red-600 hover:text-red-800"
-                                title="Cancel"
-                              >
-                                <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <span className="">{column.label}</span>
-                            </>
-                          )}
-                        </div>
+                      return (
+                        <div key={column.id} className="flex items-center justify-between p-2 border border-slate-200 dark:border-slate-700 rounded bg-slate-50/50 dark:bg-slate-900/10">
+                          <div className="flex items-center space-x-2">
+                            {isEditing ? (
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={tempColumnName}
+                                  onChange={(e) => setTempColumnName(e.target.value)}
+                                  className="px-2 py-1 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 dark:text-slate-100"
+                                />
+                                <button
+                                  onClick={() => saveEditColumn(column.id)}
+                                  className="p-1 text-green-600 hover:text-green-800"
+                                  title="Save"
+                                >
+                                  <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                                <button
+                                  onClick={cancelEditColumn}
+                                  className="p-1 text-red-600 hover:text-red-800"
+                                  title="Cancel"
+                                >
+                                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-slate-700 dark:text-slate-100">{column.label}</span>
+                            )}
+                          </div>
 
-                        <div className="flex items-center space-x-2">
-                          {/* View/Hide button */}
-                          <button
-                            onClick={() => toggleColumnVisibility(column.id)}
-                            className={`p-1 ${column.visible ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-400'}`}
-                            title={column.visible ? "Hide column" : "Show column"}
-                          >
-                            {column.visible ? <Eye className="h-3 w-3 sm:h-4 sm:w-4" /> : <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />}
-                          </button>
-
-                          {/* Edit button for all columns */}
-                          {!isEditing && (
+                          <div className="flex items-center space-x-2">
+                            {/* View/Hide button */}
                             <button
-                              onClick={() => startEditColumn(column.id, column.label)}
-                              className="p-1 text-blue-600 hover:text-blue-800"
-                              title="Edit column"
+                              onClick={() => toggleColumnVisibility(column.id)}
+                              className={`p-1 ${column.visible ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-100'}`}
+                              title={column.visible ? "Hide column" : "Show column"}
                             >
-                              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                              {column.visible ? <Eye className="h-3 w-3 sm:h-4 sm:w-4" /> : <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />}
                             </button>
-                          )}
 
-                          {/* Delete button */}
-                          <button
-                            onClick={() => handleDeleteColumn(column.id)}
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Delete column"
-                          >
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                          </button>
+                            {/* Edit button for all columns */}
+                            {!isEditing && (
+                              <button
+                                onClick={() => startEditColumn(column.id, column.label)}
+                                className="p-1 text-blue-600 hover:text-blue-800"
+                                title="Edit column"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                              </button>
+                            )}
+
+                            {/* Delete button */}
+                            <button
+                              onClick={() => handleDeleteColumn(column.id)}
+                              className="p-1 text-red-600 hover:text-red-800"
+                              title="Delete column"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1805,154 +2052,273 @@ const ProjectMaster = () => {
 
         {/* Add Project Modal */}
         {showAddProjectModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
-                    <Briefcase className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Add New Project</h3>
-                  </div>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
+                <div>
+                  <h3 className="app-modal-title">Add New Project</h3>
+                  <p className="app-modal-description">Register a new project in the system.</p>
                 </div>
                 <button
                   onClick={cancelNewProject}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Form Body */}
-              <div className="overflow-y-auto flex-1 px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Project ID */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={newProject.project_id || ''}
-                      onChange={e => handleNewProjectChange('project_id', e.target.value)}
-                      placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.project_id}</p>}
+              <div className="app-modal-body">
+                {/* Basic Information Section */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Basic Information</h4>
                   </div>
-                  {/* Project Name */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={newProject.name || ''}
-                      onChange={e => handleNewProjectChange('name', e.target.value)}
-                      placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.name}</p>}
-                  </div>
-                  {/* Budget */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Budget <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{symbol}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                    {/* Project ID */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
                       <input
-                        type="number"
-                        value={newProject.budget || ''}
-                        onChange={e => handleNewProjectChange('budget', e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        step="1000"
-                        className={`w-full pl-7 pr-3 py-2.5 text-sm border ${validationErrors.budget ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                        type="text"
+                        value={newProject.project_id || ''}
+                        onChange={e => handleNewProjectChange('project_id', e.target.value)}
+                        placeholder="e.g. PRJ001"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.project_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.project_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.project_id}</p>}
+                    </div>
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={newProject.name || ''}
+                        onChange={e => handleNewProjectChange('name', e.target.value)}
+                        placeholder="Enter project name"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
+                    </div>
+                    {/* Project Manager */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Manager</label>
+                      <SearchableDropdown
+                        options={managerOptions}
+                        value={newProject.project_manager || ''}
+                        onChange={(val) => handleNewProjectChange('project_manager', val)}
+                        placeholder="Select Project Manager..."
                       />
                     </div>
-                    {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
+                    {/* Assign Team Lead */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Team Lead</label>
+                      <SearchableDropdown
+                        options={teamLeadOptions}
+                        value={newProject.employee_id || ''}
+                        onChange={(val, option) => {
+                          handleNewProjectChange('employee_id', val);
+                          handleNewProjectChange('employee_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Team Lead..."
+                      />
+                    </div>
+                    {/* Assign Employee */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employee</label>
+                      <SearchableDropdown
+                        options={employeeOptions}
+                        value={newProject.assigned_to_id || ''}
+                        onChange={(val, option) => {
+                          handleNewProjectChange('assigned_to_id', val);
+                          handleNewProjectChange('assigned_to_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Employee..."
+                      />
+                    </div>
+                    {/* Department */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department</label>
+                      <SearchableDropdown
+                        options={departmentOptions}
+                        value={newProject.department || ''}
+                        onChange={(val) => handleNewProjectChange('department', val)}
+                        placeholder="Select or type department..."
+                      />
+                    </div>
+                    {/* Start Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
+                        onChange={e => handleNewProjectChange('start_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* End Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">End Date</label>
+                      <input
+                        type="date"
+                        value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
+                        onChange={e => handleNewProjectChange('end_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* Timeline (Months) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Timeline (Months)</label>
+                      <input
+                        type="number"
+                        value={newProject.timeline_months || ''}
+                        onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
+                        placeholder="e.g. 6"
+                        min="0"
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                      />
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <select
+                        value={newProject.status || 'Planning'}
+                        onChange={e => handleNewProjectChange('status', e.target.value)}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                      >
+                        {['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {validationErrors.status && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.status}</p>}
+                    </div>
                   </div>
-                  {/* Project Manager */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager</label>
-                    <select
-                      value={newProject.project_manager || ''}
-                      onChange={e => handleNewProjectChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
-                    >
-                      <option value="">Select Project Manager</option>
-                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
-                    </select>
-                  </div>
-                  {/* Department */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
-                    <input
-                      type="text"
-                      value={newProject.department || ''}
-                      onChange={e => handleNewProjectChange('department', e.target.value)}
-                      placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Start Date</label>
-                    <input
-                      type="date"
-                      value={newProject.start_date ? newProject.start_date.split('T')[0] : ''}
-                      onChange={e => handleNewProjectChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">End Date</label>
-                    <input
-                      type="date"
-                      value={newProject.end_date ? newProject.end_date.split('T')[0] : ''}
-                      onChange={e => handleNewProjectChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Timeline (Months) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
-                    <input
-                      type="number"
-                      value={newProject.timeline_months || ''}
-                      onChange={e => handleNewProjectChange('timeline_months', e.target.value)}
-                      placeholder="e.g. 6"
-                      min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
-                    <select
-                      value={newProject.status || 'Planning'}
-                      onChange={e => handleNewProjectChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                    >
-                      {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
-                  </div>
+                </div>
 
+                {/* Custom Fields Section */}
+                {customColumns.length > 0 && (
+                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                      <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Additional Details</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                      {customColumns.map(col => {
+                        const inputType = {
+                          'integer': 'number',
+                          'decimal': 'number',
+                          'currency': 'number',
+                          'percentage': 'number',
+                          'date': 'date',
+                          'datetime': 'datetime-local',
+                          'email': 'email',
+                          'phone': 'tel',
+                          'url': 'url',
+                          'boolean': 'checkbox'
+                        }[col.data_type || col.type] || 'text';
+
+                        if (col.data_type === 'boolean' || col.type === 'boolean') {
+                          return (
+                            <div key={col.id} className="flex items-center gap-3 mt-6">
+                              <input
+                                type="checkbox"
+                                id={`new-${col.id}`}
+                                checked={newProject[col.id] === true}
+                                onChange={(e) => handleNewProjectChange(col.id, e.target.checked)}
+                                className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <label htmlFor={`new-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                            </div>
+                          );
+                        }
+
+                        if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                          const options = col.validation_rules?.options || [];
+                          return (
+                            <div key={col.id}>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <select
+                                value={newProject[col.id] || ''}
+                                onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                                className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                              >
+                                <option value="">Select {col.label}</option>
+                                {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                              {validationErrors[col.id] && (
+                                <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={col.id}>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                              {col.label} {col.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type={inputType}
+                              value={newProject[col.id] || ''}
+                              onChange={e => handleNewProjectChange(col.id, e.target.value)}
+                              placeholder={`Enter ${col.label.toLowerCase()}`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                            />
+                            {validationErrors[col.id] && (
+                              <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Budget Upload Section */}
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Budget Upload</h4>
+                  </div>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-5">
+                    {/* Budget Upload (Excel) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                        Budget file (Excel) <span className="text-slate-400 font-normal">- auto-syncs to Budget Master</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls,.csv"
+                          onChange={e => handleNewProjectChange('_budgetFile', e.target.files[0] || null)}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full px-4 py-3 border border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex items-center gap-3 text-slate-400 text-sm bg-slate-50 dark:bg-slate-800/40 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-all">
+                          <FileText className="h-5 w-5 flex-shrink-0 text-slate-400" />
+                          <span className="truncate text-xs font-medium">
+                            {newProject._budgetFile ? newProject._budgetFile.name : 'Click to upload budget Excel file (optional)...'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
                 <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Required fields</p>
                 <div className="flex gap-3">
                   <button
                     onClick={cancelNewProject}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300"
+                    className="px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveNewProject}
-                    className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-8 py-2 text-sm font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md shadow-blue-500/10 dark:shadow-none transition-all active:scale-[0.98] flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Project
@@ -1965,145 +2331,233 @@ const ProjectMaster = () => {
 
         {/* Edit Project Modal */}
         {editingId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-slate-800 dark:to-slate-800/80 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500 rounded-lg shadow-sm">
-                    <Edit className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Edit Project</h3>
-                  </div>
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full">
+              <div className="app-modal-header">
+                <div>
+                  <h3 className="app-modal-title">Edit Project</h3>
+                  <p className="app-modal-description">Modify details for <span className="text-blue-600 dark:text-blue-400 font-semibold">{editForm.name}</span></p>
                 </div>
                 <button
                   onClick={cancelEdit}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Form Body */}
-              <div className="overflow-y-auto flex-1 px-6 py-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Project ID */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project ID <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={editForm.project_id || ''}
-                      onChange={e => handleEditFormChange('project_id', e.target.value)}
-                      placeholder="e.g. PRJ001"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.project_id ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.project_id && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.project_id}</p>}
+              <div className="app-modal-body">
+                {/* Basic Information Section */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
+                    <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Basic Information</h4>
                   </div>
-                  {/* Project Name */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Name <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      value={editForm.name || ''}
-                      onChange={e => handleEditFormChange('name', e.target.value)}
-                      placeholder="Enter project name"
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.name ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
-                    />
-                    {validationErrors.name && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.name}</p>}
-                  </div>
-                  {/* Budget */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Budget <span className="text-red-500">*</span></label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{symbol}</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                    {/* Project ID */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project ID <span className="text-red-500">*</span></label>
                       <input
-                        type="number"
-                        value={editForm.budget || ''}
-                        onChange={e => handleEditFormChange('budget', e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        step="1000"
-                        className={`w-full pl-7 pr-3 py-2.5 text-sm border ${validationErrors.budget ? 'border-red-400 bg-red-50' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100`}
+                        type="text"
+                        value={editForm.project_id || ''}
+                        onChange={e => handleEditFormChange('project_id', e.target.value)}
+                        placeholder="e.g. PRJ001"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.project_id ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.project_id && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.project_id}</p>}
+                    </div>
+                    {/* Project Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={editForm.name || ''}
+                        onChange={e => handleEditFormChange('name', e.target.value)}
+                        placeholder="Enter project name"
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.name ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                      />
+                      {validationErrors.name && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.name}</p>}
+                    </div>
+                    {/* Project Manager */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Project Manager</label>
+                      <SearchableDropdown
+                        options={managerOptions}
+                        value={editForm.project_manager || ''}
+                        onChange={(val) => handleEditFormChange('project_manager', val)}
+                        placeholder="Select Project Manager..."
                       />
                     </div>
-                    {validationErrors.budget && <p className="text-red-500 text-xs mt-1 flex items-center gap-1"><span>⚠</span>{validationErrors.budget}</p>}
+                    {/* Assign Team Lead */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Team Lead</label>
+                      <SearchableDropdown
+                        options={teamLeadOptions}
+                        value={editForm.employee_id || ''}
+                        onChange={(val, option) => {
+                          handleEditFormChange('employee_id', val);
+                          handleEditFormChange('employee_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Team Lead..."
+                      />
+                    </div>
+                    {/* Assigned To */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assigned To</label>
+                      <SearchableDropdown
+                        options={employeeOptions}
+                        value={editForm.assigned_to_id || ''}
+                        onChange={(val, option) => {
+                          handleEditFormChange('assigned_to_id', val);
+                          handleEditFormChange('assigned_to_name', option ? option.name : '');
+                        }}
+                        placeholder="Select Employee..."
+                      />
+                    </div>
+                    {/* Department */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Department</label>
+                      <SearchableDropdown
+                        options={departmentOptions}
+                        value={editForm.department || ''}
+                        onChange={(val) => handleEditFormChange('department', val)}
+                        placeholder="Select or type department..."
+                      />
+                    </div>
+                    {/* Start Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Start Date</label>
+                      <input
+                        type="date"
+                        value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
+                        onChange={e => handleEditFormChange('start_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* End Date */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">End Date</label>
+                      <input
+                        type="date"
+                        value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
+                        onChange={e => handleEditFormChange('end_date', e.target.value)}
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                    {/* Timeline (Months) */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Timeline (Months)</label>
+                      <input
+                        type="number"
+                        value={editForm.timeline_months || ''}
+                        onChange={e => handleEditFormChange('timeline_months', e.target.value)}
+                        placeholder="e.g. 6"
+                        min="0"
+                        className="w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
+                      />
+                    </div>
+                    {/* Status */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Status <span className="text-red-500">*</span></label>
+                      <select
+                        value={editForm.status || 'Planning'}
+                        onChange={e => handleEditFormChange('status', e.target.value)}
+                        className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors.status ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                      >
+                        {['Planning', 'In Progress', 'Completed', 'On Hold', 'Delayed'].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {validationErrors.status && <p className="mt-1 text-[10px] text-red-500 font-medium">{validationErrors.status}</p>}
+                    </div>
                   </div>
-                  {/* Project Manager */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Project Manager</label>
-                    <select
-                      value={editForm.project_manager || ''}
-                      onChange={e => handleEditFormChange('project_manager', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white"
-                    >
-                      <option value="">Select Project Manager</option>
-                      {columns.find(col => col.id === 'project_manager')?.options?.map(pm => <option key={pm} value={pm}>{pm}</option>)}
-                    </select>
-                  </div>
-                  {/* Department */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Department</label>
-                    <input
-                      type="text"
-                      value={editForm.department || ''}
-                      onChange={e => handleEditFormChange('department', e.target.value)}
-                      placeholder="e.g. Engineering"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Start Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Start Date</label>
-                    <input
-                      type="date"
-                      value={editForm.start_date ? editForm.start_date.split('T')[0] : ''}
-                      onChange={e => handleEditFormChange('start_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* End Date */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">End Date</label>
-                    <input
-                      type="date"
-                      value={editForm.end_date ? editForm.end_date.split('T')[0] : ''}
-                      onChange={e => handleEditFormChange('end_date', e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Timeline (Months) */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Timeline (Months)</label>
-                    <input
-                      type="number"
-                      value={editForm.timeline_months || ''}
-                      onChange={e => handleEditFormChange('timeline_months', e.target.value)}
-                      placeholder="e.g. 6"
-                      min="0"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  {/* Status */}
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 uppercase tracking-wide">Status <span className="text-red-500">*</span></label>
-                    <select
-                      value={editForm.status || 'Planning'}
-                      onChange={e => handleEditFormChange('status', e.target.value)}
-                      className={`w-full px-3 py-2.5 text-sm border ${validationErrors.status ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors dark:bg-slate-700 dark:text-slate-100 bg-white`}
-                    >
-                      {['Planning', 'In Progress', 'Completed'].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    {validationErrors.status && <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>}
-                  </div>
-
                 </div>
+
+                {/* Custom Fields Section */}
+                {customColumns.length > 0 && (
+                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+                      <h4 className="text-[13px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">Additional Details</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                      {customColumns.map(col => {
+                        const inputType = {
+                          'integer': 'number',
+                          'decimal': 'number',
+                          'currency': 'number',
+                          'percentage': 'number',
+                          'date': 'date',
+                          'datetime': 'datetime-local',
+                          'email': 'email',
+                          'phone': 'tel',
+                          'url': 'url',
+                          'boolean': 'checkbox'
+                        }[col.data_type || col.type] || 'text';
+
+                        if (col.data_type === 'boolean' || col.type === 'boolean') {
+                          return (
+                            <div key={col.id} className="flex items-center gap-3 mt-6">
+                              <input
+                                type="checkbox"
+                                id={`edit-${col.id}`}
+                                checked={editForm[col.id] === true}
+                                onChange={(e) => handleEditFormChange(col.id, e.target.checked)}
+                                className="h-5 w-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                              />
+                              <label htmlFor={`edit-${col.id}`} className="text-xs font-semibold text-slate-700 dark:text-slate-100 cursor-pointer">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                            </div>
+                          );
+                        }
+
+                        if (col.data_type === 'dropdown' || col.type === 'dropdown' || col.data_type === 'status' || col.data_type === 'priority') {
+                          const options = col.validation_rules?.options || [];
+                          return (
+                            <div key={col.id}>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                                {col.label} {col.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <select
+                                value={editForm[col.id] || ''}
+                                onChange={e => handleEditFormChange(col.id, e.target.value)}
+                                className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 appearance-none cursor-pointer`}
+                              >
+                                <option value="">Select {col.label}</option>
+                                {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                              {validationErrors[col.id] && (
+                                <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={col.id}>
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">
+                              {col.label} {col.required && <span className="text-red-500">*</span>}
+                            </label>
+                            <input
+                              type={inputType}
+                              value={editForm[col.id] || ''}
+                              onChange={e => handleEditFormChange(col.id, e.target.value)}
+                              placeholder={`Enter ${col.label.toLowerCase()}`}
+                              className={`w-full px-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border ${validationErrors[col.id] ? 'border-red-500 ring-2 ring-red-500/10' : 'border-slate-200 dark:border-slate-700'} rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-400`}
+                            />
+                            {validationErrors[col.id] && (
+                              <p className="mt-1 text-[10px] text-red-500 font-medium ml-1">{validationErrors[col.id]}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
-                <p className="text-xs text-slate-400"><span className="text-red-500">*</span> Required fields</p>
-                <div className="flex gap-3 w-full items-center">
+              <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
+                <div className="flex items-center gap-3 w-full">
                   {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                     <button
                       onClick={(e) => { 
@@ -2111,21 +2565,21 @@ const ProjectMaster = () => {
                         setActiveSubCategoryProject(editForm);
                         setShowSubCategoryModal(true);
                       }}
-                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto"
+                      className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2 mr-auto shadow-sm"
                     >
-                      <FolderTree className="h-4 w-4" />
-                      Sub Categories
+                      <FileText className="h-4 w-4" />
+                      Trackers management
                     </button>
                   )}
                   <button
                     onClick={cancelEdit}
-                    className="px-5 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-slate-700 dark:text-slate-300"
+                    className={`px-6 py-2 text-sm font-semibold text-slate-600 dark:text-slate-100 hover:text-slate-900 dark:hover:text-slate-200 transition-colors ${(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) ? '' : 'ml-auto'}`}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={saveEdit}
-                    className="px-5 py-2 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 active:bg-amber-700 transition-colors shadow-sm flex items-center gap-2"
+                    className="px-8 py-2 text-sm font-bold bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-md shadow-amber-500/10 dark:shadow-none transition-all active:scale-[0.98] flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Save Changes
@@ -2138,34 +2592,34 @@ const ProjectMaster = () => {
 
         {/* View Project Modal */}
         {showViewModal && viewData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+          <div className="app-modal-overlay">
+            <div className="app-modal-container max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
-              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md">
                     <Briefcase className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white leading-none">Project Details</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Full information for {viewData.name}</p>
+                    <h3 className="app-modal-title leading-none">Project Details</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-100 mt-1">Full information for {viewData.name}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-all"
+                  className="app-modal-close-btn"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Modal Body */}
-              <div className="flex-1 overflow-y-auto p-6">
+              <div className="app-modal-body flex-1 overflow-y-auto p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
                   {columns.map((col) => (
                     <div key={col.id} className="flex flex-col gap-1">
                       <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{col.label}</span>
-                      <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-700 min-h-[42px] flex items-center">
+                      <div className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-700 min-h-[42px] flex items-center">
                         {renderCellContent(col, viewData[col.id], viewData)}
                       </div>
                     </div>
@@ -2174,22 +2628,22 @@ const ProjectMaster = () => {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+              <div className="app-modal-footer flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
                 {(isAdmin || (currentUser?.permissions || []).includes('Project Master:VIEW-SUBCATEGORY')) && (
                   <button
                     onClick={() => { 
                       setActiveSubCategoryProject(viewData);
                       setShowSubCategoryModal(true);
                     }}
-                    className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
+                    className="px-4 py-2 text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
                   >
-                    <FolderTree className="h-4 w-4" />
-                    Manage Sub Categories
+                    <FileText className="h-4 w-4" />
+                    Trackers management
                   </button>
                 )}
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all text-sm shadow-sm"
+                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-md font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm shadow-sm"
                 >
                   Close
                 </button>
@@ -2211,9 +2665,122 @@ const ProjectMaster = () => {
 
           {/* Loading / Error State */}
           {loading && (
-            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-              Loading data...
-            </div>
+            <>
+              {/* TOOLBAR SKELETON */}
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  {/* LEFT SIDE */}
+                  <div className="flex flex-1 flex-col sm:flex-row gap-2 sm:gap-2 items-start sm:items-center">
+                    {/* Search skeleton */}
+                    <Skeleton className="w-full sm:w-48 h-10 border border-slate-200 dark:border-slate-700" />
+                    {/* Filter button skeleton */}
+                    <Skeleton className="w-24 h-10 border border-slate-200 dark:border-slate-700" />
+                    {/* Columns button skeleton */}
+                    <Skeleton className="w-24 h-10 border border-slate-200 dark:border-slate-700" />
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div className="flex gap-2 mt-2 sm:mt-0">
+                    <Skeleton className="w-28 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-28 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-10 h-10 border border-slate-200 dark:border-slate-700" />
+                    <Skeleton className="w-10 h-10 border border-slate-200 dark:border-slate-700" />
+                  </div>
+                </div>
+              </div>
+
+              {/* TABLE SKELETON */}
+              <div className="master-table-scroll">
+                <div className="master-table-scroll-inner">
+                  <table className="master-table">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                      <tr className="border-b border-slate-200 dark:border-slate-700">
+                        {/* Checkbox column */}
+                        <th className="py-3 px-4 w-10">
+                          <Skeleton className="h-4 w-4 mx-auto" />
+                        </th>
+                        {visibleColumns.map((col) => (
+                          <th key={col.id} className="py-3 px-4 font-medium text-left">
+                            <Skeleton className="h-4 w-20" />
+                          </th>
+                        ))}
+                        {/* Actions Header */}
+                        <th className="px-6 py-3 text-right font-medium w-24">
+                          <Skeleton className="h-4 w-16 ml-auto" />
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/80 dark:divide-slate-700/50">
+                      {Array.from({ length: pageSize }).map((_, rIdx) => (
+                        <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                          {/* Checkbox cell */}
+                          <td className="py-3 px-4 w-10">
+                            <Skeleton className="h-4 w-4 mx-auto" />
+                          </td>
+                          {visibleColumns.map((col, cIdx) => {
+                            // Give varying widths to table cell skeletons for rich, natural feeling
+                            const widths = ['w-12', 'w-16', 'w-20', 'w-24', 'w-28', 'w-32', 'w-36', 'w-40'];
+                            const widthClass = widths[(rIdx + cIdx) % widths.length];
+
+                            if (col.id === 'status') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <div className="flex items-center gap-2">
+                                    <Skeleton className="w-1.5 h-1.5 rounded-full" />
+                                    <Skeleton className="h-5 w-16 rounded-full" />
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.id === 'budget' || col.id === 'utilized_budget' || col.id === 'balance_budget') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-100">
+                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                    <Skeleton className="h-4 w-16 rounded" />
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (col.id === 'detailed_view') {
+                              return (
+                                <td key={col.id} className="py-3 px-4">
+                                  <Skeleton className="h-6 w-16 rounded" />
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={col.id} className="py-3 px-4">
+                                <Skeleton className={`h-4 ${widthClass}`} />
+                              </td>
+                            );
+                          })}
+                          {/* Actions cell */}
+                          <td className="py-3 px-4 text-right w-[100px]">
+                            <div className="flex justify-end gap-2">
+                              <Skeleton className="h-7 w-7 rounded" />
+                              <Skeleton className="h-7 w-7 rounded" />
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* FOOTER SKELETON */}
+              <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-2 bg-white dark:bg-slate-800 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-10 w-10 border border-slate-200 dark:border-slate-700" />
+                  <Skeleton className="h-10 w-10 border border-slate-200 dark:border-slate-700" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-8 w-20" />
+                  <Skeleton className="h-8 w-32" />
+                </div>
+              </div>
+            </>
           )}
 
           {error && (
@@ -2238,32 +2805,46 @@ const ProjectMaster = () => {
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-1 focus:ring-black"
+                        className="w-full sm:w-48 h-10 pl-9 pr-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-800 dark:text-slate-100 placeholder:text-slate-500"
                       />
                     </div>
 
-                    {/* Filter Button */}
+                    {/* Bulk Filter Button */}
+                    <button
+                      onClick={() => setShowFilterDrawer(true)}
+                      className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm"
+                    >
+                      <Filter className="h-4 w-4 text-slate-600 dark:text-slate-100" />
+                      <span className="hidden sm:inline text-slate-700 dark:text-slate-100 font-medium">Filter</span>
+                      {Object.values(activeFilters).some(v => v.length > 0) && (
+                        <span className="bg-blue-600 text-white text-[10px] min-w-[16px] h-4 rounded-full flex items-center justify-center font-bold px-1 animate-in zoom-in duration-200">
+                          {Object.values(activeFilters).reduce((acc, curr) => acc + curr.length, 0)}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Column Visibility Button (Previously Filter) */}
                     <div className="relative">
                       <button
                         onClick={() => {
-                          if (!showFilterDropdown) {
+                          if (!showColumnDropdown) {
                             const draft = {};
                             columns.forEach(col => { draft[col.id] = col.visible; });
                             setFilterDraft(draft);
                           }
-                          setShowFilterDropdown(!showFilterDropdown);
+                          setShowColumnDropdown(!showColumnDropdown);
                         }}
-                        className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80"
-                        data-tooltip="Filter columns"
+                        className="flex items-center gap-1.5 h-10 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all shadow-sm"
+                        data-tooltip="Manage columns"
                       >
-                        <Filter className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-slate-300">Filter</span>
+                        <Eye className="h-4 w-4 text-slate-600 dark:text-slate-100" />
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100 font-medium">Columns</span>
                       </button>
 
-                      {showFilterDropdown && (
+                      {showColumnDropdown && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowFilterDropdown(false)} />
-                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 p-3">
+                          <div className="fixed inset-0 z-40" onClick={() => setShowColumnDropdown(false)} />
+                          <div className="absolute left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 p-3">
                             <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">Visible Columns</h4>
                             <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
                               {columns.map(col => (
@@ -2279,11 +2860,11 @@ const ProjectMaster = () => {
                               ))}
                             </div>
                             <div className="mt-3 pt-3 border-t border-slate-200 flex justify-end gap-2">
-                              <button onClick={() => setShowFilterDropdown(false)} className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
+                              <button onClick={() => setShowColumnDropdown(false)} className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded transition-colors">Cancel</button>
                               <button
                                 onClick={() => {
                                   setColumns(columns.map(col => ({ ...col, visible: filterDraft[col.id] !== false })));
-                                  setShowFilterDropdown(false);
+                                  setShowColumnDropdown(false);
                                 }}
                                 className="px-3 py-1.5 text-xs bg-blue-600 text-white hover:bg-blue-700 rounded transition-colors shadow-sm"
                               >Apply</button>
@@ -2301,9 +2882,8 @@ const ProjectMaster = () => {
                     {canAddProject && (
                       <button
                         onClick={handleAddProjectClick}
-                        className="flex items-center gap-1.5 h-10 px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+                        className="flex items-center h-10 px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
                       >
-                        <Plus className="h-4 w-4" />
                         <span className="font-medium">Add Project</span>
                       </button>
                     )}
@@ -2315,7 +2895,7 @@ const ProjectMaster = () => {
                         className="flex items-center gap-1.5 h-10 px-3 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors whitespace-nowrap"
                       >
                         <Plus className="h-4 w-4 text-slate-500" />
-                        <span className="hidden sm:inline text-slate-700 dark:text-slate-300">Add Column</span>
+                        <span className="hidden sm:inline text-slate-700 dark:text-slate-100">Add Column</span>
                       </button>
                     )}
 
@@ -2324,11 +2904,11 @@ const ProjectMaster = () => {
                       onClick={toggleFreezeColumn}
                       className={`flex items-center gap-1 h-10 px-3 text-xs sm:text-sm border rounded whitespace-nowrap master-table-tooltip ${frozenColumns.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-100'
                         }`}
                       data-tooltip={frozenColumns.length > 0 ? "Unfreeze columns" : "Freeze columns"}
                     >
-                      <Snowflake className={`h-4 w-4 ${frozenColumns.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-400'}`} />
+                      <Snowflake className={`h-4 w-4 ${frozenColumns.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-100'}`} />
                       {frozenColumns.length > 0 && <span className="ml-1 text-xs">{frozenColumns.length}</span>}
                     </button>
 
@@ -2352,25 +2932,25 @@ const ProjectMaster = () => {
                           <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded shadow-lg z-50">
                             <button
                               onClick={() => handleExportClick('excel')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as Excel
                             </button>
                             <button
                               onClick={() => handleExportClick('csv')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as CSV
                             </button>
                             <button
                               onClick={() => handleExportClick('json')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as JSON
                             </button>
                             <button
                               onClick={() => handleExportClick('pdf')}
-                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800"
+                              className="block w-full text-left px-4 py-2 text-xs sm:text-sm text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800"
                             >
                               Export as PDF
                             </button>
@@ -2390,6 +2970,58 @@ const ProjectMaster = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Active Filter Chips */}
+                {Object.values(activeFilters).some(v => v.length > 0) && (
+                  <div className="mt-3 flex flex-wrap gap-2 animate-in slide-in-from-top-2 duration-200">
+                    {(() => {
+                      const allChips = Object.entries(activeFilters).flatMap(([key, values]) =>
+                        values.map(val => ({ key, val }))
+                      );
+                      const visibleChips = showAllChips ? allChips : allChips.slice(0, 10);
+                      const hasMore = allChips.length > 10;
+
+                      return (
+                        <>
+                          {visibleChips.map(({ key, val }, index) => (
+                            <div
+                              key={`${key}-${val}-${index}`}
+                              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-800 text-[11px] font-bold"
+                            >
+                              <span className="opacity-60 uppercase text-[9px] tracking-wider">{key.replace('_', ' ')}:</span>
+                              <span>{val}</span>
+                              <button
+                                onClick={() => {
+                                  setActiveFilters({
+                                    ...activeFilters,
+                                    [key]: activeFilters[key].filter(v => v !== val)
+                                  });
+                                }}
+                                className="hover:text-blue-900 dark:hover:text-blue-200 transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                          {hasMore && (
+                            <button
+                              onClick={() => setShowAllChips(!showAllChips)}
+                              className="px-3 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"
+                            >
+                              {showAllChips ? 'Show less' : `+${allChips.length - 10} more`}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setActiveFilters({ department: [], status: [], project_manager: [], employee_name: [] })}
+                            className="px-3 py-1 text-[11px] font-bold text-slate-500 hover:text-red-600 transition-colors"
+                          >
+                            Clear all
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* TABLE SECTION - SCROLLABLE */}
@@ -2437,30 +3069,30 @@ const ProjectMaster = () => {
                                 </button>
                                 {activeDropdownColumn === col.id && (
                                   <div
-                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
+                                    className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border border-slate-200 dark:border-slate-700 z-50 py-1 normal-case tracking-normal"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     {col.sortable && (
                                       <>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                        <button onClick={() => handleSortFromMenu(col.id, 'ascending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                           <ArrowUp className="h-3.5 w-3.5 text-slate-400" /> Sort Ascending
                                         </button>
-                                        <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                        <button onClick={() => handleSortFromMenu(col.id, 'descending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                           <ArrowDown className="h-3.5 w-3.5 text-slate-400" /> Sort Descending
                                         </button>
                                         <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
                                       </>
                                     )}
-                                    <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <button onClick={() => handleCopyColumnName(col.label)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       <Copy className="h-3.5 w-3.5 text-slate-400" /> Copy name
                                     </button>
-                                    <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <button onClick={() => { startEditColumn(col.id, col.label); setShowColumnModal(true); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       <Edit className="h-3.5 w-3.5 text-slate-400" /> Edit column
                                     </button>
-                                    <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <button onClick={() => handleFreezeColumnMenu(actualColumnIndex)} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       {isColumnFrozen(actualColumnIndex) ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze column</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze column</>)}
                                     </button>
-                                    <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                    <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-100">
                                       {frozenRows.length > 0 ? (<><Snowflake className="h-3.5 w-3.5 text-blue-500" /><span className="text-blue-600">Unfreeze row(s)</span></>) : (<><Snowflake className="h-3.5 w-3.5 text-slate-400" />Freeze row(s)</>)}
                                     </button>
                                     <div className="h-px bg-slate-100 dark:bg-slate-700 my-1"></div>
@@ -2553,8 +3185,25 @@ const ProjectMaster = () => {
                     {/* Empty state */}
                     {paginatedProjects.length === 0 && (
                       <tr>
-                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-slate-500 dark:text-slate-400">
-                          No projects found
+                        <td colSpan={visibleColumns.length + 2} className="py-24">
+                          <div className="flex flex-col items-center justify-center text-center px-4">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700">
+                              <Briefcase className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-100 max-w-sm mx-auto leading-relaxed">
+                              Your project list is currently empty. Start by creating a new project to track its progress and budget.
+                            </p>
+                            {canAddProject && (
+                              <button
+                                onClick={handleAddProjectClick}
+                                className="mt-8 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-md transition-all shadow-md shadow-blue-500/10 active:scale-[0.98]"
+                              >
+                                <Plus className="h-5 w-5" />
+                                Launch New Project
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}
@@ -2572,11 +3221,11 @@ const ProjectMaster = () => {
                       onClick={toggleFreezeRow}
                       className={`flex items-center gap-1 h-10 px-3 text-xs border rounded master-table-tooltip ${frozenRows.length > 0
                         ? 'bg-blue-50 text-blue-700 border-blue-300'
-                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300'
+                        : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-100'
                         }`}
                       data-tooltip={frozenRows.length > 0 ? "Unfreeze rows" : "Select rows to freeze"}
                     >
-                      <Snowflake className={`h-4 w-4 ${frozenRows.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-400'}`} />
+                      <Snowflake className={`h-4 w-4 ${frozenRows.length > 0 ? 'text-blue-600' : 'text-slate-600 dark:text-slate-100'}`} />
                       {frozenRows.length > 0 && <span className="ml-1 text-xs">{frozenRows.length}</span>}
                     </button>
                   </div>
@@ -2613,7 +3262,7 @@ const ProjectMaster = () => {
                 <div className="flex items-center gap-4">
                   {/* Page Size Selector */}
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-600 dark:text-slate-400">Show:</span>
+                    <span className="text-slate-600 dark:text-slate-100">Show:</span>
                     <select
                       value={pageSize}
                       onChange={(e) => handlePageSizeChange(Number(e.target.value))}
@@ -2633,7 +3282,7 @@ const ProjectMaster = () => {
                         disabled={currentPage === 1}
                         className={`p-1 rounded ${currentPage === 1
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -2645,7 +3294,7 @@ const ProjectMaster = () => {
                           onClick={() => handlePageChange(pageNum)}
                           className={`px-2 py-1 text-xs rounded ${currentPage === pageNum
                             ? 'bg-blue-600 text-white'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                            : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                             }`}
                         >
                           {pageNum}
@@ -2657,7 +3306,7 @@ const ProjectMaster = () => {
                         disabled={currentPage === totalPages}
                         className={`p-1 rounded ${currentPage === totalPages
                           ? 'text-slate-400 dark:text-slate-500 cursor-not-allowed'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800'
+                          : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:bg-slate-800'
                           }`}
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -2665,7 +3314,7 @@ const ProjectMaster = () => {
                     </div>
                   )}
 
-                  <span className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-600 dark:text-slate-100">
                     Showing {paginatedProjects.length} of {sortedProjects.length} projects
                   </span>
 
@@ -2674,7 +3323,7 @@ const ProjectMaster = () => {
                       {selectedProjects.length} selected
                     </span>
                   )}
-                  <span className="text-slate-600 dark:text-slate-400">
+                  <span className="text-slate-600 dark:text-slate-100">
                     ({visibleColumns.length} of {columns.length} columns visible)
                   </span>
                   {(frozenRows.length > 0 || frozenColumns.length > 0) && (
@@ -2689,6 +3338,21 @@ const ProjectMaster = () => {
             </>
           )}
         </div>
+        <FilterDrawer
+          isOpen={showFilterDrawer}
+          onClose={() => setShowFilterDrawer(false)}
+          activeFilters={activeFilters}
+          setActiveFilters={setActiveFilters}
+          filterOptions={filterOptions}
+          sections={[
+            { id: 'department', label: 'Department', placeholder: 'Select departments...' },
+            { id: 'status', label: 'Status', placeholder: 'Select status...' },
+            { id: 'project_manager', label: 'Project Manager', placeholder: 'Select project managers...' },
+            { id: 'employee_name', label: 'Team Lead', placeholder: 'Select team leads...' }
+          ]}
+          title="Project Filters"
+          subtitle="Filter projects by department, status, or lead"
+        />
       </>
     </div>
   );

@@ -21,11 +21,11 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
 
   const createImage = (url) =>
     new Promise((resolve, reject) => {
-      const image = new Image();
-      image.addEventListener('load', () => resolve(image));
-      image.addEventListener('error', (error) => reject(error));
-      image.setAttribute('crossOrigin', 'anonymous');
-      image.src = url;
+      const img = new Image();
+      img.addEventListener('load', () => resolve(img));
+      img.addEventListener('error', (error) => reject(error));
+      img.setAttribute('crossOrigin', 'anonymous');
+      img.src = url;
     });
 
   const getCroppedImg = async (imageSrc, pixelCrop) => {
@@ -33,9 +33,7 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    if (!ctx) {
-      return null;
-    }
+    if (!ctx) return null;
 
     canvas.width = pixelCrop.width;
     canvas.height = pixelCrop.height;
@@ -54,17 +52,14 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
 
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
-        if (!blob) {
-          console.error('Canvas is empty');
-          return;
-        }
+        if (!blob) return;
         const file = new File([blob], 'cropped_logo.png', { type: 'image/png' });
         resolve(file);
       }, 'image/png');
     });
   };
 
-  const handleDone = async () => {
+  const handleSave = async () => {
     try {
       const croppedFile = await getCroppedImg(image, croppedAreaPixels);
       onCropComplete(croppedFile);
@@ -74,78 +69,60 @@ const ImageCropperModal = ({ image, onCropComplete, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-              <Move className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-800 tracking-tight">Adjust Company Logo</h2>
-              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Drag to reposition and zoom to scale</p>
-            </div>
-          </div>
-          <button 
-            onClick={onCancel}
-            className="p-3 hover:bg-slate-100 rounded-2xl text-slate-400 hover:text-slate-600 transition-all"
-          >
-            <X className="h-6 w-6" />
-          </button>
+    <div className="fixed inset-0 bg-[#0004ab]/80 backdrop-blur-sm z-[300] flex items-center justify-center p-6 animate-in fade-in duration-200">
+      <div className="bg-white max-w-2xl w-full border border-gray-200 overflow-hidden flex flex-col shadow-2xl rounded-none">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+           <h3 className="text-xl font-bold text-[#000000] uppercase tracking-tight">Identity Precision</h3>
+           <button onClick={onCancel} className="text-gray-400 hover:text-[#0004ab] transition-colors">
+              <X className="h-5 w-5" />
+           </button>
+        </div>
+        
+        <div className="relative h-[400px] w-full bg-gray-100/50">
+           <Cropper
+              image={image}
+              crop={crop}
+              zoom={zoom}
+              aspect={1 / 1}
+              onCropChange={onCropChange}
+              onCropComplete={onCropCompleteCallback}
+              onZoomChange={onZoomChange}
+              classes={{
+                containerClassName: "rounded-none",
+                cropAreaClassName: "border-2 border-white rounded-none shadow-[0_0_0_9999px_rgba(14,27,46,0.6)]"
+              }}
+           />
         </div>
 
-        {/* Cropper Area */}
-        <div className="relative h-[400px] w-full bg-slate-50">
-          <Cropper
-            image={image}
-            crop={crop}
-            zoom={zoom}
-            aspect={1 / 1}
-            onCropChange={onCropChange}
-            onCropComplete={onCropCompleteCallback}
-            onZoomChange={onZoomChange}
-            cropShape="rect"
-            showGrid={true}
-            classes={{
-                containerClassName: "rounded-b-[40px] overflow-hidden",
-                cropAreaClassName: "border-4 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] rounded-2xl"
-            }}
-          />
-        </div>
+        <div className="p-8 border-t border-gray-100 bg-white space-y-6">
+           <div className="flex items-center gap-6">
+              <ZoomOut className="h-4 w-4 text-gray-400" />
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="flex-1 h-1 bg-gray-100 rounded-full appearance-none cursor-pointer accent-[#0004ab]"
+              />
+              <ZoomIn className="h-4 w-4 text-gray-400" />
+           </div>
 
-        {/* Controls */}
-        <div className="p-8 space-y-8 bg-white">
-          <div className="flex items-center gap-6">
-            <ZoomOut className="h-5 w-5 text-slate-400" />
-            <input
-              type="range"
-              value={zoom}
-              min={1}
-              max={3}
-              step={0.1}
-              aria-labelledby="Zoom"
-              onChange={(e) => setZoom(parseFloat(e.target.value))}
-              className="flex-1 h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-            <ZoomIn className="h-5 w-5 text-slate-400" />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={onCancel}
-              className="flex-1 h-16 rounded-2xl font-black text-xs tracking-widest text-slate-500 hover:bg-slate-50 transition-all uppercase"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handleDone}
-              className="flex-[2] h-16 bg-[#1E3A8A] text-white rounded-3xl font-black text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-indigo-900 transition-all shadow-xl shadow-indigo-200 uppercase"
-            >
-              <Check className="h-5 w-5" />
-              Apply & Upload
-            </button>
-          </div>
+           <div className="flex gap-4">
+              <button 
+                onClick={onCancel}
+                className="flex-1 h-11 border border-gray-200 text-[#0004ab] font-bold text-[10px] tracking-widest uppercase hover:bg-gray-50 transition-colors"
+              >
+                Discard
+              </button>
+              <button 
+                onClick={handleSave}
+                className="flex-1 h-11 bg-[#0004ab] text-white font-bold text-[10px] tracking-widest uppercase hover:opacity-90 transition-opacity"
+              >
+                Confirm Crop
+              </button>
+           </div>
         </div>
       </div>
     </div>

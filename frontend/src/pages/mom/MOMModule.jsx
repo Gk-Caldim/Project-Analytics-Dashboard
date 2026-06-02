@@ -5,6 +5,7 @@ import { ChevronRight, Home, Layout, Clock, CheckCircle, AlertCircle } from 'luc
 import { fetchMOM, saveMOM, setMeetingContext, addMomRows, updateMomRow, deleteMomRow } from '../../store/slices/momSlice';
 import SpeechToText from './SpeechToText';
 import MeetingTable from './MeetingTable';
+import './tokens.css';
 
 const MOMModule = () => {
   const [searchParams] = useSearchParams();
@@ -56,7 +57,7 @@ const MOMModule = () => {
   }, [momData, meetingId, meetingName, reduxProjectId, reduxProjectName, dispatch]);
 
   return (
-    <div className="mom-page min-h-full bg-gray-50 flex flex-col relative text-slate-800">
+    <div className="mom-page mom-theme min-h-full bg-gray-50 flex flex-col relative text-slate-800">
       
       {/* ── BREADCRUMBS & TOP BAR ── */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm sticky top-0 z-30">
@@ -66,9 +67,9 @@ const MOMModule = () => {
             Dashboard
           </Link>
           <ChevronRight className="w-3 h-3" />
-          <Link to="/dashboard/meetings" className="hover:text-indigo-600 transition-colors flex items-center gap-1.5">
+          <Link to="/dashboard/calendar" className="hover:text-indigo-600 transition-colors flex items-center gap-1.5">
             <Layout className="w-3.5 h-3.5" />
-            Meetings
+            Calendar
           </Link>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-900 flex items-center gap-1.5">

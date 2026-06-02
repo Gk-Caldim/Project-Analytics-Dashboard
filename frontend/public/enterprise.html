@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Solutions | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        .hero { background: var(--navy); color: white; text-align: center; padding: 120px 40px 80px; }
+        .hero h1 { font-family: var(--font-serif); font-size: 54px; max-width: 800px; margin: 0 auto 24px; }
+        .hero p { font-size: 18px; color: rgba(255,255,255,0.6); max-width: 600px; margin: 0 auto 40px; }
+        .badge { background: var(--red); color: white; padding: 6px 16px; border-radius: 99px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 24px; display: inline-block; }
+        
+        .contact-grid { display: flex; gap: 80px; align-items: center; max-width: 1100px; margin: 0 auto; padding: 100px 40px; }
+        .contact-left { flex: 1; }
+        .contact-left h2 { font-family: var(--font-serif); font-size: 40px; margin-bottom: 24px; }
+        .contact-bullets { list-style: none; }
+        .contact-bullet { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: var(--muted); }
+        .contact-bullet span { color: var(--red); font-weight: bold; }
+        
+        .contact-right { flex: 1; background: var(--cream); padding: 40px; border-radius: 16px; color: var(--navy); }
+        .dynamic-stat { background: rgba(232, 68, 42, 0.08); border-radius: 6px; padding: 12px; font-size: 13px; color: var(--red); font-weight: 600; margin-top: 10px; display: none; }
+        
+        .success-box { text-align: center; display: none; }
+        .success-box h3 { font-family: var(--font-serif); font-size: 28px; margin-bottom: 16px; }
+        .ics-link { display: inline-block; margin-top: 24px; color: var(--red); font-weight: 600; text-decoration: underline; cursor: pointer; }
+
+        .demo-section { padding: 80px 40px; text-align: center; background: var(--white); }
+        .slots { display: flex; justify-content: center; gap: 16px; margin: 40px 0; }
+        .slot { padding: 20px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s; min-width: 140px; }
+        .slot:hover { border-color: var(--red); }
+        .slot.selected { border-color: var(--red); background: var(--red); color: white; }
+        .slot .time { font-weight: 700; font-size: 16px; display: block; }
+
+        .toast { position: fixed; bottom: 32px; right: 32px; background: var(--navy); color: white; padding: 16px 24px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transform: translateY(100px); transition: transform 0.3s; z-index: 1000; }
+        .toast.show { transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+    <nav class="zoho-nav">
+        <div class="zoho-nav-inner">
+            <div class="zoho-logo-area" onclick="window.location.href='/'">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-nav-right">
+                <a id="nav-products" class="zoho-nav-link">Products</a>
+                <a id="nav-customers" class="zoho-nav-link">Customers</a>
+                <a id="nav-pricing" class="zoho-nav-link">Pricing</a>
+                <a id="nav-enterprise" class="zoho-nav-link">Enterprise</a>
+                <a id="nav-signin" class="zoho-nav-link">Sign In</a>
+                <button id="access-workspace-btn" class="btn btn-primary">Access Workspace</button>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <span class="badge">Enterprise-grade</span>
+        <h1>The operating system your enterprise runs on</h1>
+        <p>Custom deployments, dedicated support, and the compliance your IT team requires.</p>
+    </section>
+
+    <section id="contact" class="contact-grid">
+        <div class="contact-left">
+            <h2>Ready to get started?</h2>
+            <ul class="contact-bullets">
+                <li class="contact-bullet"><span>✓</span> Setup in under 2 weeks</li>
+                <li class="contact-bullet"><span>✓</span> Dedicated onboarding team</li>
+                <li class="contact-bullet"><span>✓</span> 99.9% Uptime SLA guarantee</li>
+            </ul>
+        </div>
+        <div class="contact-right">
+            <form id="enterprise-form">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>Work Email</label>
+                    <input type="email" id="email" class="form-input" required placeholder="name@company.com">
+                    <div id="email-error" class="error-hint">Please use a company email address (no Gmail/Outlook).</div>
+                </div>
+                <div class="form-group">
+                    <label>Team Size</label>
+                    <select id="team-size" class="form-input" required>
+                        <option value="" disabled selected>Select size</option>
+                        <option value="10-50">10-50 employees</option>
+                        <option value="50-200">50-200 employees</option>
+                        <option value="200-1000">200-1000 employees</option>
+                        <option value="1000+">1000+ employees</option>
+                    </select>
+                    <div id="roi-stat" class="dynamic-stat"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 16px;" id="submit-btn">
+                    <span class="btn-text">Request a conversation →</span>
+                    <div class="spinner"></div>
+                </button>
+            </form>
+            <div id="success-box" class="success-box">
+                <h3>Request Sent</h3>
+                <p>Thank you, <span id="success-name"></span>. Our enterprise team will contact you at <span id="success-email"></span> within 24 hours.</p>
+                <div class="ics-link" onclick="downloadICS()">Add to calendar (Follow-up)</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="demo-section">
+        <h2>Prefer to see it live?</h2>
+        <p class="muted">Book a 30-minute demo with our product team.</p>
+        <div class="slots">
+            <div class="slot" onclick="selectSlot(this)">
+                <span class="time">10:00 AM</span>
+                <span class="date">Mon, Oct 21</span>
+            </div>
+            <div class="slot" onclick="selectSlot(this)">
+                <span class="time">2:30 PM</span>
+                <span class="date">Tue, Oct 22</span>
+            </div>
+            <div class="slot" onclick="selectSlot(this)">
+                <span class="time">4:00 PM</span>
+                <span class="date">Wed, Oct 23</span>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="confirmSlot()">Confirm slot</button>
+    </section>
+
+    <div id="toast" class="toast">Slot confirmed! We've sent a calendar invite.</div>
+
+    <footer class="zoho-footer">
+        <div class="zoho-footer-inner">
+            <div class="zoho-logo-area">
+                <div class="zoho-logo-box"></div>
+                <span class="zoho-logo-text">Industrial Analytics Workspace</span>
+            </div>
+            <div class="zoho-footer-text">© 2026 Corporation All rights reserved.</div>
+        </div>
+    </footer>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/navbar.js"></script>
+    <script>
+        const stats = {
+            "10-50": "Teams this size typically deploy in 5 days",
+            "50-200": "200+ companies this size run on our platform",
+            "200-1000": "Average 3.2x ROI reported in 60 days",
+            "1000+": "Dedicated white-glove onboarding included"
+        };
+
+        const teamSelect = document.getElementById('team-size');
+        const roiStat = document.getElementById('roi-stat');
+        const form = document.getElementById('enterprise-form');
+        const successBox = document.getElementById('success-box');
+        const submitBtn = document.getElementById('submit-btn');
+
+        teamSelect.addEventListener('change', () => {
+            const val = teamSelect.value;
+            if (stats[val]) {
+                roiStat.innerText = stats[val];
+                roiStat.style.display = 'block';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const name = document.getElementById('name').value;
+            const company = document.getElementById('company').value;
+            const teamSize = teamSelect.value;
+            
+            // Email Validation (No public domains)
+            const publicDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+            const domain = email.split('@')[1];
+            if (publicDomains.includes(domain)) {
+                const input = document.getElementById('email');
+                input.classList.add('invalid');
+                document.getElementById('email-error').style.display = 'block';
+                return;
+            }
+
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${window.Auth.BASE_URL}/api/enterprise/lead`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        full_name: name,
+                        work_email: email,
+                        company: company,
+                        team_size: teamSize,
+                        use_case: 'Enterprise Inquiry',
+                        message: 'Submitted via Enterprise Landing Page'
+                    })
+                });
+
+                if (response.ok) {
+                    form.style.display = 'none';
+                    document.getElementById('success-name').innerText = name.split(' ')[0];
+                    document.getElementById('success-email').innerText = email;
+                    successBox.style.display = 'block';
+                } else {
+                    const err = await response.json();
+                    alert("Error: " + (err.detail || "Submission failed"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Network error connecting to backend at port 8000");
+            } finally {
+                submitBtn.classList.remove('loading');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function selectSlot(el) {
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function confirmSlot() {
+            const selected = document.querySelector('.slot.selected');
+            if (selected) {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+        }
+
+        function downloadICS() {
+            const name = document.getElementById('name').value || 'User';
+            const icsData = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:Industrial Analytics Workspace Follow-up for ${name}
+DTSTART:20261021T100000Z
+DTEND:20261021T103000Z
+DESCRIPTION:Follow-up conversation regarding Enterprise solutions.
+END:VEVENT
+END:VCALENDAR`;
+            const blob = new Blob([icsData], { type: 'text/calendar' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'IAW-Followup.ics';
+            a.click();
+        }
+    </script>
+</body>
+</html>

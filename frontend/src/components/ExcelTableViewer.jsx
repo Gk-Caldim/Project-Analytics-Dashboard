@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter, Zap, MoreHorizontal, Info, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-hot-toast';
 import useCurrency from '../hooks/useCurrency';
 
 const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, loading, onDataUpdate, onProcessData }) => {
@@ -103,7 +104,6 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
     const [tempFrozenRows, setTempFrozenRows] = useState([]);
     const [tempFrozenColumns, setTempFrozenColumns] = useState([]);
 
-    const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
     // Column Pagination Derived Values
     const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
@@ -119,8 +119,9 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
     const [columnPage, setColumnPage] = useState(1);
 
     const showNotification = (message, type = 'success') => {
-        setNotification({ show: true, message, type });
-        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
+        if (type === 'success') toast.success(message);
+        else if (type === 'error') toast.error(message);
+        else toast(message);
     };
 
     useEffect(() => {
@@ -567,20 +568,6 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 
     return (
         <div className="flex flex-col bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-full h-[600px] overflow-hidden master-table-container">
-            {/* Notification Banner */}
-            {notification.show && (
-                <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 ${notification.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-                    notification.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-                        'bg-blue-100 text-blue-800 border border-blue-200'
-                    }`}>
-                    <div className="flex items-center">
-                        <span className="text-sm font-medium">{notification.message}</span>
-                        <button onClick={() => setNotification({ show: false, message: '', type: '' })} className="ml-4 text-slate-500 hover:text-slate-700">
-                            <X className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {/* Render Toolbar */}
             <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 bg-slate-50 dark:bg-slate-800">
@@ -902,7 +889,32 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             );
                         })}
                         {paginatedData.length === 0 && (
-                            <tr><td colSpan={paginatedColumns.length + 2} className="py-8 text-center text-sm text-slate-500">{loading ? 'Loading...' : 'No local data available'}</td></tr>
+                            <tr>
+                                <td colSpan={paginatedColumns.length + 2} className="py-20">
+                                    <div className="flex flex-col items-center justify-center text-center px-4">
+                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 animate-pulse">
+                                            <FileText className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">
+                                            {loading ? 'Processing Data...' : 'No Data Found'}
+                                        </h3>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">
+                                            {loading 
+                                                ? 'Please wait while we prepare your table view. This might take a few seconds.' 
+                                                : 'We couldn\'t find any records matching your current view. Try adjusting filters or adding a new row.'}
+                                        </p>
+                                        {!loading && (
+                                            <button 
+                                                onClick={handleAddRowClick}
+                                                className="mt-6 flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Add First Row
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
                         )}
                     </tbody>
                 </table>
@@ -1120,7 +1132,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             {columns.map(col => {
                                 const isEditing = editingColumn === col.id;
                                 return (
-                                    <div key={col.id} className="flex items-center justify-between p-2 border rounded">
+                                    <div key={col.id} className="flex items-center justify-between p-2 border rounded dark:border-slate-700">
                                         {isEditing ? (
                                             <div className="flex items-center gap-2">
                                                 <input type="text" value={tempColumnName} onChange={e => setTempColumnName(e.target.value)} className="px-2 py-1 text-sm border rounded" />
@@ -1145,10 +1157,10 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 
             {showDeleteColumnPrompt && (
                 <div className="fixed inset-0 bg-black/50 flex text-left items-center justify-center z-[110]">
-                    <div className="bg-white p-6 rounded-lg max-w-sm w-full shadow-2xl">
-                        <h3 className="font-medium mb-4">Delete column "{showDeleteColumnPrompt.columnLabel}"?</h3>
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-sm w-full shadow-2xl">
+                        <h3 className="font-medium mb-4 text-slate-900 dark:text-slate-100">Delete column "{showDeleteColumnPrompt.columnLabel}"?</h3>
                         <div className="flex justify-end gap-2 text-sm">
-                            <button onClick={() => setShowDeleteColumnPrompt(null)} className="px-3 py-1.5 border rounded">Cancel</button>
+                            <button onClick={() => setShowDeleteColumnPrompt(null)} className="px-3 py-1.5 border dark:border-slate-600 rounded">Cancel</button>
                             <button onClick={confirmDeleteColumn} className="px-3 py-1.5 bg-red-600 text-white rounded">Delete</button>
                         </div>
                     </div>

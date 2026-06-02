@@ -1,11 +1,11 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional
 import json
 import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/ws", tags=["WebSockets"])
 
 class ConnectionManager:
     def __init__(self):
@@ -14,7 +14,7 @@ class ConnectionManager:
         # Global active connections for system-wide broadcasts (like Dashboard notifications)
         self.active_connections: Set[WebSocket] = set()
 
-    async def connect(self, websocket: WebSocket, meeting_id: str = None):
+    async def connect(self, websocket: WebSocket, meeting_id: Optional[str] = None):
         await websocket.accept()
         if meeting_id:
             if meeting_id not in self.rooms:
@@ -23,7 +23,7 @@ class ConnectionManager:
         else:
             self.active_connections.add(websocket)
 
-    def disconnect(self, websocket: WebSocket, meeting_id: str = None):
+    def disconnect(self, websocket: WebSocket, meeting_id: Optional[str] = None):
         if meeting_id:
             if meeting_id in self.rooms and websocket in self.rooms[meeting_id]:
                 self.rooms[meeting_id].remove(websocket)
@@ -33,7 +33,7 @@ class ConnectionManager:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
 
-    async def broadcast_to_room(self, meeting_id: str, message: dict, sender: WebSocket = None):
+    async def broadcast_to_room(self, meeting_id: str, message: dict, sender: Optional[WebSocket] = None):
         if meeting_id in self.rooms:
             # Convert to list to avoid runtime errors if connections disconnect mid-loop
             for connection in list(self.rooms[meeting_id]):
@@ -54,7 +54,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # NOTE: More specific routes must come BEFORE wildcard routes in FastAPI
-@router.websocket("/ws/capture/{meeting_id}/{client_id}")
+@router.websocket("/capture/{meeting_id}/{client_id}")
 async def capture_websocket_endpoint(websocket: WebSocket, meeting_id: str, client_id: str):
     """Room-based WebSocket for MeetingCapture live collaboration."""
     await manager.connect(websocket, meeting_id)
@@ -69,12 +69,15 @@ async def capture_websocket_endpoint(websocket: WebSocket, meeting_id: str, clie
     except WebSocketDisconnect:
         manager.disconnect(websocket, meeting_id)
 
-@router.websocket("/ws/{client_id}")
+@router.websocket("/status/{client_id}")
 async def global_websocket_endpoint(websocket: WebSocket, client_id: str):
     """Global WebSocket for system-wide notifications (MOM_SAVED, etc.)."""
+    logger.info(f"WS Attempt: {client_id}")
     await manager.connect(websocket)
     try:
+        logger.info(f"WS Connected: {client_id}")
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        logger.info(f"WS Disconnected: {client_id}")
         manager.disconnect(websocket)

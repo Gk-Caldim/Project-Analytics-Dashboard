@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
-import { Building2, MapPin, Globe, Banknote, Upload, Trash2, ShieldCheck, Info, Edit } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { setBranding } from '../../../store/slices/navSlice';
+import API from '../../../utils/api';
+import { toast } from 'react-hot-toast';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import ImageCropperModal from './ImageCropperModal';
 
-const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
+const GeneralInfo = ({ settings, onSaveSuccess }) => {
+  const dispatch = useDispatch();
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
+  const [localEdits, setLocalEdits] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
-  const getValue = (key) => settings.find(s => s.key === key)?.value || '';
+  const getValue = (key) => {
+    if (localEdits[key] !== undefined) return localEdits[key];
+    return settings.find(s => s.key === key)?.value || '';
+  };
+
+  const handleUpdate = (key, value) => {
+    setLocalEdits(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -18,206 +33,364 @@ const GeneralInfo = ({ settings, onUpdate, onLogoUpload }) => {
       };
       reader.readAsDataURL(file);
     }
-    // Reset input so the same file can be selected again
     e.target.value = '';
   };
 
   const handleEditExistingLogo = async () => {
     const currentLogo = getValue('company_logo');
     if (!currentLogo) return;
-    
     setImageToCrop(currentLogo);
     setIsCropModalOpen(true);
   };
 
-  const handleCropComplete = (croppedFile) => {
-    setIsCropModalOpen(false);
-    onLogoUpload(croppedFile);
+  const handleLogoUpload = async (imageSource) => {
+    let file;
+    if (imageSource instanceof File) {
+      file = imageSource;
+    } else {
+      file = imageSource.target.files[0];
+    }
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      setIsUploadingLogo(true);
+      const response = await API.post('/settings/upload-logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const logoUrl = response.data.url;
+      handleUpdate('company_logo', logoUrl);
+      toast.success('Logo uploaded locally. Save settings to persist.');
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo');
+    } finally {
+      setIsUploadingLogo(false);
+    }
   };
 
+  const handleCropComplete = (croppedFile) => {
+    setIsCropModalOpen(false);
+    handleLogoUpload(croppedFile);
+  };
+
+  const hasChanges = Object.keys(localEdits).length > 0;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const settingsToUpdate = Object.entries(localEdits).map(([key, value]) => {
+        const original = settings.find(s => s.key === key);
+        return {
+          key,
+          value,
+          category: original?.category || 'General',
+          type: original?.type || 'text'
+        };
+      });
+      await API.patch('/settings/bulk', { settings: settingsToUpdate });
+
+      // Update Redux state
+      if (localEdits.company_logo !== undefined || localEdits.company_name !== undefined || localEdits.base_currency !== undefined || localEdits.sidebar_dashboard_limit !== undefined || localEdits.sidebar_dashboard_mode !== undefined) {
+        dispatch(setBranding({
+          companyLogo: localEdits.company_logo !== undefined ? localEdits.company_logo : settings.find(s => s.key === 'company_logo')?.value,
+          companyName: localEdits.company_name !== undefined ? localEdits.company_name : settings.find(s => s.key === 'company_name')?.value,
+          baseCurrency: localEdits.base_currency !== undefined ? localEdits.base_currency : settings.find(s => s.key === 'base_currency')?.value,
+          sidebarDashboardLimit: localEdits.sidebar_dashboard_limit !== undefined ? localEdits.sidebar_dashboard_limit : settings.find(s => s.key === 'sidebar_dashboard_limit')?.value,
+          sidebarDashboardMode: localEdits.sidebar_dashboard_mode !== undefined ? localEdits.sidebar_dashboard_mode : settings.find(s => s.key === 'sidebar_dashboard_mode')?.value,
+        }));
+      }
+
+      setLocalEdits({});
+      toast.success('System settings saved successfully');
+      if (onSaveSuccess) await onSaveSuccess();
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    setLocalEdits({});
+    toast.success('Changes discarded');
+  };
+  // new commit
+  
+
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Organization Landscape</h2>
-           </div>
+    <div className="space-y-12">
+      <div>
+        <h2 className="text-3xl font-bold text-text-primary tracking-tight">System Configuration</h2>
+        <p className="text-sm text-gray-500 mt-2">Manage your institution's core identity and branding assets.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Forms */}
-        <div className="lg:col-span-8 space-y-8">
-          {/* Corporate Identity Card */}
-          <div className="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-sm space-y-8 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm border border-indigo-100/20">
-                <Building2 className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="font-black text-slate-800 text-sm tracking-widest uppercase">Corporate Identity</h3>
-                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-tight mt-0.5">Define your company's core public information</p>
-              </div>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
-                  Official Company Name
-                </label>
-                <input
-                  type="text"
-                  value={getValue('company_name')}
-                  onChange={(e) => onUpdate('company_name', e.target.value)}
-                  className="w-full h-14 px-6 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-black text-slate-700 shadow-sm placeholder:text-slate-300"
-                  placeholder="e.g. CALTIMS INDUSTRIAL"
-                />
-              </div>
+      <div className="bg-app-surface border border-border p-8 rounded-none">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">System Preferences</h3>
 
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
-                  Headquarters Address
-                </label>
-                <textarea
-                  rows={4}
-                  value={getValue('hq_address')}
-                  onChange={(e) => onUpdate('hq_address', e.target.value)}
-                  className="w-full px-6 py-4 bg-slate-50/50 border border-slate-200/80 rounded-3xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500/50 focus:bg-white transition-all font-bold text-slate-600 shadow-sm placeholder:text-slate-300 leading-relaxed"
-                  placeholder="123 Enterprise Way, Tech City..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
-                    Operational Country
-                  </label>
-                  <div className="relative">
-                    <Globe className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={getValue('operational_country') || 'India'}
-                      onChange={(e) => onUpdate('operational_country', e.target.value)}
-                      className="w-full h-14 pl-12 pr-6 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 transition-all font-bold text-slate-700"
-                    />
-                  </div>
-                </div>
-                <div className="group">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 transition-colors group-focus-within:text-indigo-500">
-                    Base Currency
-                  </label>
-                  <div className="relative">
-                    <Banknote className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <select 
-                      value={getValue('base_currency') || 'USD ($)'}
-                      onChange={(e) => onUpdate('base_currency', e.target.value)}
-                      className="w-full h-14 pl-12 pr-10 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-8 focus:ring-indigo-500/5 transition-all font-bold text-slate-700 appearance-none cursor-pointer"
-                    >
-                      <option>USD ($)</option>
-                      <option>INR (₹)</option>
-                      <option>EUR (€)</option>
-                    </select>
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                       <ChevronRight className="h-4 w-4 rotate-90" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div> 
-        </div>
-
-        {/* Right Column: Logo & Additional Info */}
-        <div className="lg:col-span-4 space-y-8">
-          <div className="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-sm flex flex-col items-center text-center relative overflow-hidden h-fit">
-            <div className="absolute top-0 right-0 p-3 opacity-10">
-               <Building2 className="h-24 w-24" />
-            </div>
-            
-            <div className="self-start flex items-center gap-4 mb-8">
-              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl shadow-sm border border-indigo-100/20">
-                <Globe className="h-6 w-6" />
-              </div>
-              <div className="text-left">
-                <h3 className="font-black text-slate-800 text-sm tracking-widest uppercase">Company Logo</h3>
-              </div>
-            </div>
-
-            <div className="relative group w-full aspect-square max-w-[280px] mb-8">
-              <div className="absolute inset-0 bg-slate-50 border-2 border-dashed border-slate-200 rounded-[40px] flex flex-col items-center justify-center p-8 transition-all group-hover:bg-indigo-50/50 group-hover:border-indigo-300">
-                {getValue('company_logo') ? (
-                  <img 
-                    src={getValue('company_logo')} 
-                    alt="Logo" 
-                    className="max-h-full max-w-full object-contain rounded-2xl drop-shadow-sm"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "/caldimlogo.png";
-                    }}
-                  />
-                ) : (
-                  <>
-                    <div className="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-6 text-slate-200 group-hover:text-indigo-400 group-hover:scale-110 transition-all duration-500">
-                      <Globe className="h-10 w-10" />
-                    </div>
-                    <p className="text-xs font-black text-slate-500 tracking-widest uppercase">SELECT IMAGE ASSET</p>
-                  </>
-                )}
-              </div>
-              
-              <input 
-                id="logo-upload-input"
-                type="file" 
-                onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer" 
-                accept="image/*"
-              />
-            </div>
-
-            <div className="flex flex-col gap-3 w-full">
-              <button 
-                onClick={() => document.getElementById('logo-upload-input').click()}
-                className="w-full h-14 flex items-center justify-center gap-3 bg-indigo-50/50 text-indigo-600 rounded-2xl font-black text-xs tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100/50 group uppercase"
+        <div className="space-y-12">
+          {/* Base Currency Section */}
+          <div className="space-y-4">
+            <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
+              Base Currency
+            </label>
+            <div className="max-w-xs relative">
+              <select
+                value={getValue('base_currency') || 'USD ($)'}
+                onChange={(e) => handleUpdate('base_currency', e.target.value)}
+                className="w-full h-11 pl-4 pr-10 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium appearance-none cursor-pointer text-text-primary"
               >
-                <Upload className="h-5 w-5 group-hover:-translate-y-1 transition-transform" />
-                Upload New Logo
-              </button>
-              <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={handleEditExistingLogo}
-                  disabled={!getValue('company_logo')}
-                  className="flex-1 h-12 flex items-center justify-center gap-2 bg-indigo-50/50 text-indigo-600 rounded-2xl font-black text-[10px] tracking-widest hover:bg-indigo-100 transition-all border border-indigo-100/30 uppercase disabled:opacity-30"
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit Logo
-                </button>
-                <button 
-                  onClick={() => onUpdate('company_logo', '')}
-                  className="flex-1 h-12 flex items-center justify-center gap-2 text-red-500 rounded-2xl font-black text-[10px] tracking-widest hover:bg-red-50 transition-all uppercase"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove Logo
-                </button>
+                <option>USD ($)</option>
+                <option>INR (₹)</option>
+                <option>EUR (€)</option>
+                <option>GBP (£)</option>
+                <option>JPY (¥)</option>
+                <option>CAD ($)</option>
+                <option>AUD ($)</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-text-muted">
+                <ChevronDown size={16} />
+              </div>
+            </div>
+            <p className="text-[11px] text-text-muted mt-2 italic">Sets the default currency for all financial analytics.</p>
+          </div>
+
+          <div className="h-px bg-border w-full" />
+
+          {/* Sidebar Management Section */}
+          <div className="space-y-8">
+            <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Sidebar Management</h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              {/* Dashboard Sub-modules Mode */}
+              <div className="space-y-4">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                  Dashboard Display Mode
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="dashboard_mode"
+                      checked={getValue('sidebar_dashboard_mode') !== 'recent'}
+                      onChange={() => handleUpdate('sidebar_dashboard_mode', 'custom')}
+                      className="w-4 h-4 text-brand-accent border-border focus:ring-brand-accent"
+                    />
+                    <span className="text-sm text-text-secondary font-medium group-hover:text-brand-accent transition-colors">Custom Display Count</span>
+                  </label>
+
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="dashboard_mode"
+                      checked={getValue('sidebar_dashboard_mode') === 'recent'}
+                      onChange={() => handleUpdate('sidebar_dashboard_mode', 'recent')}
+                      className="w-4 h-4 text-brand-accent border-border focus:ring-brand-accent"
+                    />
+                    <span className="text-sm text-text-secondary font-medium group-hover:text-brand-accent transition-colors">Recent Dashboard Activity (Latest 2)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Limits Section */}
+              <div className="space-y-6">
+                {getValue('sidebar_dashboard_mode') !== 'recent' && (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                      Dashboard Module Limit
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={getValue('sidebar_dashboard_limit') || '10'}
+                        onChange={(e) => handleUpdate('sidebar_dashboard_limit', e.target.value)}
+                        className="w-24 h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                      />
+                      <p className="text-[11px] text-text-muted italic">Max projects visible.</p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-app-surface border border-border p-8 rounded-none">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-[0.2em] mb-10">Budget Analysis & Proposal Settings</h3>
+
+        <div className="space-y-12">
+          {/* Inflation Rates Row */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Inflation Rates (%)</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">USD Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_usd') || '3.4'}
+                  onChange={(e) => handleUpdate('inflation_rate_usd', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">INR Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_inr') || '5.1'}
+                  onChange={(e) => handleUpdate('inflation_rate_inr', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">EUR Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_eur') || '2.4'}
+                  onChange={(e) => handleUpdate('inflation_rate_eur', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">GBP Inflation</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_gbp') || '2.0'}
+                  onChange={(e) => handleUpdate('inflation_rate_gbp', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Other Currencies</label>
+                <input
+                  type="number" step="0.1" min="0" max="100"
+                  value={getValue('inflation_rate_default') || '3.0'}
+                  onChange={(e) => handleUpdate('inflation_rate_default', e.target.value)}
+                  className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                />
               </div>
             </div>
           </div>
 
-          
+          <div className="h-px bg-border w-full" />
+
+          {/* Volatility and Contingency Row */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            {/* Volatility Factors */}
+            <div className="space-y-4 md:col-span-2">
+              <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Volatility Buffers (Multiplier)</h4>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Stable Currency</label>
+                  <input
+                    type="number" step="0.01" min="1.0" max="2.0"
+                    value={getValue('volatility_factor_stable') || '1.01'}
+                    onChange={(e) => handleUpdate('volatility_factor_stable', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                  />
+                  <p className="text-[10px] text-text-muted italic">e.g., 1.01 = 1% buffer</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Volatile Currency</label>
+                  <input
+                    type="number" step="0.01" min="1.0" max="2.0"
+                    value={getValue('volatility_factor_volatile') || '1.03'}
+                    onChange={(e) => handleUpdate('volatility_factor_volatile', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                  />
+                  <p className="text-[10px] text-text-muted italic">e.g., 1.03 = 3% buffer</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contingency Rates & Threshold */}
+            <div className="space-y-4 md:col-span-3">
+              <h4 className="text-sm font-bold text-text-primary uppercase tracking-tight">Contingency & Thresholds</h4>
+              <div className="grid grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Stable Contingency (%)</label>
+                  <input
+                    type="number" step="0.1" min="0" max="100"
+                    value={getValue('contingency_rate_stable') || '5.0'}
+                    onChange={(e) => handleUpdate('contingency_rate_stable', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Volatile Contingency (%)</label>
+                  <input
+                    type="number" step="0.1" min="0" max="100"
+                    value={getValue('contingency_rate_volatile') || '8.0'}
+                    onChange={(e) => handleUpdate('contingency_rate_volatile', e.target.value)}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider h-8 flex items-end pb-1">Util. Threshold (%)</label>
+                  <input
+                    type="number" step="1" min="1" max="100"
+                    value={Math.round(parseFloat(getValue('utilization_threshold') || '0.8') * 100)}
+                    onChange={(e) => handleUpdate('utilization_threshold', (parseFloat(e.target.value) / 100).toString())}
+                    className="w-full h-11 px-4 bg-app-panel border border-border rounded-md focus:border-brand-accent outline-none transition-colors text-sm font-medium text-text-primary"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
       {isCropModalOpen && (
-        <ImageCropperModal 
-          image={imageToCrop} 
-          onCropComplete={handleCropComplete} 
-          onCancel={() => setIsCropModalOpen(false)} 
+        <ImageCropperModal
+          image={imageToCrop}
+          onCropComplete={handleCropComplete}
+          onCancel={() => setIsCropModalOpen(false)}
         />
+      )}
+
+      {/* Floating Save/Discard Panel */}
+      {hasChanges && (
+        <div className="fixed bottom-6 left-[240px] right-6 flex justify-center z-50 animate-slideInUp">
+          <div className="bg-app-surface/95 dark:bg-slate-900/95 backdrop-blur-md border border-border-strong/30 shadow-2xl px-6 py-4 flex items-center justify-between gap-12 max-w-3xl w-full">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
+              <div>
+                <span className="text-xs font-bold text-text-primary uppercase tracking-wider">Unsaved Changes</span>
+                <p className="text-[10px] text-text-muted mt-0.5">You have modified configuration settings on this page.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleDiscard}
+                disabled={isSaving}
+                className="px-4 py-2 border border-transparent text-xs font-bold text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-6 py-2.5 bg-brand-accent hover:bg-brand-accent-hover text-white text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
-// Helper Chevron replacement
-const ChevronRight = ({ className }) => (
-  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m9 18 6-6-6-6"/>
-  </svg>
-);
 
 export default GeneralInfo;

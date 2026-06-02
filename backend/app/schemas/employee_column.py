@@ -7,6 +7,7 @@ class EmployeeColumnBase(BaseModel):
     column_label: str
     data_type: str = "text"
     is_required: bool = False
+    validation_rules: dict = {}
 
 class EmployeeColumnCreate(EmployeeColumnBase):
     pass
@@ -15,6 +16,7 @@ class EmployeeColumnUpdate(BaseModel):
     column_label: str | None = None
     data_type: str | None = None
     is_required: bool | None = None
+    validation_rules: dict | None = None
 
 class EmployeeColumnOut(EmployeeColumnBase):
     id: int

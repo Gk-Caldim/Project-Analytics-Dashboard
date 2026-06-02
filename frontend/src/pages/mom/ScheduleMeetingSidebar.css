@@ -472,3 +472,151 @@ input[type="time"].error,
     animation: fade-in 0.2s ease-out;
   }
 }
+
+
+/* ============================================================
+   ScheduleMeetingSidebar — Dark Theme Overrides
+   ============================================================ */
+
+[data-theme='dark'] .schedule-meeting-sidebar {
+  background: #1e293b;
+  border-left-color: #334155;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.35);
+}
+
+[data-theme='dark'] .sidebar-header {
+  border-bottom-color: #334155;
+}
+
+[data-theme='dark'] .sidebar-header h3 {
+  color: #f1f5f9;
+}
+
+[data-theme='dark'] .close-button {
+  color: #64748b;
+}
+
+[data-theme='dark'] .close-button:hover {
+  background: #2d3a47;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .sidebar-content::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+[data-theme='dark'] .sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+[data-theme='dark'] .form-label {
+  color: #64748b;
+}
+
+[data-theme='dark'] .form-label .badge {
+  background: rgba(29,78,216,0.15);
+  color: #60a5fa;
+}
+
+[data-theme='dark'] input[type="date"],
+[data-theme='dark'] input[type="time"],
+[data-theme='dark'] .form-select,
+[data-theme='dark'] .form-textarea {
+  background: #232c36;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+[data-theme='dark'] input[type="date"]:hover,
+[data-theme='dark'] input[type="time"]:hover,
+[data-theme='dark'] .form-select:hover,
+[data-theme='dark'] .form-textarea:hover {
+  border-color: #475569;
+  background: #2d3a47;
+}
+
+[data-theme='dark'] input[type="date"]:focus,
+[data-theme='dark'] input[type="time"]:focus,
+[data-theme='dark'] .form-select:focus,
+[data-theme='dark'] .form-textarea:focus {
+  border-color: #378add;
+  box-shadow: 0 0 0 3px rgba(55,138,221,0.15);
+  background: #1e293b;
+}
+
+[data-theme='dark'] .platform-button {
+  background: #232c36;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme='dark'] .platform-icon {
+  background: #2d3a47;
+  color: #64748b;
+}
+
+[data-theme='dark'] .platform-button:hover {
+  border-color: #475569;
+  background: #2d3a47;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+[data-theme='dark'] .platform-button.selected {
+  border-color: #378add;
+  background: rgba(55,138,221,0.08);
+  box-shadow: 0 0 0 3px rgba(55,138,221,0.12);
+}
+
+[data-theme='dark'] .timezone-info {
+  color: #475569;
+  background: #1a2230;
+  border-left-color: #334155;
+}
+
+[data-theme='dark'] .error-text {
+  color: #f87171;
+}
+
+[data-theme='dark'] .error-banner {
+  background: rgba(239,68,68,0.10);
+  color: #f87171;
+  border-left-color: rgba(239,68,68,0.4);
+}
+
+[data-theme='dark'] .sidebar-footer {
+  border-top-color: #334155;
+  background: #1a2230;
+}
+
+[data-theme='dark'] .primary-button {
+  background: rgba(29,78,216,0.15);
+  color: #60a5fa;
+}
+
+[data-theme='dark'] .primary-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(55,138,221,0.2);
+}
+
+[data-theme='dark'] .status-indicator {
+  color: #64748b;
+}
+
+[data-theme='dark'] .status-dot {
+  background: #334155;
+}
+
+[data-theme='dark'] .success-message {
+  background: rgba(16,185,129,0.10);
+  color: #34d399;
+  border-left-color: rgba(16,185,129,0.35);
+}
+
+[data-theme='dark'] .sidebar-backdrop {
+  background: rgba(0,0,0,0.55);
+}
+
+[data-theme='dark'] .schedule-meeting-toggle {
+  background: rgba(29,78,216,0.12);
+  color: #60a5fa;
+}
+

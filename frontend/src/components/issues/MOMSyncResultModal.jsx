@@ -9,6 +9,8 @@
  * - Option to download report or retry
  */
 
+
+// react component
 import React from 'react';
 import {
   AlertCircle, CheckCircle2, AlertTriangle, Info,

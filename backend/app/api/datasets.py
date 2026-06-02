@@ -1,4 +1,6 @@
 from fastapi import APIRouter, UploadFile, Form, HTTPException, File, Depends
+import logging
+
 from sqlalchemy.orm import Session
 from typing import Annotated
 from app.core.permissions import check_permissions
@@ -20,6 +22,11 @@ from fastapi import Query
 import json
 from collections import OrderedDict
 import threading
+import os
+from app.utils.ingestion import IngestionEngine
+
+logger = logging.getLogger(__name__)
+
 
 # 🔹 SIMPLE LRU CACHE FOR DASHBOARD DATA
 class DatasetCache:
@@ -54,6 +61,16 @@ class DatasetCache:
 global_dataset_cache = DatasetCache()
 
 router = APIRouter(prefix="/datasets", tags=["Datasets"])
+
+def resolve_dataset(dataset_id: int, db: Session):
+    """Helper to find Dataset by ID, with fallback to Upload.dataset_id"""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    if not dataset:
+        from app.models.upload import Upload
+        upload = db.query(Upload).filter(Upload.id == dataset_id).first()
+        if upload and upload.dataset_id:
+            dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
+    return dataset
 
 def get_dataset_df(dataset: Dataset, db: Session) -> pd.DataFrame:
     """Helper to get DataFrame from either dynamic table or legacy DatasetRow"""
@@ -98,8 +115,85 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
         return cached_data
 
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    
+    # ── FALLBACK FOR LEGACY TRACKERS ──────────────────────────────────────
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
+        from app.models.upload import Upload
+        upload = db.query(Upload).filter(Upload.id == dataset_id).first()
+        if not upload:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Dataset reference {dataset_id} not found in database."
+            )
+        
+        # If this upload is already migrated to a Dataset, use that instead!
+        if upload.dataset_id:
+            dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
+            if not dataset:
+                # If dataset record is missing but linked, fall back to file
+                pass
+        
+        # If we still don't have a dataset object, read from TrackerIngestion JSONB
+        if not dataset:
+            from app.models.tracker_ingestion import TrackerIngestion
+            ingestion = db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).first()
+            if ingestion and ingestion.data:
+                json_data = ingestion.data
+                if len(json_data) > 0:
+                    headers = list(json_data[0].keys())
+                    rows = [[row.get(h, "") for h in headers] for row in json_data]
+                else:
+                    headers = []
+                    rows = []
+                
+                result = {
+                    "headers": headers,
+                    "data": rows,
+                    "fileData": {
+                        "fileName": upload.file_name,
+                        "headers": headers,
+                        "data": rows,
+                        "sheets": [{"name": "Sheet1", "headers": headers, "data": rows}]
+                    }
+                }
+                global_dataset_cache.set(cache_key, result)
+                return result
+
+            # Final fallback to physical file if no JSONB is found
+            file_path = os.path.join("static", "uploads", "trackers", upload.file_name)
+            if not os.path.exists(file_path):
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Physical file '{upload.file_name}' not found on server and no JSONB data available."
+                )
+            
+            try:
+                try:
+                    df = pd.read_excel(file_path, engine='openpyxl')
+                except Exception as e_excel:
+                    print(f"Failed to read as Excel: {e_excel}. Trying CSV...")
+                    df = pd.read_csv(file_path)
+                    
+                df = df.fillna("")
+                headers = df.columns.tolist()
+                data = df.values.tolist()
+                
+                result = {
+                    "headers": headers,
+                    "data": data,
+                    "fileData": {
+                        "fileName": upload.file_name,
+                        "headers": headers,
+                        "data": data,
+                        "sheets": [{"name": "Sheet1", "headers": headers, "data": data}]
+                    }
+                }
+                global_dataset_cache.set(cache_key, result)
+                return result
+            except Exception as e:
+                print(f"Error reading legacy file {file_path}: {e}")
+                raise HTTPException(status_code=404, detail="Could not read legacy file")
+    # ──────────────────────────────────────────────────────────────────────
 
     columns = (
         db.query(DatasetColumn)
@@ -111,11 +205,16 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
     headers = [c.column_name for c in columns]
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return pd.DataFrame()
             with engine.begin() as conn:
                 df = pd.read_sql_query(text(f'SELECT * FROM "{dataset.table_name}" LIMIT 1000'), conn)
         except Exception as e:
             print(f"Error reading table {dataset.table_name}: {e}")
             df = pd.DataFrame()
+
     else:
         rows = db.query(DatasetRow).filter_by(dataset_id=dataset_id).limit(1000).all()
         if rows:
@@ -222,6 +321,16 @@ def get_chart_data(
     
     if dataset.table_name:
         try:
+            # Strictly validate table_name and column names to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return {"x": [], "y": [], "count": 0}
+            
+            # Column names might have spaces but should be validated against alphanumeric/underscore/space
+            if not all(re.match(r'^[a-zA-Z0-9_\s]+$', col) for col in [x, y]):
+                 logger.error(f"Invalid column names detected: {x}, {y}")
+                 return {"x": [], "y": [], "count": 0}
+
             with engine.begin() as conn:
                 # Need to quote the column names in case they have spaces
                 query = text(f'SELECT "{x}", "{y}" FROM "{dataset.table_name}"')
@@ -229,6 +338,7 @@ def get_chart_data(
         except Exception as e:
             print(f"Error fetching chart data: {e}")
             df = pd.DataFrame()
+
     else:
         df = get_dataset_df(dataset, db)
 
@@ -505,15 +615,14 @@ async def upload_dataset(
     # 1️⃣ Read file into DataFrame
     try:
         contents = await file.read()
-        if file.filename.endswith(".csv"):
-            df = pd.read_csv(BytesIO(contents))
-            df = df.fillna("")
-        else:
-            processed_data = process_excel(contents)
-            if not processed_data:
-                raise HTTPException(status_code=400, detail="No readable data found.")
-            df = pd.DataFrame(processed_data)
-            df = df.fillna("")
+        engine_inst = IngestionEngine()
+        processed_data = engine_inst.ingest(contents, file.filename)
+        
+        if not processed_data:
+            raise HTTPException(status_code=400, detail="No readable data found.")
+            
+        df = pd.DataFrame(processed_data)
+        df = df.fillna("")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read file: {e}")
 
@@ -604,18 +713,29 @@ async def upload_dataset(
 # ✅ THIS IS WHERE YOUR QUESTIONED CODE GOES
 @router.get("/{dataset_id}/schema")
 def get_schema(dataset_id: int, db: Session = Depends(get_db)):
-    return db.query(DatasetColumn).filter_by(dataset_id=dataset_id).all()
+    dataset = resolve_dataset(dataset_id, db)
+    target_id = dataset.id if dataset else dataset_id
+    return db.query(DatasetColumn).filter_by(dataset_id=target_id).all()
 
 
 @router.get("/{dataset_id}/data")
 def get_data(dataset_id: int, db: Session = Depends(get_db)):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    dataset = resolve_dataset(dataset_id, db)
     if not dataset:
+        # Fallback to TrackerIngestion
+        from app.models.tracker_ingestion import TrackerIngestion
+        ingestion = db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == dataset_id).first()
+        if ingestion and ingestion.data:
+            return ingestion.data
         return []
     
     # For dynamic tables, query only the first 1000 rows from the database directly
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                return []
             with engine.begin() as conn:
                 query = text(f'SELECT * FROM "{dataset.table_name}" LIMIT 1000')
                 df = pd.read_sql_query(query, conn)
@@ -623,6 +743,7 @@ def get_data(dataset_id: int, db: Session = Depends(get_db)):
         except Exception as e:
             print(f"Error fetching data: {e}")
             return []
+
 
     # Fallback for legacy datasets
     rows = db.query(DatasetRow).filter_by(dataset_id=dataset_id).limit(1000).all()
@@ -671,10 +792,15 @@ def delete_dataset(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
     # Drop dynamic table if exists
     if dataset.table_name:
         try:
+            # Strictly validate table_name to prevent SQL injection
+            if not re.match(r'^[a-zA-Z0-9_]+$', dataset.table_name):
+                logger.error(f"Invalid table name detected: {dataset.table_name}")
+                raise HTTPException(status_code=400, detail="Invalid table name")
             # Use text() for raw SQL to drop table
             db.execute(text(f'DROP TABLE IF EXISTS "{dataset.table_name}"'))
         except Exception as e:
             print(f"Error dropping table {dataset.table_name}: {e}")
+
 
     # Delete child rows first (FK safety) - for legacy data
     db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset_id).delete()
@@ -699,132 +825,155 @@ def process_dataset_data(
 ):
     """
     Triggers re-processing of dataset data:
-    1. Re-infers column types
-    2. Transforms data to normalized formats (e.g. dates to ISO)
-    3. Updates column metadata and underlying table/rows
-    Supports partial processing via payload.row_indices
+    1. Header Detection (Stage 2 & 3)
+    2. Self-Healing Cleaning (Stage 4)
     """
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    
+    # ── FALLBACK FOR LEGACY TRACKERS ──────────────────────────────────────
     if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-
-    df = get_dataset_df(dataset, db)
-    if df.empty:
-        raise HTTPException(status_code=400, detail="No data available to process")
-
-    # 1. Clean and Transform Data
-    new_columns_metadata = []
-    
-    # Identify explicit subset to process
-    subset_indices = payload.row_indices if payload and payload.row_indices else list(range(len(df)))
-    target_df = df.iloc[subset_indices].copy()
-    
-    for col in df.columns:
-        # Preprocessing: Clean up string values only on target_df
-        if target_df[col].dtype == 'object':
-            target_df[col] = target_df[col].apply(lambda x: pd.NA if pd.isna(x) or str(x).strip().lower() in ['nan', 'none', '', 'null'] else str(x).strip())
-            target_df[col] = target_df[col].apply(lambda x: x.replace('--', '-') if isinstance(x, str) else x)
+        from app.models.upload import Upload
+        # Try finding by Upload ID
+        upload = db.query(Upload).filter(Upload.id == dataset_id).first()
         
-        non_null_mask = target_df[col].notna()
-        non_null_count = non_null_mask.sum()
-        
-        if non_null_count == 0:
-            new_columns_metadata.append({"name": col, "type": "string"})
-            continue
+        if not upload:
+            raise HTTPException(status_code=404, detail="Dataset reference not found")
             
-        temp_col = target_df[col].apply(lambda x: x.replace(',', '') if isinstance(x, str) else x)
-        numeric_series = pd.to_numeric(temp_col, errors='coerce')
-        valid_numeric_count = numeric_series.notna().sum()
-        
-        inferred_type = None
+        # If it has a linked dataset, use that instead
+        if upload.dataset_id:
+            dataset = db.query(Dataset).filter(Dataset.id == upload.dataset_id).first()
+            
+        if not dataset:
+            # MIGRATE: This upload exists but has no Dataset record yet
+            file_path = os.path.join("static", "uploads", "trackers", upload.file_name)
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail=f"File {upload.file_name} missing on server.")
+                
+            try:
+                engine_inst = IngestionEngine()
+                with open(file_path, "rb") as f:
+                    contents = f.read()
+                
+                processed_records = engine_inst.ingest(contents, upload.file_name)
+                if not processed_records:
+                    raise HTTPException(status_code=400, detail="No readable data in legacy file.")
+                
+                df_migrated = pd.DataFrame(processed_records).fillna("")
+                
+                # Create Dataset
+                dataset = Dataset(
+                    name=upload.file_name,
+                    department=upload.department,
+                    uploaded_by=upload.uploaded_by,
+                    file_type=upload.file_name.split(".")[-1].upper() if "." in upload.file_name else "XLSX",
+                    row_count=len(df_migrated)
+                )
+                
+                # Resolve project name
+                if upload.project_id:
+                    from app.models.project import Project
+                    proj = db.query(Project).filter(Project.id == upload.project_id).first()
+                    if proj:
+                        dataset.project = proj.name
+                
+                db.add(dataset)
+                db.commit()
+                db.refresh(dataset)
+                
+                # Link back
+                upload.dataset_id = dataset.id
+                
+                # Create Dynamic Table
+                sanitized_file = re.sub(r'[^a-zA-Z0-9_]', '_', upload.file_name.rsplit('.', 1)[0]).lower()
+                table_name = f"migrated_{sanitized_file}_{dataset.id}"[:63]
+                df_migrated.to_sql(table_name, engine, if_exists='replace', index=False)
+                
+                dataset.table_name = table_name
+                db.commit()
+                
+                # Invalidate cache
+                global_dataset_cache.invalidate(dataset.id)
+                
+                return {
+                    "message": "Legacy tracker migrated and optimized successfully",
+                    "rowCount": len(df_migrated),
+                    "headers": list(df_migrated.columns)
+                }
+            except Exception as e:
+                db.rollback()
+                print(f"Migration error for {dataset_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to migrate legacy tracker: {str(e)}")
+    # ──────────────────────────────────────────────────────────────────────
 
-        # Robust Date Parsing: Try default first (which handles ISO perfectly)
-        # Then try dayfirst=True (which handles DD/MM well, but breaks some ISO strings)
-        # Use whichever yields more valid dates
-        date_series_default = pd.to_datetime(target_df[col], errors='coerce')
-        valid_date_count_default = date_series_default.notna().sum()
+    # Clean and Transform Data using the IngestionEngine
+    try:
+        # 1. Attempt to use original physical file if available (Preserves merged cells!)
+        processed_records = None
+        engine_inst = IngestionEngine()
         
-        date_series_df = pd.to_datetime(target_df[col], errors='coerce', dayfirst=True)
-        valid_date_count_df = date_series_df.notna().sum()
+        # Trackers uploaded via tracker_service are stored in static/uploads/trackers
+        # The Dataset.name typically matches the filename
+        potential_file_path = os.path.join("static", "uploads", "trackers", dataset.name)
         
-        if valid_date_count_df > valid_date_count_default:
-            date_series = date_series_df
-            valid_date_count = valid_date_count_df
+        if os.path.exists(potential_file_path):
+            try:
+                print(f"Optimizing using physical file: {potential_file_path}")
+                with open(potential_file_path, "rb") as f:
+                    file_contents = f.read()
+                processed_records = engine_inst.ingest(file_contents, dataset.name)
+            except Exception as e:
+                print(f"Failed to optimize using physical file, falling back to DB: {e}")
+
+        # 2. Fallback to Database Data (already flattened)
+        if not processed_records:
+            df = get_dataset_df(dataset, db)
+            if df.empty:
+                raise HTTPException(status_code=400, detail="No data available to process")
+            processed_records = engine_inst.ingest_dataframe(df)
+            
+        if not processed_records:
+            raise HTTPException(status_code=400, detail="Processing resulted in empty data")
+            
+        # 3. Persist Optimized Data
+        # Create new DF from processed records
+        new_df = pd.DataFrame(processed_records)
+        new_df = new_df.fillna("")
+        
+        if dataset.table_name:
+            new_df.to_sql(dataset.table_name, engine, if_exists='replace', index=False)
         else:
-            date_series = date_series_default
-            valid_date_count = valid_date_count_default
+            # Legacy update
+            db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset.id).delete()
+            new_rows = []
+            for _, row in new_df.iterrows():
+                processed_row = row.replace({pd.NA: None, float('nan'): None}).to_dict()
+                new_rows.append(DatasetRow(
+                    dataset_id=dataset.id,
+                    row_data=processed_row
+                ))
+            db.bulk_save_objects(new_rows)
 
-        num_ratio = valid_numeric_count / non_null_count
-        date_ratio = valid_date_count / non_null_count
-
-        # If it's mostly numeric, and doesn't look heavily like dates, check for integers
-        # Only treat as date if date_ratio > num_ratio, OR date_ratio >= 0.4 and it's heavily formatted strings (like '2026-07-31' where numeric fails)
-        if date_ratio >= 0.4 and date_ratio > num_ratio:
-            formatted_dates = date_series.dt.strftime('%Y-%m-%d')
-            target_df[col] = formatted_dates.where(date_series.notna(), target_df[col])
-            inferred_type = "date"
-        elif num_ratio >= 0.7:
-            numeric_vals = numeric_series.dropna()
-            if all(val == float(int(val)) for val in numeric_vals):
-                target_df[col] = numeric_series.round().astype('Int64')
-                inferred_type = "integer"
-            else:
-                target_df[col] = numeric_series
-                inferred_type = "float"
-        elif date_ratio >= 0.4:
-            formatted_dates = date_series.dt.strftime('%Y-%m-%d')
-            target_df[col] = formatted_dates.where(date_series.notna(), target_df[col])
-            inferred_type = "date"
-        else:
-            inferred_type = "string"
-
-        if inferred_type is None:
-            inferred_type = infer_column_type(target_df[col])
-            
-        # Apply the transformed subset back to the main dataframe
-        df.iloc[subset_indices, df.columns.get_loc(col)] = target_df[col]
-            
-        new_columns_metadata.append({
-            "name": col,
-            "type": inferred_type
-        })
-
-    # 2. Persist Optimized Data
-    if dataset.table_name:
-        try:
-            df.to_sql(dataset.table_name, engine, if_exists='replace', index=False)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to update table during optimize: {e}")
-    else:
-        # Legacy update
-        db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset_id).delete()
-        new_rows = []
-        for _, row in df.iterrows():
-            # Handle NaN values for JSON serialization
-            processed_row = row.replace({pd.NA: None, float('nan'): None}).to_dict()
-            new_rows.append(DatasetRow(
-                dataset_id=dataset_id,
-                row_data=processed_row
+        # 4. Update Column Metadata
+        db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
+        for col in new_df.columns:
+            db.add(DatasetColumn(
+                dataset_id=dataset.id,
+                column_name=col,
+                data_type=infer_column_type(new_df[col])
             ))
-        db.bulk_save_objects(new_rows)
-
-    # 3. Update Metadata
-    db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset_id).delete()
-    for col_info in new_columns_metadata:
-        db.add(DatasetColumn(
-            dataset_id=dataset_id,
-            column_name=col_info["name"],
-            data_type=col_info["type"]
-        ))
-    
-    db.commit()
-    
-    # Invalidate cache
-    global_dataset_cache.invalidate(dataset_id)
-    
-    return {
-        "message": "Dataset optimized and normalized successfully",
-        "columns": new_columns_metadata,
-        "rowCount": len(df)
-    }
+        
+        db.commit()
+        
+        # Invalidate cache
+        global_dataset_cache.invalidate(dataset.id)
+        
+        return {
+            "message": "Dataset optimized and normalized successfully using Effective Ingestion protocol",
+            "rowCount": len(new_df),
+            "headers": list(new_df.columns)
+        }
+    except Exception as e:
+        db.rollback()
+        print(f"Error during optimization: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to optimize dataset: {str(e)}")
 

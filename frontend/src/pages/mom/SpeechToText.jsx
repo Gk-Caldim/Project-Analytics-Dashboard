@@ -9,11 +9,13 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
 import { setMeetingContext, saveMOM } from '../../store/slices/momSlice';
+import FillerDetector from '../../utils/fillerDetector';
+
 
 // ── Speaker colour palette ──────────────────────────────────────────
 const SPEAKER_COLORS = [
   { bg: '#EDE9FE', text: '#6D28D9', dot: '#7C3AED' },
-  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#2563EB' },
+  { bg: '#DBEAFE', text: '#1D4ED8', dot: '#1e293b' },
   { bg: '#D1FAE5', text: '#065F46', dot: '#059669' },
   { bg: '#FEE2E2', text: '#991B1B', dot: '#DC2626' },
   { bg: '#FEF3C7', text: '#92400E', dot: '#D97706' },
@@ -21,7 +23,7 @@ const SPEAKER_COLORS = [
 
 const EVENT_STYLES = {
   Discussion: { dot: '#D97706', label: 'text-amber-600' },
-  Decisions: { dot: '#2563EB', label: 'text-blue-600' },
+  Decisions: { dot: '#1e293b', label: 'text-blue-600' },
   'Action Items': { dot: '#059669', label: 'text-green-600' },
 };
 
@@ -247,14 +249,19 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     return SPEAKER_COLORS[speakerColorMapRef.current[name]];
   };
 
-  // ── Speech recognition ref ──────────────────────────────────────
+  // ── Speech recognition refs ─────────────────────────────────────
   const recognitionRef = useRef(null);
   const manualStopRef = useRef(false);
   const retryTimeoutRef = useRef(null);
+  const abortCountRef = useRef(0);    // track repeated aborts
+  const mediaRecorderRef = useRef(null); // fallback recorder
+  const [useMediaFallback, setUseMediaFallback] = useState(false);
 
   // ── Debounce buffer ─────────────────────────────────────────────
   const bufferRef = useRef('');
   const debounceTimerRef = useRef(null);
+  const streamRef = useRef(null);
+  const recordingStateRef = useRef('IDLE');
   const isAddingPointsRef = useRef(false);
   useEffect(() => { isAddingPointsRef.current = isAddingPoints; }, [isAddingPoints]);
 
@@ -301,104 +308,87 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
   const analyserRef = useRef(null);
   const dataArrayRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const audioStreamRef = useRef(null);
   const targetWaveHeightsRef = useRef(Array(32).fill(4));
 
-  useEffect(() => {
-    let stream = null;
-    let isActive = true;
-    const isRecording = recordingState === 'RECORDING';
+  const stopAudioAnalysis = () => {
+    recordingStateRef.current = 'IDLE';
+    if (typeof animationFrameRef.current === 'number') {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(t => t.stop());
+      audioStreamRef.current = null;
+    }
+    analyserRef.current = null;
+    dataArrayRef.current = null;
+    setWaveHeights(Array(32).fill(4));
+  };
 
-    const setupAudio = async () => {
+  // Started 300ms AFTER SpeechRecognition to avoid Windows/Chrome hardware lock
+  const setupAudio = () => {
+    setTimeout(async () => {
+      if (recordingStateRef.current !== 'RECORDING') return;
       try {
-        if (!audioContextRef.current) {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
           audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
-
         if (audioContextRef.current.state === 'suspended') {
           await audioContextRef.current.resume();
         }
 
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          } 
-        }).catch(err => {
-          console.warn('Microphone visualization error:', err);
-          setMicError('Microphone active, but visualizer blocked.');
-          return null;
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
         });
+        if (recordingStateRef.current !== 'RECORDING') {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        audioStreamRef.current = stream;
 
-        if (!isActive || !stream) return;
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.6;
+        analyserRef.current = analyser;
 
         const source = audioContextRef.current.createMediaStreamSource(stream);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 512;
-        analyserRef.current.smoothingTimeConstant = 0.3; // Low smoothing = High reactivity
-        
-        const bufferLength = analyserRef.current.frequencyBinCount;
-        dataArrayRef.current = new Uint8Array(bufferLength);
-        source.connect(analyserRef.current);
+        source.connect(analyser);
 
-        const updateWaveform = () => {
-          if (!analyserRef.current || !dataArrayRef.current || !isActive) return;
-          
-          analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        const bufLen = analyser.frequencyBinCount;
+        dataArrayRef.current = new Uint8Array(bufLen);
 
-          const newTargets = [];
-          const barCount = 32;
-          const samplingRange = Math.floor(dataArrayRef.current.length * 0.7); // Focus on lower/mid frequencies where voice is
-          const step = Math.floor(samplingRange / barCount);
+        const draw = () => {
+          if (recordingStateRef.current !== 'RECORDING' || !analyserRef.current) return;
+          analyser.getByteFrequencyData(dataArrayRef.current);
 
-          for (let i = 0; i < barCount; i++) {
-            let sum = 0;
-            for (let j = 0; j < step; j++) {
-              sum += dataArrayRef.current[i * step + j];
-            }
-            const average = sum / step;
-            // Higher boost for voice-range frequencies
-            const height = Math.min(64, Math.max(6, (average / 180) * 100 + 4));
-            newTargets.push(height);
+          const bars = 32;
+          const step = Math.floor(bufLen / bars);
+          const newH = [];
+          for (let i = 0; i < bars; i++) {
+            let s = 0;
+            for (let j = 0; j < step; j++) s += dataArrayRef.current[i * step + j];
+            const avg = s / step;
+            newH.push(Math.min(56, Math.max(4, (avg / 200) * 56)));
           }
-          targetWaveHeightsRef.current = newTargets;
-
-          setWaveHeights(prev => prev.map((current, i) => {
-            const target = targetWaveHeightsRef.current[i];
-            const lerpFactor = 0.45; // Faster snapping to word peaks
-            return current + (target - current) * lerpFactor;
-          }));
-
-          animationFrameRef.current = requestAnimationFrame(updateWaveform);
+          targetWaveHeightsRef.current = newH;
+          setWaveHeights(prev => prev.map((c, i) => c + (targetWaveHeightsRef.current[i] - c) * 0.4));
+          animationFrameRef.current = requestAnimationFrame(draw);
         };
-        updateWaveform();
+        draw();
       } catch (err) {
-        console.warn('Audio visualization fallback:', err);
-        const interval = setInterval(() => {
-          if (isActive) setWaveHeights(Array.from({ length: 32 }, () => Math.round(6 + Math.random() * 24)));
-        }, 100);
-        animationFrameRef.current = interval;
+        // Fallback: pulse random bars so UI still feels alive
+        console.warn('Waveform fallback:', err);
+        const id = setInterval(() => {
+          if (recordingStateRef.current !== 'RECORDING') { clearInterval(id); return; }
+          setWaveHeights(Array.from({ length: 32 }, () => 4 + Math.random() * 28));
+        }, 80);
       }
-    };
+    }, 300); // 300ms delay lets SpeechRecognition claim the mic first
+  };
 
-    if (isRecording) {
-      setupAudio();
-    } else {
-      setWaveHeights(Array(32).fill(6));
-    }
-
-    return () => {
-      isActive = false;
-      if (stream) stream.getTracks().forEach(t => t.stop());
-      if (animationFrameRef.current) {
-        if (typeof animationFrameRef.current === 'number') {
-          clearInterval(animationFrameRef.current);
-        } else {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      }
-    };
-  }, [recordingState]);
+  useEffect(() => {
+    return () => stopAudioAnalysis();
+  }, []);
 
   // ── Timer ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -462,6 +452,119 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     };
   }, []);
 
+  // ── MediaRecorder fallback (when Chrome STT cloud is unreachable) ─
+  const startMediaRecorderFallback = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+
+      // Determine supported format
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        if (manualStopRef.current || chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: mimeType });
+        chunks.length = 0;
+
+        // Send to backend for Whisper transcription
+        try {
+          const formData = new FormData();
+          const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+          formData.append('file', blob, `chunk.${ext}`);
+          formData.append('speaker', currentUser.name);
+          const resp = await API.post('/transcribe', formData, { 
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 30000
+          });
+          const text = resp.data?.text?.trim();
+          if (text) {
+            const color = getSpeakerColor(currentUser.name);
+            const entry = {
+              id: Date.now() + Math.random(),
+              type: 'speech',
+              speaker: currentUser.name,
+              initials: currentUser.initials,
+              color: color.dot,
+              bg: color.bg,
+              textColor: color.text,
+              time: nowTime(),
+              text,
+              isAdditional: isAddingPointsRef.current,
+            };
+            setEntries(prev => [...prev, entry]);
+            setInterimText('');
+          }
+        } catch (err) {
+          console.warn('Transcription chunk failed:', err);
+        }
+
+        // Restart for next chunk if still recording
+        if (!manualStopRef.current && recordingStateRef.current === 'RECORDING') {
+          recorder.start();
+          setTimeout(() => {
+            if (!manualStopRef.current && recorder.state === 'recording') recorder.stop();
+          }, 5000); // 5s chunks
+        }
+      };
+
+      // Start + schedule first stop after 5s
+      recorder.start();
+      setInterimText('Listening… (processing every 5 seconds)');
+      setTimeout(() => {
+        if (!manualStopRef.current && recorder.state === 'recording') recorder.stop();
+      }, 5000);
+
+      // Also start waveform visualizer from this stream
+      try {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+          audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.6;
+        analyserRef.current = analyser;
+        audioContextRef.current.createMediaStreamSource(stream).connect(analyser);
+        const bufLen = analyser.frequencyBinCount;
+        dataArrayRef.current = new Uint8Array(bufLen);
+        const draw = () => {
+          if (recordingStateRef.current !== 'RECORDING' || !analyserRef.current) return;
+          analyser.getByteFrequencyData(dataArrayRef.current);
+          const bars = 32; const step = Math.floor(bufLen / bars); const newH = [];
+          for (let i = 0; i < bars; i++) {
+            let s = 0;
+            for (let j = 0; j < step; j++) s += dataArrayRef.current[i * step + j];
+            newH.push(Math.min(56, Math.max(4, (s / step / 200) * 56)));
+          }
+          setWaveHeights(prev => prev.map((c, i) => c + (newH[i] - c) * 0.4));
+          animationFrameRef.current = requestAnimationFrame(draw);
+        };
+        draw();
+      } catch (_) {}
+
+    } catch (err) {
+      console.error('MediaRecorder fallback failed:', err);
+      setMicError('Microphone access denied. Please allow mic and retry.');
+    }
+  };
+
+  const stopMediaRecorderFallback = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch (_) {}
+    }
+    mediaRecorderRef.current = null;
+  };
+
   // ── Init recognition ────────────────────────────────────────────
   const initRecognition = () => {
     if (!SpeechRecognition) return null;
@@ -472,15 +575,45 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
     rec.lang = 'en-US';
     rec.maxAlternatives = 1;
 
+    rec.onstart = () => {
+      console.log('[SpeechRecognition] Started — mic is now active');
+      setMicError('');
+      setInterimText('Listening…');
+    };
+
+    rec.onaudiostart = () => {
+      console.log('[SpeechRecognition] Audio capture started');
+      setInterimText('Listening…');
+    };
+
+    rec.onspeechstart = () => {
+      console.log('[SpeechRecognition] Speech detected');
+    };
+
     rec.onresult = (event) => {
+      console.log('[SpeechRecognition] onresult fired, results:', event.results.length);
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
+        console.log('[SpeechRecognition] result[' + i + ']:', transcript, 'final:', event.results[i].isFinal);
         if (event.results[i].isFinal) {
           const trimmed = transcript.trim();
           if (trimmed) {
-            bufferRef.current += (bufferRef.current ? ' ' : '') + trimmed;
-            scheduleDebouncedFlush(bufferRef.current);
+            // Flush immediately — don't wait for debounce
+            const color = getSpeakerColor(currentUser.name);
+            const entry = {
+              id: Date.now() + Math.random(),
+              type: 'speech',
+              speaker: currentUser.name,
+              initials: currentUser.initials,
+              color: color.dot,
+              bg: color.bg,
+              textColor: color.text,
+              time: nowTime(),
+              text: trimmed,
+              isAdditional: isAddingPointsRef.current,
+            };
+            setEntries(prev => [...prev, entry]);
           }
           setInterimText('');
         } else {
@@ -498,6 +631,22 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
       switch (e.error) {
         case 'no-speech':
           break;
+        case 'aborted':
+          abortCountRef.current += 1;
+          if (abortCountRef.current >= 3) {
+            // Chrome cloud STT is unreachable — switch to MediaRecorder fallback
+            console.warn('[SpeechRecognition] Aborted 3 times — switching to MediaRecorder fallback');
+            manualStopRef.current = true;
+            if (recognitionRef.current) {
+              recognitionRef.current.onend = null;
+              try { recognitionRef.current.stop(); } catch (_) {}
+              recognitionRef.current = null;
+            }
+            setUseMediaFallback(true);
+            setMicError('');
+            startMediaRecorderFallback();
+          }
+          break;
         case 'network':
           setMicError('Network error, retrying...');
           clearTimeout(retryTimeoutRef.current);
@@ -513,8 +662,6 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
           setMicError('Allow mic permission and retry');
           manualStopRef.current = true;
           setRecordingState('IDLE');
-          break;
-        case 'aborted':
           break;
         default:
           console.error('Unhandled speech error:', e.error);
@@ -543,60 +690,88 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
       try { recognitionRef.current.stop(); } catch (_) { }
       recognitionRef.current = null;
     }
+    stopMediaRecorderFallback();
     flushBuffer();
     setInterimText('');
   };
 
   // ── Actions ─────────────────────────────────────────────────────
-  const toggleRecord = () => {
+  const toggleRecord = async () => {
     if (!SpeechRecognition) {
-      setMicError('Browser not supported for recording. Try Chrome or Edge.');
+      // No SpeechRecognition at all — go straight to MediaRecorder
+      if (recordingState === 'IDLE') {
+        manualStopRef.current = false;
+        abortCountRef.current = 0;
+        setMicError('');
+        setUseMediaFallback(true);
+        recordingStateRef.current = 'RECORDING';
+        setRecordingState('RECORDING');
+        await startMediaRecorderFallback();
+      } else {
+        stopAndFlush();
+        stopAudioAnalysis();
+        setTimerVal(0);
+        setUseMediaFallback(false);
+        setRecordingState('IDLE');
+        toast.success('Recording stopped — ready to generate.');
+      }
       return;
     }
 
     if (recordingState === 'IDLE') {
       manualStopRef.current = false;
+      abortCountRef.current = 0;
       setMicError('');
+      setUseMediaFallback(false);
+      recordingStateRef.current = 'RECORDING';
 
       try {
-        // Resume/Start AudioContext on user gesture
-        if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume();
-        }
-
         const rec = initRecognition();
         if (!rec) throw new Error("Recognition failed to initialize");
         recognitionRef.current = rec;
         rec.start();
         setRecordingState('RECORDING');
+        setupAudio(); // Starts AFTER recognition — no hardware lock
       } catch (err) {
         console.error('Failed to start speech recognition:', err);
         setMicError('Could not start microphone. Check browser permissions.');
+        recordingStateRef.current = 'IDLE';
       }
     } else {
       stopAndFlush();
+      stopAudioAnalysis();
       setTimerVal(0);
+      setUseMediaFallback(false);
       setRecordingState('IDLE');
       toast.success('Recording stopped — ready to generate.');
     }
   };
 
-  const togglePause = () => {
+  const togglePause = async () => {
     if (recordingState === 'RECORDING') {
       stopAndFlush();
+      stopAudioAnalysis();
       setRecordingState('PAUSED');
     } else if (recordingState === 'PAUSED') {
       manualStopRef.current = false;
       setMicError('');
-      const rec = initRecognition();
-      recognitionRef.current = rec;
-      try { rec.start(); } catch (_) { }
-      setRecordingState('RECORDING');
+      recordingStateRef.current = 'RECORDING';
+      try {
+        const rec = initRecognition();
+        recognitionRef.current = rec;
+        try { rec.start(); } catch (_) { }
+        setRecordingState('RECORDING');
+        setupAudio();
+      } catch (err) {
+        setMicError('Could not restart microphone.');
+        recordingStateRef.current = 'IDLE';
+      }
     }
   };
 
   const handleClear = () => {
     stopAndFlush();
+    stopAudioAnalysis();
     setRecordingState('IDLE');
     setTimerVal(0);
     setEntries([]);
@@ -632,10 +807,9 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
             // Ignore very short bursts
             if (cleanText.length < 3) return;
 
-            const lower = cleanText.toLowerCase();
-            // Heuristic to ignore simple greetings / filler lines
-            const isFiller = /^(thanks|good afternoon|good morning|hello|hi|bye|see you|good evening|sounds good|okay|ok|yes|no)\.?$/i.test(lower);
-            if (isFiller) return;
+            // ── Filler detection — delegated to shared FillerDetector module ──
+            if (FillerDetector.classify(cleanText).isFiller) return;
+
 
             let sentenceSpeaker = entry.speaker;
             let actualPoint = cleanText;
@@ -941,10 +1115,23 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
 
       {/* ── BACK LINK ── */}
       <div className="mb-2">
-        <button onClick={() => navigate('/dashboard/meetings')} className="text-xs font-semibold text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
-          <CornerDownLeft className="w-3.5 h-3.5" /> Back to Manage Meetings
+        <button onClick={() => navigate('/dashboard/calendar')} className="text-xs font-semibold text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1">
+          <CornerDownLeft className="w-3.5 h-3.5" /> Back to Calendar
         </button>
       </div>
+
+      {/* ── TRANSCRIPTION MODE BANNER ── */}
+      {useMediaFallback && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-amber-500 text-lg flex-shrink-0">⚠</span>
+          <div className="text-xs text-amber-800">
+            <p className="font-semibold mb-0.5">Using audio fallback mode (5-second chunks)</p>
+            <p className="text-amber-700">Chrome's built-in speech recognition could not connect to Google's servers. 
+            Audio is being captured and sent to your backend every 5 seconds for transcription.
+            {' '}<strong>Add <code>OPENAI_API_KEY=sk-...</code> to your backend <code>.env</code></strong> file to enable Whisper transcription.</p>
+          </div>
+        </div>
+      )}
 
       {/* ── METADATA BAR ── */}
       <div className="bg-white rounded-xl border border-black/10 overflow-hidden flex flex-col sm:flex-row items-center divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
@@ -1092,10 +1279,25 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
                     <p className="text-xs text-gray-400 mt-3 font-medium">Click waveform or press <kbd className="px-1.5 py-0.5 text-[10px] bg-gray-100 border border-gray-200 rounded">Space</kbd> to start</p>
                   )}
 
+                  {/* Live interim text below waveform */}
+                  {recordingState === 'RECORDING' && (
+                    <div className="mt-3 min-h-[36px] w-full max-w-[280px] text-center">
+                      {interimText ? (
+                        <p className="text-[13px] text-slate-600 italic leading-snug animate-pulse">{interimText}</p>
+                      ) : (
+                        <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
+                          Listening for speech…
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {micError && (
                     <p className="text-xs text-red-500 font-medium mt-2">{micError}</p>
                   )}
                 </div>
+
 
                 {/* ── Secondary controls: Pause ── */}
                 <div className="border-t border-black/[0.06] flex">
@@ -1263,146 +1465,159 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
           )}
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="w-full lg:w-72 space-y-4 flex-shrink-0">
-          {/* Stats */}
-          <div className="bg-white border border-black/10 rounded-xl p-4 grid grid-cols-3 gap-2">
+        {/* ── RIGHT COLUMN — Live transcript feed ── */}
+        <div className="w-full lg:w-80 flex-shrink-0 space-y-3">
+
+          {/* Live stats strip */}
+          <div className="bg-white border border-black/10 rounded-xl px-4 py-3 flex items-center gap-4">
             <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">Duration</div>
-              <div className="text-sm font-medium text-slate-800">{formatTime(timerVal)}</div>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Duration</div>
+              <div className="text-sm font-semibold text-slate-800 font-mono">{formatTime(timerVal)}</div>
             </div>
-            <div className="text-center border-l border-gray-200">
-              <div className="text-xs text-gray-400 mb-1">Lines captured</div>
-              <div className="text-sm font-medium text-slate-800">{entries.filter(e => e.type === 'speech').length}</div>
+            <div className="w-px h-8 bg-gray-200" />
+            <div className="text-center">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Lines</div>
+              <div className="text-sm font-semibold text-slate-800">{entries.filter(e => e.type === 'speech').length}</div>
             </div>
-            <div className="text-center border-l border-gray-200">
-              <div className="text-xs text-gray-400 mb-1">People speaking</div>
-              <div className="text-sm font-medium text-slate-800">{uniqueSpeakers.length}</div>
+            <div className="w-px h-8 bg-gray-200" />
+            <div className="text-center">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Speakers</div>
+              <div className="text-sm font-semibold text-slate-800">{uniqueSpeakers.length}</div>
             </div>
+            {recordingState === 'RECORDING' && (
+              <div className="ml-auto flex items-center gap-1.5 text-red-500">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-rec-pulse" />
+                <span className="text-[10px] font-bold tracking-wider">LIVE</span>
+              </div>
+            )}
           </div>
 
-          {/* Shortcuts */}
-          <div className="bg-white border border-black/10 rounded-xl p-4">
-            <div className="text-[10px] uppercase font-medium tracking-wider text-gray-500 mb-3">Shortcuts</div>
-            <div className="space-y-2 text-xs font-normal text-slate-600">
-              <div className="flex justify-between">
-                <span>Start / Stop</span>
-                <kbd className="px-1.5 text-[10px] bg-gray-100 border border-gray-200 rounded text-gray-500 font-medium">Space</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span>Pause</span>
-                <kbd className="px-1.5 text-[10px] bg-gray-100 border border-gray-200 rounded text-gray-500 font-medium">P</kbd>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span>Generate notes</span>
-                <kbd className="px-1.5 text-xs bg-gray-100 border border-gray-200 rounded text-gray-500 font-medium">{"\u2303\u21B5"}</kbd>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span>Clear</span>
-                <kbd className="px-1.5 text-xs bg-gray-100 border border-gray-200 rounded text-gray-500 font-medium">{"\u2303\u232B"}</kbd>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════════════════
-          TRANSCRIPT PANEL — "What's being said"
-         ══════════════════════════════════════════════════════════════ */}
-      <div className="bg-white border border-black/10 rounded-xl flex flex-col mt-4" style={{ minHeight: '340px', maxHeight: '520px' }}>
-
-        {/* Header */}
-        <div className="flex justify-between items-center py-2 px-4 border-b border-black/10 flex-shrink-0">
-          <span className="text-xs font-semibold text-slate-800">What's being said</span>
-          <span className="text-[10px] font-medium text-gray-500">{entries.filter(e => e.type === 'speech').length} lines captured</span>
-        </div>
-
-        {/* Speaker legend */}
-        {uniqueSpeakers.length > 0 && (
-          <div className="flex flex-wrap gap-3 px-4 py-2 border-b border-black/[0.04] bg-gray-50/60 flex-shrink-0">
-            {uniqueSpeakers.map((name) => {
-              const c = getSpeakerColor(name);
-              return (
-                <div key={name} className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c.dot }} />
-                  <span className="text-[10px] font-medium" style={{ color: c.text }}>{name}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Timeline scroll area */}
-        <div ref={transcriptRef} className="flex-1 overflow-y-auto">
-          {entries.length === 0 && !interimText ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 py-12 gap-3">
-              <Mic className="w-6 h-6 opacity-30" />
-              <span className="text-xs text-gray-500 font-medium text-center">
-                Start recording to see the transcript appear here.
-              </span>
-            </div>
-          ) : (
-            <div>
-              {entries.map((entry, i) => {
-                const isLast = i === entries.length - 1 && !interimText;
-
-                if (entry.type === 'divider') {
-                  return (
-                    <div key={entry.id} className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-                      <div className="flex-1 h-px bg-gray-200" />
-                      <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{entry.text}</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                  );
-                }
-
-                if (entry.type === 'speech') {
-                  const c = getSpeakerColor(entry.speaker);
-                  return (
-                    <div key={entry.id} className="flex items-start gap-3 px-4 py-3 animate-slideInUp" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-                      {/* Speaker chip */}
+          {/* Live transcript panel */}
+          <div
+            ref={transcriptRef}
+            className="bg-white border border-black/10 rounded-xl overflow-y-auto"
+            style={{ minHeight: 320, maxHeight: 480 }}
+          >
+            {/* Panel header */}
+            <div className="sticky top-0 bg-white border-b border-black/[0.06] px-4 py-2.5 flex items-center justify-between z-10">
+              <span className="text-xs font-semibold text-slate-700">Live Transcript</span>
+              {uniqueSpeakers.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {uniqueSpeakers.slice(0, 3).map(name => {
+                    const c = getSpeakerColor(name);
+                    return (
                       <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 mt-0.5"
+                        key={name}
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0"
                         style={{ background: c.bg, color: c.text }}
+                        title={name}
                       >
-                        {entry.initials}
+                        {getInitials(name)}
                       </span>
-                      {/* Timestamp */}
-                      <span className="font-mono text-[10px] text-gray-400 flex-shrink-0 mt-1">{entry.time}</span>
-                      {/* Text */}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium mb-0.5" style={{ fontSize: 10, color: c.text }}>{entry.speaker}</div>
-                        <div className="text-slate-700 leading-relaxed text-[13px]">{entry.text}</div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return null;
-              })}
-
-              {/* Interim indicator */}
-              {interimText && (
-                <div className="flex items-start gap-3 px-4 py-3" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 mt-0.5"
-                    style={{ background: currentUser.avatarColor.bg, color: currentUser.avatarColor.text }}
-                  >
-                    {currentUser.initials}
-                  </span>
-                  <span className="font-mono text-[10px] text-gray-300 flex-shrink-0 mt-1">{nowTime()}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium mb-0.5" style={{ fontSize: 10, color: currentUser.avatarColor.text }}>{currentUser.name}</div>
-                    <div className="text-gray-400 italic leading-relaxed text-[13px]">{interimText}...</div>
-                  </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
+
+            {/* Entries */}
+            {entries.length === 0 && !interimText ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-gray-400">
+                <Mic className="w-8 h-8 opacity-20" />
+                <p className="text-xs font-medium text-center px-4">
+                  {recordingState === 'IDLE'
+                    ? 'Start recording to see transcript appear here'
+                    : 'Listening… start speaking'}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-black/[0.04]">
+                {entries.map((entry) => {
+                  if (entry.type === 'divider') {
+                    return (
+                      <div key={entry.id} className="flex items-center gap-2 px-4 py-2">
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-[9px] font-medium text-gray-400 whitespace-nowrap">{entry.text}</span>
+                        <div className="flex-1 h-px bg-gray-200" />
+                      </div>
+                    );
+                  }
+
+                  if (entry.type === 'speech') {
+                    const c = getSpeakerColor(entry.speaker);
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3 px-4 py-3 animate-slideUp">
+                        {/* Avatar */}
+                        <div
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
+                          style={{ background: c.bg, color: c.text }}
+                        >
+                          {entry.initials || getInitials(entry.speaker)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[11px] font-semibold" style={{ color: c.text }}>
+                              {entry.speaker}
+                            </span>
+                            <span className="text-[9px] text-gray-400 font-mono">{entry.time}</span>
+                          </div>
+                          <p className="text-[13px] text-slate-700 leading-relaxed">{entry.text}</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+
+                {/* Interim — greyed out, typing effect */}
+                {interimText && (
+                  <div className="flex items-start gap-3 px-4 py-3 bg-indigo-50/40">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
+                      style={{ background: currentUser.avatarColor.bg, color: currentUser.avatarColor.text }}
+                    >
+                      {currentUser.initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[11px] font-semibold" style={{ color: currentUser.avatarColor.text }}>
+                          {currentUser.name}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-mono">{nowTime()}</span>
+                        <span className="inline-flex gap-0.5 items-end h-3">
+                          {[0,1,2].map(i => (
+                            <span
+                              key={i}
+                              className="w-1 h-1 rounded-full bg-indigo-400 animate-bounce"
+                              style={{ animationDelay: `${i * 150}ms` }}
+                            />
+                          ))}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-slate-400 italic leading-relaxed">{interimText}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Keyboard shortcuts */}
+          <div className="bg-white border border-black/10 rounded-xl p-4">
+            <div className="text-[10px] uppercase font-medium tracking-wider text-gray-400 mb-2">Shortcuts</div>
+            <div className="space-y-1.5 text-xs text-slate-600">
+              {[['Start / Stop','Space'],['Pause','P'],['Generate','⌃↵'],['Clear','⌃⌫']].map(([label, key]) => (
+                <div key={label} className="flex justify-between items-center">
+                  <span>{label}</span>
+                  <kbd className="px-1.5 py-0.5 text-[10px] bg-gray-100 border border-gray-200 rounded text-gray-500">{key}</kbd>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── GENERATE MEETING NOTES — below transcript ── */}
+      {/* ── GENERATE MEETING NOTES ── */}
       <div className="pt-2">
         <button
           onClick={handleConvert}

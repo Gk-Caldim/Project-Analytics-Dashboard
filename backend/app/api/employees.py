@@ -11,8 +11,14 @@ from app.crud import employee as employee_crud
 from app.crud import employee_column as column_crud
 from app.core.security import get_current_user
 from app.utils.audit import log_activity, generate_diff_summary
+from app.utils.suggestions import suggest_data_type
 
 router = APIRouter(prefix="/employees", tags=["Employees"])
+
+@router.get("/columns/suggest")
+def get_column_suggestion(name: str):
+    """Suggest a data type for a column name"""
+    return {"suggested_type": suggest_data_type(name)}
 
 @router.get("/version_check")
 def version_check():
@@ -31,6 +37,18 @@ def get_all_employees(
     """Get all employees with their custom fields"""
     employees = employee_crud.get_employees(db, skip=skip, limit=limit)
     return employees
+
+@router.get("/statistics")
+def get_employee_statistics(db: Session = Depends(get_db)):
+    """Get employee count statistics grouped by role"""
+    try:
+        stats = employee_crud.get_employee_statistics(db)
+        return {"statistics": stats}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching statistics: {str(e)}"
+        )
 
 @router.get("/{employee_id}", response_model=EmployeeOut)
 def get_employee(employee_id: int, db: Session = Depends(get_db)):
@@ -210,6 +228,22 @@ def delete_employee(
                 detail=f"Error deleting employee: {error_msg}"
             )
 
+@router.post("/migrate-user-role")
+def migrate_user_to_employee_role(
+    db: Session = Depends(get_db)
+):
+    """One-shot migration: rename all employees with role='User' to role='Employee'"""
+    updated = (
+        db.query(Employee)
+        .filter(Employee.role == "User")
+        .all()
+    )
+    count = len(updated)
+    for emp in updated:
+        emp.role = "Employee"
+    db.commit()
+    return {"migrated": count, "message": f"Updated {count} employee(s) from 'User' to 'Employee'"}
+
 @router.post("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_delete_employees(
     employee_ids: List[int], 
@@ -238,6 +272,21 @@ def bulk_delete_employees(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error bulk deleting employees: {error_msg}"
             )
+
+@router.get("/by-role/{role}", response_model=List[EmployeeOut])
+def get_employees_by_role(
+    role: str,
+    db: Session = Depends(get_db)
+):
+    """Get all employees with a specific role"""
+    try:
+        employees = employee_crud.get_employees_by_role(db, role)
+        return employees
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching employees by role: {str(e)}"
+        )
 
 # ============================================================================
 # CUSTOM COLUMN ENDPOINTS

@@ -21,4 +21,9 @@ class ProjectSubCategory(Base):
     custom_fields = Column(JSONB, default={})
 
     # Relationship to Project model
-    project = relationship("Project", backref="sub_categories")
+    project = relationship(
+        "Project", 
+        back_populates="sub_categories",
+        primaryjoin="ProjectSubCategory.project_id == Project.project_id",
+        foreign_keys="[ProjectSubCategory.project_id]"
+    )

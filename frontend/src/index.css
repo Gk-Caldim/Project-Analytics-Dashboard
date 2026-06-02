@@ -1,41 +1,157 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
 @import "tailwindcss";
+
 @config "../tailwind.config.js";
 @source "../index.html";
 @source "./**/*.{js,ts,jsx,tsx}";
 
+@theme {
+  --color-slate-250: #d7e1ea;
+  --color-slate-550: #55657e;
+  --color-slate-750: #293548;
+  --color-slate-850: #172237;
+}
+
 
 :root {
-  /* Branding Variables */
-  --navy: #0E1B2E;
-  --accent: #2E7CF6;
-  --green: #12B76A;
-  --amber: #F79009;
-  --red: #F04438;
-  --text-primary: #0F172A;
-  --text-secondary: #64748B;
-  --text-tertiary: #94A3B8;
-  --border: rgba(0, 0, 0, 0.07);
-  --surface: #FFFFFF;
-  --bg: #F1F5F9;
+  /* Industrial Analytics Brand Colors - Redesign 2026 */
+  --brand-navy: #1e293b;
+  --brand-primary-bg: #F8FAFC;
+
+  /* Redesign Specs - Light Theme (Default) */
+  --secondary: #0F172A;
+  --sidebar-bg: #1e293b;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --active-menu: rgba(13, 148, 136, 0.15);
+  --primary: #F8FAFC;
 
   /* Typography */
-  --font-primary: 'DM Sans', -apple-system, sans-serif;
+  --font-inter: 'Inter', -apple-system, sans-serif;
+  --font-primary: var(--font-inter);
   --font-mono: 'DM Mono', monospace;
+
+  /* Layout Variables */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --border-subtle: #CBD5E1;
+  --border-strong: #94A3B8;
+  --surface: #FFFFFF;
+  --bg: #F8FAFC;
+  --elevated-card: #F1F5F9;
+  --table-hover: rgba(0, 0, 0, 0.02);
+
+  /* Header & Glassmorphism */
+  --glass-header-bg: rgba(255, 255, 255, 0.85);
+  --glass-header-blur: blur(12px);
+
+  /* New Theme Variables */
+  --accent: #1e293b;
+  --accent-hover: #3B82F6;
+  --accent-analytics: #0891B2;
+  --text-tertiary: #475569;
+  --blue-50: #eff6ff;
+  --blue-900: #1e3a8a;
+  --green-50: #f0fdf4;
+  --green-900: #166534;
+  --purple-50: #f5f3ff;
+  --purple-900: #5b21b6;
+  --red-50: #fef2f2;
+  --red-900: #991b1b;
+  --amber: #f59e0b;
+  --green: #10b981;
+  --red: #ef4444;
+}
+
+[data-theme='dark'] {
+  /* Industrial Analytics Brand Colors - Dark Theme */
+  --brand-navy: #16313E;
+  --brand-primary-bg: #1E242B;
+
+  /* Redesign Specs - Dark Theme */
+  --secondary: #FFFFFF;
+  --sidebar-bg: #1E242B;
+  --sidebar-hover: #214454;
+  --active-menu: #4A8FA1;
+  --primary: #16313E;
+
+  /* Layout Variables - STRICT WHITE FOR DARK MODE */
+  --text-primary: #FFFFFF;
+  --text-secondary: #F1F5F9;
+  --text-muted: #E2E8F0;
+  --border-subtle: #727b7e;
+  --border-strong: #aababe;
+  --surface: #0f172a;
+  --bg: #1E242B;
+  --elevated-card: #32414C;
+  --table-hover: rgba(74, 143, 161, 0.15);
+
+  /* Header & Glassmorphism */
+  --glass-header-bg: rgba(30, 36, 43, 0.85);
+  --glass-header-blur: blur(12px);
+
+  /* Overrides for dynamic elements */
+  --accent: #647e83;
+  --accent-hover: #5FB0C4;
+  --text-tertiary: #F1F5F9;
+  --blue-50: rgba(74, 143, 161, 0.15);
+  --blue-900: #FFFFFF;
+  --green-50: rgba(16, 185, 129, 0.1);
+  --green-900: #10b981;
+  --purple-50: rgba(139, 92, 246, 0.1);
+  --purple-900: #a78bfa;
+  --red-50: rgba(239, 68, 68, 0.1);
+  --red-900: #f87171;
+}
+
+[data-theme='dark'] body {
+  color: var(--text-primary);
+}
+
+/* Utils */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     @apply antialiased;
     font-family: var(--font-primary);
     min-height: 100vh;
+    overflow-x: hidden;
     background-color: var(--bg);
     color: var(--text-primary);
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-primary);
+    letter-spacing: -0.011em;
+    /* Inter refinement */
   }
 
   h1,
@@ -45,7 +161,9 @@
   h5,
   h6 {
     font-family: var(--font-primary);
-    letter-spacing: -0.025em;
+    font-weight: 600;
+    color: var(--secondary);
+    letter-spacing: -0.02em;
   }
 
   .font-mono {
@@ -77,7 +195,7 @@
   }
 
   .master-table-container {
-    @apply flex flex-col h-full bg-white flex-1 overflow-hidden relative shadow-sm rounded-xl border border-slate-200/80;
+    @apply flex flex-col h-full bg-white dark:bg-slate-900 flex-1 overflow-hidden relative shadow-sm rounded-none border border-slate-200/80 dark:border-slate-800;
   }
 
   .master-table-inner {
@@ -90,6 +208,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+    @apply bg-slate-50/50 dark:bg-slate-950/50;
   }
 
   /* INNER scroll container — flex child that fills outer, then scrolls */
@@ -138,11 +257,11 @@
   }
 
   .master-table th {
-    @apply bg-blue-50/80 text-black font-semibold text-[13px] border-b border-slate-200/80 py-3 px-6 text-left whitespace-nowrap;
+    @apply sticky top-0 z-30 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-[13px] border-b border-slate-200/80 py-3 px-4 text-left whitespace-nowrap;
   }
 
   .master-table td {
-    @apply border-b border-slate-100/80 py-3.5 px-6 whitespace-nowrap text-sm text-slate-700;
+    @apply border-b border-slate-100/80 dark:border-slate-700/50 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-100;
   }
 
   .master-table tbody tr {
@@ -150,7 +269,7 @@
   }
 
   .master-table tbody tr:hover td {
-    @apply bg-slate-50/50;
+    background-color: var(--table-hover);
   }
 
   .master-table-checkbox-cell {
@@ -165,17 +284,17 @@
 
   /* Freeze styles */
   .master-table .frozen-row {
-    @apply !sticky !bg-sky-50 border-b-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-b-2 border-sky-600 dark:border-sky-500;
     z-index: 20 !important;
   }
 
   .master-table .frozen-column {
-    @apply !sticky !bg-sky-50 border-r-2 border-sky-600;
+    @apply !sticky bg-sky-50 dark:bg-sky-900/30 border-r-2 border-sky-600 dark:border-sky-500;
     z-index: 15 !important;
   }
 
   .master-table .frozen-row .frozen-column {
-    @apply !bg-sky-100;
+    @apply bg-sky-100 dark:bg-sky-900/50;
     z-index: 25 !important;
   }
 
@@ -205,51 +324,87 @@
   /* CENTRALIZED SIDEBAR STYLES (EXECUTIVE UI)                                  */
   /* ========================================================================== */
   .app-sidebar {
-    @apply z-30 flex flex-col transition-all duration-300 ease-in-out;
-    background-color: var(--navy);
-    width: 220px;
+    @apply z-30 flex flex-col;
+    background-color: var(--sidebar-bg);
+    width: 280px;
     flex-shrink: 0;
+    border-right: 1px solid var(--border-subtle);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
   }
-  
-  .app-sidebar.collapsed {
-    width: 72px;
+
+  .sidebar-collapsed {
+    width: 72px !important;
   }
 
   .sidebar-section-label {
-    font-size: 9px;
+    font-size: 15px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: rgba(255, 255, 255, 0.28);
+    color: var(--text-muted);
     padding: 20px 16px 8px;
     font-weight: 500;
   }
 
   .sidebar-nav-item {
     @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
-    padding: 8px 16px;
-    color: rgba(255, 255, 255, 0.52);
-    border-radius: 6px;
-    margin: 0 8px 4px 8px;
-    width: calc(100% - 16px);
+    padding: 10px 16px;
+    color: rgba(255, 255, 255, 0.6);
+    border-left: 3px solid transparent;
+    margin-bottom: 2px;
+  }
+
+  .sidebar-nav-item:hover {
+    background-color: var(--sidebar-hover);
+    color: #ffffff;
   }
 
   .sidebar-nav-item-active {
-    background: rgba(46, 124, 246, 0.18);
+    background: var(--active-menu);
+    color: #ffffff !important;
+    border-left-color: var(--accent) !important;
+    font-weight: 600;
+  }
+
+  .sidebar-sub-item {
+    @apply w-full flex items-center cursor-pointer transition-all duration-200 select-none;
+    padding: 6px 16px 6px 20px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    position: relative;
+  }
+
+  .sidebar-sub-item:hover {
     color: #ffffff;
-    font-weight: 500;
   }
 
-  .sidebar-nav-item:hover:not(.sidebar-nav-item-active) {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.8);
+  .sidebar-sub-item-active {
+    color: #ffffff;
+    font-weight: 600;
   }
 
-  .sidebar-nav-item-inactive {
-    color: rgba(255, 255, 255, 0.52);
+  .sidebar-sub-item-active::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .sidebar-tree-container {
+    margin-left: 26px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 2px;
+    margin-bottom: 4px;
   }
 
   .sidebar-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--border-subtle);
     padding: 16px;
     display: flex;
     align-items: center;
@@ -258,7 +413,7 @@
   }
 
   .sidebar-scroll {
-    @apply flex-1 overflow-y-auto relative z-10;
+    @apply flex-1 overflow-y-auto overflow-x-hidden relative z-10;
   }
 
   .sidebar-scroll::-webkit-scrollbar {
@@ -270,47 +425,11 @@
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
+    background: var(--border-subtle);
   }
 
   .sidebar-scroll::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400;
-  }
-
-  .sidebar-nav-item {
-    @apply w-full flex items-center justify-between cursor-pointer transition-all duration-200 rounded-xl select-none;
-  }
-
-  .sidebar-nav-item-active {
-    @apply bg-white/60 text-indigo-700 shadow-md ring-1 ring-white/60 font-medium;
-  }
-
-  .sidebar-nav-item-hover {
-    @apply hover:bg-white/50 hover:text-slate-800;
-  }
-
-  .sidebar-nav-item-inactive {
-    @apply text-slate-600;
-  }
-
-  .sidebar-subnav-item {
-    @apply w-full flex items-center cursor-pointer transition-all duration-200 rounded-lg px-3 py-2.5 space-x-3 select-none text-sm;
-  }
-
-  .sidebar-subnav-item-active {
-    @apply bg-white/60 text-indigo-700 shadow-md font-medium ring-1 ring-white/60;
-  }
-
-  .sidebar-subnav-item-hover {
-    @apply hover:bg-white/40 hover:text-slate-800;
-  }
-
-  .sidebar-subnav-item-inactive {
-    @apply text-slate-600;
-  }
-
-  .sidebar-fixed-btn {
-    @apply absolute top-6 bg-white/90 hover:bg-white rounded-lg p-1.5 border border-white/50 shadow-md z-50 transition-colors text-slate-700;
   }
 
   /* ========================================================================== */
@@ -327,7 +446,7 @@
     font-family: var(--font-primary);
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
     letter-spacing: -0.025em;
   }
 
@@ -398,6 +517,58 @@
   .page-content-hidden {
     opacity: 0;
     transform: translateY(6px);
+  }
+
+  /* Centralized theme-aware Modal Styling */
+  .app-modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-[2px];
+  }
+  
+  .app-modal-container {
+    @apply bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden transition-all duration-300;
+  }
+
+  .app-modal-header {
+    @apply px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 shrink-0;
+  }
+
+  .app-modal-title {
+    @apply text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-snug;
+  }
+
+  .app-modal-description {
+    @apply text-xs text-slate-500 dark:text-slate-400 mt-0.5;
+  }
+
+  .app-modal-close-btn {
+    @apply p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0;
+  }
+
+  .app-modal-body {
+    @apply flex-1 overflow-y-auto p-6 sm:p-8 text-slate-700 dark:text-slate-300;
+  }
+
+  .app-modal-body::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .app-modal-body::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  .app-modal-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  .app-modal-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .app-modal-footer {
+    @apply px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 shrink-0;
   }
 }
 
@@ -541,3 +712,30 @@
   z-index: 9999;
   animation: toastSlideIn 0.25s ease;
 }
+
+/* ── Custom Theme View Transitions ── */
+
+/* Disable default fade transition on root for a clean clip-path swipe */
+.theme-transitioning::view-transition-old(root),
+.theme-transitioning::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Ensure incoming theme (new snapshot) stays on top of old theme during transitions */
+.theme-transitioning::view-transition-new(root) {
+  z-index: 99999;
+}
+.theme-transitioning::view-transition-old(root) {
+  z-index: 1;
+}
+
+/* Fallback transitions for when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .theme-transitioning::view-transition-old(root) {
+    animation: 150ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+  }
+  .theme-transitioning::view-transition-new(root) {
+    animation: 250ms cubic-bezier(0, 0, 0.2, 1) both fade-in;
+  }
+}

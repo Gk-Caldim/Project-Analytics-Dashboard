@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | Industrial Analytics Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/shared-ui.css">
+    <style>
+        body { background: var(--cream); height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; padding: 40px; }
+        .error-container { max-width: 500px; }
+        .error-code { font-family: var(--font-serif); font-size: 120px; color: var(--red); line-height: 1; margin-bottom: 24px; }
+        .error-title { font-family: var(--font-serif); font-size: 32px; margin-bottom: 16px; }
+        .error-desc { color: var(--muted); margin-bottom: 40px; line-height: 1.6; }
+        .links-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">Lost in the data?</h1>
+        <p class="error-desc">The dashboard you're looking for doesn't exist or has been moved to a different department.</p>
+        
+        <div class="links-grid">
+            <a href="/" class="btn btn-ghost">Home</a>
+            <a href="/signin.html" class="btn btn-ghost">Sign In</a>
+            <a href="/pricing.html" class="btn btn-ghost">Pricing</a>
+        </div>
+    </div>
+
+    <!-- No need for full nav/footer on 404 to keep it clean -->
+    <script src="/js/auth.js"></script>
+</body>
+</html>

@@ -25,16 +25,87 @@ def get_all_access(
 ):
     check_admin_access(current_user, db)
     
-    # Join with Employee to get names
-    results = db.query(ApplicationAccess, Employee.name).outerjoin(
-        Employee, ApplicationAccess.employee_id == Employee.id
+    # Join with Employee to get all employees and their access info if any
+    results = db.query(Employee, ApplicationAccess).outerjoin(
+        ApplicationAccess, Employee.id == ApplicationAccess.employee_id
     ).all()
     
     out = []
-    for access, name in results:
-        access_out = ApplicationAccessOut.model_validate(access)
-        access_out.employee_name = name
-        out.append(access_out)
+    for emp, access in results:
+        # Create an inline dictionary that matches the expected fields of ApplicationAccessOut
+        item = ApplicationAccessOut(
+            id=access.id if access else emp.id, # Front end expects an id
+            employee_id=emp.id,
+            email=access.email if access else emp.email,
+            employee_name=emp.name,
+            role=emp.role,
+            username=emp.name,
+            is_active=bool(access),
+            date_joined=access.created_at if access else emp.created_at,
+            created_at=access.created_at if access else emp.created_at,
+            updated_at=access.updated_at if access else emp.updated_at,
+        )
+        out.append(item)
+    return out
+
+@router.post("", response_model=ApplicationAccessOut)
+def create_access(
+    data: ApplicationAccessCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    check_admin_access(current_user, db)
+    
+    if not data.employee_id:
+        raise HTTPException(status_code=400, detail="Employee ID is required")
+        
+    emp = db.query(Employee).filter(Employee.id == data.employee_id).first()
+    if not emp:
+         raise HTTPException(status_code=404, detail="Employee not found")
+         
+    existing = db.query(ApplicationAccess).filter(ApplicationAccess.email == data.email).first()
+    if existing:
+         raise HTTPException(status_code=400, detail="Email already in use")
+         
+    existing_emp_access = db.query(ApplicationAccess).filter(ApplicationAccess.employee_id == data.employee_id).first()
+    if existing_emp_access:
+         raise HTTPException(status_code=400, detail="Employee already has access")
+
+    if data.password and data.confirm_password and data.password != data.confirm_password:
+         raise HTTPException(status_code=400, detail="Passwords do not match")
+         
+    if not data.password:
+         raise HTTPException(status_code=400, detail="Password is required to grant access")
+
+    new_access = ApplicationAccess(
+        employee_id=emp.id,
+        email=data.email,
+        hashed_password=hash_password(data.password)
+    )
+    db.add(new_access)
+    db.commit()
+    db.refresh(new_access)
+    
+    # Audit Logging
+    log_activity(
+        db=db,
+        user_id=current_user.get("employee_id") or current_user.get("id"),
+        action="CREATE PERMISSION",
+        module="ApplicationAccess",
+        entity_id=str(new_access.id),
+        details={
+            "targetRole": "User Access",
+            "summary": f"Granted access to {new_access.email}",
+            "details": f"Created application access record ID: {new_access.id}"
+        }
+    )
+    
+    out = ApplicationAccessOut.model_validate(new_access)
+    out.employee_name = emp.name
+    out.role = emp.role
+    out.username = emp.name
+    out.is_active = True
+    out.date_joined = new_access.created_at
     return out
 
 @router.patch("/{access_id}", response_model=ApplicationAccessOut)

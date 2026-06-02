@@ -1,337 +1,253 @@
+:root {
+  --primary: var(--accent);
+  --primary-hover: var(--accent-hover);
+  --bg-main: var(--bg);
+  --text-main: var(--text-primary);
+  --text-muted: var(--text-secondary);
+  --border: var(--border-subtle);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
+
 .vppd-root {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px;
-  font-family: 'Inter', sans-serif;
-  color: #1e293b;
+  width: 100%;
+  padding: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text-main);
   animation: fadeIn 0.4s ease-out;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── 1. Header ── */
-.vppd-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
-}
-
-.vppd-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vppd-project-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.vppd-badge {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.vppd-badge.green {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.vppd-badge.yellow {
-  background: #fef9c3;
-  color: #854d0e;
-}
-
-.vppd-badge.red {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.vppd-badge.gray {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.vppd-header-right {
-  display: flex;
-  gap: 12px;
-}
-
-.vppd-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.vppd-btn-secondary {
-  background: white;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-}
-
-.vppd-btn-secondary:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-}
-
-.vppd-btn-primary {
-  background: #0f172a;
-  border: none;
-  color: white;
-}
-
-.vppd-btn-primary:hover {
-  background: #1e293b;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
-}
-
-/* ── KPI Summary Bar ── */
-.vppd-kpi-bar {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px 24px;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s ease;
-}
-
-.vppd-kpi-bar:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-  border-color: #cbd5e1;
-}
-
-.vppd-kpi-metric {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  padding: 8px 16px;
-  transition: background-color 0.2s ease;
-}
-
-.vppd-kpi-metric:hover {
-  background-color: rgba(59, 130, 246, 0.02);
-  border-radius: 8px;
-}
-
-.vppd-metric-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  flex-shrink: 0;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-.vppd-metric-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.vppd-metric-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: block;
-}
-
-.vppd-metric-value {
-  font-size: 22px;
-  font-weight: 800;
-  color: #0f172a;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.vppd-metric-value-red {
-  color: #dc2626;
-}
-
-.vppd-metric-value-yellow {
-  color: #b45309;
-}
-
-.vppd-metric-sub {
-  font-size: 12px;
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.vppd-kpi-divider {
-  width: 1px;
-  height: 48px;
-  background-color: #e2e8f0;
-  margin: 0 8px;
-}
-
-/* ── Split Layout ── */
-.vppd-main-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-/* ── Section Card ── */
+/* ── 1. Section Cards ── */
 .vppd-section {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.vppd-section:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
 }
 
 .vppd-section.full {
-  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .vppd-section-header {
-  font-size: 16px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.vppd-empty {
-  text-align: center;
-  padding: 30px;
-  color: #94a3b8;
-  font-size: 13px;
-  background: #f8fafc;
-  border-radius: 8px;
-  font-weight: 500;
-}
-
-/* ── Meetings List ── */
-.vppd-meeting-item {
-  display: flex;
-  flex-direction: column;
-  border-bottom: 1px solid #f1f5f9;
-  padding: 12px 0;
-  gap: 8px;
-}
-
-.vppd-meeting-item:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.vppd-meeting-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.vppd-meeting-title {
-  font-weight: 700;
   font-size: 14px;
-  color: #1e293b;
-}
-
-.vppd-meeting-meta {
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.vppd-meeting-status {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 10px;
-  font-weight: 700;
+  gap: 10px;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.vppd-meeting-status.mom-done {
-  background: #dcfce7;
-  color: #166534;
+/* ── 2. Badges & Tags ── */
+.vppd-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.vppd-meeting-status.mom-pending {
-  background: #fee2e2;
-  color: #991b1b;
-}
+.vppd-badge.green { background: var(--green-50); color: var(--green-900); border: 1px solid var(--green-200); }
+.vppd-badge.yellow { background: var(--amber-50); color: var(--amber-900); border: 1px solid var(--amber-200); }
+.vppd-badge.red { background: var(--red-50); color: var(--red-900); border: 1px solid var(--red-200); }
+.vppd-badge.gray { background: var(--elevated-card); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
 
-/* ── Table ── */
+/* ── 3. Table System ── */
 .vppd-table-wrapper {
   overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .vppd-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  background: transparent;
 }
 
 .vppd-table th {
-  padding: 12px;
-  background: #f8fafc;
-  font-size: 11px;
+  padding: 14px 20px;
+  background: var(--elevated-card);
+  font-size: 12px;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-secondary);
   text-transform: uppercase;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--border);
+  letter-spacing: 0.05em;
 }
 
 .vppd-table td {
-  padding: 14px 12px;
+  padding: 16px 20px;
   font-size: 13px;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
   font-weight: 500;
+  transition: background 0.15s ease;
 }
 
 .vppd-table tr:hover td {
-  background: #f8fafc;
+  background: var(--table-hover);
 }
+
+.vppd-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── 4. Empty States ── */
+.vppd-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
+  font-weight: 500;
+}
+
+/* ── 5. Buttons ── */
+.vppd-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vppd-btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.vppd-btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+.vppd-btn-secondary {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.vppd-btn-secondary:hover {
+  background: var(--elevated-card);
+  border-color: var(--border-strong);
+}
+
+/* ── 6. MOM Form Table Styles ── */
+.vppd-mom-table-container {
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vppd-mom-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 2px solid var(--accent);
+  margin-bottom: 4px;
+}
+
+.vppd-mom-form-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin: 0;
+  text-align: center;
+}
+
+.vppd-mom-form-meta {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vppd-mom-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+}
+
+.vppd-mom-table th {
+  padding: 12px 16px;
+  background: var(--elevated-card);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.vppd-mom-table th:last-child {
+  border-right: none;
+}
+
+.vppd-mom-table td {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.vppd-mom-table td:last-child {
+  border-right: none;
+}
+
+.vppd-mom-table tr:hover td {
+  background: var(--table-hover);
+}
+
+.vppd-mom-table tr:last-child td {
+  border-bottom: none;
+}
+

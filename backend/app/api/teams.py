@@ -35,9 +35,10 @@ from app.services.teams_meeting import (
     is_authenticated,
     create_teams_meeting,
 )
+from app.core.config import FRONTEND_URL, API_PREFIX
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/teams", tags=["Teams"])
+router = APIRouter(prefix=f"{API_PREFIX}/teams", tags=["Teams"])
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -75,11 +76,11 @@ async def teams_callback(code: str):
     except RuntimeError as e:
         logger.error("Teams callback failed: %s", e)
         return RedirectResponse(
-            url="http://localhost:5173/dashboard/schedule-meeting?teams_auth=error"
+            url=f"{FRONTEND_URL}/dashboard/schedule-meeting?teams_auth=error"
         )
 
     return RedirectResponse(
-        url="http://localhost:5173/dashboard/schedule-meeting?teams_auth=success"
+        url=f"{FRONTEND_URL}/dashboard/schedule-meeting?teams_auth=success"
     )
 
 

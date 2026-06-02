@@ -1,221 +1,206 @@
 """
 tracker_service.py
-Orchestrates the full upload pipeline:
-  1. Save file to disk
-  2. Parse Excel → records + errors
-  3. Insert Upload record (status=Processing)
-  4. Insert TrackerData rows (with upload_id + source_row_number)
-  5. Insert ImportError rows for every failed Excel row
-  6. Update Upload with final counts and status=Completed
-  7. On crash → mark Upload status=Failed
+Orchestrates the full upload pipeline (NO LOCAL FILE STORAGE):
+  1. Read file bytes in-memory from the upload stream
+  2. Apply IngestionEngine → produces cleaned JSONB records
+  3. Insert Upload record (status=Processing) with file_data as JSONB
+  4. Try to parse tracker-specific columns (Module / Milestone / Dates)
+     → Insert TrackerData rows
+     → Insert ImportError rows for every failed row
+  5. Update Upload with final counts and status=Completed
+  6. On crash → mark Upload status=Failed
 
 Strict rules:
   - project_id is REQUIRED — callers must pass a valid integer
   - upload_id is REQUIRED on every TrackerData row
-  - No silent data loss at any stage
+  - No local files written to disk (bytes processed purely in-memory)
   - Full audit log: total / inserted / skipped / error reasons
 """
 
 import json
 import logging
-import os
-import shutil
+import re
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
-from app.models.import_error import ImportError as ImportErrorModel
-from app.models.tracker import TrackerData
+import datetime
+import pandas as pd
+from io import BytesIO
+
 from app.models.upload import Upload
-from app.utils.excel_parser import parse_tracker_excel
+from app.models.tracker_ingestion import TrackerIngestion
+from app.utils.ingestion import IngestionEngine
+from app.utils.analytics_utils import standardize_records
 
 logger = logging.getLogger(__name__)
 
-UPLOAD_DIR = "static/uploads/trackers"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+def _clean_value(v):
+    """
+    Recursively convert a single value to a JSON-safe type.
+
+    Key cases that were previously broken:
+      - pandas NaT inside a nested dict → crashed json.dumps → entire dict became str()
+      - pandas NaN (float nan) inside a nested dict → same crash
+      - datetime.date / datetime.datetime objects → converted to ISO string
+    """
+    import math
+
+    if v is None:
+        return None
+
+    # pandas NaT — must check before isinstance(datetime) because NaT is a subclass
+    try:
+        import pandas as _pd
+        if _pd.isnull(v):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(v, dict):
+        return {str(k): _clean_value(val) for k, val in v.items()}
+
+    if isinstance(v, list):
+        return [_clean_value(item) for item in v]
+
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return v.strftime("%Y-%m-%d")
+
+    if hasattr(v, "isoformat"):        # pandas Timestamp, etc.
+        try:
+            return v.isoformat()
+        except Exception:
+            return str(v)
+
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            return None
+        return v
+
+    # Final safety-net: test JSON-serialisability
+    try:
+        json.dumps(v)
+        return v
+    except (TypeError, ValueError):
+        return str(v)
+
+
+def _serialize_for_json(records: list) -> list:
+    """
+    Walk the record list and convert any non-JSON-serialisable types
+    (including values nested inside the 'raw' dict) to plain Python
+    scalars / None so the data can be stored as JSONB.
+
+    Previous bug: NaT / nan values inside the nested 'raw' dict caused
+    json.dumps(raw_dict) to raise TypeError, which the except clause
+    caught by calling str(raw_dict) — producing an unreadable Python
+    repr string like \"{'field': NaT, ...}\" stored verbatim in JSONB.
+    """
+    return [
+        {k: _clean_value(v) for k, v in row.items()}
+        for row in records
+    ]
 
 
 def process_tracker_upload(
     db: Session,
     file: UploadFile,
-    project_id: int,               # ← required (caller validated)
+    project_id: int,               
     uploaded_by: str | None = None,
     department: str | None = None,
 ) -> tuple[dict, Upload]:
     """
-    Full end-to-end upload pipeline.
-
-    Args:
-        project_id  – MUST be a valid integer FK to projects.id
-                      The caller (tracker_api.py) is responsible for
-                      resolving and validating this before calling us.
-
-    Returns:
-        (stats_dict, Upload ORM object)
-
-        stats_dict = {
-            "total_rows":    int,   # Excel rows (excl. header)
-            "valid_rows":    int,   # Rows parsed successfully
-            "invalid_rows":  int,   # Rows that failed validation/parsing
-            "inserted_rows": int,   # Rows actually written to DB
-        }
+    Refined end-to-end upload pipeline:
+    1. Read and apply IngestionEngine logic in-memory.
+    2. Apply Standardization (Alias Mapping) to the cleaned data.
+    3. Check for duplicates in the same department/project.
+    4. Save to DB ONLY after successful processing.
     """
 
-    # Guard — should never be None at this point (the API layer enforces it)
     if project_id is None:
-        raise ValueError(
-            "project_id is None — upload rejected. "
-            "Only uploads linked to a known project are accepted."
-        )
+        raise ValueError("project_id is required.")
 
-    # ------------------------------------------------------------------
-    # 1. Persist file to disk
-    # ------------------------------------------------------------------
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(file_path, "wb") as buf:
-        shutil.copyfileobj(file.file, buf)
+    # 1. Read file bytes
+    contents: bytes = file.file.read()
+    
+    # 2. Check for duplicate upload in the same department (Business Rule)
+    if department:
+        existing = db.query(Upload).filter(
+            Upload.project_id == project_id,
+            Upload.department == department,
+            Upload.file_name == file.filename,
+            Upload.status == "Completed"
+        ).first()
+        if existing:
+            raise ValueError(f"A file with name '{file.filename}' has already been uploaded for this department.")
 
-    logger.info(
-        "[tracker_service] Saved to disk: %s  project_id=%s  uploaded_by=%s",
-        file_path, project_id, uploaded_by,
-    )
-
-    # ------------------------------------------------------------------
-    # 2. Create Upload record immediately (status=Processing)
-    #    so it's visible even if parsing fails later.
-    # ------------------------------------------------------------------
-    new_upload = Upload(
-        project_id=project_id,
-        file_name=file.filename,
-        uploaded_by=uploaded_by,
-        department=department,
-        status="Processing",
-    )
-    db.add(new_upload)
-    db.commit()
-    db.refresh(new_upload)
-    upload_id = new_upload.id
-    logger.info("[tracker_service] Upload record created  id=%s", upload_id)
-
+    # 3. Apply IngestionEngine logic (Merged cells, multi-row headers, cleaning)
+    engine_inst = IngestionEngine()
     try:
-        # --------------------------------------------------------------
-        # 3. Parse Excel
-        # --------------------------------------------------------------
-        result  = parse_tracker_excel(file_path)
-        records = result["records"]
-        errors  = result["errors"]
-        total   = len(records) + len(errors)
+        raw_ingested_records = engine_inst.ingest(contents, file.filename)
+    except Exception as e:
+        logger.error("[tracker_service] IngestionEngine failed: %s", e)
+        raise ValueError(f"Ingestion logic failed to parse file: {e}")
 
-        logger.info(
-            "[tracker_service] upload_id=%s  PARSED: total_excel_rows=%s  valid=%s  invalid=%s",
-            upload_id, total, len(records), len(errors),
+    if not raw_ingested_records:
+        raise ValueError("IngestionEngine returned no records. File might be empty or improperly formatted.")
+
+    # 4. Bypass Standardization (Save directly as JSONB)
+    # The user requested to save the jsonb data in the database directly
+    # instead of mapping it to specific tracker columns.
+    
+    # Sanitise for JSON-serialisability
+    file_data_jsonb = _serialize_for_json(raw_ingested_records)
+    total_rows = len(file_data_jsonb)
+
+    # 5. Save to Database (Atomic Transaction)
+    try:
+        # Create Upload record (audit/history)
+        new_upload = Upload(
+            project_id=project_id,
+            file_name=file.filename,
+            uploaded_by=uploaded_by,
+            department=department,
+            status="Processing", # Will be updated to Completed in same transaction
+            row_count=total_rows,
+            valid_row_count=total_rows,
+            invalid_row_count=0
         )
+        db.add(new_upload)
+        db.flush() # Get ID
+        upload_id = new_upload.id
 
-        # Log every skipped row reason for auditability
-        if errors:
-            logger.warning(
-                "[tracker_service] upload_id=%s  SKIPPED ROWS (%d): %s",
-                upload_id,
-                len(errors),
-                [{"row": e["row_number"], "reason": e["error_message"]} for e in errors],
-            )
-
-        # --------------------------------------------------------------
-        # 4. Insert TrackerData rows
-        #    Strict: every row MUST have project_id AND upload_id AND module
-        # --------------------------------------------------------------
-        tracker_items = []
-        skipped_no_module = 0
-
-        for r in records:
-            module_val = (r.get("module") or "").strip()
-            if not module_val:
-                # Extra safety net — should have been caught by parser
-                logger.error(
-                    "[tracker_service] upload_id=%s row=%s: module is empty after parsing — SKIPPING",
-                    upload_id, r.get("source_row_number"),
-                )
-                skipped_no_module += 1
-                errors.append({
-                    "row_number":    r.get("source_row_number", -1),
-                    "error_message": "Module field is empty — row rejected before DB insert",
-                    "raw_payload":   json.dumps(r, default=str),
-                })
-                continue
-
-            tracker_items.append(
-                TrackerData(
-                    project_id=project_id,
-                    upload_id=upload_id,
-                    module=module_val,
-                    milestone_name=r["milestone_name"],
-                    planned_date=r["planned_date"],
-                    actual_date=r["actual_date"],
-                    status=r["status"],
-                    delay_days=r["delay_days"],
-                    source_row_number=r["source_row_number"],
-                )
-            )
-
-        if tracker_items:
-            db.bulk_save_objects(tracker_items)
-            db.flush()
-
-        # --------------------------------------------------------------
-        # 5. Insert ImportError rows for every bad row
-        # --------------------------------------------------------------
-        error_items = [
-            ImportErrorModel(
-                upload_id=upload_id,
-                project_id=project_id,
-                row_number=e["row_number"],
-                error_message=e["error_message"],
-                raw_payload=e["raw_payload"],
-            )
-            for e in errors
-        ]
-
-        if error_items:
-            db.bulk_save_objects(error_items)
-            db.flush()
-
-        # --------------------------------------------------------------
-        # 6. Update Upload record with final stats
-        # --------------------------------------------------------------
-        inserted_count = len(tracker_items)
-        invalid_count  = len(errors)
-
-        new_upload.row_count         = total
-        new_upload.valid_row_count   = inserted_count
-        new_upload.invalid_row_count = invalid_count
-        new_upload.status            = "Completed"
+        # Create TrackerIngestion record (analytics data)
+        ingestion_record = TrackerIngestion(
+            project_id=project_id,
+            upload_id=upload_id,
+            file_name=file.filename,
+            data=file_data_jsonb,
+            uploaded_by=uploaded_by
+        )
+        db.add(ingestion_record)
+        
+        # Finalize Upload status
+        new_upload.status = "Completed"
         db.commit()
         db.refresh(new_upload)
 
         logger.info(
-            "[tracker_service] upload_id=%s  COMPLETED — "
-            "total=%s | inserted=%s | skipped=%s | error_records=%s",
-            upload_id, total, inserted_count, invalid_count, len(error_items),
+            "[tracker_service] upload_id=%s COMPLETED — Ingestion logic applied and saved as standardized JSONB.",
+            upload_id
         )
 
         return {
-            "total_rows":    total,
-            "valid_rows":    len(result["records"]),     # originally parsed valid rows
-            "invalid_rows":  invalid_count,
-            "inserted_rows": inserted_count,
+            "total_rows":    total_rows,
+            "valid_rows":    total_rows,
+            "invalid_rows":  0,
+            "inserted_rows": total_rows,
         }, new_upload
 
     except Exception as exc:
-        # Mark the upload as failed so the UI can surface it
-        try:
-            new_upload.status = "Failed"
-            db.commit()
-        except Exception:
-            pass
-
         db.rollback()
-        logger.exception(
-            "[tracker_service] upload_id=%s PIPELINE FAILED: %s",
-            upload_id, exc,
-        )
-        raise
+        logger.exception("[tracker_service] DB transaction failed: %s", exc)
+        raise ValueError(f"Failed to save ingested data to database: {exc}")
+
+

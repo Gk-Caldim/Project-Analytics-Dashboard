@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from app.schemas.audit_log import AuditLogCreate, AuditLogResponse
 from app.models.audit_log import AuditLog
@@ -19,6 +19,7 @@ router = APIRouter(
 def get_audit_logs(
     module: str = None,
     entity_id: str = None,
+    user_id: str = None,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -42,6 +43,8 @@ def get_audit_logs(
         query = query.filter(AuditLog.module == module)
     if entity_id:
         query = query.filter(AuditLog.entity_id == entity_id)
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
         
     logs = query.order_by(desc(AuditLog.timestamp)).limit(limit).all()
     return logs
