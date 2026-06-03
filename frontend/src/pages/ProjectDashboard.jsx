@@ -21,6 +21,7 @@ import useCurrency from "../hooks/useCurrency";
 const PremiumProjectCard = React.lazy(() => import('../components/project/PremiumProjectCard'));
 import { motion } from 'framer-motion';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
+import Skeleton from '../components/ui/skeleton';
 import { staggerContainer } from '../utils/animations';
 const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
 const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
@@ -735,7 +736,7 @@ const ProjectTitleDashboard = () => {
     return { resolvedProjectId, resolvedModule };
   }, [submoduleId, selectedFileId, activeProject?.dbProjectId, projectId]);
 
-  const { data: dashboardQueryData } = useQuery({
+  const { data: dashboardQueryData, isLoading: isDashboardLoading } = useQuery({
     queryKey: ['dashboard', resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule],
     queryFn: async () => {
       const { getDashboard } = await import('../api/dashboard');
@@ -1088,7 +1089,7 @@ const ProjectTitleDashboard = () => {
 
   const targetBudgetProject = selectedBudgetProject || (activeProject ? activeProject.name : null);
 
-  const { data: budgetData } = useQuery({
+  const { data: budgetData, isLoading: isBudgetLoading } = useQuery({
     queryKey: ['budget', targetBudgetProject],
     queryFn: async () => {
       const { default: API } = await import('../utils/api');
@@ -1856,6 +1857,51 @@ const ProjectTitleDashboard = () => {
 
   // Render table for submodule data
   const renderSubmoduleTable = (data, fileName, trackerIdArg = null) => {
+    const tId = trackerIdArg || selectedSubmodule?.trackerId;
+    const isSubmoduleLoading = tId ? submoduleLoading[tId] : false;
+
+    if (isSubmoduleLoading) {
+      return (
+        <div style={{ padding: '20px', backgroundColor: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border-strong)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Skeleton className="h-6 w-48" />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '8px', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg)', borderBottom: '1px solid var(--border-subtle)' }}>
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <th key={`header-${idx}`} style={{ padding: '12px', textAlign: 'left' }}>
+                      <Skeleton className="h-4 w-20" />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 8 }).map((_, rIdx) => (
+                  <tr key={`row-${rIdx}`} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    {Array.from({ length: 5 }).map((_, cIdx) => {
+                      const widths = ['w-12', 'w-16', 'w-24', 'w-32', 'w-20'];
+                      const widthClass = widths[(rIdx + cIdx) % widths.length];
+                      return (
+                        <td key={`cell-${cIdx}`} style={{ padding: '12px' }}>
+                          <Skeleton className={`h-4 ${widthClass}`} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     // If it's a module from dashboard, data comes from dashboardData.milestones
     if (!data) {
       return (
@@ -1897,8 +1943,6 @@ const ProjectTitleDashboard = () => {
         </div>
       );
     }
-
-    const tId = trackerIdArg || selectedSubmodule?.trackerId;
 
     return (
       <ExcelTableViewer
@@ -3847,6 +3891,43 @@ const ProjectTitleDashboard = () => {
   };
 
   const renderMetricsSummary = () => {
+    if (isDashboardLoading) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px'
+          }}>
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={`metrics-skeleton-${idx}`} style={{
+                backgroundColor: 'var(--surface)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                height: '380px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Skeleton className="h-[18px] w-4 rounded-sm" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded" />
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <Skeleton className="h-4/5 w-full rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     if (allMetricCharts.length === 0) return null;
 
     const totalPages = Math.ceil(allMetricCharts.length / chartsPerPage);
@@ -4587,7 +4668,25 @@ const ProjectTitleDashboard = () => {
                     </div>
                     <div style={{ backgroundColor: 'var(--blue-50)', color: 'var(--blue-900)', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
                   </header>
-                  {budgetViewMode === 'simplified' ? (
+                  {isBudgetLoading ? (
+                    budgetViewMode === 'simplified' ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                        {Array.from({ length: 4 }).map((_, idx) => (
+                          <div key={`budget-card-skeleton-${idx}`} style={{ padding: '20px', backgroundColor: 'var(--elevated-card)', borderRadius: '12px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-8 w-28" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <Skeleton className="h-10 w-full" />
+                        {Array.from({ length: 5 }).map((_, idx) => (
+                          <Skeleton key={`budget-table-row-skeleton-${idx}`} className="h-8 w-full" />
+                        ))}
+                      </div>
+                    )
+                  ) : budgetViewMode === 'simplified' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                       <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
                         <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>

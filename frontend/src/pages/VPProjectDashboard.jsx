@@ -4,6 +4,7 @@ import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, Tre
 import { useRef } from 'react';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import TopRisksPanel from '../components/issues/TopRisksPanel';
+import Skeleton from '../components/ui/skeleton';
 import API from '../utils/api';
 import { listIssues } from '../api/issues';
 import './VPProjectDashboard.css';
@@ -323,7 +324,30 @@ const VPProjectDashboard = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {displayIssues.map((issue, idx) => {
+                        {loadingMom ? (
+                          Array.from({ length: 5 }).map((_, rIdx) => (
+                            <tr key={`skeleton-${rIdx}`}>
+                              <td style={{ textAlign: 'center' }}><Skeleton className="h-4 w-4 mx-auto" /></td>
+                              <td><Skeleton className="h-4 w-16 mx-auto" /></td>
+                              <td><Skeleton className="h-4 w-24 mx-auto" /></td>
+                              <td><Skeleton className="h-5 w-16 rounded mx-auto" /></td>
+                              <td>
+                                <Skeleton className="h-4 w-32 mb-1" />
+                                <Skeleton className="h-3 w-48" />
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <Skeleton className="h-6 w-6 rounded-full" />
+                                  <Skeleton className="h-4 w-16" />
+                                </div>
+                              </td>
+                              <td><Skeleton className="h-4 w-12 mx-auto" /></td>
+                              <td><Skeleton className="h-5 w-16 rounded mx-auto" /></td>
+                              <td><Skeleton className="h-4 w-28" /></td>
+                            </tr>
+                          ))
+                        ) : (
+                          displayIssues.map((issue, idx) => {
                             const priority = issue.priority || 'Medium';
                             const critStyles = {
                               'High': { bg: 'var(--red-50)', color: 'var(--red-900)', border: 'var(--red-200)' },
@@ -400,7 +424,8 @@ const VPProjectDashboard = ({
                                 </td>
                               </tr>
                             );
-                          })}
+                          })
+                        )}
                       </tbody>
                     </table>
                   </div>
