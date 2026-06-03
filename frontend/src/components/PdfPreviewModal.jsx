@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Download, Settings, GripVertical, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -24,14 +24,17 @@ const PdfPreviewModal = ({
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [sectionOrder, setSectionOrder] = useState([]);
-
+  // Tracks whether sectionOrder has been initialised for the current modal open.
+  // Prevents the effect from re-merging (and corrupting) the order while modal is open.
+  const sectionOrderInitialisedRef = useRef(false);
 
   const onDragEnd = (result) => {
     if (!result.destination) return;
     const items = Array.from(sectionOrder);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    setSectionOrder(items);
+    // Deduplicate as a safety net against any stale-closure edge-cases
+    setSectionOrder(Array.from(new Set(items)));
   };
 
   const budgetStatus = masterProjects?.find(p => p.name === selectedBudgetProject)?.status || activeProject?.status || 'Active';
@@ -66,35 +69,32 @@ const PdfPreviewModal = ({
     });
   }, [activeProject, visibleSections, availablePhases, getTrackerForPhase]);
 
-  // Sync section order with visible selections only when modal opens
+  // Initialise sectionOrder exactly ONCE each time the modal opens.
+  // Using a ref flag ensures we never re-run the merge logic while the modal is open,
+  // which was the root cause of the duplication bug: the effect was re-firing (because
+  // visiblePhaseList.length is derived from a useMemo that recomputes on every parent
+  // re-render), and its merge logic was appending uniqueCurrent onto the already-reordered
+  // prev array before Set could deduplicate, creating phantom duplicate entries.
   useEffect(() => {
     if (show) {
+      // Guard: if already initialised for this open, do nothing
+      if (sectionOrderInitialisedRef.current) return;
+      sectionOrderInitialisedRef.current = true;
+
       const allPossibleSections = ['charts', 'criticalIssues', 'budget', 'resource', 'quality'];
       const currentVisible = allPossibleSections.filter(key => {
         if (key === 'charts') {
-          // Charts section is visible if explicitly enabled OR if any individual phase chart is selected
           return visibleSections?.metricsSummary || visiblePhaseList.length > 0;
         }
         return !!visibleSections?.[key];
       });
-      
-      setSectionOrder(prev => {
-        // Use a Set to ensure uniqueness
-        const uniqueCurrent = Array.from(new Set(currentVisible));
-
-        // Only initialize if prev is empty to avoid resetting user reordering
-        if (prev.length === 0) return uniqueCurrent;
-        
-        // If we already have an order, just ensure it's up to date with visibility
-        // but keep the existing relative order as much as possible
-        const filteredPrev = prev.filter(k => uniqueCurrent.includes(k));
-        const newOrder = Array.from(new Set([...filteredPrev, ...uniqueCurrent]));
-        return newOrder;
-      });
+      setSectionOrder(Array.from(new Set(currentVisible)));
     } else {
-      // Clear order when modal closes so it re-initializes next time
+      // Modal closed: reset so next open re-initialises cleanly
+      sectionOrderInitialisedRef.current = false;
       setSectionOrder([]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [show, visibleSections, visiblePhaseList.length]);
 
   const downloadPdf = async () => {
@@ -299,7 +299,12 @@ const PdfPreviewModal = ({
           )}
 
           <div style={{ flex: 1, height: '100%' }}>
-            <PDFViewer style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
+            {/* key forces PDFViewer to remount whenever sectionOrder changes.
+                PDFViewer renders into an iframe via a web worker and does NOT
+                propagate child prop changes to its internal renderer on its own.
+                Without this, the preview stays frozen on the initial render while
+                the downloaded PDF (which calls pdf() at click-time) is always correct. */}
+            <PDFViewer key={sectionOrder.join('|')} style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
               <ReportDocument 
                 activeProject={activeProject}
                 milestones={milestones}

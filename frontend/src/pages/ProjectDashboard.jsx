@@ -4619,7 +4619,7 @@ const ProjectTitleDashboard = () => {
               onClose={() => setShowPdfPreview(false)}
               activeProject={activeProject}
               milestones={milestones}
-              criticalIssues={criticalIssues}
+              criticalIssues={criticalIssues.slice(0, 5)}
               sopData={sopData}
               summaryData={summaryData}
               visibleSections={emailData.selectedSections}

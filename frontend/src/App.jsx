@@ -161,6 +161,7 @@ function AppContent() {
   const wsRef = React.useRef(null);
   const reconnectTimerRef = React.useRef(null);
   const wasOffline = React.useRef(false);
+  const failureCountRef = React.useRef(0);
 
   // Selector to read if server is online
   const isServerOnline = useSelector(state => state.nav.isServerOnline);
@@ -184,30 +185,33 @@ function AppContent() {
         const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
         const healthUrl = apiBase.replace(/\/api\/?$/, '/healthz');
         // Direct axios call to bypass Axios client instance interceptor retries
-        const res = await axios.get(healthUrl, { timeout: 3000 });
+        const res = await axios.get(healthUrl, { timeout: 6000 });
         if (active) {
           if (res.data && res.data.status === 'ok') {
+            failureCountRef.current = 0; // Reset on success
             dispatch(setServerOnline(true));
           } else {
-            dispatch(setServerOnline(false));
+            handleFailure();
           }
         }
       } catch (err) {
         if (active) {
-          dispatch(setServerOnline(false));
+          handleFailure();
         }
       }
     };
 
-    const scheduleNext = (online) => {
-      if (timer) clearInterval(timer);
-      // Poll less frequently when healthy, more aggressively when recovering
-      timer = setInterval(checkHealth, online ? 30000 : 10000);
+    const handleFailure = () => {
+      failureCountRef.current += 1;
+      // Require 3 consecutive failures to flag offline
+      if (failureCountRef.current >= 3) {
+        dispatch(setServerOnline(false));
+      }
     };
 
-    // Run health check on mount, then start interval
+    // Run health check on mount, then start interval based on status
     checkHealth();
-    scheduleNext(true); // start with 30s interval; offline handler adjusts it
+    timer = setInterval(checkHealth, isServerOnline ? 30000 : 10000);
 
     // When tab becomes visible again, run an immediate check
     const onVisibilityChange = () => {
@@ -220,7 +224,7 @@ function AppContent() {
       if (timer) clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [dispatch]);
+  }, [dispatch, isServerOnline]);
 
   // Handle transition from offline to online (reload to cleanly re-mount all state)
   React.useEffect(() => {

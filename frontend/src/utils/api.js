@@ -27,8 +27,15 @@ API.interceptors.response.use(
     const isNetworkError = !error.response;
     const isTimeout = error.code === 'ECONNABORTED';
 
-    // Retry only GET requests on network/timeout errors up to 3 times
-    if ((isNetworkError || isTimeout) && isGetRequest && config) {
+    // Check if the endpoint is a heavy file loading or processing task to prevent stacking requests
+    const isHeavyEndpoint = config && config.url && (
+      config.url.includes('/excel-view') || 
+      config.url.includes('/download') ||
+      config.url.includes('/process')
+    );
+
+    // Retry only GET requests on network/timeout errors up to 3 times (excluding heavy endpoints)
+    if ((isNetworkError || isTimeout) && isGetRequest && !isHeavyEndpoint && config) {
       config.__retryCount = config.__retryCount || 0;
       if (config.__retryCount < 3) {
         config.__retryCount += 1;

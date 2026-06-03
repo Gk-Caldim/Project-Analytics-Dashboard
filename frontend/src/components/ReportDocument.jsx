@@ -310,7 +310,7 @@ const ReportDocument = ({
 
 
         {/* Content Sections based on sectionOrder */}
-        {sectionOrder.map((key) => {
+        {[...new Set(sectionOrder)].map((key) => {
 
 
           // 2. Critical Issues
@@ -377,9 +377,9 @@ const ReportDocument = ({
                         </View>
                         <View style={[styles.tableCell, { width: '25%' }]}>
                           <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{issue.title}</Text>
-                          {issue.description && issue.description !== issue.title && (
+                          {issue.description && issue.description !== issue.title ? (
                             <Text style={{ fontSize: 7, color: '#64748b' }}>{issue.description}</Text>
-                          )}
+                          ) : null}
                         </View>
                         <Text style={[styles.tableCell, { width: '12%' }]}>{issue.owner || issue.responsibility}</Text>
                         <Text style={[styles.tableCell, { width: '8%', textAlign: 'center' }]}>
