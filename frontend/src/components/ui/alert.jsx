@@ -8,8 +8,9 @@ export const Alert = React.forwardRef(({ className, variant = 'default', childre
       role="alert"
       className={cn(
         "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4",
-        variant === 'default' && "bg-white text-slate-900 border-slate-200 dark:bg-slate-950 dark:text-slate-50 dark:border-slate-800 [&>svg]:text-slate-900 dark:[&>svg]:text-slate-50",
-        variant === 'destructive' && "border-red-200 bg-red-50 text-red-800 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400 [&>svg]:text-red-600 dark:[&>svg]:text-red-400",
+        variant === 'default' && "bg-[#EBF8FF] border border-[#BEE3F8] text-[#2A4365] rounded-lg [&>svg]:text-[#3182CE]",
+        variant === 'destructive' && "bg-[#FFF5F5] border border-[#FEB2B2] text-[#9B2C2C] rounded-lg [&>svg]:text-[#E53E3E]",
+        variant === 'success' && "bg-[#F0FDF4] border border-[#C6F6D5] text-[#22543D] rounded-lg [&>svg]:text-[#38A169]",
         className
       )}
       {...props}

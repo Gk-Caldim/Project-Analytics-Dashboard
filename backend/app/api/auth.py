@@ -128,7 +128,7 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
         remaining_minutes = (remaining_seconds // 60) + 1
         raise HTTPException(
             status_code=400,
-            detail=f"Too many failed attempts. Account is locked. Please try again in {remaining_minutes} minute(s).",
+            detail=f"Too many incorrect attempts. Sign-in is temporarily locked. Please try again in {remaining_minutes} minute(s).",
         )
 
     # Helper to find employee by email or employee_id
@@ -195,12 +195,12 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
         tracker["locked_until"] = now + timedelta(minutes=15)
         raise HTTPException(
             status_code=400,
-            detail="Too many failed attempts. Account is locked. Please try again in 15 minutes.",
+            detail="Too many incorrect attempts. Sign-in is temporarily locked for 15 minutes.",
         )
     else:
         raise HTTPException(
             status_code=400,
-            detail=f"Incorrect credentials. Try again (Attempt {tracker['attempts']} of 3).",
+            detail=f"Incorrect email or password. Please try again (Attempt {tracker['attempts']} of 3).",
         )
 
 

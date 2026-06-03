@@ -5,6 +5,7 @@ import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'react-hot-toast';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -65,7 +66,27 @@ const LoginPage = () => {
       setResetStep(2);
       setCountdown(120); // 2 minutes resend delay
     } catch (err) {
-      setForgotError(err.response?.data?.detail || 'Failed to request password reset');
+      const errMsg = err.response?.data?.detail || 'Failed to request password reset';
+      setForgotError(errMsg);
+      if (errMsg.includes('temporarily locked')) {
+        toast.error('Security alert sent to your email', {
+          style: {
+            border: '2px solid #C8341A',
+            padding: '12px 16px',
+            color: '#C8341A',
+            background: '#ffffff',
+            fontWeight: '600',
+            fontSize: '14px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          },
+          iconTheme: {
+            primary: '#C8341A',
+            secondary: '#ffffff',
+          },
+          duration: 6000,
+        });
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -82,7 +103,27 @@ const LoginPage = () => {
       setResetToken(response.data.reset_token);
       setResetStep(3);
     } catch (err) {
-      setForgotError(err.response?.data?.detail || 'OTP verification failed');
+      const errMsg = err.response?.data?.detail || 'OTP verification failed';
+      setForgotError(errMsg);
+      if (errMsg.includes('temporarily locked')) {
+        toast.error('Security alert sent to your email', {
+          style: {
+            border: '2px solid #C8341A',
+            padding: '12px 16px',
+            color: '#C8341A',
+            background: '#ffffff',
+            fontWeight: '600',
+            fontSize: '14px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          },
+          iconTheme: {
+            primary: '#C8341A',
+            secondary: '#ffffff',
+          },
+          duration: 6000,
+        });
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -365,7 +406,7 @@ const LoginPage = () => {
                     </Alert>
                   )}
                   {forgotSuccess && (
-                    <Alert variant="default" className="mb-4 bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400 [&>svg]:text-emerald-600">
+                    <Alert variant="success" className="mb-4">
                       <CheckCircle2 className="h-4 w-4" />
                       <AlertDescription>{forgotSuccess}</AlertDescription>
                     </Alert>
@@ -660,7 +701,7 @@ const LoginPage = () => {
                   </Alert>
                 )}
                 {reqSuccess && (
-                  <Alert variant="default" className="mb-4 bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400 [&>svg]:text-emerald-600">
+                  <Alert variant="success" className="mb-4">
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>{reqSuccess}</AlertDescription>
                   </Alert>
