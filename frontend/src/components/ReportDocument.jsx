@@ -227,6 +227,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     fontSize: 8,
     color: '#94a3b8',
+  },
+  watermark: {
+    position: 'absolute',
+    top: '35%',
+    left: '5%',
+    right: '5%',
+    fontSize: 56,
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    color: '#94a3b8',
+    textAlign: 'center',
+    transform: 'rotate(-35deg)',
+    zIndex: -999,
   }
 });
 
@@ -279,19 +292,32 @@ const ReportDocument = ({
   budgetCurrency,
   budgetStatus,
   chartImages,
-  sectionOrder
+  sectionOrder,
+  headerTitle,
+  subHeading,
+  footerText,
+  backgroundColor,
+  watermarkText,
+  watermarkOpacity
 }) => {
   const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={[styles.page, { backgroundColor: backgroundColor || '#ffffff' }]}>
+        {/* Watermark */}
+        {watermarkText ? (
+          <Text style={[styles.watermark, { opacity: watermarkOpacity || 0.1 }]} fixed>
+            {watermarkText}
+          </Text>
+        ) : null}
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={[styles.title, { color: '#0f172a' }]}>{activeProject?.name || 'Project Dashboard'}</Text>
-              <Text style={[styles.subtitle, { textTransform: 'uppercase', letterSpacing: 1, color: '#64748b', fontWeight: 'bold' }]}>Executive Dashboard Analytics Report</Text>
+              <Text style={[styles.title, { color: '#0f172a' }]}>{headerTitle || activeProject?.name || 'Project Dashboard'}</Text>
+              <Text style={[styles.subtitle, { textTransform: 'uppercase', letterSpacing: 1, color: '#64748b', fontWeight: 'bold' }]}>{subHeading || 'Executive Dashboard Analytics Report'}</Text>
             </View>
           </View>
           <View style={[styles.headerInfo, { backgroundColor: '#f8fafc', padding: 8, borderRadius: 4 }]}>
@@ -523,7 +549,7 @@ const ReportDocument = ({
         <Text 
           style={styles.footer} 
           render={({ pageNumber, totalPages }) => (
-            `Page ${pageNumber} of ${totalPages}  |  Generated on ${dateStr}  |  Project Dashboard Report`
+            `Page ${pageNumber} of ${totalPages}  |  Generated on ${dateStr}  |  ${footerText || 'Project Dashboard Report'}`
           )} 
           fixed 
         />
