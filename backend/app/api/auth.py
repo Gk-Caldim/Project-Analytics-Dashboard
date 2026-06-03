@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.core.database import get_db
 from app.core.limiter import limiter
@@ -163,22 +164,37 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
 
 # ---------- FORGOT PASSWORD ----------
 @router.post("/forgot-password")
-def forgot_password(data: dict, db: Session = Depends(get_db)):
+def forgot_password(request: Request, data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     email = data.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email is required")
-        
-    # Check if email exists in any of our user sources
-    exists = db.query(ApplicationAccess).filter(ApplicationAccess.email == email).first() or \
-             db.query(Employee).filter(Employee.email == email).first() or \
-             db.query(User).filter(User.email == email).first()
-             
-    if not exists:
-         raise HTTPException(status_code=404, detail="Email not found in our records")
-         
-    # In a real app, we would send an email here. 
-    # For this prototype, we just return success to confirm "real-time" validation.
-    return {"message": "Reset link sent successfully"}
+    from app.services.password_reset_service import initiate_reset
+    return initiate_reset(email, db, background_tasks)
+
+
+# ---------- VERIFY OTP ----------
+@router.post("/verify-otp")
+def verify_otp(data: dict, db: Session = Depends(get_db)):
+    email = data.get("email")
+    otp = data.get("otp")
+    if not email or not otp:
+        raise HTTPException(status_code=400, detail="Email and OTP are required")
+    from app.services.password_reset_service import verify_otp as svc_verify_otp
+    reset_token = svc_verify_otp(email, otp, db)
+    return {"message": "OTP verified successfully.", "email": email, "reset_token": reset_token}
+
+
+# ---------- RESET PASSWORD ----------
+@router.post("/reset-password")
+def reset_password(data: dict, db: Session = Depends(get_db)):
+    email = data.get("email")
+    reset_token = data.get("reset_token")
+    new_password = data.get("new_password")
+    if not email or not reset_token or not new_password:
+        raise HTTPException(status_code=400, detail="Email, reset token, and new password are required")
+    from app.services.password_reset_service import reset_password as svc_reset_password
+    svc_reset_password(email, reset_token, new_password, db)
+    return {"message": "Password has been successfully updated."}
 
 # ---------- ME ----------
 @router.get("/me")

@@ -38,6 +38,7 @@ from app.models import user_session # noqa: F401
 from app.models import settings # noqa: F401
 from app.models import google_token  # noqa: F401  ← registers google_tokens table
 from app.models import access_request # noqa: F401
+from app.models import password_reset  # noqa: F401
 from app.models.role import Role  # noqa: F401
 from app.models import employee_project # noqa: F401
 from app.models import project_permission # noqa: F401
@@ -164,7 +165,13 @@ async def startup_event():
         # Adds the join_code column + backfills existing projects if not done yet.
         from app.scripts.join_code_migration import run_join_code_migration
         run_join_code_migration(db)
-        
+
+        # ── Idempotent password_reset_tokens migration ──────────────────────
+        # Ensures hashed_otp, reset_token, is_verified, attempts, and
+        # timestamp columns exist on a table that may pre-date the OTP flow.
+        from app.scripts.password_reset_migration import run_password_reset_migration
+        run_password_reset_migration(db)
+
         # Start background procurement scheduler
         from app.services.scheduler_service import init_scheduler
         init_scheduler()
