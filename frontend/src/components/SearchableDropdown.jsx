@@ -9,7 +9,8 @@ const SearchableDropdown = ({
   className = '',
   controlClassName = '',
   disabled = false,
-  required = false
+  required = false,
+  isMulti = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,20 +44,45 @@ const SearchableDropdown = ({
     getLabel(option).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const valueArray = Array.isArray(value) 
+    ? value 
+    : (typeof value === 'string' && value ? value.split(',').map(s => s.trim()).filter(Boolean) : []);
+
   const handleSelect = (option) => {
-    // Pass both the primitive value and the full option object for flexibility
-    onChange(getValue(option), option);
-    setIsOpen(false);
-    setSearchTerm('');
+    const optValue = getValue(option);
+    
+    if (isMulti) {
+      const isSelected = valueArray.includes(optValue);
+      let newValueArray;
+      if (isSelected) {
+        newValueArray = valueArray.filter(v => v !== optValue);
+      } else {
+        newValueArray = [...valueArray, optValue];
+      }
+      // Pass the new array and the current option to onChange
+      onChange(newValueArray, option);
+      // We don't close the dropdown or clear search on multi-select
+    } else {
+      // Pass both the primitive value and the full option object for flexibility
+      onChange(optValue, option);
+      setIsOpen(false);
+      setSearchTerm('');
+    }
   };
 
   const handleClear = (e) => {
     e.stopPropagation();
-    onChange('', null);
+    onChange(isMulti ? [] : '', null);
     setSearchTerm('');
   };
 
-  // Find the label for the current value
+  const handleRemoveTag = (e, valToRemove) => {
+    e.stopPropagation();
+    const newValueArray = valueArray.filter(v => v !== valToRemove);
+    onChange(newValueArray, null);
+  };
+
+  // Find the label for the current value (single select)
   const selectedOption = options.find(opt => getValue(opt) === value);
   const displayLabel = selectedOption ? getLabel(selectedOption) : (value || placeholder);
 
@@ -65,16 +91,42 @@ const SearchableDropdown = ({
       <div
         className={`
           flex items-center justify-between w-full border cursor-pointer transition-all duration-200
-          ${controlClassName ? controlClassName : 'px-3 py-2 text-sm rounded-lg border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-500 text-gray-900 dark:text-slate-100'}
+          px-3 py-2 text-sm rounded-lg border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-500 text-gray-900 dark:text-slate-100
+          ${controlClassName}
           ${disabled ? 'bg-gray-50 dark:bg-slate-800 cursor-not-allowed opacity-60' : ''}
           ${isOpen ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-blue-900/20' : ''}
         `}
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="flex-1 truncate">
-          <span className={value ? "" : "text-gray-400 dark:text-slate-500 font-normal"}>
-            {displayLabel}
-          </span>
+          {isMulti ? (
+            valueArray.length > 0 ? (
+              <div className="flex flex-wrap gap-1 my-[-2px]">
+                {valueArray.map((v, i) => {
+                  const opt = options.find(o => getValue(o) === v);
+                  const label = opt ? getLabel(opt) : v;
+                  return (
+                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50">
+                      {label}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveTag(e, v)}
+                        className="ml-1 text-blue-600 dark:text-blue-400 hover:text-red-500 dark:hover:text-red-400"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <span className="text-gray-400 dark:text-slate-500 font-normal">{placeholder}</span>
+            )
+          ) : (
+            <span className={value ? "" : "text-gray-400 dark:text-slate-500 font-normal"}>
+              {displayLabel}
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-1 ml-2">
           {value && !disabled && (
@@ -109,7 +161,7 @@ const SearchableDropdown = ({
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option, index) => {
                 const optValue = getValue(option);
-                const isSelected = optValue === value;
+                const isSelected = isMulti ? valueArray.includes(optValue) : optValue === value;
                 return (
                   <div
                     key={index}
