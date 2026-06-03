@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
 import API from '../utils/api';
-import { Eye, EyeOff, Shield } from 'lucide-react';
+import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -25,6 +25,121 @@ const LoginPage = () => {
   const [showReqPassword, setShowReqPassword] = useState(false);
   const [showReqConfirmPassword, setShowReqConfirmPassword] = useState(false);
   const [roles, setRoles] = useState([]);
+
+  // ── FORGOT PASSWORD STATE ──
+  const [showForgotPasswordForm, setShowForgotPasswordForm] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1 = Email, 2 = OTP, 3 = New Password, 4 = Success
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+  const [countdown, setCountdown] = useState(0);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showConfirmResetPassword, setShowConfirmResetPassword] = useState(false);
+
+  // ── OTP TIMER COUNTDOWN ──
+  useEffect(() => {
+    let timer;
+    if (countdown > 0 && showForgotPasswordForm && resetStep === 2) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown, showForgotPasswordForm, resetStep]);
+
+  // ── FORGOT PASSWORD API ACTIONS ──
+  const handleRequestOtp = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotSuccess('');
+    setForgotLoading(true);
+    try {
+      const response = await API.post('/auth/forgot-password', { email: forgotEmail });
+      setForgotSuccess(response.data.message);
+      setResetStep(2);
+      setCountdown(120); // 2 minutes resend delay
+    } catch (err) {
+      setForgotError(err.response?.data?.detail || 'Failed to request password reset');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotSuccess('');
+    setForgotLoading(true);
+    try {
+      const response = await API.post('/auth/verify-otp', { email: forgotEmail, otp: otpCode });
+      setForgotSuccess(response.data.message);
+      setResetToken(response.data.reset_token);
+      setResetStep(3);
+    } catch (err) {
+      setForgotError(err.response?.data?.detail || 'OTP verification failed');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotSuccess('');
+    if (newPassword !== confirmNewPassword) {
+      setForgotError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setForgotError('Password must be at least 8 characters long');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const response = await API.post('/auth/reset-password', {
+        email: forgotEmail,
+        reset_token: resetToken,
+        new_password: newPassword
+      });
+      setForgotSuccess(response.data.message);
+      setResetStep(4);
+    } catch (err) {
+      setForgotError(err.response?.data?.detail || 'Failed to reset password');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    setForgotError('');
+    setForgotSuccess('');
+    try {
+      const response = await API.post('/auth/forgot-password', { email: forgotEmail });
+      setForgotSuccess('OTP has been resent successfully.');
+      setCountdown(120);
+    } catch (err) {
+      setForgotError(err.response?.data?.detail || 'Failed to resend OTP');
+    }
+  };
+
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
+    let score = 0;
+    if (pwd.length >= 8) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+
+    if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
+    if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
+    return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
+  };
 
   useEffect(() => {
     API.get('/roles/').then(res => setRoles(res.data)).catch(err => console.error(err));
@@ -168,7 +283,226 @@ const LoginPage = () => {
       {/* ── RIGHT PANEL ── */}
       <div className="ws-login-right">
         <div className="ws-login-form-container">
-          {!showRequestForm ? (
+          {showForgotPasswordForm ? (
+            <>
+              {/* ── FORGOT PASSWORD WIZARD (ZOHO-STYLE) ── */}
+              {resetStep === 1 && (
+                <form className="ws-login-form" onSubmit={handleRequestOtp}>
+                  <div className="ws-back-btn-row">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowForgotPasswordForm(false)} 
+                      className="ws-back-to-login"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back to Sign In</span>
+                    </button>
+                  </div>
+                  
+                  <h1 className="ws-form-title">Forgot Password</h1>
+                  <p className="ws-form-subtext">Enter your account email. We will send you a 6-digit OTP code to verify your identity.</p>
+
+                  <div className="ws-input-group">
+                    <label>Email Address</label>
+                    <input 
+                      type="email" 
+                      placeholder="name@company.com" 
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      required 
+                    />
+                  </div>
+
+                  {forgotError && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
+                    </div>
+                  )}
+
+                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
+                    {forgotLoading ? 'Sending...' : 'Send Verification Code'}
+                  </button>
+                </form>
+              )}
+
+              {resetStep === 2 && (
+                <form className="ws-login-form" onSubmit={handleVerifyOtp}>
+                  <div className="ws-back-btn-row">
+                    <button 
+                      type="button" 
+                      onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
+                      className="ws-back-to-login"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back to Email</span>
+                    </button>
+                  </div>
+
+                  <h1 className="ws-form-title">Enter Code</h1>
+                  <p className="ws-form-subtext">We've sent a secure 6-digit verification code to <strong>{forgotEmail}</strong>.</p>
+
+                  <div className="ws-input-group">
+                    <label>Enter 6-Digit OTP</label>
+                    <input 
+                      type="text" 
+                      maxLength="6"
+                      placeholder="000000" 
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      className="ws-otp-input"
+                      required 
+                    />
+                  </div>
+
+
+
+                  {forgotError && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
+                    </div>
+                  )}
+                  {forgotSuccess && (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                      <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{forgotSuccess}</p>
+                    </div>
+                  )}
+
+                  <div className="ws-timer-row">
+                    <Timer size={13} className="ws-timer-icon" />
+                    {countdown > 0 ? (
+                      <span className="ws-countdown-text">Resend code in {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}</span>
+                    ) : (
+                      <button type="button" onClick={handleResendOtp} className="ws-resend-btn">
+                        Resend Code Now
+                      </button>
+                    )}
+                  </div>
+
+                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
+                    {forgotLoading ? 'Verifying...' : 'Verify Code'}
+                  </button>
+                </form>
+              )}
+
+              {resetStep === 3 && (
+                <form className="ws-login-form" onSubmit={handleResetPassword}>
+                  <h1 className="ws-form-title">Create Password</h1>
+                  <p className="ws-form-subtext">Set a secure, high-entropy password for your account.</p>
+
+                  <div className="ws-input-group">
+                    <label>New Password</label>
+                    <div className="ws-password-wrapper">
+                      <input 
+                        type={showResetPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        className="ws-password-toggle"
+                        onClick={() => setShowResetPassword(!showResetPassword)}
+                      >
+                        {showResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Password Strength Indicator */}
+                  {newPassword && (
+                    <div className="ws-strength-meter-container">
+                      <div className="ws-strength-labels">
+                        <span className="ws-strength-title">Password Strength:</span>
+                        <span className="ws-strength-badge" style={{ color: getPasswordStrength(newPassword).color }}>
+                          {getPasswordStrength(newPassword).label}
+                        </span>
+                      </div>
+                      <div className="ws-strength-bar-bg">
+                        <div 
+                          className="ws-strength-bar-fill" 
+                          style={{ 
+                            width: `${getPasswordStrength(newPassword).score}%`, 
+                            backgroundColor: getPasswordStrength(newPassword).color 
+                          }}
+                        ></div>
+                      </div>
+                      <ul className="ws-strength-hints">
+                        <li className={newPassword.length >= 8 ? "valid" : ""}>
+                          At least 8 characters
+                        </li>
+                        <li className={/[0-9]/.test(newPassword) ? "valid" : ""}>
+                          Contains a number
+                        </li>
+                        <li className={/[^A-Za-z0-9]/.test(newPassword) ? "valid" : ""}>
+                          Contains a special character
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="ws-input-group">
+                    <label>Confirm New Password</label>
+                    <div className="ws-password-wrapper">
+                      <input 
+                        type={showConfirmResetPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        className="ws-password-toggle"
+                        onClick={() => setShowConfirmResetPassword(!showConfirmResetPassword)}
+                      >
+                        {showConfirmResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {forgotError && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
+                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
+                    </div>
+                  )}
+
+                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
+                    {forgotLoading ? 'Updating...' : 'Save & Reset Password'}
+                  </button>
+                </form>
+              )}
+
+              {resetStep === 4 && (
+                <div className="ws-success-state">
+                  <div className="ws-success-icon-container">
+                    <CheckCircle2 size={40} className="ws-success-icon" />
+                  </div>
+                  <h1 className="ws-form-title" style={{ textAlign: 'center', marginTop: '16px' }}>Reset Successful</h1>
+                  <p className="ws-form-subtext" style={{ textAlign: 'center', marginBottom: '24px' }}>
+                    Your password has been successfully updated. You can now sign in using your new credentials.
+                  </p>
+                  <button 
+                    type="button" 
+                    className="ws-signin-btn"
+                    onClick={() => {
+                      setShowForgotPasswordForm(false);
+                      setResetStep(1);
+                      setForgotEmail('');
+                      setOtpCode('');
+                      setNewPassword('');
+                      setConfirmNewPassword('');
+                      setResetToken('');
+                      setForgotError('');
+                      setForgotSuccess('');
+                    }}
+                  >
+                    Go to Sign In
+                  </button>
+                </div>
+              )}
+            </>
+          ) : !showRequestForm ? (
             <>
               <h1 className="ws-form-title">Sign In</h1>
               <p className="ws-form-subtext">Enter your details below to continue.</p>
@@ -188,7 +522,7 @@ const LoginPage = () => {
                 <div className="ws-input-group">
                   <div className="ws-label-row">
                     <label>Password</label>
-                    <a href="#" className="ws-forgot-link">Forgot password?</a>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setShowForgotPasswordForm(true); setResetStep(1); setForgotError(''); setForgotSuccess(''); }} className="ws-forgot-link">Forgot password?</a>
                   </div>
                   <div className="ws-password-wrapper">
                     <input 

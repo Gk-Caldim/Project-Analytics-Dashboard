@@ -29,26 +29,32 @@ def send_email_task(email_data: EmailRequest):
     db_gen = get_db()
     db = next(db_gen)
     try:
-        # Fetch settings from database with category "Connections" or specific keys
+        # Fetch settings from DB (used as fallback when env vars are not set)
         settings_list = db.query(SystemSettingModel).filter(
             SystemSettingModel.key.in_(["smtp_user", "smtp_pass", "smtp_host", "smtp_port"])
         ).all()
-        
-        settings = {s.key: s.value for s in settings_list}
-        
-        smtp_user = settings.get("smtp_user") or os.getenv("SMTP_USER")
-        smtp_password = settings.get("smtp_pass") or os.getenv("SMTP_PASSWORD")
-        smtp_host = settings.get("smtp_host") or os.getenv("SMTP_HOST", "smtp.gmail.com")
-        
+        db_settings = {s.key: s.value for s in settings_list}
+
+        # ENV WINS over DB — App Passwords set in .env are always authoritative.
+        # DB settings act as a fallback for production deployments without .env files.
+        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("SMTP_USER") or db_settings.get("smtp_user")
+        smtp_password = os.getenv("SMTP_PASSWORD") or db_settings.get("smtp_pass")
+        smtp_host = os.getenv("SMTP_HOST") or db_settings.get("smtp_host") or "smtp.gmail.com"
+
         # Robust port handling
-        port_raw = settings.get("smtp_port") or os.getenv("SMTP_PORT", 587)
+        port_raw = os.getenv("SMTP_PORT") or db_settings.get("smtp_port") or 587
         try:
             smtp_port = int(port_raw)
         except (ValueError, TypeError):
             smtp_port = 587
-        
+
+        logger.info(f"[email] SMTP config — user={smtp_user}, host={smtp_host}, port={smtp_port}")
+
         if not smtp_user or not smtp_password:
-            logger.error("SMTP credentials (smtp_user/smtp_pass) not found in database or .env. Cannot send email.")
+            logger.error(
+                "[email] SMTP credentials not found. Set SMTP_USERNAME + SMTP_PASSWORD in .env "
+                "or configure them in Settings → Connections."
+            )
             return
 
         sender_email = smtp_user
@@ -132,14 +138,15 @@ async def test_smtp_connection(db: Session = Depends(get_db)):
             SystemSettingModel.key.in_(["smtp_user", "smtp_pass", "smtp_host", "smtp_port"])
         ).all()
         
-        settings = {s.key: s.value for s in settings_list}
-        
-        smtp_user = settings.get("smtp_user")
-        smtp_password = settings.get("smtp_pass")
-        smtp_host = settings.get("smtp_host", "smtp.gmail.com")
-        
+        db_settings = {s.key: s.value for s in settings_list}
+
+        # ENV WINS over DB (same priority as send_email_task)
+        smtp_user = os.getenv("SMTP_USERNAME") or os.getenv("SMTP_USER") or db_settings.get("smtp_user")
+        smtp_password = os.getenv("SMTP_PASSWORD") or db_settings.get("smtp_pass")
+        smtp_host = os.getenv("SMTP_HOST") or db_settings.get("smtp_host") or "smtp.gmail.com"
+
         # Robust port handling
-        port_raw = settings.get("smtp_port")
+        port_raw = os.getenv("SMTP_PORT") or db_settings.get("smtp_port") or "587"
         try:
             smtp_port = int(port_raw) if port_raw else 587
         except (ValueError, TypeError):
