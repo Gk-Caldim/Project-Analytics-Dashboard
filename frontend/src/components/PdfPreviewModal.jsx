@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Download, Settings, GripVertical, Mail } from 'lucide-react';
+import { X, Download, Settings, GripVertical, Mail, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { PDFViewer, pdf } from '@react-pdf/renderer';
@@ -24,6 +24,69 @@ const PdfPreviewModal = ({
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [sectionOrder, setSectionOrder] = useState([]);
+  const [activeTab, setActiveTab] = useState('layout');
+
+  const [pdfConfig, setPdfConfig] = useState({
+    headerTitle: activeProject?.name || 'Project Dashboard',
+    subHeading: 'Executive Dashboard Analytics Report',
+    footerText: 'Project Dashboard Report',
+    backgroundColor: '#ffffff',
+    watermarkText: '',
+    watermarkOpacity: 0.1
+  });
+
+  const [debouncedPdfConfig, setDebouncedPdfConfig] = useState(pdfConfig);
+
+  // Sync pdfConfig when activeProject changes or load from localStorage
+  useEffect(() => {
+    const storageKey = `pdf_config_${activeProject?.id || activeProject?.name || 'default'}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setPdfConfig(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setPdfConfig({
+        headerTitle: activeProject?.name || 'Project Dashboard',
+        subHeading: 'Executive Dashboard Analytics Report',
+        footerText: 'Project Dashboard Report',
+        backgroundColor: '#ffffff',
+        watermarkText: '',
+        watermarkOpacity: 0.1
+      });
+    }
+  }, [activeProject]);
+
+  // Debounce effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedPdfConfig(pdfConfig);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [pdfConfig]);
+
+  const updatePdfConfig = (updates) => {
+    setPdfConfig(prev => {
+      const next = { ...prev, ...updates };
+      const storageKey = `pdf_config_${activeProject?.id || activeProject?.name || 'default'}`;
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const [watermarkSelect, setWatermarkSelect] = useState('');
+
+  // Sync watermarkSelect when pdfConfig.watermarkText changes
+  useEffect(() => {
+    const currentText = pdfConfig.watermarkText || '';
+    if (['', 'CONFIDENTIAL', 'INTERNAL USE ONLY', 'RESTRICTED', 'DRAFT'].includes(currentText)) {
+      setWatermarkSelect(currentText);
+    } else {
+      setWatermarkSelect('__custom__');
+    }
+  }, [pdfConfig.watermarkText]);
   // Tracks whether sectionOrder has been initialised for the current modal open.
   // Prevents the effect from re-merging (and corrupting) the order while modal is open.
   const sectionOrderInitialisedRef = useRef(false);
@@ -113,6 +176,12 @@ const PdfPreviewModal = ({
           budgetStatus={budgetStatus}
           chartImages={chartImages}
           sectionOrder={sectionOrder}
+          headerTitle={pdfConfig.headerTitle}
+          subHeading={pdfConfig.subHeading}
+          footerText={pdfConfig.footerText}
+          backgroundColor={pdfConfig.backgroundColor}
+          watermarkText={pdfConfig.watermarkText}
+          watermarkOpacity={pdfConfig.watermarkOpacity}
         />
       ).toBlob();
       
@@ -233,78 +302,324 @@ const PdfPreviewModal = ({
           {/* Customization Sidebar */}
           {showSidebar && (
             <div style={{ 
-              width: '280px', 
+              width: '320px', 
               backgroundColor: 'var(--surface)', 
               borderRight: '1px solid var(--border-subtle)', 
-              padding: '16px', 
+              display: 'flex',
+              flexDirection: 'column',
               zIndex: 100,
-              boxShadow: '0 0 10px rgba(0,0,0,0.05)'
+              boxShadow: '0 0 15px rgba(0,0,0,0.05)',
+              height: '100%'
             }}>
-              <h3 style={{ fontSize: '15px', color: 'var(--text-primary)', marginTop: 0, marginBottom: '8px' }}>Section Order</h3>
-              <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
-                Drag to reorder sections in the PDF.
-              </p>
-              
-              <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="sidebar-sections">
-                  {(provided) => (
-                    <div 
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                      style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
-                    >
-                      {sectionOrder.map((key, index) => {
-                        const labels = {
-                          criticalIssues: 'Critical Issues',
-                          budget: 'Budget Summary',
-                          resource: 'Resource Summary',
-                          quality: 'Quality Summary',
-                          charts: 'Project Metrics'
-                        };
-                        const label = labels[key] || key;
+              {/* Sidebar Header */}
+              <div style={{ padding: '16px 16px 12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>Customize PDF Layout</h3>
+                <p style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', marginBottom: 0 }}>
+                  Personalize sections, branding, and styling.
+                </p>
+              </div>
 
-                        return (
-                          <Draggable key={key} draggableId={key} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                style={{ 
-                                  ...provided.draggableProps.style,
-                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                  padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: '6px',
-                                  backgroundColor: snapshot.isDragging ? 'var(--blue-50)' : 'var(--bg)',
-                                  zIndex: snapshot.isDragging ? 1000 : 1
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                  <div {...provided.dragHandleProps} style={{ color: '#94a3b8', cursor: 'grab' }}>
-                                    <GripVertical size={16} />
-                                  </div>
-                                  <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                                    {label}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                      {provided.placeholder}
+              {/* Sidebar Tabs */}
+              <div style={{ 
+                display: 'flex', 
+                borderBottom: '1px solid var(--border-subtle)', 
+                padding: '0 16px',
+                gap: '8px',
+                backgroundColor: 'var(--surface)'
+              }}>
+                <button
+                  onClick={() => setActiveTab('layout')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 0',
+                    border: 'none',
+                    borderBottom: activeTab === 'layout' ? '2px solid var(--accent)' : '2px solid transparent',
+                    backgroundColor: 'transparent',
+                    color: activeTab === 'layout' ? 'var(--accent)' : 'var(--text-secondary)',
+                    fontWeight: activeTab === 'layout' ? 'bold' : '500',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  Sections
+                </button>
+                <button
+                  onClick={() => setActiveTab('style')}
+                  style={{
+                    flex: 1,
+                    padding: '12px 0',
+                    border: 'none',
+                    borderBottom: activeTab === 'style' ? '2px solid var(--accent)' : '2px solid transparent',
+                    backgroundColor: 'transparent',
+                    color: activeTab === 'style' ? 'var(--accent)' : 'var(--text-secondary)',
+                    fontWeight: activeTab === 'style' ? 'bold' : '500',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  Content & Style
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                {activeTab === 'layout' ? (
+                  <>
+                    <p style={{ fontSize: '12px', color: '#64748b', marginTop: 0, marginBottom: '16px' }}>
+                      Drag to reorder report sections:
+                    </p>
+                    <DragDropContext onDragEnd={onDragEnd}>
+                      <Droppable droppableId="sidebar-sections">
+                        {(provided) => (
+                          <div 
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+                          >
+                            {sectionOrder.map((key, index) => {
+                              const labels = {
+                                criticalIssues: 'Critical Issues',
+                                budget: 'Budget Summary',
+                                resource: 'Resource Summary',
+                                quality: 'Quality Summary',
+                                charts: 'Project Metrics'
+                              };
+                              const label = labels[key] || key;
+
+                              return (
+                                <Draggable key={key} draggableId={key} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      style={{ 
+                                        ...provided.draggableProps.style,
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                                        padding: '10px 12px', border: '1px solid var(--border-subtle)', borderRadius: '6px',
+                                        backgroundColor: snapshot.isDragging ? 'rgba(59, 130, 246, 0.1)' : 'var(--bg)',
+                                        zIndex: snapshot.isDragging ? 1000 : 1,
+                                        boxShadow: snapshot.isDragging ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div {...provided.dragHandleProps} style={{ color: '#94a3b8', cursor: 'grab' }}>
+                                          <GripVertical size={16} />
+                                        </div>
+                                        <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                                          {label}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </DragDropContext>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Header Title</label>
+                      <input
+                        type="text"
+                        value={pdfConfig.headerTitle}
+                        onChange={(e) => updatePdfConfig({ headerTitle: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                        placeholder="Project Dashboard"
+                      />
                     </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sub Heading</label>
+                      <input
+                        type="text"
+                        value={pdfConfig.subHeading}
+                        onChange={(e) => updatePdfConfig({ subHeading: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                        placeholder="Executive Dashboard Analytics Report"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Footer Text</label>
+                      <input
+                        type="text"
+                        value={pdfConfig.footerText}
+                        onChange={(e) => updatePdfConfig({ footerText: e.target.value })}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                        placeholder="Project Dashboard Report"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Background Color</label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {[
+                          { name: 'White', color: '#ffffff' },
+                          { name: 'Slate', color: '#f8fafc' },
+                          { name: 'Ice', color: '#f0f9ff' },
+                          { name: 'Cream', color: '#fefaf0' },
+                          { name: 'Sage', color: '#f0fdf4' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.color}
+                            title={preset.name}
+                            onClick={() => updatePdfConfig({ backgroundColor: preset.color })}
+                            style={{
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '50%',
+                              backgroundColor: preset.color,
+                              border: pdfConfig.backgroundColor.toLowerCase() === preset.color.toLowerCase() ? '2px solid var(--accent)' : '1px solid #cbd5e1',
+                              cursor: 'pointer',
+                              padding: 0,
+                              boxShadow: pdfConfig.backgroundColor.toLowerCase() === preset.color.toLowerCase() ? '0 0 4px rgba(0,0,0,0.15)' : 'none',
+                              transition: 'transform 0.1s',
+                              transform: pdfConfig.backgroundColor.toLowerCase() === preset.color.toLowerCase() ? 'scale(1.1)' : 'scale(1)'
+                            }}
+                          />
+                        ))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Custom:</span>
+                          <input
+                            type="color"
+                            value={pdfConfig.backgroundColor}
+                            onChange={(e) => updatePdfConfig({ backgroundColor: e.target.value })}
+                            style={{
+                              border: 'none',
+                              width: '24px',
+                              height: '24px',
+                              padding: 0,
+                              backgroundColor: 'transparent',
+                              cursor: 'pointer'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Watermark</label>
+                      <select
+                        value={watermarkSelect}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setWatermarkSelect(val);
+                          if (val !== '__custom__') {
+                            updatePdfConfig({ watermarkText: val });
+                          } else {
+                            updatePdfConfig({ watermarkText: pdfConfig.watermarkText || 'CUSTOM WATERMARK' });
+                          }
+                        }}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                      >
+                        <option value="">None</option>
+                        <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                        <option value="INTERNAL USE ONLY">INTERNAL USE ONLY</option>
+                        <option value="RESTRICTED">RESTRICTED</option>
+                        <option value="DRAFT">DRAFT</option>
+                        <option value="__custom__">Custom Text...</option>
+                      </select>
+                    </div>
+
+                    {watermarkSelect === '__custom__' && (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom Watermark Text</label>
+                        <input
+                          type="text"
+                          value={pdfConfig.watermarkText}
+                          onChange={(e) => updatePdfConfig({ watermarkText: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                          placeholder="e.g. COMPANY NAME"
+                        />
+                      </div>
+                    )}
+
+                    {pdfConfig.watermarkText && (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', margin: 0 }}>Watermark Opacity</label>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>{Math.round(pdfConfig.watermarkOpacity * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.05"
+                          max="0.30"
+                          step="0.01"
+                          value={pdfConfig.watermarkOpacity}
+                          onChange={(e) => updatePdfConfig({ watermarkOpacity: parseFloat(e.target.value) })}
+                          style={{ width: '100%', cursor: 'pointer' }}
+                        />
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        const defaults = {
+                          headerTitle: activeProject?.name || 'Project Dashboard',
+                          subHeading: 'Executive Dashboard Analytics Report',
+                          footerText: 'Project Dashboard Report',
+                          backgroundColor: '#ffffff',
+                          watermarkText: '',
+                          watermarkOpacity: 0.1
+                        };
+                        updatePdfConfig(defaults);
+                        setWatermarkSelect('');
+                        toast.success('Reset customization to defaults');
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        backgroundColor: 'transparent',
+                        color: '#ef4444',
+                        border: '1px dashed #fca5a5',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        marginTop: '10px',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <RotateCcw size={14} />
+                      Reset to Defaults
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           <div style={{ flex: 1, height: '100%' }}>
-            {/* key forces PDFViewer to remount whenever sectionOrder changes.
+            {/* key forces PDFViewer to remount whenever sectionOrder or design customization changes.
                 PDFViewer renders into an iframe via a web worker and does NOT
                 propagate child prop changes to its internal renderer on its own.
-                Without this, the preview stays frozen on the initial render while
-                the downloaded PDF (which calls pdf() at click-time) is always correct. */}
-            <PDFViewer key={sectionOrder.join('|')} style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
+                Without this, the preview stays frozen on the initial render. */}
+            <PDFViewer key={`${sectionOrder.join('|')}|${debouncedPdfConfig.headerTitle}|${debouncedPdfConfig.subHeading}|${debouncedPdfConfig.footerText}|${debouncedPdfConfig.backgroundColor}|${debouncedPdfConfig.watermarkText}|${debouncedPdfConfig.watermarkOpacity}`} style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
               <ReportDocument 
                 activeProject={activeProject}
                 milestones={milestones}
@@ -318,6 +633,12 @@ const PdfPreviewModal = ({
                 budgetStatus={budgetStatus}
                 chartImages={chartImages}
                 sectionOrder={sectionOrder}
+                headerTitle={debouncedPdfConfig.headerTitle}
+                subHeading={debouncedPdfConfig.subHeading}
+                footerText={debouncedPdfConfig.footerText}
+                backgroundColor={debouncedPdfConfig.backgroundColor}
+                watermarkText={debouncedPdfConfig.watermarkText}
+                watermarkOpacity={debouncedPdfConfig.watermarkOpacity}
               />
             </PDFViewer>
           </div>
