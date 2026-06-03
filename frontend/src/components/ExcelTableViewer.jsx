@@ -119,6 +119,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
     const [columnPage, setColumnPage] = useState(1);
 
     const showNotification = (message, type = 'success') => {
+        toast.dismiss();
         if (type === 'success') toast.success(message);
         else if (type === 'error') toast.error(message);
         else toast(message);
@@ -288,7 +289,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
         setSelectedRows([]);
         setSelectAll(false);
         setShowBulkDeletePrompt({ show: false, count: 0 });
-        showNotification(`${selectedRows.length} row(s) deleted locally`);
+        showNotification(`${selectedRows.length} row(s) deleted locally. Click "Save Changes" to save to database.`);
         triggerDataUpdate(newData, columns);
     };
 
@@ -326,7 +327,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
         setLocalData(newData);
         setShowAddRowModal(false);
         setNewRow({});
-        showNotification('Row added locally');
+        showNotification('Row added locally. Click "Save Changes" to save to database.');
         triggerDataUpdate(newData, columns);
     };
 
@@ -342,7 +343,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
         setEditForm({});
         setSelectedRows([]);
         setSelectAll(false);
-        showNotification('Row updated locally');
+        showNotification('Row updated locally. Click "Save Changes" to save to database.');
         triggerDataUpdate(newData, columns);
     };
 
@@ -351,7 +352,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
             const newData = localData.filter(r => r._local_id !== showDeletePrompt.id);
             setLocalData(newData);
             setShowDeletePrompt(null);
-            showNotification('Row deleted locally');
+            showNotification('Row deleted locally. Click "Save Changes" to save to database.');
             triggerDataUpdate(newData, columns);
         }
     };
@@ -372,7 +373,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
             setColumns(newColumns);
             setEditingColumn(null);
             setTempColumnName('');
-            showNotification('Column updated successfully');
+            showNotification('Column updated locally. Click "Save Changes" to save to database.');
             triggerDataUpdate(localData, newColumns);
         }
     };
@@ -393,7 +394,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
         setColumns(newColumns);
         setShowDeleteColumnPrompt(null);
         setShowColumnModal(false);
-        showNotification('Column hidden/deleted locally');
+        showNotification('Column hidden/deleted locally. Click "Save Changes" to save to database.');
         triggerDataUpdate(localData, newColumns);
     };
 
@@ -421,7 +422,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
             setNewColumnName('');
             setShowColumnAddPrompt({ show: false, columnName: '' });
             setShowColumnModal(false);
-            showNotification('Column added locally');
+            showNotification('Column added locally. Click "Save Changes" to save to database.');
             triggerDataUpdate(newData, newColumns);
         }
     };
