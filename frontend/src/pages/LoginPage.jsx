@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -314,9 +315,10 @@ const LoginPage = () => {
                   </div>
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
 
                   <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
@@ -357,14 +359,16 @@ const LoginPage = () => {
 
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
                   {forgotSuccess && (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{forgotSuccess}</p>
-                    </div>
+                    <Alert variant="default" className="mb-4 bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400 [&>svg]:text-emerald-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertDescription>{forgotSuccess}</AlertDescription>
+                    </Alert>
                   )}
 
                   <div className="ws-timer-row">
@@ -386,6 +390,17 @@ const LoginPage = () => {
 
               {resetStep === 3 && (
                 <form className="ws-login-form" onSubmit={handleResetPassword}>
+                  <div className="ws-back-btn-row">
+                    <button 
+                      type="button" 
+                      onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
+                      className="ws-back-to-login"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back to Email</span>
+                    </button>
+                  </div>
+
                   <h1 className="ws-form-title">Create Password</h1>
                   <p className="ws-form-subtext">Set a secure, high-entropy password for your account.</p>
 
@@ -462,9 +477,10 @@ const LoginPage = () => {
                   </div>
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
 
                   <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
@@ -543,9 +559,10 @@ const LoginPage = () => {
                 </div>
 
                 {error && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{error}</p>
-                  </div>
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
 
                 <button type="submit" className="ws-signin-btn" disabled={loading}>
@@ -637,14 +654,16 @@ const LoginPage = () => {
                 </div>
 
                 {reqError && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
-                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{reqError}</p>
-                  </div>
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{reqError}</AlertDescription>
+                  </Alert>
                 )}
                 {reqSuccess && (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
-                    <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{reqSuccess}</p>
-                  </div>
+                  <Alert variant="default" className="mb-4 bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400 [&>svg]:text-emerald-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>{reqSuccess}</AlertDescription>
+                  </Alert>
                 )}
 
                 <button type="submit" className="ws-signin-btn" disabled={reqLoading}>
