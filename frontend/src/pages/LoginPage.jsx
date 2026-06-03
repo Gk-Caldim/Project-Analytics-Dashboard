@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { toast } from 'react-hot-toast';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -64,7 +66,27 @@ const LoginPage = () => {
       setResetStep(2);
       setCountdown(120); // 2 minutes resend delay
     } catch (err) {
-      setForgotError(err.response?.data?.detail || 'Failed to request password reset');
+      const errMsg = err.response?.data?.detail || 'Failed to request password reset';
+      setForgotError(errMsg);
+      if (errMsg.includes('temporarily locked')) {
+        toast.error('Security alert sent to your email', {
+          style: {
+            border: '2px solid #C8341A',
+            padding: '12px 16px',
+            color: '#C8341A',
+            background: '#ffffff',
+            fontWeight: '600',
+            fontSize: '14px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          },
+          iconTheme: {
+            primary: '#C8341A',
+            secondary: '#ffffff',
+          },
+          duration: 6000,
+        });
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -81,7 +103,27 @@ const LoginPage = () => {
       setResetToken(response.data.reset_token);
       setResetStep(3);
     } catch (err) {
-      setForgotError(err.response?.data?.detail || 'OTP verification failed');
+      const errMsg = err.response?.data?.detail || 'OTP verification failed';
+      setForgotError(errMsg);
+      if (errMsg.includes('temporarily locked')) {
+        toast.error('Security alert sent to your email', {
+          style: {
+            border: '2px solid #C8341A',
+            padding: '12px 16px',
+            color: '#C8341A',
+            background: '#ffffff',
+            fontWeight: '600',
+            fontSize: '14px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          },
+          iconTheme: {
+            primary: '#C8341A',
+            secondary: '#ffffff',
+          },
+          duration: 6000,
+        });
+      }
     } finally {
       setForgotLoading(false);
     }
@@ -314,9 +356,10 @@ const LoginPage = () => {
                   </div>
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
 
                   <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
@@ -357,14 +400,16 @@ const LoginPage = () => {
 
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
                   {forgotSuccess && (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{forgotSuccess}</p>
-                    </div>
+                    <Alert variant="success" className="mb-4">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertDescription>{forgotSuccess}</AlertDescription>
+                    </Alert>
                   )}
 
                   <div className="ws-timer-row">
@@ -386,6 +431,17 @@ const LoginPage = () => {
 
               {resetStep === 3 && (
                 <form className="ws-login-form" onSubmit={handleResetPassword}>
+                  <div className="ws-back-btn-row">
+                    <button 
+                      type="button" 
+                      onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
+                      className="ws-back-to-login"
+                    >
+                      <ArrowLeft size={14} />
+                      <span>Back to Email</span>
+                    </button>
+                  </div>
+
                   <h1 className="ws-form-title">Create Password</h1>
                   <p className="ws-form-subtext">Set a secure, high-entropy password for your account.</p>
 
@@ -462,9 +518,10 @@ const LoginPage = () => {
                   </div>
 
                   {forgotError && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                      <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{forgotError}</p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{forgotError}</AlertDescription>
+                    </Alert>
                   )}
 
                   <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
@@ -543,9 +600,10 @@ const LoginPage = () => {
                 </div>
 
                 {error && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '4px' }}>
-                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{error}</p>
-                  </div>
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
 
                 <button type="submit" className="ws-signin-btn" disabled={loading}>
@@ -637,14 +695,16 @@ const LoginPage = () => {
                 </div>
 
                 {reqError && (
-                  <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
-                    <p style={{ color: '#dc2626', fontSize: '13px', margin: 0 }}>{reqError}</p>
-                  </div>
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{reqError}</AlertDescription>
+                  </Alert>
                 )}
                 {reqSuccess && (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px', marginBottom: '12px' }}>
-                    <p style={{ color: '#166534', fontSize: '13px', margin: 0 }}>{reqSuccess}</p>
-                  </div>
+                  <Alert variant="success" className="mb-4">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertDescription>{reqSuccess}</AlertDescription>
+                  </Alert>
                 )}
 
                 <button type="submit" className="ws-signin-btn" disabled={reqLoading}>

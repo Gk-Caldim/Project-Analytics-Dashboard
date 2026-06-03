@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# In-memory store for failed login attempts and lockouts:
+# { identifier: { "attempts": int, "locked_until": datetime } }
+login_attempts_tracker = {}
 
 from app.core.database import get_db
 from app.core.limiter import limiter
@@ -117,11 +121,24 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
     if not identifier or not password:
         raise HTTPException(status_code=400, detail="Email and identifier are required")
 
+    now = datetime.utcnow()
+    tracker = login_attempts_tracker.get(identifier)
+    if tracker and tracker.get("locked_until") and tracker["locked_until"] > now:
+        remaining_seconds = int((tracker["locked_until"] - now).total_seconds())
+        remaining_minutes = (remaining_seconds // 60) + 1
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many incorrect attempts. Sign-in is temporarily locked. Please try again in {remaining_minutes} minute(s).",
+        )
+
     # Helper to find employee by email or employee_id
     def find_employee(id_str):
         return db.query(Employee).filter(
             (Employee.email == id_str) | (Employee.employee_id == id_str)
         ).first()
+
+    success = False
+    response = None
 
     # 1. Check ApplicationAccess table
     # Try by email first
@@ -139,26 +156,52 @@ def login(request: Request, data: dict, db: Session = Depends(get_db)):
             employee = db.query(Employee).filter(Employee.email == access.email).first()
         
         response = get_user_login_response(db, employee=employee, access=access)
-        if response: return response
+        if response:
+            success = True
 
     # 2. Legacy Fallback (Checking Employees table directly)
-    employee = find_employee(identifier)
-    if employee and safe_verify_password(password, employee.hashed_password):
-        response = get_user_login_response(db, employee=employee)
-        if response: return response
+    if not success:
+        employee = find_employee(identifier)
+        if employee and safe_verify_password(password, employee.hashed_password):
+            response = get_user_login_response(db, employee=employee)
+            if response:
+                success = True
 
     # 3. Final Fallback (User table)
-    user_obj = db.query(User).filter(
-        (User.email == identifier) | (User.employee_id == identifier)
-    ).first()
-    
-    if user_obj and safe_verify_password(password, user_obj.hashed_password):
-        employee = find_employee(user_obj.employee_id) or find_employee(user_obj.email)
+    if not success:
+        user_obj = db.query(User).filter(
+            (User.email == identifier) | (User.employee_id == identifier)
+        ).first()
         
-        response = get_user_login_response(db, employee=employee, user_obj=user_obj)
-        if response: return response
+        if user_obj and safe_verify_password(password, user_obj.hashed_password):
+            employee = find_employee(user_obj.employee_id) or find_employee(user_obj.email)
+            response = get_user_login_response(db, employee=employee, user_obj=user_obj)
+            if response:
+                success = True
 
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    if success:
+        if identifier in login_attempts_tracker:
+            login_attempts_tracker.pop(identifier)
+        return response
+
+    # Failed login attempts tracking
+    tracker = login_attempts_tracker.setdefault(identifier, {"attempts": 0, "locked_until": None})
+    if tracker["locked_until"] and tracker["locked_until"] <= now:
+        tracker["attempts"] = 0
+        tracker["locked_until"] = None
+
+    tracker["attempts"] += 1
+    if tracker["attempts"] >= 3:
+        tracker["locked_until"] = now + timedelta(minutes=15)
+        raise HTTPException(
+            status_code=400,
+            detail="Too many incorrect attempts. Sign-in is temporarily locked for 15 minutes.",
+        )
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Incorrect email or password. Please try again (Attempt {tracker['attempts']} of 3).",
+        )
 
 
 
@@ -174,13 +217,13 @@ def forgot_password(request: Request, data: dict, background_tasks: BackgroundTa
 
 # ---------- VERIFY OTP ----------
 @router.post("/verify-otp")
-def verify_otp(data: dict, db: Session = Depends(get_db)):
+def verify_otp(data: dict, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     email = data.get("email")
     otp = data.get("otp")
     if not email or not otp:
         raise HTTPException(status_code=400, detail="Email and OTP are required")
     from app.services.password_reset_service import verify_otp as svc_verify_otp
-    reset_token = svc_verify_otp(email, otp, db)
+    reset_token = svc_verify_otp(email, otp, db, background_tasks)
     return {"message": "OTP verified successfully.", "email": email, "reset_token": reset_token}
 
 
