@@ -189,6 +189,26 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
                     }
                 }
                 global_dataset_cache.set(cache_key, result)
+                
+                # Persist to database (tracker_ingestions) so future reads use the DB/JSONB fallback
+                try:
+                    from app.models.tracker_ingestion import TrackerIngestion
+                    # Convert to list of dicts for JSONB
+                    records = df.to_dict(orient="records")
+                    ingestion = TrackerIngestion(
+                        project_id=upload.project_id,
+                        upload_id=upload.id,
+                        file_name=upload.file_name,
+                        data=records,
+                        uploaded_by=upload.uploaded_by
+                    )
+                    db.add(ingestion)
+                    db.commit()
+                    print(f"Persisted parsed legacy file '{upload.file_name}' to tracker_ingestions (Upload ID: {upload.id})")
+                except Exception as db_err:
+                    db.rollback()
+                    print(f"Failed to persist parsed legacy file to tracker_ingestions: {db_err}")
+                
                 return result
             except Exception as e:
                 print(f"Error reading legacy file {file_path}: {e}")
