@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
 
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @config "../tailwind.config.js";
 @source "../index.html";
@@ -62,6 +63,18 @@
   --amber: #f59e0b;
   --green: #10b981;
   --red: #ef4444;
+
+  /* Dropdown specific variables matching SearchableDropdown */
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #d1d5db;
+  --dropdown-border-hover: #60a5fa;
+  --dropdown-border-focus: #3b82f6;
+  --dropdown-text: #111827;
+  --dropdown-menu-border: #e5e7eb;
+  --dropdown-option-text: #374151;
+  --dropdown-option-hover: #f9fafb;
+  --dropdown-selected-bg: #eff6ff;
+  --dropdown-selected-text: #1d4ed8;
 }
 
 [data-theme='dark'] {
@@ -103,6 +116,18 @@
   --purple-900: #a78bfa;
   --red-50: rgba(239, 68, 68, 0.1);
   --red-900: #f87171;
+
+  /* Dropdown specific variables matching SearchableDropdown */
+  --dropdown-bg: #0f172a;
+  --dropdown-border: #334155;
+  --dropdown-border-hover: #3b82f6;
+  --dropdown-border-focus: #3b82f6;
+  --dropdown-text: #f1f5f9;
+  --dropdown-menu-border: #334155;
+  --dropdown-option-text: #cbd5e1;
+  --dropdown-option-hover: #1e293b;
+  --dropdown-selected-bg: rgba(30, 58, 138, 0.3);
+  --dropdown-selected-text: #60a5fa;
 }
 
 [data-theme='dark'] body {

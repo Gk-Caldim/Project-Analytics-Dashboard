@@ -39,7 +39,7 @@ const ProjectMaster = () => {
 
     { id: 'employee_id', label: 'Employee ID', visible: false, sortable: true, type: 'employee_id', required: false },
     { id: 'employee_name', label: 'Team Lead', visible: true, sortable: true, type: 'employee_name', required: false },
-    { id: 'assigned_to_name', label: 'Assigned Employee', visible: true, sortable: true, type: 'text', required: false },
+    { id: 'assigned_to_name', label: 'Assign Employees', visible: true, sortable: true, type: 'employee_multiselect', required: false },
     { id: 'utilized_budget', label: 'Utilized Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'balance_budget', label: 'Balance Budget', visible: true, sortable: true, type: 'number', required: false, readonly: true },
     { id: 'detailed_view', label: 'Detailed View', visible: true, sortable: false, type: 'detailed_view_button', required: false },
@@ -171,7 +171,7 @@ const ProjectMaster = () => {
       timeline_months: projectData.timeline_months ? parseInt(projectData.timeline_months) : null,
       employee_id: projectData.employee_id || null,
       employee_name: projectData.employee_name || null,
-      assigned_to_id: projectData.assigned_to_id || null,
+      assigned_to_id: (projectData.assigned_to_id && String(projectData.assigned_to_id).includes(',')) ? null : (projectData.assigned_to_id || null),
       assigned_to_name: projectData.assigned_to_name || null,
       custom_fields: {}
     };
@@ -1138,42 +1138,77 @@ const ProjectMaster = () => {
     return `${topOffset}px`;
   };
 
-  // react-select custom styles
+  // react-select custom styles using CSS variables for native dark mode support (matched with SearchableDropdown)
   const getSelectStyles = (hasError) => ({
     control: (base, state) => ({
       ...base,
       minHeight: '38px',
-      borderColor: hasError ? '#ef4444' : state.isFocused ? '#3b82f6' : '#cbd5e1',
-      boxShadow: state.isFocused ? '0 0 0 1px #3b82f6' : 'none',
-      '&:hover': { borderColor: '#94a3b8' },
-      borderRadius: '0.375rem',
-      fontSize: '0.875rem',
+      backgroundColor: 'var(--dropdown-bg)',
+      borderColor: hasError ? 'var(--red)' : state.isFocused ? 'var(--dropdown-border-focus)' : 'var(--dropdown-border)',
+      boxShadow: state.isFocused ? '0 0 0 2px var(--blue-50)' : 'none',
+      '&:hover': { 
+        borderColor: hasError ? 'var(--red)' : 'var(--dropdown-border-hover)' 
+      },
+      borderRadius: '0.5rem',
+      cursor: 'pointer',
     }),
-    multiValue: (base) => ({
+    menu: (base) => ({ 
+      ...base, 
+      backgroundColor: 'var(--dropdown-bg)', 
+      border: '1px solid var(--dropdown-menu-border)',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      zIndex: 9999,
+      marginTop: '4px',
+      borderRadius: '0.5rem',
+      overflow: 'hidden'
+    }),
+    menuList: (base) => ({
       ...base,
-      backgroundColor: '#dbeafe',
-      borderRadius: '0.25rem',
+      padding: '4px'
     }),
-    multiValueLabel: (base) => ({
-      ...base,
-      color: '#1d4ed8',
-      fontSize: '0.75rem',
-      fontWeight: 500,
-    }),
-    multiValueRemove: (base) => ({
-      ...base,
-      color: '#3b82f6',
-      '&:hover': { backgroundColor: '#bfdbfe', color: '#1d4ed8' },
-    }),
-    placeholder: (base) => ({ ...base, color: '#94a3b8', fontSize: '0.875rem' }),
-    menu: (base) => ({ ...base, zIndex: 9999 }),
-    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
     option: (base, state) => ({
       ...base,
-      fontSize: '0.875rem',
-      backgroundColor: state.isSelected ? '#3b82f6' : state.isFocused ? '#eff6ff' : 'white',
-      color: state.isSelected ? 'white' : '#1e293b',
+      backgroundColor: state.isSelected 
+        ? 'var(--dropdown-selected-bg)' 
+        : state.isFocused 
+          ? 'var(--dropdown-option-hover)' 
+          : 'transparent',
+      color: state.isSelected ? 'var(--dropdown-selected-text)' : 'var(--dropdown-option-text)',
+      fontWeight: state.isSelected ? 500 : 400,
+      cursor: 'pointer',
+      borderRadius: '0.375rem',
+      padding: '8px 12px',
+      '&:active': { backgroundColor: 'var(--dropdown-selected-bg)' }
     }),
+    singleValue: (base) => ({ ...base, color: 'var(--dropdown-text)' }),
+    multiValue: (base) => ({ 
+      ...base, 
+      backgroundColor: 'var(--dropdown-selected-bg)',
+      border: '1px solid var(--dropdown-menu-border)',
+      borderRadius: '4px'
+    }),
+    multiValueLabel: (base) => ({ 
+      ...base, 
+      color: 'var(--dropdown-selected-text)',
+      fontSize: '11px',
+      fontWeight: 500,
+      padding: '2px 6px'
+    }),
+    multiValueRemove: (base) => ({ 
+      ...base, 
+      color: 'var(--dropdown-option-text)',
+      cursor: 'pointer',
+      '&:hover': { 
+        backgroundColor: 'var(--red-50)',
+        color: 'var(--red)'
+      }
+    }),
+    input: (base) => ({ ...base, color: 'var(--dropdown-text)', margin: 0, padding: 0 }),
+    placeholder: (base) => ({ ...base, color: 'var(--text-muted)', fontSize: '0.875rem' }),
+    indicatorSeparator: (base) => ({ ...base, backgroundColor: 'var(--dropdown-menu-border)' }),
+    dropdownIndicator: (base) => ({ ...base, color: 'var(--text-muted)', '&:hover': { color: 'var(--dropdown-text)' }, padding: '4px 8px' }),
+    clearIndicator: (base) => ({ ...base, color: 'var(--text-muted)', '&:hover': { color: 'var(--red)' }, padding: '4px 8px' }),
+    menuPortal: (base) => ({ ...base, zIndex: 9999 }),
   });
 
   // Build react-select options from employee list
@@ -1376,21 +1411,49 @@ const ProjectMaster = () => {
           <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">
             {col.label} {col.required && <span className="text-red-500">*</span>}
           </label>
-          <ReactSelect
-            isMulti
+          <SearchableDropdown
+            isMulti={true}
             options={options}
-            value={selectedValues}
-            onChange={(selected) => {
-              const ids = (selected || []).map(s => s.value);
-              onChange(col.id, ids);
+            value={selectedValues.map(s => s.value)}
+            onChange={(selectedValuesArray) => {
+              onChange(col.id, selectedValuesArray);
             }}
             placeholder={`Select ${col.label}...`}
-            styles={getSelectStyles(!!error)}
-            classNamePrefix="react-select"
-            noOptionsMessage={() => 'No employees found'}
-            isClearable={false}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
+            controlClassName={error ? '!border-red-500 !ring-2 !ring-red-500/10' : ''}
+          />
+          {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+        </div>
+      );
+    }
+
+    if (col.type === 'employee_multiselect') {
+      const options = employeeList.map(e => ({
+        value: e.name,
+        label: `${e.name}${e.employee_id ? ` (${e.employee_id})` : ''}`
+      }));
+      
+      let parsedValue = value;
+      if (typeof value === 'string') {
+        parsedValue = value.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      
+      const selectedValues = (Array.isArray(parsedValue) ? parsedValue : (parsedValue ? [parsedValue] : []))
+        .map(v => options.find(o => o.value === v) || { value: v, label: v });
+
+      return (
+        <div>
+          <label className="block text-xs font-medium text-slate-700 dark:text-slate-100 mb-1">
+            {col.label} {col.required && <span className="text-red-500">*</span>}
+          </label>
+          <SearchableDropdown
+            isMulti={true}
+            options={options}
+            value={selectedValues.map(s => s.value)}
+            onChange={(selectedValuesArray) => {
+              onChange(col.id, selectedValuesArray.join(', '));
+            }}
+            placeholder={`Select ${col.label}...`}
+            controlClassName={error ? '!border-red-500 !ring-2 !ring-red-500/10' : ''}
           />
           {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
@@ -1539,6 +1602,20 @@ const ProjectMaster = () => {
               </span>
             );
           })}
+        </div>
+      );
+    }
+
+    if (col.type === 'employee_multiselect') {
+      const users = typeof value === 'string' ? value.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(value) ? value : []);
+      if (users.length === 0) return <span className="text-sm text-slate-400 dark:text-slate-500">—</span>;
+      return (
+        <div className="flex flex-wrap gap-1">
+          {users.map((user, i) => (
+            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap">
+              {user}
+            </span>
+          ))}
         </div>
       );
     }
@@ -2124,15 +2201,18 @@ const ProjectMaster = () => {
                     </div>
                     {/* Assign Employee */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employee</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employees</label>
                       <SearchableDropdown
-                        options={employeeOptions}
-                        value={newProject.assigned_to_id || ''}
-                        onChange={(val, option) => {
-                          handleNewProjectChange('assigned_to_id', val);
-                          handleNewProjectChange('assigned_to_name', option ? option.name : '');
+                        isMulti={true}
+                        options={employeeOptions.map(e => ({ value: e.name, label: e.label, name: e.name }))}
+                        value={typeof newProject.assigned_to_name === 'string' ? newProject.assigned_to_name.split(',').map(s => s.trim()).filter(Boolean) : []}
+                        onChange={(selectedValuesArray) => {
+                          const names = (selectedValuesArray || []).join(', ');
+                          handleNewProjectChange('assigned_to_id', null);
+                          handleNewProjectChange('assigned_to_name', names);
                         }}
-                        placeholder="Select Employee..."
+                        placeholder="Select Employees..."
+                        controlClassName={validationErrors.assigned_to_id ? '!border-red-500 !ring-2 !ring-red-500/10' : ''}
                       />
                     </div>
                     {/* Department */}
@@ -2403,15 +2483,18 @@ const ProjectMaster = () => {
                     </div>
                     {/* Assigned To */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assigned To</label>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-100 mb-1.5">Assign Employees</label>
                       <SearchableDropdown
-                        options={employeeOptions}
-                        value={editForm.assigned_to_id || ''}
-                        onChange={(val, option) => {
-                          handleEditFormChange('assigned_to_id', val);
-                          handleEditFormChange('assigned_to_name', option ? option.name : '');
+                        isMulti={true}
+                        options={employeeOptions.map(e => ({ value: e.name, label: e.label, name: e.name }))}
+                        value={typeof editForm.assigned_to_name === 'string' ? editForm.assigned_to_name.split(',').map(s => s.trim()).filter(Boolean) : []}
+                        onChange={(selectedValuesArray) => {
+                          const names = (selectedValuesArray || []).join(', ');
+                          handleEditFormChange('assigned_to_id', null);
+                          handleEditFormChange('assigned_to_name', names);
                         }}
-                        placeholder="Select Employee..."
+                        placeholder="Select Employees..."
+                        controlClassName={validationErrors.assigned_to_id ? '!border-red-500 !ring-2 !ring-red-500/10' : ''}
                       />
                     </div>
                     {/* Department */}

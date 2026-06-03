@@ -288,7 +288,7 @@ def download_dataset(
     format: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    dataset = db.query(Dataset).filter_by(id=dataset_id).first()
+    dataset = resolve_dataset(dataset_id, db)
     if not dataset:
         return {"error": "Not found"}
 
@@ -326,15 +326,15 @@ def get_chart_data(
     y: str = Query(...),
     db: Session = Depends(get_db),
 ):
-    # Check cache first
-    cache_key = (dataset_id, "chart", x, y)
+    dataset = resolve_dataset(dataset_id, db)
+    if not dataset:
+        return {"x": [], "y": [], "count": 0}
+
+    # Check cache first using resolved dataset ID
+    cache_key = (dataset.id, "chart", x, y)
     cached_data = global_dataset_cache.get(cache_key)
     if cached_data:
         return cached_data
-
-    dataset = db.query(Dataset).filter_by(id=dataset_id).first()
-    if not dataset:
-        return {"x": [], "y": [], "count": 0}
 
     x_vals = []
     y_vals = []
@@ -386,18 +386,18 @@ def update_dataset_data(
     payload: UpdateDatasetRequest,
     db: Session = Depends(get_db)
 ):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    dataset = resolve_dataset(dataset_id, db)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     # Update columns
     # First, delete existing columns metadata
-    db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset_id).delete()
+    db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
     
     # Add new columns metadata
     for col_name in payload.headers:
         db.add(DatasetColumn(
-            dataset_id=dataset_id,
+            dataset_id=dataset.id,
             column_name=col_name,
             data_type="string" 
         ))
@@ -420,7 +420,7 @@ def update_dataset_data(
             raise HTTPException(status_code=500, detail=f"Failed to update table: {e}")
     else:
         # Legacy update
-        db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset_id).delete()
+        db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset.id).delete()
         new_rows = []
         for row_entry in payload.data:
             if isinstance(row_entry, dict):
@@ -432,7 +432,7 @@ def update_dataset_data(
                         row_dict[payload.headers[i]] = val
             
             new_rows.append(DatasetRow(
-                dataset_id=dataset_id,
+                dataset_id=dataset.id,
                 row_data=row_dict
             ))
         db.bulk_save_objects(new_rows)
@@ -440,8 +440,11 @@ def update_dataset_data(
     # Update row count
     dataset.row_count = len(payload.data)
     
+    # Commit changes to persist row_count and column/row metadata
+    db.commit()
+    
     # Invalidate Cache
-    global_dataset_cache.invalidate(dataset_id)
+    global_dataset_cache.invalidate(dataset.id)
     
     return {"message": "Dataset updated successfully"}
 
@@ -783,7 +786,7 @@ def update_dataset_metadata(
     payload: UpdateDatasetMetadataRequest,
     db: Session = Depends(get_db)
 ):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    dataset = resolve_dataset(dataset_id, db)
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
@@ -797,14 +800,14 @@ def update_dataset_metadata(
     db.commit()
     db.refresh(dataset)
     
-    # Invalidate cache
-    global_dataset_cache.invalidate(dataset_id)
+    # Invalidate cache using resolved dataset ID
+    global_dataset_cache.invalidate(dataset.id)
     
     return {"message": "Dataset metadata updated successfully"}
 
 @router.delete("/{dataset_id}", dependencies=[Depends(check_permissions("delete_tracker"))])
 def delete_dataset(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
-    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+    dataset = resolve_dataset(dataset_id, db)
 
     if not dataset:
         return {"error": "Dataset not found"}
@@ -823,11 +826,11 @@ def delete_dataset(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
 
 
     # Delete child rows first (FK safety) - for legacy data
-    db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset_id).delete()
-    db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset_id).delete()
+    db.query(DatasetRow).filter(DatasetRow.dataset_id == dataset.id).delete()
+    db.query(DatasetColumn).filter(DatasetColumn.dataset_id == dataset.id).delete()
 
-    # Invalidate cache
-    global_dataset_cache.invalidate(dataset_id)
+    # Invalidate cache using resolved dataset ID
+    global_dataset_cache.invalidate(dataset.id)
 
     db.delete(dataset)
     db.commit()

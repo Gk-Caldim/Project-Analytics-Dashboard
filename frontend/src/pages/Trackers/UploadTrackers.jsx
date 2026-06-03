@@ -1147,6 +1147,34 @@ const UploadTrackers = () => {
   // ==========================================================================
   const shouldShowFileContent = selectedFileContent !== null && initialFileLoaded;
 
+  const getDepartmentOptions = () => {
+    if (uploadForm.project) {
+      const selectedProj = projectList.find(p => p.name === uploadForm.project);
+      if (selectedProj && selectedProj.department) {
+        return [selectedProj.department];
+      }
+    }
+    return [...new Set(employeeList.map(e => e.department).filter(Boolean))];
+  };
+
+  const getEmployeeOptions = () => {
+    if (uploadForm.project) {
+      const selectedProj = projectList.find(p => p.name === uploadForm.project);
+      if (selectedProj) {
+        const relatedEmps = new Set();
+        if (selectedProj.project_manager) relatedEmps.add(selectedProj.project_manager);
+        if (selectedProj.employee_name) relatedEmps.add(selectedProj.employee_name);
+        if (selectedProj.assigned_to_name) {
+          selectedProj.assigned_to_name.split(',').forEach(e => relatedEmps.add(e.trim()));
+        }
+        if (relatedEmps.size > 0) {
+          return [...relatedEmps].filter(Boolean);
+        }
+      }
+    }
+    return employeeList.map(e => e.name);
+  };
+
   return (
     <div className="space-y-3 sm:space-y-4 px-0 relative">
       {/* Loading Overlay */}
@@ -1253,7 +1281,27 @@ const UploadTrackers = () => {
                     options={projectList.map(p => p.name)}
                     value={uploadForm.project}
                     onChange={(val) => {
-                      setUploadForm({ ...uploadForm, project: val });
+                      const selectedProj = projectList.find(p => p.name === val);
+                      let newDept = uploadForm.department;
+                      let newEmp = uploadForm.employeeName;
+                      
+                      if (selectedProj) {
+                        newDept = selectedProj.department || newDept;
+                        
+                        const relatedEmps = new Set();
+                        if (selectedProj.project_manager) relatedEmps.add(selectedProj.project_manager);
+                        if (selectedProj.employee_name) relatedEmps.add(selectedProj.employee_name);
+                        if (selectedProj.assigned_to_name) {
+                          selectedProj.assigned_to_name.split(',').forEach(e => relatedEmps.add(e.trim()));
+                        }
+                        
+                        const empsArray = [...relatedEmps].filter(Boolean);
+                        if (empsArray.length > 0 && !empsArray.includes(newEmp)) {
+                          newEmp = empsArray[0];
+                        }
+                      }
+                      
+                      setUploadForm({ ...uploadForm, project: val, department: newDept, employeeName: newEmp });
                       if (uploadFormErrors.project) setUploadFormErrors({ ...uploadFormErrors, project: '' });
                     }}
                     placeholder="Select project"
@@ -1280,7 +1328,7 @@ const UploadTrackers = () => {
                 <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Department *</label>
                 {isAdmin ? (
                   <SearchableDropdown
-                    options={[...new Set(employeeList.map(e => e.department).filter(Boolean))]}
+                    options={getDepartmentOptions()}
                     value={uploadForm.department}
                     onChange={(val) => {
                       setUploadForm({ ...uploadForm, department: val });
@@ -1301,7 +1349,7 @@ const UploadTrackers = () => {
                 <label className="block text-xs font-medium text-text-secondary dark:text-slate-300 mb-1">Employee Name *</label>
                 {isAdmin ? (
                   <SearchableDropdown
-                    options={employeeList.map(e => e.name)}
+                    options={getEmployeeOptions()}
                     value={uploadForm.employeeName}
                     onChange={(val) => {
                       setUploadForm({ ...uploadForm, employeeName: val });

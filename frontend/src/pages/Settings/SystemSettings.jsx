@@ -5,6 +5,7 @@ import { setBranding } from '../../store/slices/navSlice';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'react-hot-toast';
+import { Spinner } from '../../components/ui/spinner';
 
 // Import all sub-components
 import GeneralInfo from './components/GeneralInfo';
@@ -21,6 +22,7 @@ const SystemSettings = () => {
   const location = useLocation();
   const { themeSettings, updateThemeLocally, refreshTheme } = useTheme();
   const [settings, setSettings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const user = useSelector((state) => state.auth.user);
   const userRole = user?.role?.toLowerCase() || '';
   const isAdmin = userRole === 'admin' || userRole === 'super admin';
@@ -64,11 +66,14 @@ const SystemSettings = () => {
   }, []);
 
   const fetchSettings = async () => {
+    setLoading(true);
     try {
       const response = await API.get('/settings/');
       setSettings(response.data);
     } catch (error) {
       console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -160,18 +165,24 @@ const SystemSettings = () => {
 
       <main className="flex-1 overflow-y-auto bg-app-bg p-16">
         <div className="max-w-5xl mx-auto pb-24">
-          <Routes>
-            <Route index element={<Navigate to="general" replace />} />
-            <Route path="general" element={<GeneralInfo settings={settings} onSaveSuccess={fetchSettings} />} />
-            <Route path="branding" element={<BrandingTheme settings={settings} onSaveSuccess={fetchSettings} onLocalUpdate={updateThemeLocally} />} />
-            <Route path="access" element={<AccessControl />} />
-            <Route path="applications" element={<ApplicationAccess />} />
-            <Route path="connections" element={<Connections settings={settings} onSaveSuccess={fetchSettings} />} />
-            <Route path="audit" element={<AuditHistory />} />
-            <Route path="maintenance" element={<Maintenance />} />
-            {/* Fallback to general */}
-            <Route path="*" element={<Navigate to="general" replace />} />
-          </Routes>
+          {loading ? (
+            <div style={{ display: 'flex', height: '50vh', alignItems: 'center', justifyContent: 'center' }}>
+              <Spinner size="lg" className="text-slate-400 dark:text-slate-500" />
+            </div>
+          ) : (
+            <Routes>
+              <Route index element={<Navigate to="general" replace />} />
+              <Route path="general" element={<GeneralInfo settings={settings} onSaveSuccess={fetchSettings} />} />
+              <Route path="branding" element={<BrandingTheme settings={settings} onSaveSuccess={fetchSettings} onLocalUpdate={updateThemeLocally} />} />
+              <Route path="access" element={<AccessControl />} />
+              <Route path="applications" element={<ApplicationAccess />} />
+              <Route path="connections" element={<Connections settings={settings} onSaveSuccess={fetchSettings} />} />
+              <Route path="audit" element={<AuditHistory />} />
+              <Route path="maintenance" element={<Maintenance />} />
+              {/* Fallback to general */}
+              <Route path="*" element={<Navigate to="general" replace />} />
+            </Routes>
+          )}
         </div>
       </main>
     </div>
