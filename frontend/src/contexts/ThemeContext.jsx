@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import API from '../utils/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const ThemeContext = createContext();
 
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
+    const queryClient = useQueryClient();
     const [themeSettings, setThemeSettings] = useState({
         primaryColor: '#6366f1',
         secondaryColor: '#0ea5e9',
@@ -26,8 +28,9 @@ export const ThemeProvider = ({ children }) => {
 
     const applyTheme = (theme) => {
         const root = document.documentElement;
-        root.setAttribute('data-theme', theme.displayMode);
-        root.classList.toggle('dark', theme.displayMode === 'dark');
+        const mode = (theme.displayMode || 'light').toLowerCase();
+        root.setAttribute('data-theme', mode);
+        root.classList.toggle('dark', mode === 'dark');
         
         root.style.setProperty('--primary-color', theme.primaryColor);
         root.style.setProperty('--secondary-color', theme.secondaryColor);
@@ -43,17 +46,24 @@ export const ThemeProvider = ({ children }) => {
 
     useEffect(() => {
         if (settings) {
-            const newTheme = { ...themeSettings };
-            settings.forEach(s => {
-                if (s.key === 'primary_color') newTheme.primaryColor = s.value;
-                if (s.key === 'secondary_color') newTheme.secondaryColor = s.value;
-                if (s.key === 'display_mode') newTheme.displayMode = s.value;
-                if (s.key === 'company_name') newTheme.companyName = s.value;
-                if (s.key === 'company_logo') newTheme.companyLogo = s.value;
+            setThemeSettings(prev => {
+                const newTheme = { ...prev };
+                let changed = false;
+                
+                settings.forEach(s => {
+                    if (s.key === 'primary_color' && newTheme.primaryColor !== s.value) { newTheme.primaryColor = s.value; changed = true; }
+                    if (s.key === 'secondary_color' && newTheme.secondaryColor !== s.value) { newTheme.secondaryColor = s.value; changed = true; }
+                    if (s.key === 'display_mode' && newTheme.displayMode !== s.value) { newTheme.displayMode = s.value; changed = true; }
+                    if (s.key === 'company_name' && newTheme.companyName !== s.value) { newTheme.companyName = s.value; changed = true; }
+                    if (s.key === 'company_logo' && newTheme.companyLogo !== s.value) { newTheme.companyLogo = s.value; changed = true; }
+                });
+                
+                if (changed) {
+                    applyTheme(newTheme);
+                    return newTheme;
+                }
+                return prev;
             });
-            
-            setThemeSettings(newTheme);
-            applyTheme(newTheme);
         }
     }, [settings]);
  
@@ -88,7 +98,9 @@ export const ThemeProvider = ({ children }) => {
 
         const transition = document.startViewTransition(() => {
             const updated = { ...themeSettings, ...newSettings };
-            setThemeSettings(updated);
+            flushSync(() => {
+                setThemeSettings(updated);
+            });
             applyTheme(updated);
         });
 
@@ -123,6 +135,11 @@ export const ThemeProvider = ({ children }) => {
         const newMode = themeSettings.displayMode === 'dark' ? 'light' : 'dark';
         updateThemeLocally({ displayMode: newMode });
         
+        queryClient.setQueryData(['settings'], old => {
+            if (!old) return old;
+            return old.map(s => s.key === 'display_mode' ? { ...s, value: newMode } : s);
+        });
+        
         try {
             const originalSetting = settings?.find(s => s.key === 'display_mode');
             await API.patch('/settings/bulk', {
@@ -133,7 +150,6 @@ export const ThemeProvider = ({ children }) => {
                     type: originalSetting?.type || 'text'
                 }]
             });
-            refreshTheme();
         } catch (error) {
             console.error('Error persisting theme change:', error);
         }
