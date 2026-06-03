@@ -11,7 +11,6 @@ connect_args = {}
 if IS_CLOUD_DB:
     connect_args = {
         "sslmode": "require",
-        "options": "-c search_path=public -c statement_timeout=15000",  # Add search_path and 15s timeout
         "connect_timeout": 10,  # 10 second timeout for establishing the connection
     }
 else:
@@ -84,7 +83,6 @@ if ASYNC_DATABASE_URL:
         async_connect_args = {}
         if IS_CLOUD_DB:
             async_connect_args = {
-                "server_settings": {"search_path": "public", "statement_timeout": "15000"},
                 # Critical: Disable prepared statement caching for transaction mode pooler (PgBouncer/Supavisor)
                 "statement_cache_size": 0
             }
