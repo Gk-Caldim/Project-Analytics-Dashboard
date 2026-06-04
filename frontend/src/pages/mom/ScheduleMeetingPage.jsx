@@ -182,6 +182,49 @@ const ScheduleMeetingPage = () => {
   const [meetingType, setMeetingType] = useState('quickSync');
   const [reminder, setReminder] = useState(30);
   const [description, setDescription] = useState('');
+  const [recurrenceRule, setRecurrenceRule] = useState('none');
+  const [isRecurrenceDropOpen, setIsRecurrenceDropOpen] = useState(false);
+
+  // Get dynamic recurrence option labels based on chosen selectedDate
+  const recurrenceOptions = useMemo(() => {
+    const baseDate = selectedDate || new Date();
+    
+    const getOrdinalSuffix = (num) => {
+      const j = num % 10, k = num % 100;
+      if (j === 1 && k !== 11) return num + "st";
+      if (j === 2 && k !== 12) return num + "nd";
+      if (j === 3 && k !== 13) return num + "rd";
+      return num + "th";
+    };
+    
+    const getWeekdayOrdinalInMonth = (date) => {
+      const day = date.getDate();
+      const weekIdx = Math.floor((day - 1) / 7);
+      const ordinals = ["first", "second", "third", "fourth", "fifth"];
+      
+      const temp = new Date(date);
+      temp.setDate(temp.getDate() + 7);
+      const isLast = temp.getMonth() !== date.getMonth();
+      
+      return isLast ? "last" : ordinals[weekIdx];
+    };
+    
+    const weekdayName = baseDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = baseDate.toLocaleDateString('en-US', { month: 'long' });
+    const dayWithSuffix = getOrdinalSuffix(baseDate.getDate());
+    const ordinalName = getWeekdayOrdinalInMonth(baseDate);
+    
+    return [
+      { id: 'none', label: 'Does not repeat' },
+      { id: 'daily', label: 'Daily' },
+      { id: 'weekly', label: `Weekly on ${weekdayName}` },
+      { id: 'every_weekday', label: 'Every weekday (Monday - Friday)' },
+      { id: 'monthly_day', label: `Monthly on ${dayWithSuffix}` },
+      { id: 'monthly_weekday', label: `Monthly on ${ordinalName} ${weekdayName}` },
+      { id: 'yearly', label: `Yearly on ${monthName} ${dayWithSuffix}` },
+      { id: 'custom', label: 'Custom...' }
+    ];
+  }, [selectedDate]);
 
   // --- Duration (preset OR custom) ---
   const [presetDuration, setPresetDuration] = useState(60); // minutes
@@ -1111,6 +1154,7 @@ const ScheduleMeetingPage = () => {
           title: effectiveTitle,
           start: toISO(startDt),
           end: toISO(endDt),
+          recurrence_rule: recurrenceRule,
         });
 
         if (resp.data.success) {
@@ -1142,7 +1186,8 @@ const ScheduleMeetingPage = () => {
       reason: meetingType === 'custom' ? customReasonInput : (meetingTypes.find(t => t.id === meetingType)?.label || ''),
       timezone: tz,
       organizer_email: 'noreply@antigravity.com',
-      project_id: Number(selectedProjectId)
+      project_id: Number(selectedProjectId),
+      recurrence_rule: recurrenceRule,
     };
 
     try {
@@ -1178,6 +1223,8 @@ const ScheduleMeetingPage = () => {
     setAgenda([]);
     setAttendees([]);
     setDescription('');
+    setRecurrenceRule('none');
+    setIsRecurrenceDropOpen(false);
   };
 
   // --- Render ---
@@ -1479,6 +1526,7 @@ const ScheduleMeetingPage = () => {
                             <div className="flex-1">
                               <div className={`font-bold text-sm flex items-center gap-2 ${isSelected ? 'text-indigo-900' : 'text-gray-400'}`}>
                                 {isSelected ? <ArrowRight className="w-3 h-3 text-indigo-500" /> : <Lock className="w-3 h-3 opacity-50" />}
+                                {m.recurrence_rule && m.recurrence_rule !== 'none' && <RefreshCw className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
                                 {m.title}
                               </div>
                               <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`}>{m.duration} min • {m.meeting_type || 'General'}</div>
@@ -1696,7 +1744,8 @@ const ScheduleMeetingPage = () => {
                               <div className={`flex ${isUltraShort ? 'flex-1 items-center gap-2' : 'flex-col'} overflow-hidden`}>
                                 <div className="flex items-center gap-1 overflow-hidden">
                                   {isSelected && <ArrowRight className="w-2.5 h-2.5 text-indigo-600 shrink-0" />}
-                                  <span className={`truncate ${isUltraShort ? 'text-[10px]' : 'text-[11px]'} font-bold text-gray-800 leading-tight`}>
+                                  <span className={`truncate ${isUltraShort ? 'text-[10px]' : 'text-[11px]'} font-bold text-gray-800 leading-tight flex items-center gap-1`}>
+                                    {m.recurrence_rule && m.recurrence_rule !== 'none' && <RefreshCw className="w-2.5 h-2.5 text-gray-400 shrink-0" />}
                                     {m.title}
                                   </span>
                                 </div>
@@ -2035,6 +2084,46 @@ const ScheduleMeetingPage = () => {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Recurrence Dropdown */}
+            <div className="relative">
+              <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1">
+                <RefreshCw className="w-3.5 h-3.5 text-gray-400" /> Repeat Settings
+              </label>
+              
+              <button
+                type="button"
+                onClick={() => setIsRecurrenceDropOpen(!isRecurrenceDropOpen)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all bg-white cursor-pointer flex items-center justify-between font-medium text-gray-700"
+              >
+                <span>{recurrenceOptions.find(o => o.id === recurrenceRule)?.label || 'Does not repeat'}</span>
+                <ChevronDown className="w-4 h-4 text-gray-500 ml-1" />
+              </button>
+
+              {isRecurrenceDropOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setIsRecurrenceDropOpen(false)} />
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                    {recurrenceOptions.map(option => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setRecurrenceRule(option.id);
+                          setIsRecurrenceDropOpen(false);
+                          if (option.id === 'custom') {
+                            toast('Custom settings will repeat daily by default.', { icon: '⚙️' });
+                          }
+                        }}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${recurrenceRule === option.id ? 'text-indigo-600 bg-indigo-50/70' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Reminder */}

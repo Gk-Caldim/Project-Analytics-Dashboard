@@ -157,6 +157,13 @@ async def test_websocket_endpoint(websocket: WebSocket, client_id: str):
 
 @app.on_event("startup")
 async def startup_event():
+    # Run database schema migrations
+    from app.scripts.apply_migrations import migrate
+    try:
+        migrate()
+    except Exception as e:
+        logger.error(f"Failed to apply migrations: {e}")
+        
     Base.metadata.create_all(bind=engine)
     db = next(get_db())
     try:
