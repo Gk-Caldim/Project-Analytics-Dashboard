@@ -5,13 +5,94 @@ from app.models.issue import Issue
 from app.core.security import get_current_user
 from app.models.mom_sync_history import MomSyncHistory
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from datetime import datetime, timezone
 import uuid
+import traceback
+import logging
 from app.models.mom import MOMSession
 from app.api.websockets import manager
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# ── MOM Save schema (local, so we don't depend on the unused api/mom.py) ──────
+class MOMSaveRequest(BaseModel):
+    meeting_id:   str
+    meeting_name: Optional[str] = None
+    project_id:   Optional[int] = None
+    project_name: Optional[str] = None
+    mom_data:     List[Dict[str, Any]]
+
+
+@router.post("/save")
+async def save_mom_session(payload: MOMSaveRequest, db: Session = Depends(get_db)):
+    """
+    Upsert a MOMSession row.
+    Called automatically on every MOM generation and on debounced inline edits.
+    """
+    try:
+        session = db.query(MOMSession).filter(
+            MOMSession.meeting_id == payload.meeting_id
+        ).first()
+
+        if session:
+            session.mom_data     = payload.mom_data  # type: ignore
+            session.meeting_name = payload.meeting_name or session.meeting_name  # type: ignore
+            session.project_id   = payload.project_id   or session.project_id   # type: ignore
+            session.project_name = payload.project_name or session.project_name  # type: ignore
+            session.updated_at   = datetime.now(timezone.utc)  # type: ignore
+        else:
+            session = MOMSession(
+                meeting_id   = payload.meeting_id,
+                meeting_name = payload.meeting_name,
+                project_id   = payload.project_id,
+                project_name = payload.project_name,
+                mom_data     = payload.mom_data,
+            )
+            db.add(session)
+
+        # Optionally sync meeting flags for scheduled meetings
+        try:
+            from app.models.meeting import Meeting
+            meeting = db.query(Meeting).filter(Meeting.id == payload.meeting_id).first()
+            if meeting:
+                meeting.mom_generated = True  # type: ignore
+                meeting.action_item_count = len(payload.mom_data)  # type: ignore
+        except Exception:
+            pass  # unscheduled sessions have no Meeting record — that is fine
+
+        db.commit()
+        db.refresh(session)
+        logger.info("[mom/save] Saved: meeting_id=%s rows=%d", payload.meeting_id, len(payload.mom_data))
+
+        # Broadcast WebSocket event
+        try:
+            import asyncio
+            asyncio.create_task(manager.broadcast({
+                "type":         "MOM_SAVED",
+                "meeting_id":   payload.meeting_id,
+                "meeting_name": session.meeting_name or "Untitled Meeting",
+                "project_name": session.project_name or "",
+            }))
+        except Exception as ws_e:
+            logger.warning("[mom/save] WebSocket broadcast failed: %s", ws_e)
+
+        return {
+            "success":      True,
+            "id":           session.id,
+            "meeting_id":   session.meeting_id,
+            "meeting_name": session.meeting_name,
+            "project_id":   session.project_id,
+            "project_name": session.project_name,
+            "updated_at":   session.updated_at.isoformat() if session.updated_at else None,
+        }
+
+    except Exception as e:
+        db.rollback()
+        logger.error("[mom/save] Error: %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to save MOM: {str(e)}")
 
 def normalize_status(status: Optional[str]) -> str:
     if not status:
@@ -308,33 +389,51 @@ async def get_mom_data(meeting_id: str, db: Session = Depends(get_db)):
     """
     Unified endpoint to fetch MOM data by meeting_id.
     Supports meeting_id, sync-{sync_id}, and 'unscheduled' lookups.
-    Returns MOMSession.mom_data if available, empty data otherwise.
+    Always checks the DB — including for 'unscheduled' sessions that were saved.
+    Returns MOMSession fields (meeting_name, project_id, project_name, mom_data)
+    so the frontend can fully hydrate after a hard refresh.
     """
     try:
-        # Handle special cases
+        # Guard against completely invalid values
         if not meeting_id or meeting_id in ("null", "undefined", ""):
-            return {"success": False, "mom_data": [], "detail": "Invalid meeting_id"}
-        
-        # If it's an unscheduled meeting with no data, return empty
-        if meeting_id == "unscheduled":
-            return {"success": True, "mom_data": [], "detail": "Unscheduled meeting has no saved data yet"}
-        
-        # Try to find MOMSession by meeting_id first
-        session = db.query(MOMSession).filter(MOMSession.meeting_id == meeting_id).first()
-        
+            return {"success": False, "mom_data": [], "meeting_name": None,
+                    "project_id": None, "project_name": None, "detail": "Invalid meeting_id"}
+
+        # Always check the DB — 'unscheduled' is a valid meeting_id key
+        session = db.query(MOMSession).filter(
+            MOMSession.meeting_id == meeting_id
+        ).first()
+
         # If not found and meeting_id is a sync-id format, try extracting sync_id
         if session is None and meeting_id.startswith("sync-"):
             sync_id = meeting_id.replace("sync-", "")
-            session = db.query(MOMSession).filter(MOMSession.sync_id == sync_id).first()
-        
-        if session is not None and session.mom_data is not None:
-            return {"success": True, "mom_data": session.mom_data}
-        
-        return {"success": True, "mom_data": []}
+            session = db.query(MOMSession).filter(
+                MOMSession.sync_id == sync_id
+            ).first()
+
+        if session is not None:
+            return {
+                "success":      True,
+                "meeting_id":   session.meeting_id,
+                "meeting_name": session.meeting_name,
+                "project_id":   session.project_id,
+                "project_name": session.project_name,
+                "mom_data":     session.mom_data or [],
+                "updated_at":   session.updated_at.isoformat() if session.updated_at else None,
+            }
+
+        # No saved session found — return empty but valid shell
+        return {
+            "success":      True,
+            "meeting_id":   meeting_id,
+            "meeting_name": None,
+            "project_id":   None,
+            "project_name": None,
+            "mom_data":     [],
+        }
 
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"[mom/get] Error fetching MOM data for {meeting_id}: {e}", exc_info=True)
+        logger.error("[mom/get] Error fetching MOM data for %s: %s", meeting_id, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -3,7 +3,7 @@
  * Enterprise MOM Display — Executive Summary · Action Items · Issues · Discussion
  * Backend frozen: uses existing momSlice + POST /mom/issues API
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
-import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingContext } from '../../store/slices/momSlice';
+import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingContext, saveMOM } from '../../store/slices/momSlice';
 import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
@@ -104,6 +104,8 @@ const MOMViewPage = () => {
     }
   }, [urlMeetingId, pathMeetingId, meetingId, navigate]);
 
+  const lastSavedMomDataRef = useRef(null);
+
   useEffect(() => {
     API.get('/projects').then(r => {
       const data = r.data.success ? r.data.projects : (Array.isArray(r.data) ? r.data : []);
@@ -114,108 +116,125 @@ const MOMViewPage = () => {
       setEmployees(r.data?.success ? r.data.employees : (Array.isArray(r.data) ? r.data : []));
     }).catch(() => { });
 
-    // ── Debug: log the meetingId on mount ──
     console.log('[MOMViewPage] Mount — urlMeetingId:', urlMeetingId, '| pathMeetingId:', pathMeetingId, '| redux meetingId:', meetingId);
 
-    // Hydrate if effectiveMeetingId is provided and Redux is empty or needs refresh
-    if (effectiveMeetingId && (!momData || momData.length === 0 || meetingId !== effectiveMeetingId)) {
-      setLoading(true);
-      
-      Promise.all([
-        API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
-        API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
-        API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
-      ])
-        .then(([meetingRes, momRes, issuesRes]) => {
-          console.log('[MOMViewPage] API responses:', {
-            meeting: meetingRes?.data?.success,
-            momData: momRes?.data?.mom_data?.length ?? 0,
-            syncedIssues: issuesRes?.data?.total ?? 0,
-          });
+    // Always hydrate from DB when the effectiveMeetingId is known.
+    // This guarantees data survives hard refreshes (Redux is in-memory only).
+    if (!effectiveMeetingId) return;
 
-          const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
-          if (!m) {
-            toast.error("Failed to load meeting details.");
-            return;
-          }
+    setLoading(true);
 
-          const transcript = m.transcript || [];
-          setLocalTranscript(transcript);
+    Promise.all([
+      API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
+      API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
+      API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
+    ])
+      .then(([meetingRes, momRes, issuesRes]) => {
+        console.log('[MOMViewPage] Hydration responses:', {
+          meeting:      meetingRes?.data?.success,
+          momDataRows:  momRes?.data?.mom_data?.length ?? 0,
+          syncedIssues: issuesRes?.data?.total ?? 0,
+        });
 
-          let finalRows = [];
+        const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
+        setLocalTranscript(m?.transcript || []);
 
-          if (momRes?.data?.mom_data && momRes.data.mom_data.length > 0) {
-            // Priority 1: Saved edited MOM data from MOMSession
-            finalRows = momRes.data.mom_data;
-            console.log('[MOMViewPage] Source: MOMSession.mom_data →', finalRows.length, 'rows');
-          } else if (issuesRes?.data?.success && issuesRes.data.rows?.length > 0) {
-            // Priority 2: Synced issues from the Issue table (written by /mom/issues POST)
-            finalRows = issuesRes.data.rows;
-            console.log('[MOMViewPage] Source: Issue table (synced) →', finalRows.length, 'rows');
-          } else if (m.intelligence_data) {
-            // Priority 3: Original AI generated data on the Meeting record
-            const intel = m.intelligence_data;
-            finalRows = [
-              ...(intel?.action_items || []).map(a => ({ 
-                id: Math.random(), 
-                function: 'General', 
-                criticality: a.priority || 'Medium', 
-                discussion_point: a.description, 
-                responsibility: a.owner, 
-                target: a.due_date || 'TBD', 
-                status: 'Pending', 
-                project_id: m.project_id,
-                project_name: m.title
-              })),
-              ...(intel?.decisions || []).map(d => ({ 
-                id: Math.random(), 
-                function: 'Decision', 
-                criticality: 'Medium', 
-                discussion_point: d, 
-                responsibility: 'Everyone', 
-                status: 'Resolved', 
-                project_id: m.project_id,
-                project_name: m.title
-              }))
-            ];
-            console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
-          } else {
-            console.warn('[MOMViewPage] No data found from any source for meetingId:', effectiveMeetingId);
-          }
+        let finalRows = [];
 
-          if (finalRows.length > 0) {
-            finalRows[0]._rawEntries = transcript;
-          }
+        if (momRes?.data?.mom_data && momRes.data.mom_data.length > 0) {
+          // Priority 1: Saved MOMSession rows — survives refresh
+          finalRows = momRes.data.mom_data;
+          console.log('[MOMViewPage] Source: MOMSession.mom_data →', finalRows.length, 'rows');
+        } else if (issuesRes?.data?.success && issuesRes.data.rows?.length > 0) {
+          // Priority 2: Synced Issue table rows
+          finalRows = issuesRes.data.rows;
+          console.log('[MOMViewPage] Source: Issue table →', finalRows.length, 'rows');
+        } else if (m?.intelligence_data) {
+          // Priority 3: Raw AI intelligence on the Meeting record
+          const intel = m.intelligence_data;
+          finalRows = [
+            ...(intel?.action_items || []).map(a => ({
+              id: Math.random(),
+              function: 'General',
+              criticality: a.priority || 'Medium',
+              discussion_point: a.description,
+              responsibility: a.owner,
+              target: a.due_date || 'TBD',
+              status: 'Pending',
+              project_id: m.project_id,
+              project_name: m.title,
+            })),
+            ...(intel?.decisions || []).map(d => ({
+              id: Math.random(),
+              function: 'Decision',
+              criticality: 'Medium',
+              discussion_point: d,
+              responsibility: 'Everyone',
+              status: 'Resolved',
+              project_id: m.project_id,
+              project_name: m.title,
+            })),
+          ];
+          console.log('[MOMViewPage] Source: intelligence_data →', finalRows.length, 'rows');
+        } else {
+          console.warn('[MOMViewPage] No data source found for meetingId:', effectiveMeetingId);
+        }
 
-          dispatch(setMomDataRedux(finalRows));
+        if (finalRows.length > 0) {
+          finalRows[0]._rawEntries = m?.transcript || [];
+        }
 
-          // Resolve actual project name from the projects list
-          const resolvedProjectName = (() => {
-            if (!m.project_id) return '';
-            // projects may not be loaded yet — use inline lookup then settle for m.project_name if available
-            const found = projects.find(p =>
-              String(p.dbProjectId || p.id || p.project_id) === String(m.project_id)
-            );
-            return found?.name || m.project_name || '';
-          })();
+        dispatch(setMomDataRedux(finalRows));
+        // Stamp ref so debounced autosave does NOT re-save what was just loaded
+        lastSavedMomDataRef.current = JSON.stringify(finalRows);
 
-          dispatch({ 
-            type: 'mom/setMeetingContext', 
-            payload: { 
-              meetingId: m.id, 
-              meetingName: m.title, 
-              projectId: m.project_id,
-              projectName: resolvedProjectName,
-            } 
-          });
-        })
-        .catch(err => {
-          console.error("Hydration failed", err);
-          toast.error("Failed to load saved meeting data.");
-        })
-        .finally(() => setLoading(false));
-    }
+        // The fixed backend now returns meeting_name / project_id / project_name
+        // directly on momRes.data, so we can fully hydrate without the projects list.
+        const resolvedMeetingId   = m?.id ?? effectiveMeetingId;
+        const resolvedMeetingName = m?.title || momRes?.data?.meeting_name || 'Unscheduled Session';
+        const resolvedProjectId   = m?.project_id ?? momRes?.data?.project_id ?? null;
+        const resolvedProjectName = momRes?.data?.project_name || m?.project_name || '';
+
+        dispatch({
+          type: 'mom/setMeetingContext',
+          payload: {
+            meetingId:   resolvedMeetingId,
+            meetingName: resolvedMeetingName,
+            projectId:   resolvedProjectId,
+            projectName: resolvedProjectName,
+          },
+        });
+      })
+      .catch(err => {
+        console.error('[MOMViewPage] Hydration failed:', err);
+        toast.error('Failed to load saved meeting data.');
+      })
+      .finally(() => setLoading(false));
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveMeetingId, dispatch]);
+
+  // Autosave MOM changes to the database
+  useEffect(() => {
+    if (!effectiveMeetingId || !momData || momData.length === 0) return;
+    
+    // Check if momData has actually changed compared to what we last saved or loaded
+    const serialized = JSON.stringify(momData);
+    if (lastSavedMomDataRef.current === serialized) return;
+
+    const timer = setTimeout(() => {
+      lastSavedMomDataRef.current = serialized;
+      dispatch(saveMOM({
+        meetingId: effectiveMeetingId,
+        meetingName: meetingName || 'Unscheduled Session',
+        projectId,
+        projectName,
+        momData
+      }));
+    }, 1500); // 1.5 seconds debounce
+
+    return () => clearTimeout(timer);
+  }, [momData, effectiveMeetingId, meetingName, projectId, projectName, dispatch]);
 
 
   // ── Derive sections from momData ─────────────────────────────────────

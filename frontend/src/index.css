@@ -763,4 +763,75 @@
   .theme-transitioning::view-transition-new(root) {
     animation: 250ms cubic-bezier(0, 0, 0.2, 1) both fade-in;
   }
+}
+
+/* ── Google-like Indeterminate Progress Bar ── */
+.google-progress-bar {
+  position: relative;
+  height: 4px;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.google-progress-bar .indicator.indeterminate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background-color: transparent;
+}
+
+.google-progress-bar .indicator.indeterminate::before {
+  content: '';
+  position: absolute;
+  background-color: inherit;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  will-change: left, right;
+  animation: indeterminate-google 2.1s cubic-bezier(0.65, 0.815, 0.73, 0.395) infinite;
+}
+
+.google-progress-bar .indicator.indeterminate::after {
+  content: '';
+  position: absolute;
+  background-color: inherit;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  will-change: left, right;
+  animation: indeterminate-google-short 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+  animation-delay: 1.15s;
+}
+
+@keyframes indeterminate-google {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+@keyframes indeterminate-google-short {
+  0% {
+    left: -200%;
+    right: 100%;
+  }
+  60% {
+    left: 107%;
+    right: -8%;
+  }
+  100% {
+    left: 107%;
+    right: -8%;
+  }
 }

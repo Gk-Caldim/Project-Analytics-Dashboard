@@ -11,7 +11,8 @@ import {
   Upload, Mic, Edit3, ChevronRight, Home, Layout,
   Play, Square, Pause, X, Plus, Edit2, Check,
   FileText, Loader, AlertCircle, CheckCircle, Clock,
-  FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle
+  FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle,
+  Info, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
@@ -19,7 +20,18 @@ import {
   setMeetingContext, saveMOM, addMomRows, fetchMOM, setMomData
 } from '../../store/slices/momSlice';
 import { Skeleton } from '../../components/ui/skeleton';
+import { Progress } from '../../components/ui/progress';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../../components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+} from '../../components/ui/alert-dialog';
 import { setActiveModule } from '../../store/slices/navSlice';
 import './tokens.css';
 import './MeetingCapturePage.css';
@@ -286,6 +298,19 @@ const MeetingCapturePage = () => {
   const reduxProjects = useSelector(s => s.project?.projects) || [];
   const [projects, setProjects] = useState([]);
   const isProjectLinked = Boolean(projectId);
+
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+  const titleInputRef = useRef(null);
+  const projectSelectRef = useRef(null);
+
+  // Inline validation helper — focuses the first missing required field
+  const focusFirstMissingField = () => {
+    if (!meetingTitle.trim()) { titleInputRef.current?.focus(); return true; }
+    if (!projectId) { projectSelectRef.current?.focus(); return true; }
+    return false;
+  };
+
   const meetingId = useMemo(() => searchParams.get('id') || searchParams.get('meetingId') || 'unscheduled', [searchParams]);
 
   // ── Core model: each uploaded/recorded file is a TranscriptDoc ──────────
@@ -294,6 +319,23 @@ const MeetingCapturePage = () => {
   const [transcripts, setTranscripts] = useState([]);
   const hasTranscripts = transcripts.length > 0;
   const [isSetupOpen, setIsSetupOpen] = useState(true);
+
+  const handleModeSelect = (newMode) => {
+    if (!meetingTitle.trim() || !projectId) {
+      setIsAlertOpen(true);
+    } else {
+      setMode(newMode);
+    }
+  };
+
+  const requireFields = (callback) => {
+    if (!meetingTitle.trim() || !projectId) {
+      setIsAlertOpen(true);
+      return false;
+    }
+    if (callback) callback();
+    return true;
+  };
 
   useEffect(() => {
     if (hasTranscripts) {
@@ -305,6 +347,16 @@ const MeetingCapturePage = () => {
 
   const [activeTranscriptId, setActiveTranscriptId] = useState(null);
   const sigSetRef = useRef(new Set()); // content fingerprints — ref avoids stale closure in FileReader
+  const abortControllerRef = useRef(null);
+
+  const cancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setGenerating(false);
+    toast('Generation cancelled', { icon: '🛑' });
+  };
 
   // Upload UI
   const [mode, setMode] = useState('upload');
@@ -338,9 +390,10 @@ const MeetingCapturePage = () => {
   const [renamingSpeaker, setRenamingSpeaker] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const genProgressRef = useRef(null);
   // protectedIds: keyed by entry id, scoped to active transcript review
   const [protectedIds, setProtectedIds] = useState(() => new Set());
-
 
   const getSpeakerColor = useCallback((name) => {
     if (speakerColorMapRef.current[name] === undefined) {
@@ -349,13 +402,35 @@ const MeetingCapturePage = () => {
     return SPEAKER_COLORS[speakerColorMapRef.current[name]];
   }, []);
 
+  // Drive a simulated progress counter while generating
+  useEffect(() => {
+    if (generating) {
+      setGenProgress(0);
+      let val = 0;
+      genProgressRef.current = setInterval(() => {
+        // Eased increment: fast early, slows near ceiling
+        const increment = val < 40 ? 4 + Math.random() * 4
+          : val < 70 ? 2 + Math.random() * 2
+            : val < 88 ? 0.8 + Math.random() * 0.8
+              : 0.2;
+        val = Math.min(95, val + increment);
+        setGenProgress(Math.round(val));
+        if (val >= 95) clearInterval(genProgressRef.current);
+      }, 350);
+    } else {
+      clearInterval(genProgressRef.current);
+      setGenProgress(0);
+    }
+    return () => clearInterval(genProgressRef.current);
+  }, [generating]);
+
   useEffect(() => {
     const init = async () => {
       try {
         // Set meeting title early but don't update state yet during render
         let titleToSet = '';
         const promises = [];
-        
+
         if (!(reduxProjects && reduxProjects.length > 0)) {
           promises.push(
             API.get('/projects/')
@@ -365,12 +440,12 @@ const MeetingCapturePage = () => {
         } else {
           setProjects(reduxProjects);
         }
-        
+
         if (meetingId && meetingId !== 'unscheduled') {
           titleToSet = `Meeting #${meetingId}`;
           promises.push(
             API.get(`/transcript/${meetingId}`)
-              .then(r => { 
+              .then(r => {
                 if (r.data?.transcript_data) {
                   const existingEntries = r.data.transcript_data.map((e, i) => ({
                     ...e,
@@ -398,11 +473,11 @@ const MeetingCapturePage = () => {
               .catch(() => { })
           );
         }
-        
+
         if (promises.length > 0) {
           await Promise.all(promises);
         }
-        
+
         // Defer setState calls until after Promise.all completes
         if (titleToSet) {
           setMeetingTitle(titleToSet);
@@ -419,7 +494,7 @@ const MeetingCapturePage = () => {
   useEffect(() => {
     if (projectId && projects.length > 0) {
       // Find by either dbProjectId (integer) or id (slug/integer)
-      const p = projects.find(proj => 
+      const p = projects.find(proj =>
         String(proj.dbProjectId || proj.id || proj.project_id) === String(projectId)
       );
       if (p) setProjectName(p.name || p.project_name);
@@ -659,6 +734,8 @@ const MeetingCapturePage = () => {
       return;
     }
     setGenerating(true);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
     try {
       const payload = {
         transcript: dialogueEntries.map(e => ({
@@ -666,7 +743,9 @@ const MeetingCapturePage = () => {
         })),
         title: meetingTitle, projectId
       };
-      const resp = await API.post(`/meetings/${meetingId}/generate-mom`, payload);
+      const resp = await API.post(`/meetings/${meetingId}/generate-mom`, payload, {
+        signal: abortControllerRef.current.signal
+      });
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
 
       if (resp.data?.success) {
@@ -677,10 +756,18 @@ const MeetingCapturePage = () => {
         ];
         if (aiRows.length > 0) aiRows[0]._rawEntries = mergedEntries;
         dispatch(setMomData(aiRows));
+
         if (aiRows.length === 0) {
           const fallback = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
           if (fallback.length > 0) {
             dispatch(setMomData(fallback));
+            dispatch(saveMOM({
+              meetingId,
+              meetingName: meetingTitle || 'Unscheduled Session',
+              projectId,
+              projectName,
+              momData: fallback
+            }));
             dispatch(setActiveModule('mom-module'));
             navigate(`/dashboard/mom/view/${meetingId}`);
             return;
@@ -689,16 +776,36 @@ const MeetingCapturePage = () => {
           setGenerating(false);
           return;
         }
+
+        // Save AI generated rows
+        dispatch(saveMOM({
+          meetingId,
+          meetingName: meetingTitle || 'Unscheduled Session',
+          projectId,
+          projectName,
+          momData: aiRows
+        }));
+
         setGenError(null);
         const destId = resp.data.sync_id || resp.data.meeting_id || meetingId;
         dispatch(setActiveModule('mom-module'));
         navigate(`/dashboard/mom/view/${destId}`);
       }
-    } catch (_) {
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.message === 'canceled') return;
       const rows = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
       if (rows.length > 0) rows[0]._rawEntries = mergedEntries;
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
       dispatch(setMomData(rows));
+      if (rows.length > 0) {
+        dispatch(saveMOM({
+          meetingId,
+          meetingName: meetingTitle || 'Unscheduled Session',
+          projectId,
+          projectName,
+          momData: rows
+        }));
+      }
       if (rows.length === 0) { setGenError('Generation produced no content.'); setGenerating(false); return; }
       setGenError(null);
       dispatch(setActiveModule('mom-module'));
@@ -794,29 +901,13 @@ const MeetingCapturePage = () => {
 
   return (
     <div className="mcp-root mom-theme">
-      {/* ── Top Bar ── */}
-      <div className="mcp-topbar">
-        <nav className="mcp-breadcrumb">
-          <Link to="/dashboard" className="mcp-bc-link"><Home size={12} />Dashboard</Link>
-          <ChevronRight size={12} className="mcp-bc-sep" />
-          <span className="mcp-bc-current">Meeting Intelligence</span>
-        </nav>
-        {hasConfirmed && (
-          <button
-            className="mcp-generate-topbar-btn"
-            onClick={handleGenerate}
-            disabled={generating}
-          >
-            {generating ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</> : <><Sparkles size={14} /> Generate MOM</>}
-          </button>
-        )}
-      </div>
+      {/* ── Top Bar (Removed) ── */}
 
       {/* ── Progress Steps ── */}
       <div className="mcp-steps">
         {[
           { label: 'CAPTURE', done: hasTranscripts, active: !hasTranscripts },
-          { label: 'REVIEW',  done: hasConfirmed,   active: hasTranscripts && !hasConfirmed },
+          { label: 'REVIEW', done: hasConfirmed, active: hasTranscripts && !hasConfirmed },
           { label: 'GENERATE', done: false, active: hasConfirmed, locked: !hasConfirmed },
         ].map((step, i, arr) => (
           <React.Fragment key={step.label}>
@@ -829,65 +920,103 @@ const MeetingCapturePage = () => {
         ))}
       </div>
 
-      {/* ════════ BODY: 380px | 260px | 1fr ════════ */}
-      <div className="mcp-body mcp-body-3col">
+      {/* ════════ BODY ════════ */}
+      {!hasTranscripts ? (
+        /* ═══ STEP 1: CENTERED SINGLE-COLUMN CAPTURE ═══ */
+        <div className="mcp-body mcp-capture-centered">
+          <div className="mcp-capture-column">
+            {/* Page-level intent heading */}
+            <h1 className="mcp-capture-heading">New minutes of meeting</h1>
+            <p className="mcp-capture-subheading">Fill in the details below, then upload or record your meeting transcript.</p>
 
-        {/* ── COL 1: LEFT PANEL (Collapsible Setup Panel) ── */}
-        <Collapsible
-          open={isSetupOpen}
-          onOpenChange={setIsSetupOpen}
-          className={`mcp-left-panel mcp-left-collapsible${!isSetupOpen ? ' mcp-left-collapsed' : ''}`}
-        >
-          {/* ── Collapsed Super-Clean Handle ── */}
-          {!isSetupOpen && (
-            <CollapsibleTrigger asChild>
-              <button className="mcp-setup-collapsed-handle-v2" aria-label="Expand setup panel" title="Expand Setup Panel">
-                <ChevronRight size={14} className="mcp-ribbon-arrow-icon" style={{ flexShrink: 0 }} />
-                <span className="mcp-vertical-text">SHOW SETUP</span>
-              </button>
-            </CollapsibleTrigger>
-          )}
-
-          {/* ── Expanded Full Setup Form ── */}
-          <CollapsibleContent className="mcp-setup-content">
-            {/* Panel header with collapse trigger — always visible for user-friendly control */}
-            <div className="mcp-setup-header">
-              <span className="mcp-setup-header-label">SETUP CONFIGURATION</span>
-              <CollapsibleTrigger asChild>
-                <button className="mcp-setup-collapse-btn" aria-label="Collapse setup panel" title="Collapse setup panel">
-                  <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
-                  <span>Hide Panel</span>
-                </button>
-              </CollapsibleTrigger>
-            </div>
-
-            <div className="mcp-lp-section">
-              <div className="mcp-lp-label">MEETING TITLE</div>
-              <input className="mcp-lp-input" placeholder="e.g. Sprint Review — May 6" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} />
-            </div>
-
-            <div className="mcp-lp-section">
-              <div className="mcp-lp-label-row">
-                <span className="mcp-lp-label" style={{ marginBottom: 0 }}>LINK PROJECT</span>
-                <span className="mcp-lp-required">*</span>
-              </div>
-              <div className="mcp-lp-select-wrap">
-                <select className="mcp-lp-select" value={projectId} onChange={e => setProjectId(e.target.value)}>
-                  <option value="">Select a project...</option>
-                  {projects.map(p => <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              {!isProjectLinked && <div className="mcp-lp-hint">Select a project to enable capture</div>}
-            </div>
-
-            <div className={`mcp-lp-section mcp-capture-gated ${!isProjectLinked ? 'disabled' : ''}`}>
-              <div className="mcp-tab-bar">
-                <button className={`mcp-tab ${mode === 'upload' ? 'active' : ''}`} onClick={() => setMode('upload')}><Upload size={16} /> Upload</button>
-                <button className={`mcp-tab ${mode === 'record' ? 'active' : ''}`} onClick={() => setMode('record')}><Mic size={16} /> Record</button>
+            {/* ── BEAT 1: Form Fields ── */}
+            <div className="mcp-capture-fields">
+              <div className="mcp-capture-field">
+                <div className="mcp-lp-label-row">
+                  <span className="mcp-lp-label" style={{ marginBottom: 0 }}>Meeting title</span>
+                  <span className="mcp-lp-required">*</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={14} className="mcp-tooltip-icon" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Used as the document name for your MOM. Be specific — e.g. include the date or sprint number.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <input
+                  ref={titleInputRef}
+                  id="mcp-meeting-title"
+                  className="mcp-lp-input mcp-animated-placeholder"
+                  placeholder="e.g. Sprint Review — May 6"
+                  value={meetingTitle}
+                  onChange={e => setMeetingTitle(e.target.value)}
+                />
               </div>
 
+              <div className="mcp-capture-field">
+                <div className="mcp-lp-label-row">
+                  <span className="mcp-lp-label" style={{ marginBottom: 0 }}>Link project</span>
+                  <span className="mcp-lp-required">*</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={14} className="mcp-tooltip-icon" />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Associates generated action items and decisions with the selected project for tracking.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="mcp-lp-select-wrap">
+                  <select
+                    ref={projectSelectRef}
+                    id="mcp-link-project"
+                    className="mcp-lp-select"
+                    value={projectId}
+                    onChange={e => setProjectId(e.target.value)}
+                  >
+                    <option value="">Select a project...</option>
+                    {projects.map(p => <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* ── BEAT 2: Visual Divider ── */}
+            <div className="mcp-capture-divider" />
+
+            {/* ── BEAT 3: Capture Method Cards ── */}
+            <div className="mcp-capture-methods">
+
+              <div className="mcp-capture-cards">
+                {/* Upload Card */}
+                <div
+                  className={`mcp-capture-card ${mode === 'upload' ? 'active' : ''}`}
+                  onClick={() => handleModeSelect('upload')}
+                >
+                  <div className="mcp-capture-card-icon"><Upload size={22} strokeWidth={1.5} /></div>
+                  <div className="mcp-capture-card-title">Upload transcript</div>
+                  <div className="mcp-capture-card-hint">.txt .md .vtt .srt · multiple files</div>
+                </div>
+
+                {/* Record Card */}
+                <div
+                  className={`mcp-capture-card ${mode === 'record' ? 'active' : ''}`}
+                  onClick={() => handleModeSelect('record')}
+                >
+                  <div className="mcp-capture-card-icon"><Mic size={22} strokeWidth={1.5} /></div>
+                  <div className="mcp-capture-card-title">Record live</div>
+                  <div className="mcp-capture-card-hint">Browser mic · real-time transcript</div>
+                </div>
+              </div>
+
+              {/* Expanded content based on mode */}
               {mode === 'upload' && (
-                <>
+                <div className="mcp-capture-expanded">
                   {isUploading ? (
                     <div className="mcp-upload-progress-wrap">
                       <div className="mcp-upload-progress-filename"><FileText size={14} color="#0D9488" /><span>{uploadingLabel}</span></div>
@@ -896,259 +1025,355 @@ const MeetingCapturePage = () => {
                     </div>
                   ) : (
                     <div
-                      className={`mcp-dropzone ${isDragOver ? 'drag-over' : ''} ${!isProjectLinked ? 'mcp-dropzone-disabled' : ''}`}
-                      onClick={() => isProjectLinked && fileInputRef.current.click()}
-                      onDragOver={e => { e.preventDefault(); if (isProjectLinked) setIsDragOver(true); }}
+                      className={`mcp-dropzone ${isDragOver ? 'drag-over' : ''}`}
+                      onClick={() => requireFields(() => fileInputRef.current.click())}
+                      onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
                       onDragLeave={() => setIsDragOver(false)}
-                      onDrop={e => { e.preventDefault(); setIsDragOver(false); if (isProjectLinked && e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files); }}
+                      onDrop={e => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files.length > 0) requireFields(() => handleFiles(e.dataTransfer.files)); }}
                     >
                       <Upload size={28} color="#0D9488" strokeWidth={1.5} />
                       <div className="mcp-dropzone-title">Drop transcripts or click to browse</div>
                       <div className="mcp-dropzone-sub">Multiple files · .txt .md .vtt .srt</div>
                     </div>
                   )}
-                </>
+                </div>
               )}
 
               {mode === 'record' && (
-                <div className="mcp-record-zone">
-                  <button className={`mcp-record-btn ${recordState.toLowerCase()}`} onClick={recordState === 'IDLE' ? startRecording : stopRecording}>
-                    {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
-                  </button>
-                  <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
-                  <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
-                  {micError && <div className="mcp-mic-error">{micError}</div>}
+                <div className="mcp-capture-expanded">
+                  <div className="mcp-record-zone">
+                    <button className={`mcp-record-btn ${recordState.toLowerCase()}`} onClick={() => recordState === 'IDLE' ? requireFields(startRecording) : stopRecording()}>
+                      {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
+                    </button>
+                    <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
+                    <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
+                    {micError && <div className="mcp-mic-error">{micError}</div>}
+                  </div>
                 </div>
               )}
 
               <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
             </div>
-
-            {/* Merged summary — shown when confirmed transcripts exist */}
-            {hasConfirmed && (
-              <div className="mcp-merged-summary">
-                <div className="mcp-merged-summary-title">SESSION TOTAL</div>
-                <div className="mcp-merged-summary-stats">
-                  <span>{mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines</span>
-                  <span>{Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers</span>
-                  <span>{transcripts.filter(t => t.status === 'confirmed').length} confirmed</span>
-                </div>
-                {genError && <div className="mcp-gen-error">{genError}</div>}
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* ── COL 2: TRANSCRIPT QUEUE ── */}
-        <div className="mcp-queue-panel">
-          <div className="mcp-queue-header">
-            <span className="mcp-queue-title">TRANSCRIPTS</span>
-            <span className="mcp-queue-count">{transcripts.length}</span>
           </div>
-
-          {transcripts.length === 0 ? (
-            <div className="mcp-queue-empty">
-              <FileUp size={28} color="#CBD5E1" strokeWidth={1.2} />
-              <span>No transcripts yet</span>
-              <span style={{ fontSize: '11px', color: '#CBD5E1' }}>Upload files or start recording</span>
-            </div>
-          ) : (
-            <div className="mcp-queue-list">
-              {transcripts.map((t, idx) => {
-                const isActive = t.id === activeTranscriptId;
-                const statusColors = {
-                  reviewing: { bg: '#EFF6FF', text: '#1D4ED8', dot: '#3B82F6', label: 'reviewing' },
-                  confirmed: { bg: '#ECFDF5', text: '#065F46', dot: '#10B981', label: 'confirmed' },
-                  duplicate: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B', label: 'duplicate' },
-                };
-                const sc = statusColors[t.status];
-                return (
-                  <div
-                    key={t.id}
-                    className={`mcp-queue-item ${isActive ? 'active' : ''} ${t.status}`}
-                    onClick={() => setActiveTranscriptId(t.id)}
-                  >
-                    <div className="mcp-qi-top">
-                      <div className="mcp-qi-index">{idx + 1}</div>
-                      <div className="mcp-qi-name">{t.isRecording ? '🎙 ' : ''}{t.fileName}</div>
-                      <button className="mcp-qi-remove" title="Remove" onClick={e => { e.stopPropagation(); removeTranscript(t.id); }}><X size={12} /></button>
-                    </div>
-                    <div className="mcp-qi-meta">
-                      <span className="mcp-qi-lines">{t.lineCount} lines</span>
-                      {t.fileSize > 0 && <span className="mcp-qi-size">{(t.fileSize / 1024).toFixed(1)} KB</span>}
-                      <span className="mcp-qi-time">{t.uploadedAt}</span>
-                    </div>
-                    <div className="mcp-qi-footer">
-                      <span className="mcp-qi-status-chip" style={{ background: sc.bg, color: sc.text }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot, display: 'inline-block', marginRight: 4 }} />
-                        {sc.label}
-                      </span>
-                      {t.status === 'duplicate' && (
-                        <button className="mcp-qi-import-btn" onClick={e => { e.stopPropagation(); importDuplicate(t.id); }}>Import Anyway</button>
-                      )}
-                      {t.status === 'confirmed' && (
-                        <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>✓ In session</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+      ) : (
+        /* ═══ STEP 2+: 2-COLUMN REVIEW LAYOUT ═══ */
+        <div className="mcp-body mcp-body-2col">
+          {/* hidden file input since we removed the left panel */}
+          <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
 
-        {/* ── COL 3: REVIEW PANEL ── */}
-        <div className="mcp-right-panel">
-          <div className="mcp-rp-header">
-            <span className="mcp-rp-header-title">
-              {activeTranscript
-                ? activeTranscript.status === 'confirmed' ? `✓ ${activeTranscript.fileName}` : `REVIEWING · ${activeTranscript.fileName}`
-                : 'TRANSCRIPT REVIEW'}
-            </span>
-            {activeTranscript && activeTranscript.status === 'reviewing' && (
-              <button
-                className="mcp-confirm-btn"
-                onClick={() => confirmTranscript(activeTranscript.id)}
-              >
-                <Check size={14} /> Confirm Transcript
+          {/* ── COL 1: TRANSCRIPT QUEUE ── */}
+          <div className="mcp-queue-panel">
+            <div className="mcp-queue-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="mcp-queue-title">TRANSCRIPTS</span>
+                <span className="mcp-queue-count">{transcripts.length}</span>
+              </div>
+              <button className="mcp-add-more-btn" onClick={() => fileInputRef.current.click()} title="Add more files" style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#0D9488', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+                <Plus size={14} /> Add more
               </button>
-            )}
-          </div>
+            </div>
 
-          {/* Active transcript filler banner */}
-          {activeTranscript && (() => {
-            const dialogueEntries = activeTranscript.entries.filter(e => e.type === 'dialogue' || e.type === 'manual');
-            const fillerEntries = dialogueEntries.filter(e => isNoiseLine(e.text) && !protectedIds.has(e.id));
-            if (fillerEntries.length === 0) return null;
-            const CATEGORY_LABELS = { greeting: 'greetings', ritual: 'mic checks', hesitation: 'hesitations', affirmation: 'filler replies', filler_word: 'filler words', formatting: 'formatting' };
-            const catCounts = fillerEntries.reduce((acc, e) => { const cat = FillerDetector.classify(e.text).category; acc[cat] = (acc[cat] || 0) + 1; return acc; }, {});
-            const breakdown = Object.entries(catCounts).map(([k, v]) => `${v} ${CATEGORY_LABELS[k] || k}`).join(', ');
-            return (
-              <div className="mcp-cleanup-banner">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <AlertCircle size={15} color="#F59E0B" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '12px', color: '#92400E' }}>
-                    <strong>{fillerEntries.length} filler line{fillerEntries.length !== 1 ? 's' : ''}</strong> — {breakdown}
-                  </span>
-                </div>
-                <button className="mcp-cleanup-btn" onClick={handleRemoveFillerFromActive}>Remove Filler</button>
-              </div>
-            );
-          })()}
-
-          {/* Summary bar */}
-          {activeTranscript && (() => {
-            const dialogues = activeTranscript.entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker);
-            const speakers = Array.from(new Set(dialogues.map(e => e.speaker))).filter(n => !PLATFORM_NAMES.has(n.toLowerCase()));
-            return (
-              <div className="mcp-summary-bar" style={{ padding: '6px 20px' }}>
-                <span style={{ color: '#0D9488', fontSize: '12px', fontWeight: 500 }}>
-                  {dialogues.length} lines · {speakers.length} speakers
-                  {activeTranscript.status === 'confirmed' ? ' · confirmed ✓' : ' · pending confirmation'}
-                </span>
-              </div>
-            );
-          })()}
-
-          <div className="mcp-rp-body" ref={previewBodyRef}>
-            {!activeTranscript ? (
-              <div className="mcp-rp-empty">
-                <FileText size={32} strokeWidth={1.2} color="#CBD5E1" />
-                <span className="mcp-rp-empty-text">Select a transcript from the queue to review</span>
+            {transcripts.length === 0 ? (
+              <div className="mcp-queue-empty">
+                <FileUp size={28} color="#CBD5E1" strokeWidth={1.2} />
+                <span>No transcripts yet</span>
+                <span style={{ fontSize: '11px', color: '#CBD5E1' }}>Upload files or start recording</span>
               </div>
             ) : (
-              <>
-                {/* Metadata rows */}
-                {activeTranscript.entries.filter(e => e.type === 'metadata').length > 0 && (
-                  <div className="mcp-metadata-block">
-                    {activeTranscript.entries.filter(e => e.type === 'metadata').map(m => (
-                      <div key={m.id} className="mcp-metadata-row">
-                        <span className="mcp-metadata-label">{m.field}:</span>
-                        <span className="mcp-metadata-value">{m.value}</span>
+              <div className="mcp-queue-list">
+                {transcripts.map((t, idx) => {
+                  const isActive = t.id === activeTranscriptId;
+                  const statusColors = {
+                    reviewing: { bg: '#EFF6FF', text: '#1D4ED8', dot: '#3B82F6', label: 'reviewing' },
+                    confirmed: { bg: '#ECFDF5', text: '#065F46', dot: '#10B981', label: 'confirmed' },
+                    duplicate: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B', label: 'duplicate' },
+                  };
+                  const sc = statusColors[t.status];
+                  return (
+                    <div
+                      key={t.id}
+                      className={`mcp-queue-item ${isActive ? 'active' : ''} ${t.status}`}
+                      onClick={() => setActiveTranscriptId(t.id)}
+                    >
+                      <div className="mcp-qi-top">
+                        <div className="mcp-qi-index">{idx + 1}</div>
+                        <div className="mcp-qi-name">{t.isRecording ? '🎙 ' : ''}{t.fileName}</div>
+                        <button className="mcp-qi-remove" title="Remove" onClick={e => { e.stopPropagation(); removeTranscript(t.id); }}><X size={12} /></button>
                       </div>
-                    ))}
-                  </div>
+                      <div className="mcp-qi-meta">
+                        <span className="mcp-qi-lines">{t.lineCount} lines</span>
+                        {t.fileSize > 0 && <span className="mcp-qi-size">{(t.fileSize / 1024).toFixed(1)} KB</span>}
+                        <span className="mcp-qi-time">{t.uploadedAt}</span>
+                      </div>
+                      <div className="mcp-qi-footer">
+                        <span className="mcp-qi-status-chip" style={{ background: sc.bg, color: sc.text }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc.dot, display: 'inline-block', marginRight: 4 }} />
+                          {sc.label}
+                        </span>
+                        {t.status === 'duplicate' && (
+                          <button className="mcp-qi-import-btn" onClick={e => { e.stopPropagation(); importDuplicate(t.id); }}>Import Anyway</button>
+                        )}
+                        {t.status === 'confirmed' && (
+                          <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>✓ In session</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── COL 3: REVIEW PANEL ── */}
+          <div className="mcp-right-panel">
+            <div className="mcp-rp-header">
+              <span className="mcp-rp-header-title">
+                {activeTranscript
+                  ? activeTranscript.status === 'confirmed' ? `✓ ${activeTranscript.fileName}` : `REVIEWING · ${activeTranscript.fileName}`
+                  : 'TRANSCRIPT REVIEW'}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {activeTranscript && activeTranscript.status === 'reviewing' && (
+                  <button
+                    className="mcp-confirm-btn"
+                    onClick={() => confirmTranscript(activeTranscript.id)}
+                  >
+                    <Check size={14} /> Confirm Transcript
+                  </button>
                 )}
+                {activeTranscript && (
+                  <button
+                    className="mcp-rp-trash-btn"
+                    title="Delete transcript"
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to delete this transcript? This action cannot be undone.")) {
+                        removeTranscript(activeTranscript.id);
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', opacity: 0.7, transition: 'all 0.2s' }}
+                    onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.background = '#FEE2E2'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.opacity = 0.7; e.currentTarget.style.background = 'none'; }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
 
-                {/* Dialogue lines */}
-                <div style={{ marginTop: 16 }}>
-                  {[...activeTranscript.entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker), ...(interimEntry ? [interimEntry] : [])].map(e => {
-                    const classification = FillerDetector.classify(e.text);
-                    const isNoise = classification.isFiller && !protectedIds.has(e.id);
-                    const isProtected = classification.isFiller && protectedIds.has(e.id);
-                    return (
-                      <div key={e.id} className="mcp-dialogue-card" style={{ opacity: isNoise ? 0.6 : 1, background: isNoise ? '#FFFBEB' : isProtected ? '#F0FDF4' : undefined, transition: 'opacity 0.2s, background 0.2s' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                          <div className="mcp-dialogue-accent" style={{ background: isNoise ? '#FCD34D' : isProtected ? '#4ADE80' : '#0D9488' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                              <span onClick={() => handleRenameSpeaker(e.speaker)} style={{ fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>{e.speaker}</span>
-                              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{e.time}</span>
-                              {e.type === 'manual' && <span style={{ background: '#EEF2FF', color: '#4338CA', fontSize: '10px', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>MANUAL</span>}
-                              {isNoise && (
-                                <>
-                                  <span className="mcp-filler-chip" title={classification.reason}>{classification.category}</span>
-                                  <button title="Keep this line" onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.add(e.id); return next; })} style={{ fontSize: '11px', color: '#0D9488', background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: '4px', padding: '1px 7px', cursor: 'pointer', fontWeight: 600 }}>Keep</button>
-                                </>
-                              )}
-                              {isProtected && (
-                                <>
-                                  <span style={{ fontSize: '10px', color: '#059669', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '4px', padding: '1px 6px', fontWeight: 600 }}>KEPT</span>
-                                  <button onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.delete(e.id); return next; })} style={{ fontSize: '11px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '1px 4px' }}>✕</button>
-                                </>
-                              )}
-                              <div style={{ marginLeft: 'auto' }}>
-                                <button className="mcp-delete-btn" onClick={() => deleteEntryFromTranscript(activeTranscriptId, e.id)}><X size={14} /></button>
-                              </div>
-                            </div>
-                            <textarea value={e.text} onChange={val => updateEntryInTranscript(activeTranscriptId, e.id, val.target.value)}
-                              onInput={el => { el.target.style.height = 'auto'; el.target.style.height = el.target.scrollHeight + 'px'; }}
-                              style={{ width: '100%', border: 'none', background: 'none', fontSize: '14px', lineHeight: 1.6, outline: 'none', resize: 'none', minHeight: '24px', display: 'block', padding: 0, color: isNoise ? '#94a3b8' : '#1e293b', textDecoration: isNoise ? 'line-through' : 'none', textDecorationColor: '#FCD34D' }}
-                            />
-                          </div>
+            {/* Active transcript filler banner */}
+            {activeTranscript && (() => {
+              const dialogueEntries = activeTranscript.entries.filter(e => e.type === 'dialogue' || e.type === 'manual');
+              const fillerEntries = dialogueEntries.filter(e => isNoiseLine(e.text) && !protectedIds.has(e.id));
+              if (fillerEntries.length === 0) return null;
+              const CATEGORY_LABELS = { greeting: 'greetings', ritual: 'mic checks', hesitation: 'hesitations', affirmation: 'filler replies', filler_word: 'filler words', formatting: 'formatting' };
+              const catCounts = fillerEntries.reduce((acc, e) => { const cat = FillerDetector.classify(e.text).category; acc[cat] = (acc[cat] || 0) + 1; return acc; }, {});
+              const breakdown = Object.entries(catCounts).map(([k, v]) => `${v} ${CATEGORY_LABELS[k] || k}`).join(', ');
+              return (
+                <div className="mcp-cleanup-banner">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertCircle size={15} color="#F59E0B" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: '12px', color: '#92400E' }}>
+                      <strong>{fillerEntries.length} filler line{fillerEntries.length !== 1 ? 's' : ''}</strong> — {breakdown}
+                    </span>
+                  </div>
+                  <button className="mcp-cleanup-btn" onClick={handleRemoveFillerFromActive}>Remove Filler</button>
+                </div>
+              );
+            })()}
+
+            {/* Summary bar */}
+            {activeTranscript && (() => {
+              const dialogues = activeTranscript.entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker);
+              const speakers = Array.from(new Set(dialogues.map(e => e.speaker))).filter(n => !PLATFORM_NAMES.has(n.toLowerCase()));
+              return (
+                <div className="mcp-summary-bar" style={{ padding: '6px 20px' }}>
+                  <span style={{ color: '#0D9488', fontSize: '12px', fontWeight: 500 }}>
+                    {dialogues.length} lines · {speakers.length} speakers
+                    {activeTranscript.status === 'confirmed' ? ' · confirmed ✓' : ' · pending confirmation'}
+                  </span>
+                </div>
+              );
+            })()}
+
+            <div className="mcp-rp-body" ref={previewBodyRef}>
+              {!activeTranscript ? (
+                generating ? (
+                  /* ── Processing state — enterprise-grade, no gimmicks ── */
+                  <div className="mcp-generating-state">
+                    <div className="mcp-generating-inner">
+
+                      {/* Status label */}
+                      <div className="mcp-gen-status-label">
+                        <span className="mcp-gen-status-dot" />
+                        Processing
+                      </div>
+
+                      {/* Title */}
+                      <div className="mcp-generating-title">Compiling Minutes of Meeting</div>
+
+                      {/* Factual subtitle — no ellipsis jargon */}
+                      <div className="mcp-generating-subtitle">
+                        {mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} statements &nbsp;·&nbsp; {Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} participants &nbsp;·&nbsp; {transcripts.filter(t => t.status === 'confirmed').length} transcript{transcripts.filter(t => t.status === 'confirmed').length !== 1 ? 's' : ''}
+                      </div>
+
+                      {/* Progress row: IN PROGRESS pill · percentage · bar */}
+                      <div className="mcp-gen-progress-header">
+                        <span className="mcp-gen-inprogress-badge">In Progress</span>
+                        <span className="mcp-gen-progress-pct">{genProgress}%</span>
+                      </div>
+                      <div className="mcp-generating-progress-wrap">
+                        <Progress value={genProgress} className="mcp-generating-progress-bar" />
+                      </div>
+
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mcp-rp-empty">
+                    <FileText size={32} strokeWidth={1.2} color="#CBD5E1" />
+                    <span className="mcp-rp-empty-text">Select a transcript from the queue to review</span>
+                  </div>
+                )
+              ) : (
+                <>
+                  {/* Metadata rows */}
+                  {activeTranscript.entries.filter(e => e.type === 'metadata').length > 0 && (
+                    <div className="mcp-metadata-block">
+                      {activeTranscript.entries.filter(e => e.type === 'metadata').map(m => (
+                        <div key={m.id} className="mcp-metadata-row">
+                          <span className="mcp-metadata-label">{m.field}:</span>
+                          <span className="mcp-metadata-value">{m.value}</span>
                         </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Manual entry form */}
-                  {isAddingManual && (
-                    <div style={{ borderLeft: '3px solid #0D9488', padding: '12px 16px', background: '#F8FAFC', borderRadius: '0 8px 8px 0', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <input placeholder="Speaker name" value={manualForm.speaker} onChange={e => setManualForm(prev => ({ ...prev, speaker: e.target.value }))} style={{ fontSize: '13px', fontWeight: 500, color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', width: '160px', padding: '2px 0', outline: 'none' }} />
-                        <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '12px' }}>Manual entry</span>
-                      </div>
-                      <textarea placeholder="Type meeting note, decision, or action item..." value={manualForm.text} onChange={e => setManualForm(prev => ({ ...prev, text: e.target.value }))} style={{ width: '100%', marginTop: '8px', fontSize: '14px', color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', resize: 'none', minHeight: '60px', lineHeight: '1.6', outline: 'none' }} />
-                      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <select value={manualForm.type} onChange={e => setManualForm(prev => ({ ...prev, type: e.target.value }))} style={{ fontSize: '12px', border: '0.5px solid #E2E8F0', borderRadius: '4px', padding: '3px 8px', color: '#475569', background: '#fff', outline: 'none' }}>
-                          <option value="note">Note</option>
-                          <option value="decision">Decision</option>
-                          <option value="action">Action Item</option>
-                        </select>
-                        <button onClick={saveManualLine} style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Save</button>
-                        <button onClick={cancelManualLine} style={{ fontSize: '12px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-                      </div>
+                      ))}
                     </div>
                   )}
 
-                  <button onClick={addNewLine} style={{ color: '#0D9488', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '8px 0' }}>
-                    <Plus size={13} /> Add line
-                  </button>
-                </div>
+                  {/* Dialogue lines */}
+                  <div style={{ marginTop: 16 }}>
+                    {[...activeTranscript.entries.filter(e => (e.type === 'dialogue' || e.type === 'manual') && e.speaker), ...(interimEntry ? [interimEntry] : [])].map(e => {
+                      const classification = FillerDetector.classify(e.text);
+                      const isNoise = classification.isFiller && !protectedIds.has(e.id);
+                      const isProtected = classification.isFiller && protectedIds.has(e.id);
+                      return (
+                        <div key={e.id} className="mcp-dialogue-card" style={{ opacity: isNoise ? 0.6 : 1, background: isNoise ? '#FFFBEB' : isProtected ? '#F0FDF4' : undefined, transition: 'opacity 0.2s, background 0.2s' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                            <div className="mcp-dialogue-accent" style={{ background: isNoise ? '#FCD34D' : isProtected ? '#4ADE80' : '#0D9488' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span onClick={() => handleRenameSpeaker(e.speaker)} style={{ fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>{e.speaker}</span>
+                                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{e.time}</span>
+                                {e.type === 'manual' && <span style={{ background: '#EEF2FF', color: '#4338CA', fontSize: '10px', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>MANUAL</span>}
+                                {isNoise && (
+                                  <>
+                                    <span className="mcp-filler-chip" title={classification.reason}>{classification.category}</span>
+                                    <button title="Keep this line" onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.add(e.id); return next; })} style={{ fontSize: '11px', color: '#0D9488', background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: '4px', padding: '1px 7px', cursor: 'pointer', fontWeight: 600 }}>Keep</button>
+                                  </>
+                                )}
+                                {isProtected && (
+                                  <>
+                                    <span style={{ fontSize: '10px', color: '#059669', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '4px', padding: '1px 6px', fontWeight: 600 }}>KEPT</span>
+                                    <button onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.delete(e.id); return next; })} style={{ fontSize: '11px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '1px 4px' }}>✕</button>
+                                  </>
+                                )}
+                                <div style={{ marginLeft: 'auto' }}>
+                                  <button className="mcp-delete-btn" onClick={() => deleteEntryFromTranscript(activeTranscriptId, e.id)}><X size={14} /></button>
+                                </div>
+                              </div>
+                              <textarea value={e.text} onChange={val => updateEntryInTranscript(activeTranscriptId, e.id, val.target.value)}
+                                onInput={el => { el.target.style.height = 'auto'; el.target.style.height = el.target.scrollHeight + 'px'; }}
+                                style={{ width: '100%', border: 'none', background: 'none', fontSize: '14px', lineHeight: 1.6, outline: 'none', resize: 'none', minHeight: '24px', display: 'block', padding: 0, color: isNoise ? '#94a3b8' : '#1e293b', textDecoration: isNoise ? 'line-through' : 'none', textDecorationColor: '#FCD34D' }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                {/* Confirm button at bottom of panel */}
-                {activeTranscript.status === 'reviewing' && (
-                  <div style={{ padding: '16px 0 8px', borderTop: '1px solid #F1F5F9', marginTop: 16 }}>
-                    <button className="mcp-confirm-bottom-btn" onClick={() => confirmTranscript(activeTranscript.id)}>
-                      <Check size={15} /> Confirm &amp; Add to Session
+                    {/* Manual entry form */}
+                    {isAddingManual && (
+                      <div style={{ borderLeft: '3px solid #0D9488', padding: '12px 16px', background: '#F8FAFC', borderRadius: '0 8px 8px 0', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <input placeholder="Speaker name" value={manualForm.speaker} onChange={e => setManualForm(prev => ({ ...prev, speaker: e.target.value }))} style={{ fontSize: '13px', fontWeight: 500, color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', width: '160px', padding: '2px 0', outline: 'none' }} />
+                          <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '12px' }}>Manual entry</span>
+                        </div>
+                        <textarea placeholder="Type meeting note, decision, or action item..." value={manualForm.text} onChange={e => setManualForm(prev => ({ ...prev, text: e.target.value }))} style={{ width: '100%', marginTop: '8px', fontSize: '14px', color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', resize: 'none', minHeight: '60px', lineHeight: '1.6', outline: 'none' }} />
+                        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <select value={manualForm.type} onChange={e => setManualForm(prev => ({ ...prev, type: e.target.value }))} style={{ fontSize: '12px', border: '0.5px solid #E2E8F0', borderRadius: '4px', padding: '3px 8px', color: '#475569', background: '#fff', outline: 'none' }}>
+                            <option value="note">Note</option>
+                            <option value="decision">Decision</option>
+                            <option value="action">Action Item</option>
+                          </select>
+                          <button onClick={saveManualLine} style={{ fontSize: '12px', color: '#0D9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Save</button>
+                          <button onClick={cancelManualLine} style={{ fontSize: '12px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
+
+                    <button onClick={addNewLine} style={{ color: '#0D9488', background: 'none', border: 'none', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '8px 0' }}>
+                      <Plus size={13} /> Add line
                     </button>
                   </div>
-                )}
-              </>
+
+                  {/* Confirm button at bottom of panel */}
+                  {activeTranscript.status === 'reviewing' && (
+                    <div style={{ padding: '16px 0 8px', borderTop: '1px solid #F1F5F9', marginTop: 16 }}>
+                      <button className="mcp-confirm-bottom-btn" onClick={() => confirmTranscript(activeTranscript.id)}>
+                        <Check size={15} /> Confirm &amp; Add to Session
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ── Bottom progress bar — visible only while generating AND a transcript is active ── */}
+            {generating && activeTranscript && (
+              <div className="mcp-rp-generating-footer">
+                <Loader size={13} className="mcp-spin-icon" style={{ color: '#0D9488' }} />
+                <span>Generating MOM from {transcripts.filter(t => t.status === 'confirmed').length} transcript{transcripts.filter(t => t.status === 'confirmed').length !== 1 ? 's' : ''}…</span>
+                <Progress className="mcp-rp-generating-progress" />
+              </div>
             )}
           </div>
+          
+          {/* ── FOOTER CTA (Sticky Bottom) ── */}
+          <div className="mcp-footer-cta">
+            <div className="mcp-footer-stats">
+              <span className="mcp-footer-counter">
+                {transcripts.filter(t => t.status === 'reviewing').length > 0 ? (
+                  <span style={{ color: '#F59E0B' }}>{transcripts.filter(t => t.status === 'reviewing').length} of {transcripts.length} transcripts pending</span>
+                ) : (
+                  <span style={{ color: '#10B981' }}><CheckCircle size={14} style={{ display: 'inline', marginRight: 4 }} />All transcripts confirmed</span>
+                )}
+              </span>
+              <span className="mcp-footer-summary">
+                {mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines · {Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {generating && (
+                <button
+                  className="mcp-footer-cancel-btn"
+                  onClick={cancelGeneration}
+                  style={{ background: 'none', border: '1px solid #E2E8F0', color: '#64748B', borderRadius: '6px', height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <X size={14} /> Cancel
+                </button>
+              )}
+              <button
+                className={`mcp-footer-generate-btn ${generating ? 'generating' : ''}`}
+                onClick={handleGenerate}
+                disabled={generating || transcripts.filter(t => t.status === 'reviewing').length > 0 || !hasConfirmed}
+              >
+                {generating
+                  ? <><Loader size={16} className="mcp-spin-icon" /> Generating…</>
+                  : <><Sparkles size={16} /> Proceed to Generate</>}
+              </button>
+            </div>
+            {genError && <div className="mcp-footer-error">{genError}</div>}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Rename Speaker Modal ── */}
       {renamingSpeaker && (
@@ -1162,6 +1387,22 @@ const MeetingCapturePage = () => {
           </div>
         </div>
       )}
+      {/* ── AlertDialog for Missing Information ── */}
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Missing Information</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please provide a meeting title and select a project before capturing a transcript.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => { setIsAlertOpen(false); focusFirstMissingField(); }}>
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

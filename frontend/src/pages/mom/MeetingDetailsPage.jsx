@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '../../hooks/use-confirm';
 import { Spinner } from '../../components/ui/spinner';
 import { Skeleton } from '../../components/ui/skeleton';
+import { Progress } from '../../components/ui/progress';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -2365,7 +2366,10 @@ const MeetingDetailsPage = () => {
             {/* MOM & Follow-up (simplified for structure) */}
             <div className="z-grid-2">
                <div className="z-card" id="mdp2-mom-section">
-                  <div className="z-card-header"><span className="z-card-label">Minutes of Meeting</span></div>
+                  <div className="z-card-header relative">
+                    <span className="z-card-label">Minutes of Meeting</span>
+                    {generatingMom && <Progress className="absolute bottom-0 left-0 right-0 z-50 bg-blue-100/30" />}
+                  </div>
                   <div className="z-card-body">
                     {meeting.mom_generated ? (
                       <div className="z-mom-done">
