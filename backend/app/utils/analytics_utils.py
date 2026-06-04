@@ -4,10 +4,47 @@ Utility to map flexible JSONB keys to standard tracker metrics.
 Used by Dashboard Service to process IngestionEngine output.
 """
 import logging
+import datetime
 import pandas as pd
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+total_date_parsing_time = 0.0
+
+def fast_parse_date(val) -> datetime.date | None:
+    global total_date_parsing_time
+    import time
+    start = time.perf_counter()
+    
+    res = _fast_parse_date_impl(val)
+    
+    total_date_parsing_time += (time.perf_counter() - start) * 1000
+    return res
+
+def _fast_parse_date_impl(val) -> datetime.date | None:
+    if val is None:
+        return None
+    if isinstance(val, datetime.datetime):
+        return val.date()
+    if isinstance(val, datetime.date):
+        return val
+    if isinstance(val, str):
+        val_str = val.strip()
+        if not val_str:
+            return None
+        try:
+            return datetime.datetime.fromisoformat(val_str).date()
+        except ValueError:
+            pass
+    # Fallback to pandas
+    try:
+        parsed = pd.to_datetime(val, errors='coerce')
+        if pd.isna(parsed):
+            return None
+        return parsed.date()
+    except:
+        return None
 
 # Standard Aliases (must match excel_parser.py for consistency)
 ALIASES = {
@@ -56,10 +93,7 @@ def standardize_record(raw_record: Dict[str, Any]) -> Dict[str, Any]:
             break
     
     if planned_val:
-        try:
-            standard["planned_date"] = pd.to_datetime(planned_val, errors='coerce').date()
-        except:
-            pass
+        standard["planned_date"] = fast_parse_date(planned_val)
 
     # 4. Resolve Actual Date
     actual_val = None
@@ -69,10 +103,7 @@ def standardize_record(raw_record: Dict[str, Any]) -> Dict[str, Any]:
             break
     
     if actual_val:
-        try:
-            standard["actual_date"] = pd.to_datetime(actual_val, errors='coerce').date()
-        except:
-            pass
+        standard["actual_date"] = fast_parse_date(actual_val)
 
     # 5. Compute Status & Delay
     if standard["planned_date"]:
@@ -88,4 +119,8 @@ def standardize_record(raw_record: Dict[str, Any]) -> Dict[str, Any]:
 
 def standardize_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Standardizes a whole list of records."""
-    return [standardize_record(r) for r in records]
+    global total_date_parsing_time
+    total_date_parsing_time = 0.0
+    res = [standardize_record(r) for r in records]
+    print(f"date parsing time: {total_date_parsing_time:.2f}ms")
+    return res

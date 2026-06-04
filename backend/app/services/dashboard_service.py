@@ -86,7 +86,10 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
         if isinstance(ing.data, list):
             all_raw_records.extend(ing.data)
     
+    import time
+    start_std = time.perf_counter()
     records = standardize_records(all_raw_records)
+    print(f"standardize_records: {(time.perf_counter() - start_std) * 1000:.2f}ms")
 
     # 4. Filter by module if requested
     if module_filter:
