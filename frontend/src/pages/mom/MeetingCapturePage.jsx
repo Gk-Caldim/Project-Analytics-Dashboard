@@ -12,7 +12,7 @@ import {
   Play, Square, Pause, X, Plus, Edit2, Check,
   FileText, Loader, AlertCircle, CheckCircle, Clock,
   FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle,
-  Info
+  Info, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
@@ -347,6 +347,16 @@ const MeetingCapturePage = () => {
 
   const [activeTranscriptId, setActiveTranscriptId] = useState(null);
   const sigSetRef = useRef(new Set()); // content fingerprints — ref avoids stale closure in FileReader
+  const abortControllerRef = useRef(null);
+
+  const cancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setGenerating(false);
+    toast('Generation cancelled', { icon: '🛑' });
+  };
 
   // Upload UI
   const [mode, setMode] = useState('upload');
@@ -724,6 +734,8 @@ const MeetingCapturePage = () => {
       return;
     }
     setGenerating(true);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    abortControllerRef.current = new AbortController();
     try {
       const payload = {
         transcript: dialogueEntries.map(e => ({
@@ -731,7 +743,9 @@ const MeetingCapturePage = () => {
         })),
         title: meetingTitle, projectId
       };
-      const resp = await API.post(`/meetings/${meetingId}/generate-mom`, payload);
+      const resp = await API.post(`/meetings/${meetingId}/generate-mom`, payload, {
+        signal: abortControllerRef.current.signal
+      });
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
 
       if (resp.data?.success) {
@@ -777,7 +791,8 @@ const MeetingCapturePage = () => {
         dispatch(setActiveModule('mom-module'));
         navigate(`/dashboard/mom/view/${destId}`);
       }
-    } catch (_) {
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.message === 'canceled') return;
       const rows = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
       if (rows.length > 0) rows[0]._rawEntries = mergedEntries;
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
@@ -886,25 +901,7 @@ const MeetingCapturePage = () => {
 
   return (
     <div className="mcp-root mom-theme">
-      {/* ── Top Bar ── */}
-      <div className="mcp-topbar relative">
-        <nav className="mcp-breadcrumb">
-          <Link to="/dashboard" className="mcp-bc-link"><Home size={12} />Dashboard</Link>
-          <ChevronRight size={12} className="mcp-bc-sep" />
-          <span className="mcp-bc-current">Meeting Intelligence</span>
-        </nav>
-        {hasConfirmed && (
-          <button
-            className="mcp-generate-topbar-btn"
-            onClick={handleGenerate}
-            disabled={generating}
-          >
-            {generating
-              ? <><Loader size={14} className="mcp-spin-icon" /> Generating…</>
-              : <><Sparkles size={14} /> Generate MOM</>}
-          </button>
-        )}
-      </div>
+      {/* ── Top Bar (Removed) ── */}
 
       {/* ── Progress Steps ── */}
       <div className="mcp-steps">
@@ -1060,119 +1057,21 @@ const MeetingCapturePage = () => {
           </div>
         </div>
       ) : (
-        /* ═══ STEP 2+: 3-COLUMN REVIEW LAYOUT ═══ */
-        <div className="mcp-body mcp-body-3col">
+        /* ═══ STEP 2+: 2-COLUMN REVIEW LAYOUT ═══ */
+        <div className="mcp-body mcp-body-2col">
+          {/* hidden file input since we removed the left panel */}
+          <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
 
-          {/* ── COL 1: LEFT PANEL (Collapsible Setup Panel) ── */}
-          <Collapsible
-            open={isSetupOpen}
-            onOpenChange={setIsSetupOpen}
-            className={`mcp-left-panel mcp-left-collapsible${!isSetupOpen ? ' mcp-left-collapsed' : ''}`}
-          >
-            {!isSetupOpen && (
-              <CollapsibleTrigger asChild>
-                <button className="mcp-setup-collapsed-handle-v2" aria-label="Expand setup panel" title="Expand Setup Panel">
-                  <ChevronRight size={14} className="mcp-ribbon-arrow-icon" style={{ flexShrink: 0 }} />
-                  <span className="mcp-vertical-text">SHOW SETUP</span>
-                </button>
-              </CollapsibleTrigger>
-            )}
-
-            <CollapsibleContent className="mcp-setup-content">
-              <div className="mcp-setup-header">
-                <span className="mcp-setup-header-label">SESSION CONFIG</span>
-                <CollapsibleTrigger asChild>
-                  <button className="mcp-setup-collapse-btn" aria-label="Collapse setup panel" title="Collapse setup panel">
-                    <ChevronRight size={13} style={{ transform: 'rotate(180deg)' }} />
-                    <span>Hide Panel</span>
-                  </button>
-                </CollapsibleTrigger>
-              </div>
-
-              <div className="mcp-lp-section">
-                <div className="mcp-lp-label-row">
-                  <span className="mcp-lp-label" style={{ marginBottom: 0 }}>Meeting title</span>
-                  <span className="mcp-lp-required">*</span>
-                </div>
-                <input ref={titleInputRef} className="mcp-lp-input" placeholder="e.g. Sprint Review — May 6" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} />
-              </div>
-
-              <div className="mcp-lp-section">
-                <div className="mcp-lp-label-row">
-                  <span className="mcp-lp-label" style={{ marginBottom: 0 }}>Link project</span>
-                  <span className="mcp-lp-required">*</span>
-                </div>
-                <div className="mcp-lp-select-wrap">
-                  <select ref={projectSelectRef} className="mcp-lp-select" value={projectId} onChange={e => setProjectId(e.target.value)}>
-                    <option value="">Select a project...</option>
-                    {projects.map(p => <option key={p.id || p.dbProjectId} value={p.dbProjectId || p.id}>{p.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mcp-lp-section mcp-capture-gated">
-                <div className="mcp-tab-bar">
-                  <button className={`mcp-tab ${mode === 'upload' ? 'active' : ''}`} onClick={() => handleModeSelect('upload')}><Upload size={16} /> Upload</button>
-                  <button className={`mcp-tab ${mode === 'record' ? 'active' : ''}`} onClick={() => handleModeSelect('record')}><Mic size={16} /> Record</button>
-                </div>
-
-                {mode === 'upload' && (
-                  <>
-                    {isUploading ? (
-                      <div className="mcp-upload-progress-wrap">
-                        <div className="mcp-upload-progress-filename"><FileText size={14} color="#0D9488" /><span>{uploadingLabel}</span></div>
-                        <div className="mcp-progress-track"><div className="mcp-progress-fill" style={{ width: `${uploadProgress}%` }} /></div>
-                        <div className="mcp-upload-progress-pct">{Math.round(uploadProgress)}%</div>
-                      </div>
-                    ) : (
-                      <div
-                        className={`mcp-dropzone ${isDragOver ? 'drag-over' : ''}`}
-                        onClick={() => fileInputRef.current.click()}
-                        onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
-                        onDragLeave={() => setIsDragOver(false)}
-                        onDrop={e => { e.preventDefault(); setIsDragOver(false); if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files); }}
-                      >
-                        <Upload size={28} color="#0D9488" strokeWidth={1.5} />
-                        <div className="mcp-dropzone-title">Drop transcripts or click to browse</div>
-                        <div className="mcp-dropzone-sub">Multiple files · .txt .md .vtt .srt</div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {mode === 'record' && (
-                  <div className="mcp-record-zone">
-                    <button className={`mcp-record-btn ${recordState.toLowerCase()}`} onClick={recordState === 'IDLE' ? startRecording : stopRecording}>
-                      {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
-                    </button>
-                    <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
-                    <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
-                    {micError && <div className="mcp-mic-error">{micError}</div>}
-                  </div>
-                )}
-
-                <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.vtt,.srt" style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)} />
-              </div>
-
-              {hasConfirmed && (
-                <div className="mcp-merged-summary">
-                  <div className="mcp-merged-summary-title">SESSION TOTAL</div>
-                  <div className="mcp-merged-summary-stats">
-                    <span>{mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines</span>
-                    <span>{Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers</span>
-                    <span>{transcripts.filter(t => t.status === 'confirmed').length} confirmed</span>
-                  </div>
-                  {genError && <div className="mcp-gen-error">{genError}</div>}
-                </div>
-              )}
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* ── COL 2: TRANSCRIPT QUEUE ── */}
+          {/* ── COL 1: TRANSCRIPT QUEUE ── */}
           <div className="mcp-queue-panel">
-            <div className="mcp-queue-header">
-              <span className="mcp-queue-title">TRANSCRIPTS</span>
-              <span className="mcp-queue-count">{transcripts.length}</span>
+            <div className="mcp-queue-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="mcp-queue-title">TRANSCRIPTS</span>
+                <span className="mcp-queue-count">{transcripts.length}</span>
+              </div>
+              <button className="mcp-add-more-btn" onClick={() => fileInputRef.current.click()} title="Add more files" style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: '#0D9488', fontSize: '12px', fontWeight: 500, cursor: 'pointer' }}>
+                <Plus size={14} /> Add more
+              </button>
             </div>
 
             {transcripts.length === 0 ? (
@@ -1234,14 +1133,32 @@ const MeetingCapturePage = () => {
                   ? activeTranscript.status === 'confirmed' ? `✓ ${activeTranscript.fileName}` : `REVIEWING · ${activeTranscript.fileName}`
                   : 'TRANSCRIPT REVIEW'}
               </span>
-              {activeTranscript && activeTranscript.status === 'reviewing' && (
-                <button
-                  className="mcp-confirm-btn"
-                  onClick={() => confirmTranscript(activeTranscript.id)}
-                >
-                  <Check size={14} /> Confirm Transcript
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {activeTranscript && activeTranscript.status === 'reviewing' && (
+                  <button
+                    className="mcp-confirm-btn"
+                    onClick={() => confirmTranscript(activeTranscript.id)}
+                  >
+                    <Check size={14} /> Confirm Transcript
+                  </button>
+                )}
+                {activeTranscript && (
+                  <button
+                    className="mcp-rp-trash-btn"
+                    title="Delete transcript"
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to delete this transcript? This action cannot be undone.")) {
+                        removeTranscript(activeTranscript.id);
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px', borderRadius: '6px', opacity: 0.7, transition: 'all 0.2s' }}
+                    onMouseOver={(e) => { e.currentTarget.style.opacity = 1; e.currentTarget.style.background = '#FEE2E2'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.opacity = 0.7; e.currentTarget.style.background = 'none'; }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Active transcript filler banner */}
@@ -1417,6 +1334,43 @@ const MeetingCapturePage = () => {
                 <Progress className="mcp-rp-generating-progress" />
               </div>
             )}
+          </div>
+          
+          {/* ── FOOTER CTA (Sticky Bottom) ── */}
+          <div className="mcp-footer-cta">
+            <div className="mcp-footer-stats">
+              <span className="mcp-footer-counter">
+                {transcripts.filter(t => t.status === 'reviewing').length > 0 ? (
+                  <span style={{ color: '#F59E0B' }}>{transcripts.filter(t => t.status === 'reviewing').length} of {transcripts.length} transcripts pending</span>
+                ) : (
+                  <span style={{ color: '#10B981' }}><CheckCircle size={14} style={{ display: 'inline', marginRight: 4 }} />All transcripts confirmed</span>
+                )}
+              </span>
+              <span className="mcp-footer-summary">
+                {mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} lines · {Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} speakers
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {generating && (
+                <button
+                  className="mcp-footer-cancel-btn"
+                  onClick={cancelGeneration}
+                  style={{ background: 'none', border: '1px solid #E2E8F0', color: '#64748B', borderRadius: '6px', height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <X size={14} /> Cancel
+                </button>
+              )}
+              <button
+                className={`mcp-footer-generate-btn ${generating ? 'generating' : ''}`}
+                onClick={handleGenerate}
+                disabled={generating || transcripts.filter(t => t.status === 'reviewing').length > 0 || !hasConfirmed}
+              >
+                {generating
+                  ? <><Loader size={16} className="mcp-spin-icon" /> Generating…</>
+                  : <><Sparkles size={16} /> Proceed to Generate</>}
+              </button>
+            </div>
+            {genError && <div className="mcp-footer-error">{genError}</div>}
           </div>
         </div>
       )}
