@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 
 from app.models.issue import Issue, IssueAction, IssueComment, IssueEscalation, IssueAuditLog
 from app.models.project import Project
@@ -387,14 +387,21 @@ def create_issue_from_mom_action(
 # ─── Analytics ───────────────────────────────────────────────────────────────
 
 def compute_analytics(db: Session, project_id: int) -> dict:
+    import time
+    start_total = time.perf_counter()
+    
+    start_query = time.perf_counter()
     all_issues = (
         db.query(Issue)
         .options(
-            selectinload(Issue.escalations)
+            joinedload(Issue.escalations)
         )
         .filter(Issue.project_id == project_id)
         .all()
     )
+    query_duration = (time.perf_counter() - start_query) * 1000
+    print(f"Issues + Escalations query: {query_duration:.2f}ms")
+    
     for iss in all_issues:
         enrich_issue(iss)
 
@@ -418,6 +425,9 @@ def compute_analytics(db: Session, project_id: int) -> dict:
         [i for i in all_issues if i.health_status == "Overdue"],  # type: ignore
         key=lambda i: -i.urgency_score,  # type: ignore
     )[:5]
+
+    analytics_duration = (time.perf_counter() - start_total) * 1000
+    print(f"compute_analytics total: {analytics_duration:.2f}ms")
 
     return {
         "project_id":        project_id,

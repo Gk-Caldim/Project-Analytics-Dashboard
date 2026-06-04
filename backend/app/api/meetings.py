@@ -308,6 +308,7 @@ async def zoom_auth_status():
 # ── Meeting CRUD endpoints ──────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
 
+@router.get("")
 @router.get("/")
 async def list_meetings(db: Session = Depends(get_db)):
     try:

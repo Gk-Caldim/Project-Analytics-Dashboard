@@ -31,7 +31,7 @@ from io import BytesIO
 from app.models.upload import Upload
 from app.models.tracker_ingestion import TrackerIngestion
 from app.utils.ingestion import IngestionEngine
-from app.utils.analytics_utils import standardize_records
+from app.utils.analytics_utils import standardize_records, compute_tracker_summary
 
 logger = logging.getLogger(__name__)
 
@@ -172,11 +172,13 @@ def process_tracker_upload(
         upload_id = new_upload.id
 
         # Create TrackerIngestion record (analytics data)
+        summary_data_json = compute_tracker_summary(file_data_jsonb)
         ingestion_record = TrackerIngestion(
             project_id=project_id,
             upload_id=upload_id,
             file_name=file.filename,
             data=file_data_jsonb,
+            summary_data=summary_data_json,
             uploaded_by=uploaded_by
         )
         db.add(ingestion_record)

@@ -5,10 +5,12 @@ import logging
 router = APIRouter(prefix="/currency", tags=["Currency"])
 logger = logging.getLogger(__name__)
 
+import time
+
 # Cache for exchange rates to avoid excessive external calls
 _rates_cache = {
-    "rates": { "USD": 1, "INR": 95.43, "EUR": 0.92 },
-    "timestamp": 0
+    "rates": { "USD": 1, "INR": 95.43, "EUR": 0.92, "GBP": 0.80, "JPY": 155.0 },
+    "timestamp": time.time()
 }
 
 @router.get("/rates")
@@ -20,7 +22,6 @@ async def get_exchange_rates():
     global _rates_cache
     
     # Simple TTL cache (e.g., 1 hour = 3600 seconds)
-    import time
     current_time = time.time()
     
     if current_time - _rates_cache["timestamp"] < 3600:

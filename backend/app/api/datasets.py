@@ -140,8 +140,10 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
             if ingestion and ingestion.data:
                 json_data = ingestion.data
                 if len(json_data) > 0:
-                    headers = list(json_data[0].keys())
-                    rows = [[row.get(h, "") for h in headers] for row in json_data]
+                    # Slice to first 1000 rows for preview matching dynamic tables
+                    preview_rows = json_data[:1000]
+                    headers = list(preview_rows[0].keys())
+                    rows = [[row.get(h, "") for h in headers] for row in preview_rows]
                 else:
                     headers = []
                     rows = []
@@ -176,16 +178,17 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
                     
                 df = df.fillna("")
                 headers = df.columns.tolist()
-                data = df.values.tolist()
+                # Slice to first 1000 rows for preview matching dynamic tables
+                preview_data = df.values.tolist()[:1000]
                 
                 result = {
                     "headers": headers,
-                    "data": data,
+                    "data": preview_data,
                     "fileData": {
                         "fileName": upload.file_name,
                         "headers": headers,
-                        "data": data,
-                        "sheets": [{"name": "Sheet1", "headers": headers, "data": data}]
+                        "data": preview_data,
+                        "sheets": [{"name": "Sheet1", "headers": headers, "data": preview_data}]
                     }
                 }
                 global_dataset_cache.set(cache_key, result)
@@ -193,13 +196,16 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
                 # Persist to database (tracker_ingestions) so future reads use the DB/JSONB fallback
                 try:
                     from app.models.tracker_ingestion import TrackerIngestion
+                    from app.utils.analytics_utils import compute_tracker_summary
                     # Convert to list of dicts for JSONB
                     records = df.to_dict(orient="records")
+                    summary_data_json = compute_tracker_summary(records)
                     ingestion = TrackerIngestion(
                         project_id=upload.project_id,
                         upload_id=upload.id,
                         file_name=upload.file_name,
                         data=records,
+                        summary_data=summary_data_json,
                         uploaded_by=upload.uploaded_by
                     )
                     db.add(ingestion)

@@ -124,3 +124,37 @@ def standardize_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     res = [standardize_record(r) for r in records]
     print(f"date parsing time: {total_date_parsing_time:.2f}ms")
     return res
+
+def compute_tracker_summary(raw_records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Groups and precomputes static milestone/module stats for a tracker upload.
+    This avoids standardizing thousands of raw records on read requests.
+    """
+    records = standardize_records(raw_records)
+    module_map = {}
+    for r in records:
+        mod = r["module"] or "Unknown"
+        if mod not in module_map:
+            module_map[mod] = {
+                "module": mod,
+                "total": 0,
+                "completed": 0,
+                "delayed": 0,
+                "pending": 0,
+                "total_delay_days": 0,
+                "max_delay_days": 0
+            }
+        m_stat = module_map[mod]
+        m_stat["total"] += 1
+        status = r["status"]
+        if status == "On Track":
+            m_stat["completed"] += 1
+        elif status == "Delayed":
+            m_stat["delayed"] += 1
+            delay = r["delay_days"] or 0
+            m_stat["total_delay_days"] += delay
+            if delay > m_stat["max_delay_days"]:
+                m_stat["max_delay_days"] = delay
+        else:
+            m_stat["pending"] += 1
+    return {"modules": module_map}

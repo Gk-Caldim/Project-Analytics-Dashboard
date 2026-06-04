@@ -3,11 +3,11 @@ Dashboard Intelligence Service
 Transforms raw trackers_data records into structured analytics for a given project.
 """
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project import Project
 from app.services.issue_service import compute_analytics
-from app.utils.analytics_utils import standardize_records
+from app.utils.analytics_utils import standardize_records, compute_tracker_summary
 from cachetools import TTLCache
 
 dashboard_cache = TTLCache(maxsize=100, ttl=300) # 5 mins cache
@@ -63,40 +63,96 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
         return dashboard_cache[cache_key]
 
     print(f"[CACHE MISS] Calculating dashboard data for project {project_id} from DB...")
-    # 1. Fetch project meta
-    project = db.query(Project).filter(Project.id == project_id).first()
-    project_name = project.name if project else f"Project {project_id}"
-
-    # 2. Fetch latest tracker ingestions for the project
-    # Strategy: Group by file_name and take the latest created_at for each.
-    subq = db.query(
+    # 1 & 2. Fetch project metadata and latest tracker ingestions in a single round-trip
+    import time
+    start_q1_q2 = time.perf_counter()
+    
+    subq_merged = db.query(
         TrackerIngestion.file_name,
         func.max(TrackerIngestion.created_at).label('max_created')
     ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
-
-    ingestions = db.query(TrackerIngestion).join(
-        subq, 
-        (TrackerIngestion.file_name == subq.c.file_name) & 
-        (TrackerIngestion.created_at == subq.c.max_created)
-    ).filter(TrackerIngestion.project_id == project_id).all()
-
-    # 3. Combine and standardize records
-    all_raw_records = []
-    for ing in ingestions:
-        if isinstance(ing.data, list):
-            all_raw_records.extend(ing.data)
     
-    import time
-    start_std = time.perf_counter()
-    records = standardize_records(all_raw_records)
-    print(f"standardize_records: {(time.perf_counter() - start_std) * 1000:.2f}ms")
+    results = (
+        db.query(Project, TrackerIngestion)
+        .select_from(Project)
+        .options(defer(TrackerIngestion.data))  # Defer loading the large JSONB records
+        .outerjoin(
+            subq_merged,
+            Project.id == Project.id
+        )
+        .outerjoin(
+            TrackerIngestion,
+            (TrackerIngestion.project_id == Project.id) &
+            (TrackerIngestion.file_name == subq_merged.c.file_name) &
+            (TrackerIngestion.created_at == subq_merged.c.max_created)
+        )
+        .filter(Project.id == project_id)
+        .all()
+    )
+    
+    q1_q2_duration = (time.perf_counter() - start_q1_q2) * 1000
+    print(f"Project + Ingestion merged query: {q1_q2_duration:.2f}ms")
+    
+    if not results:
+        project_name = f"Project {project_id}"
+        ingestions = []
+    else:
+        project = results[0][0]
+        project_name = project.name if project else f"Project {project_id}"
+        ingestions = [row[1] for row in results if row[1] is not None]
 
-    # 4. Filter by module if requested
+    # Merge precomputed module summaries from all active files
+    merged_modules = {}
+    for ing in ingestions:
+        summary = ing.summary_data
+        if summary is None:
+            # Fallback/self-healing for legacy rows
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Self-healing tracker summary for ingestion {ing.id} ({ing.file_name})...")
+            # This triggers lazy-load of deferred data column
+            raw_data = ing.data
+            if raw_data and isinstance(raw_data, list):
+                summary = compute_tracker_summary(raw_data)
+                ing.summary_data = summary
+                db.add(ing)
+                try:
+                    db.commit()
+                except Exception as commit_err:
+                    db.rollback()
+                    logger.error(f"Failed to auto-save summary fallback: {commit_err}")
+            else:
+                summary = {"modules": {}}
+        
+        # Merge modules from this ingestion's summary
+        modules_dict = summary.get("modules", {})
+        for mod, m_stat in modules_dict.items():
+            if mod not in merged_modules:
+                merged_modules[mod] = {
+                    "module": mod,
+                    "total": 0,
+                    "completed": 0,
+                    "delayed": 0,
+                    "pending": 0,
+                    "total_delay_days": 0,
+                    "max_delay_days": 0
+                }
+            merged = merged_modules[mod]
+            merged["total"] += m_stat.get("total", 0)
+            merged["completed"] += m_stat.get("completed", 0)
+            merged["delayed"] += m_stat.get("delayed", 0)
+            merged["pending"] += m_stat.get("pending", 0)
+            merged["total_delay_days"] += m_stat.get("total_delay_days", 0)
+            merged["max_delay_days"] = max(merged["max_delay_days"], m_stat.get("max_delay_days", 0))
+
+    # Apply module filter if requested
     if module_filter:
-        records = [r for r in records if r["module"] == module_filter]
+        filtered_modules = {mod: stat for mod, stat in merged_modules.items() if mod == module_filter}
+    else:
+        filtered_modules = merged_modules
 
     # Edge case: no data at all
-    if not records:
+    if not filtered_modules:
         return {
             "project_id": project_id,
             "project_name": project_name,
@@ -116,22 +172,19 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
             },
         }
 
-    # 5. Compute counts
-    total      = len(records)
-    submodules = len({r["module"] for r in records if r["module"]})
-    completed  = sum(1 for r in records if r["status"] == STATUS_ON_TRACK)
-    delayed    = sum(1 for r in records if r["status"] == STATUS_DELAYED)
-    pending    = sum(1 for r in records if r["status"] == STATUS_PENDING)
+    # Compute counts from merged/filtered modules
+    total      = sum(m["total"] for m in filtered_modules.values())
+    submodules = len({m["module"] for m in filtered_modules.values() if m["module"]})
+    completed  = sum(m["completed"] for m in filtered_modules.values())
+    delayed    = sum(m["delayed"] for m in filtered_modules.values())
+    pending    = sum(m["pending"] for m in filtered_modules.values())
 
-    # 6. Delay statistics
-    delay_days_list = [
-        r["delay_days"] for r in records
-        if r["delay_days"] is not None and r["delay_days"] > 0
-    ]
-    avg_delay = round(sum(delay_days_list) / len(delay_days_list)) if delay_days_list else 0
-    max_delay = max(delay_days_list, default=0)
+    # Delay statistics
+    total_delay_days = sum(m["total_delay_days"] for m in filtered_modules.values())
+    avg_delay = round(total_delay_days / delayed) if delayed > 0 else 0
+    max_delay = max((m["max_delay_days"] for m in filtered_modules.values()), default=0)
 
-    # 7. Health + percentages
+    # Health + percentages (remains dynamic)
     issue_metrics = compute_analytics(db, project_id)
     overdue_issues_count = issue_metrics.get("total_overdue", 0)
 
@@ -142,23 +195,19 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
 
     milestones = []
 
-    # 9. Module-level breakdown
-    module_map: dict[str, dict] = {}
-    for r in records:
-        mod = r["module"] or "Unknown"
-        if mod not in module_map:
-            module_map[mod] = {"module": mod, "total": 0, "completed": 0, "delayed": 0, "pending": 0}
-        module_map[mod]["total"] += 1
-        if r["status"] == STATUS_ON_TRACK:
-            module_map[mod]["completed"] += 1
-        elif r["status"] == STATUS_DELAYED:
-            module_map[mod]["delayed"] += 1
-        else:
-            module_map[mod]["pending"] += 1
+    # Map to frontend output list format (omitting delay internals)
+    modules = [
+        {
+            "module": m["module"],
+            "total": m["total"],
+            "completed": m["completed"],
+            "delayed": m["delayed"],
+            "pending": m["pending"]
+        }
+        for m in filtered_modules.values()
+    ]
 
-    modules = list(module_map.values())
-
-    # 10. Final response
+    # Final response
     result = {
         "project_id":     project_id,
         "project_name":   project_name,
