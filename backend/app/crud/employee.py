@@ -11,47 +11,142 @@ from app.models.project_permission import ProjectPermission
 from app.models.application_access import ApplicationAccess
 
 def get_employees(db: Session, skip: int = 0, limit: int = 1000) -> List[Employee]:
-    """Get all employees with their assigned project names"""
-    # Join both EmployeeProjectMap and direct Project link
-    results = (
-        db.query(
-            Employee,
-            func.string_agg(Project.name, ', ').label('project_names')
-        )
-        .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id) | (Employee.employee_id == Project.assigned_to_id))
-        .group_by(Employee.id)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    """
+    Get all employees with their assigned project names.
     
-    employees = []
-    for emp, proj_names in results:
-        emp.project_name = proj_names if proj_names else "not assigned"
-        employees.append(emp)
-        
+    NOTE ON NAME-BASED RESOLUTION:
+    Due to database schema constraints, Project Manager (project_manager) and
+    Assigned Employees (assigned_to_name) are stored as text/names rather than
+    foreign key IDs. Consequently, associations are resolved using exact name matching
+    in application memory.
+    
+    LIMITATION:
+    If multiple employees share the same name, this matching can be ambiguous.
+    """
+    employees = db.query(Employee).offset(skip).limit(limit).all()
+    if not employees:
+        return []
+
+    # Fetch all project fields needed for assignment mapping
+    projects = db.query(
+        Project.project_id,
+        Project.name,
+        Project.project_manager,
+        Project.employee_id,
+        Project.assigned_to_id,
+        Project.assigned_to_name
+    ).all()
+
+    # Fetch allocations from EmployeeProjectMap
+    allocations = db.query(
+        EmployeeProjectMap.employee_id,
+        EmployeeProjectMap.project_id
+    ).all()
+
+    # Map allocations by employee_id -> set of project_ids
+    alloc_map = {}
+    for alloc in allocations:
+        if alloc.employee_id:
+            alloc_map.setdefault(alloc.employee_id, set()).add(alloc.project_id)
+
+    for emp in employees:
+        assigned_projects = set()
+
+        # Match 1: Junction allocations (EmployeeProjectMap)
+        if emp.employee_id and emp.employee_id in alloc_map:
+            for pid in alloc_map[emp.employee_id]:
+                proj_name = next((p.name for p in projects if p.project_id == pid), None)
+                if proj_name:
+                    assigned_projects.add(proj_name)
+
+        # Match 2-5: Direct field assignments in Project records
+        for proj in projects:
+            # Match 2: Team Lead by ID
+            if emp.employee_id and proj.employee_id == emp.employee_id:
+                assigned_projects.add(proj.name)
+                continue
+
+            # Match 3: Assigned Employee by ID
+            if emp.employee_id and proj.assigned_to_id == emp.employee_id:
+                assigned_projects.add(proj.name)
+                continue
+
+            # Match 4: Project Manager by name (exact match)
+            if emp.name and proj.project_manager == emp.name:
+                assigned_projects.add(proj.name)
+                continue
+
+            # Match 5: Assigned Employee by name (exact match in comma-separated list)
+            if emp.name and proj.assigned_to_name:
+                names = [n.strip() for n in proj.assigned_to_name.split(",") if n.strip()]
+                if emp.name in names:
+                    assigned_projects.add(proj.name)
+
+        sorted_proj_names = sorted(list(assigned_projects))
+        emp.project_name = ", ".join(sorted_proj_names) if sorted_proj_names else "not assigned"
+
     return employees
 
 def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
-    """Get a single employee by ID with project name"""
-    result = (
-        db.query(
-            Employee,
-            func.string_agg(Project.name, ', ').label('project_names')
-        )
-        .outerjoin(EmployeeProjectMap, Employee.employee_id == EmployeeProjectMap.employee_id)
-        .outerjoin(Project, (EmployeeProjectMap.project_id == Project.project_id) | (Employee.employee_id == Project.employee_id) | (Employee.employee_id == Project.assigned_to_id))
-        .filter(Employee.id == employee_id)
-        .group_by(Employee.id)
-        .first()
-    )
+    """
+    Get a single employee by ID with project name.
     
-    if not result:
+    NOTE ON NAME-BASED RESOLUTION:
+    Resolves project associations using exact name matching in application memory.
+    """
+    emp = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
         return None
-        
-    emp, proj_names = result
-    emp.project_name = proj_names if proj_names else "not assigned"
+
+    # Fetch all project fields needed for assignment mapping
+    projects = db.query(
+        Project.project_id,
+        Project.name,
+        Project.project_manager,
+        Project.employee_id,
+        Project.assigned_to_id,
+        Project.assigned_to_name
+    ).all()
+
+    # Fetch allocations for this employee
+    alloc_project_ids = set()
+    if emp.employee_id:
+        allocs = db.query(EmployeeProjectMap.project_id).filter(EmployeeProjectMap.employee_id == emp.employee_id).all()
+        alloc_project_ids = {a.project_id for a in allocs}
+
+    assigned_projects = set()
+
+    # Match 1: Junction allocations (EmployeeProjectMap)
+    for pid in alloc_project_ids:
+        proj_name = next((p.name for p in projects if p.project_id == pid), None)
+        if proj_name:
+            assigned_projects.add(proj_name)
+
+    # Match 2-5: Direct field assignments in Project records
+    for proj in projects:
+        # Match 2: Team Lead by ID
+        if emp.employee_id and proj.employee_id == emp.employee_id:
+            assigned_projects.add(proj.name)
+            continue
+
+        # Match 3: Assigned Employee by ID
+        if emp.employee_id and proj.assigned_to_id == emp.employee_id:
+            assigned_projects.add(proj.name)
+            continue
+
+        # Match 4: Project Manager by name (exact match)
+        if emp.name and proj.project_manager == emp.name:
+            assigned_projects.add(proj.name)
+            continue
+
+        # Match 5: Assigned Employee by name (exact match in comma-separated list)
+        if emp.name and proj.assigned_to_name:
+            names = [n.strip() for n in proj.assigned_to_name.split(",") if n.strip()]
+            if emp.name in names:
+                assigned_projects.add(proj.name)
+
+    sorted_proj_names = sorted(list(assigned_projects))
+    emp.project_name = ", ".join(sorted_proj_names) if sorted_proj_names else "not assigned"
     return emp
 
 def get_employee_by_email(db: Session, email: str) -> Optional[Employee]:

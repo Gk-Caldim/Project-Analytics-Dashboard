@@ -25,14 +25,23 @@ def test_get_all_employees(client, override_dependencies, mock_db):
         updated_at=datetime.utcnow()
     )
     
-    mock_query = MagicMock()
-    mock_query.outerjoin.return_value = mock_query
-    mock_query.group_by.return_value = mock_query
-    mock_query.offset.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.all.return_value = [(mock_emp, "Engineering Projects")]
+    mock_emp_query = MagicMock()
+    mock_emp_query.offset.return_value = mock_emp_query
+    mock_emp_query.limit.return_value = mock_emp_query
+    mock_emp_query.all.return_value = [mock_emp]
     
-    mock_db.query.return_value = mock_query
+    mock_proj_query = MagicMock()
+    mock_proj_query.all.return_value = []
+    
+    mock_alloc_query = MagicMock()
+    mock_alloc_query.all.return_value = []
+    
+    def q_side_effect(*args):
+        if len(args) == 1 and args[0] is Employee:
+            return mock_emp_query
+        return mock_proj_query
+        
+    mock_db.query.side_effect = q_side_effect
     override_dependencies(get_db, lambda: mock_db)
     
     response = client.get(f"{API_PREFIX}/employees")
@@ -60,13 +69,23 @@ def test_get_single_employee_found(client, override_dependencies, mock_db):
         updated_at=datetime.utcnow()
     )
     
-    mock_query = MagicMock()
-    mock_query.outerjoin.return_value = mock_query
-    mock_query.filter.return_value = mock_query
-    mock_query.group_by.return_value = mock_query
-    mock_query.first.return_value = (mock_emp, "HR Project")
+    mock_emp_query = MagicMock()
+    mock_emp_query.filter.return_value = mock_emp_query
+    mock_emp_query.first.return_value = mock_emp
     
-    mock_db.query.return_value = mock_query
+    mock_proj_query = MagicMock()
+    mock_proj_query.all.return_value = []
+    
+    mock_alloc_query = MagicMock()
+    mock_alloc_query.filter.return_value = mock_alloc_query
+    mock_alloc_query.all.return_value = []
+    
+    def q_side_effect(*args):
+        if len(args) == 1 and args[0] is Employee:
+            return mock_emp_query
+        return mock_proj_query
+        
+    mock_db.query.side_effect = q_side_effect
     override_dependencies(get_db, lambda: mock_db)
     
     response = client.get(f"{API_PREFIX}/employees/22")
@@ -79,13 +98,11 @@ def test_get_single_employee_not_found(client, override_dependencies, mock_db):
     """
     Test 404 behavior for non-existent employees.
     """
-    mock_query = MagicMock()
-    mock_query.outerjoin.return_value = mock_query
-    mock_query.filter.return_value = mock_query
-    mock_query.group_by.return_value = mock_query
-    mock_query.first.return_value = None
+    mock_emp_query = MagicMock()
+    mock_emp_query.filter.return_value = mock_emp_query
+    mock_emp_query.first.return_value = None
     
-    mock_db.query.return_value = mock_query
+    mock_db.query.return_value = mock_emp_query
     override_dependencies(get_db, lambda: mock_db)
     
     response = client.get(f"{API_PREFIX}/employees/999")
@@ -220,3 +237,149 @@ def test_get_all_custom_columns(client, override_dependencies, mock_db):
     assert len(data) == 1
     assert data[0]["column_name"] == "personal_phone"
     assert data[0]["data_type"] == "phone"
+
+def test_employee_project_matching_edge_cases():
+    from app.crud.employee import get_employees
+    from app.models.employee import Employee
+    from app.models.project import Project
+    from app.models.employee_project import EmployeeProjectMap
+    
+    # Create mock session
+    db = MagicMock()
+    
+    # 1. Setup Employees (including similar names and duplicate names)
+    employees = [
+        Employee(id=1, employee_id="EMP_ANN", name="Ann", email="ann@test.com"),
+        Employee(id=2, employee_id="EMP_JOANN", name="Joann", email="joann@test.com"),
+        Employee(id=3, employee_id="EMP_RAJ", name="Raj", email="raj@test.com"),
+        Employee(id=4, employee_id="EMP_RAJESH", name="Rajesh", email="rajesh@test.com"),
+        # Duplicate names
+        Employee(id=5, employee_id="EMP_DUP1", name="Duplicate Name", email="dup1@test.com"),
+        Employee(id=6, employee_id="EMP_DUP2", name="Duplicate Name", email="dup2@test.com"),
+        # matched through multiple assignment mechanisms
+        Employee(id=7, employee_id="EMP_MULTI", name="Multi Assign", email="multi@test.com"),
+    ]
+    
+    # 2. Setup Projects
+    # We want to test similar name matching
+    # Project 1: PM is "Ann" (Ann matches exactly, Joann should not)
+    # Project 2: Assigned Employees is "Joann, Preethy" (Joann matches exactly, Ann should not)
+    # Project 3: PM is "Raj" (Raj matches exactly, Rajesh should not)
+    # Project 4: PM is "Duplicate Name" (both duplicate employees match this PM project)
+    # Project 5: Multi Assign matches via EmployeeProjectMap AND as Team Lead (employee_id)
+    # Project 6: PM is "Missing Employee" (does not exist in employee list)
+    projects = [
+        Project(
+            project_id="PRJ_A",
+            name="Project Ann PM",
+            project_manager="Ann",
+            employee_id=None,
+            assigned_to_id=None,
+            assigned_to_name=None
+        ),
+        Project(
+            project_id="PRJ_B",
+            name="Project Joann Assigned",
+            project_manager=None,
+            employee_id=None,
+            assigned_to_id=None,
+            assigned_to_name="Joann, Preethy"
+        ),
+        Project(
+            project_id="PRJ_C",
+            name="Project Raj PM",
+            project_manager="Raj",
+            employee_id=None,
+            assigned_to_id=None,
+            assigned_to_name=None
+        ),
+        Project(
+            project_id="PRJ_D",
+            name="Project Dup PM",
+            project_manager="Duplicate Name",
+            employee_id=None,
+            assigned_to_id=None,
+            assigned_to_name=None
+        ),
+        Project(
+            project_id="PRJ_E",
+            name="Project Multi",
+            project_manager=None,
+            employee_id="EMP_MULTI",
+            assigned_to_id=None,
+            assigned_to_name=None
+        ),
+        Project(
+            project_id="PRJ_F",
+            name="Project Missing PM",
+            project_manager="Missing Employee Name",
+            employee_id=None,
+            assigned_to_id=None,
+            assigned_to_name=None
+        )
+    ]
+    
+    # 3. Setup Allocations (EmployeeProjectMap)
+    # Multi Assign is allocated to Project Multi (already Team Lead of Project Multi)
+    allocations = [
+        EmployeeProjectMap(
+            employee_id="EMP_MULTI",
+            project_id="PRJ_E",
+            role="Team Lead"
+        )
+    ]
+    
+    # Mock db queries for get_employees
+    mock_emp_query = MagicMock()
+    mock_emp_query.offset.return_value = mock_emp_query
+    mock_emp_query.limit.return_value = mock_emp_query
+    mock_emp_query.all.return_value = employees
+    
+    mock_proj_query = MagicMock()
+    mock_proj_query.all.return_value = projects
+    
+    mock_alloc_query = MagicMock()
+    mock_alloc_query.all.return_value = allocations
+    
+    def q_side_effect(*args):
+        if not args:
+            return MagicMock()
+        first_arg = args[0]
+        if first_arg is Employee:
+            return mock_emp_query
+        # check if Project columns are queried
+        if hasattr(first_arg, 'class_') and first_arg.class_ is Project:
+            return mock_proj_query
+        # check if EmployeeProjectMap columns are queried
+        if hasattr(first_arg, 'class_') and first_arg.class_ is EmployeeProjectMap:
+            return mock_alloc_query
+        return mock_proj_query
+        
+    db.query.side_effect = q_side_effect
+    
+    # Call get_employees
+    res = get_employees(db)
+    
+    # Map results by employee_id for easy assertion
+    res_map = {e.employee_id: e for e in res}
+    
+    # Assertions:
+    # 1. Ann is matched with "Project Ann PM", NOT Joann's project
+    assert res_map["EMP_ANN"].project_name == "Project Ann PM"
+    
+    # 2. Joann is matched with "Project Joann Assigned", NOT Ann's project
+    assert res_map["EMP_JOANN"].project_name == "Project Joann Assigned"
+    
+    # 3. Raj is matched with "Project Raj PM", NOT Rajesh's project
+    assert res_map["EMP_RAJ"].project_name == "Project Raj PM"
+    
+    # 4. Rajesh has no project matched
+    assert res_map["EMP_RAJESH"].project_name == "not assigned"
+    
+    # 5. Duplicate employee names are both resolved to the PM project
+    assert res_map["EMP_DUP1"].project_name == "Project Dup PM"
+    assert res_map["EMP_DUP2"].project_name == "Project Dup PM"
+    
+    # 6. Multi Assign is matched to "Project Multi" via both Team Lead (employee_id) and allocation,
+    # but the name is deduplicated (only listed once)
+    assert res_map["EMP_MULTI"].project_name == "Project Multi"
