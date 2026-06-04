@@ -4798,3 +4798,167 @@
   background: #F0FDFA !important;
   border-radius: 4px;
 }
+
+/* ── MeetingCapturePage Dark Mode Overrides ── */
+[data-theme='dark'] .mcp-root {
+  background: var(--bg);
+  color: var(--text-primary);
+  --mcp-noise-bg: #453612;
+  --mcp-noise-border: #F59E0B;
+  --mcp-protected-bg: #113622;
+  --mcp-protected-border: #10B981;
+  --mcp-primary: #14B8A6;
+  --mcp-text: var(--text-primary);
+  --mcp-text-main: var(--text-primary);
+  --mcp-text-muted: var(--text-secondary);
+  --mcp-btn-bg: rgba(13, 148, 136, 0.15);
+  --mcp-btn-border: #0D9488;
+  --mcp-kept-bg: rgba(16, 185, 129, 0.15);
+  --mcp-kept-text: #34D399;
+  --mcp-kept-border: #10B981;
+  --mcp-border: var(--border-subtle);
+  --mcp-bg: var(--surface);
+  --mcp-warning-text: #FCD34D;
+}
+
+[data-theme='dark'] .mcp-topbar {
+  background: var(--glass-header-bg);
+  border-bottom-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-steps {
+  background: var(--bg);
+  border-bottom-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-step2-bubble {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .mcp-capture-centered {
+  background: var(--bg);
+}
+
+[data-theme='dark'] .mcp-capture-heading {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-capture-subheading {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .mcp-lp-input,
+[data-theme='dark'] .mcp-lp-select {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-capture-card {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-capture-card:hover {
+  background: var(--elevated-card);
+}
+
+[data-theme='dark'] .mcp-dropzone {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+[data-theme='dark'] .mcp-dropzone:hover,
+[data-theme='dark'] .mcp-dropzone.drag-over {
+  background: var(--elevated-card);
+  border-color: var(--mcp-primary);
+}
+
+[data-theme='dark'] .mcp-body-2col .mcp-queue-panel {
+  background: var(--bg);
+  border-right-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-body-2col .mcp-right-panel {
+  background: var(--surface);
+}
+
+[data-theme='dark'] .mcp-rp-header {
+  background: var(--surface);
+  border-bottom-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-queue-item {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-queue-item:hover {
+  background: var(--elevated-card);
+}
+
+[data-theme='dark'] .mcp-queue-item.active {
+  background: var(--elevated-card);
+  border-color: var(--mcp-primary);
+}
+
+[data-theme='dark'] .mcp-queue-empty {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .mcp-footer-cta {
+  background: var(--surface);
+  border-top-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-cleanup-banner {
+  background: #452412;
+  border-color: #92400E;
+}
+
+[data-theme='dark'] .mcp-metadata-row {
+  border-bottom-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-metadata-value {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-add-more-btn:hover {
+  background: var(--elevated-card) !important;
+}
+
+[data-theme='dark'] .mcp-live-preview-card,
+[data-theme='dark'] .mcp-session-card {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+}
+
+[data-theme='dark'] .mcp-session-title-input {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-capture-card-title {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-capture-card-hint {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .mcp-dropzone-title {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .mcp-dropzone-sub {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .mcp-capture-field .mcp-lp-label {
+  color: var(--text-primary);
+}

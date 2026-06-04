@@ -851,7 +851,7 @@ const MeetingCapturePage = () => {
         {/* Body Skeleton */}
         <div className="mcp-body mcp-body-3col" style={{ display: 'grid', gridTemplateColumns: '380px 260px 1fr', gap: '24px', padding: '0 24px 24px' }}>
           {/* Column 1: Left Panel */}
-          <div className="mcp-left-panel space-y-6 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="mcp-left-panel space-y-6 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="mcp-lp-section space-y-3">
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-10 w-full rounded-lg" />
@@ -867,7 +867,7 @@ const MeetingCapturePage = () => {
           </div>
 
           {/* Column 2: Queue Panel */}
-          <div className="mcp-queue-panel space-y-4 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="mcp-queue-panel space-y-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="mcp-queue-header flex justify-between items-center">
               <Skeleton className="h-5 w-24" />
               <Skeleton className="h-5 w-8 rounded" />
@@ -879,7 +879,7 @@ const MeetingCapturePage = () => {
           </div>
 
           {/* Column 3: Right Panel */}
-          <div className="mcp-right-panel flex flex-col space-y-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm" style={{ flex: 1 }}>
+          <div className="mcp-right-panel flex flex-col space-y-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm" style={{ flex: 1 }}>
             <div className="mcp-rp-header flex justify-between items-center">
               <Skeleton className="h-6 w-44" />
               <Skeleton className="h-8 w-24 rounded-lg" />
@@ -926,7 +926,7 @@ const MeetingCapturePage = () => {
         <div className="mcp-body mcp-capture-centered">
           <div className="mcp-capture-column">
             {/* Page-level intent heading */}
-            <h1 className="mcp-capture-heading">New minutes of meeting</h1>
+            <h1 className="mcp-capture-heading">Minutes of meeting</h1>
             <p className="mcp-capture-subheading">Fill in the details below, then upload or record your meeting transcript.</p>
 
             {/* ── BEAT 1: Form Fields ── */}
@@ -1173,7 +1173,7 @@ const MeetingCapturePage = () => {
                 <div className="mcp-cleanup-banner">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <AlertCircle size={15} color="#F59E0B" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '12px', color: '#92400E' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--mcp-warning-text, #92400E)' }}>
                       <strong>{fillerEntries.length} filler line{fillerEntries.length !== 1 ? 's' : ''}</strong> — {breakdown}
                     </span>
                   </div>
@@ -1255,23 +1255,23 @@ const MeetingCapturePage = () => {
                       const isNoise = classification.isFiller && !protectedIds.has(e.id);
                       const isProtected = classification.isFiller && protectedIds.has(e.id);
                       return (
-                        <div key={e.id} className="mcp-dialogue-card" style={{ opacity: isNoise ? 0.6 : 1, background: isNoise ? '#FFFBEB' : isProtected ? '#F0FDF4' : undefined, transition: 'opacity 0.2s, background 0.2s' }}>
+                        <div key={e.id} className="mcp-dialogue-card" style={{ opacity: isNoise ? 0.6 : 1, background: isNoise ? 'var(--mcp-noise-bg, #FFFBEB)' : isProtected ? 'var(--mcp-protected-bg, #F0FDF4)' : undefined, transition: 'opacity 0.2s, background 0.2s' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                            <div className="mcp-dialogue-accent" style={{ background: isNoise ? '#FCD34D' : isProtected ? '#4ADE80' : '#0D9488' }} />
+                            <div className="mcp-dialogue-accent" style={{ background: isNoise ? 'var(--mcp-noise-border, #FCD34D)' : isProtected ? 'var(--mcp-protected-border, #4ADE80)' : 'var(--mcp-primary, #0D9488)' }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                <span onClick={() => handleRenameSpeaker(e.speaker)} style={{ fontSize: '12px', fontWeight: 600, color: '#334155', cursor: 'pointer' }}>{e.speaker}</span>
+                                <span onClick={() => handleRenameSpeaker(e.speaker)} style={{ fontSize: '12px', fontWeight: 600, color: 'var(--mcp-text-main, #334155)', cursor: 'pointer' }}>{e.speaker}</span>
                                 <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>{e.time}</span>
                                 {e.type === 'manual' && <span style={{ background: '#EEF2FF', color: '#4338CA', fontSize: '10px', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>MANUAL</span>}
                                 {isNoise && (
                                   <>
                                     <span className="mcp-filler-chip" title={classification.reason}>{classification.category}</span>
-                                    <button title="Keep this line" onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.add(e.id); return next; })} style={{ fontSize: '11px', color: '#0D9488', background: '#F0FDFA', border: '1px solid #99F6E4', borderRadius: '4px', padding: '1px 7px', cursor: 'pointer', fontWeight: 600 }}>Keep</button>
+                                    <button title="Keep this line" onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.add(e.id); return next; })} style={{ fontSize: '11px', color: 'var(--mcp-primary, #0D9488)', background: 'var(--mcp-btn-bg, #F0FDFA)', border: '1px solid var(--mcp-btn-border, #99F6E4)', borderRadius: '4px', padding: '1px 7px', cursor: 'pointer', fontWeight: 600 }}>Keep</button>
                                   </>
                                 )}
                                 {isProtected && (
                                   <>
-                                    <span style={{ fontSize: '10px', color: '#059669', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: '4px', padding: '1px 6px', fontWeight: 600 }}>KEPT</span>
+                                    <span style={{ fontSize: '10px', color: 'var(--mcp-kept-text, #059669)', background: 'var(--mcp-kept-bg, #D1FAE5)', border: '1px solid var(--mcp-kept-border, #6EE7B7)', borderRadius: '4px', padding: '1px 6px', fontWeight: 600 }}>KEPT</span>
                                     <button onClick={() => setProtectedIds(prev => { const next = new Set(prev); next.delete(e.id); return next; })} style={{ fontSize: '11px', color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer', padding: '1px 4px' }}>✕</button>
                                   </>
                                 )}
@@ -1281,7 +1281,7 @@ const MeetingCapturePage = () => {
                               </div>
                               <textarea value={e.text} onChange={val => updateEntryInTranscript(activeTranscriptId, e.id, val.target.value)}
                                 onInput={el => { el.target.style.height = 'auto'; el.target.style.height = el.target.scrollHeight + 'px'; }}
-                                style={{ width: '100%', border: 'none', background: 'none', fontSize: '14px', lineHeight: 1.6, outline: 'none', resize: 'none', minHeight: '24px', display: 'block', padding: 0, color: isNoise ? '#94a3b8' : '#1e293b', textDecoration: isNoise ? 'line-through' : 'none', textDecorationColor: '#FCD34D' }}
+                                style={{ width: '100%', border: 'none', background: 'none', fontSize: '14px', lineHeight: 1.6, outline: 'none', resize: 'none', minHeight: '24px', display: 'block', padding: 0, color: isNoise ? '#94a3b8' : 'var(--mcp-text-main, #1e293b)', textDecoration: isNoise ? 'line-through' : 'none', textDecorationColor: 'var(--mcp-noise-border, #FCD34D)' }}
                               />
                             </div>
                           </div>
@@ -1293,12 +1293,12 @@ const MeetingCapturePage = () => {
                     {isAddingManual && (
                       <div style={{ borderLeft: '3px solid #0D9488', padding: '12px 16px', background: '#F8FAFC', borderRadius: '0 8px 8px 0', marginBottom: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <input placeholder="Speaker name" value={manualForm.speaker} onChange={e => setManualForm(prev => ({ ...prev, speaker: e.target.value }))} style={{ fontSize: '13px', fontWeight: 500, color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', width: '160px', padding: '2px 0', outline: 'none' }} />
-                          <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '12px' }}>Manual entry</span>
+                          <input placeholder="Speaker name" value={manualForm.speaker} onChange={e => setManualForm(prev => ({ ...prev, speaker: e.target.value }))} style={{ fontSize: '13px', fontWeight: 500, color: 'var(--mcp-text-main, #1E293B)', border: 'none', borderBottom: '1px solid var(--mcp-border, #E2E8F0)', background: 'transparent', width: '160px', padding: '2px 0', outline: 'none' }} />
+                          <span style={{ fontSize: '12px', color: 'var(--mcp-text-muted, #94A3B8)', marginLeft: '12px' }}>Manual entry</span>
                         </div>
-                        <textarea placeholder="Type meeting note, decision, or action item..." value={manualForm.text} onChange={e => setManualForm(prev => ({ ...prev, text: e.target.value }))} style={{ width: '100%', marginTop: '8px', fontSize: '14px', color: '#1E293B', border: 'none', borderBottom: '1px solid #E2E8F0', background: 'transparent', resize: 'none', minHeight: '60px', lineHeight: '1.6', outline: 'none' }} />
+                        <textarea placeholder="Type meeting note, decision, or action item..." value={manualForm.text} onChange={e => setManualForm(prev => ({ ...prev, text: e.target.value }))} style={{ width: '100%', marginTop: '8px', fontSize: '14px', color: 'var(--mcp-text-main, #1E293B)', border: 'none', borderBottom: '1px solid var(--mcp-border, #E2E8F0)', background: 'transparent', resize: 'none', minHeight: '60px', lineHeight: '1.6', outline: 'none' }} />
                         <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <select value={manualForm.type} onChange={e => setManualForm(prev => ({ ...prev, type: e.target.value }))} style={{ fontSize: '12px', border: '0.5px solid #E2E8F0', borderRadius: '4px', padding: '3px 8px', color: '#475569', background: '#fff', outline: 'none' }}>
+                          <select value={manualForm.type} onChange={e => setManualForm(prev => ({ ...prev, type: e.target.value }))} style={{ fontSize: '12px', border: '0.5px solid var(--mcp-border, #E2E8F0)', borderRadius: '4px', padding: '3px 8px', color: 'var(--mcp-text-muted, #475569)', background: 'var(--mcp-bg, #fff)', outline: 'none' }}>
                             <option value="note">Note</option>
                             <option value="decision">Decision</option>
                             <option value="action">Action Item</option>

@@ -177,7 +177,7 @@ const TargetDateCell = ({ value, onChange }) => {
   return (
     <div 
       onClick={() => setIsEditing(true)}
-      className={`flex items-center justify-center gap-1 cursor-pointer hover:bg-gray-50 rounded px-1 py-1 transition-colors ${isOverdue ? 'text-red-600 font-bold' : 'text-gray-600 font-mono font-bold'}`}
+      className={`flex items-center justify-center gap-1 cursor-pointer hover:bg-[var(--table-hover)] rounded px-1 py-1 transition-colors ${isOverdue ? 'text-red-600 font-bold' : 'text-[var(--text-primary)] font-mono font-bold'}`}
       style={{ whiteSpace: 'nowrap' }}
     >
       <Calendar size={12} />
@@ -211,7 +211,7 @@ const ActionTakenCell = ({ value, onChange }) => {
     return (
       <div 
         onClick={() => setIsEditing(true)}
-        className="text-gray-400 italic cursor-pointer hover:text-teal-600 transition-colors py-1"
+        className="text-[var(--text-muted)] italic cursor-pointer hover:text-teal-600 transition-colors py-1"
       >
         ＋ Add note
       </div>
@@ -221,7 +221,7 @@ const ActionTakenCell = ({ value, onChange }) => {
   return (
     <div 
       onClick={() => setIsEditing(true)}
-      className="group flex items-start gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded transition-colors text-gray-700"
+      className="group flex items-start gap-2 cursor-pointer hover:bg-[var(--table-hover)] p-1 rounded transition-colors text-[var(--text-primary)]"
     >
       <span className="flex-1 whitespace-pre-wrap">{value}</span>
       <Edit3 size={12} className="text-gray-300 group-hover:text-teal-600 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -245,7 +245,7 @@ const ProjectCell = ({ projectName, defaultProjectName }) => {
     <div 
       style={{ 
         fontSize: '14px', 
-        color: 'var(--color-text-primary, #1e293b)', 
+        color: 'var(--text-primary)', 
         whiteSpace: 'nowrap', 
         overflow: 'hidden', 
         textOverflow: 'ellipsis',
@@ -688,7 +688,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
   if (loading) {
     return (
-      <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
+      <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn meeting-table-container">
         {/* Consolidated Command Bar Skeleton */}
         <div className="bg-white border border-gray-300 shadow-xl rounded-sm overflow-hidden">
           <div className="pt-8 pb-4 px-8 flex items-center justify-between border-b border-gray-100 bg-gray-50/50">
@@ -739,7 +739,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                       className={`${col.cls} font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]`}
                       style={{
                         fontSize: '11px', letterSpacing: '0.05em',
-                        color: 'var(--color-text-tertiary)',
+                        color: 'var(--text-muted)',
                         borderRight: i < arr.length - 1 ? '1px solid #F1F5F9' : 'none',
                         borderBottom: '1px solid #E2E8F0'
                       }}
@@ -747,7 +747,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                   ))}
                   <th
                     className="px-3 py-3 text-left font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]"
-                    style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)', borderBottom: '1px solid #E2E8F0' }}
+                    style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--text-muted)', borderBottom: '1px solid #E2E8F0' }}
                   >
                     Actions
                   </th>
@@ -820,7 +820,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn">
+    <div className="max-w-[1400px] mx-auto px-4 pb-20 space-y-8 animate-fadeIn meeting-table-container">
 
       {/* Removed old syncResult Toast - replaced by toast.success */}
 
@@ -1175,7 +1175,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     className={`${col.cls} font-medium uppercase sticky top-0 z-10 bg-[#F8FAFC]`}
                     style={{
                       fontSize: '11px', letterSpacing: '0.05em',
-                      color: 'var(--color-text-tertiary)',
+                      color: 'var(--text-muted)',
                       borderRight: i < arr.length - 1 ? '1px solid #F1F5F9' : 'none',
                       borderBottom: '1px solid #E2E8F0'
                     }}
@@ -1183,7 +1183,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 ))}
                 <th
                   className="px-3 py-3 text-left font-medium uppercase print:hidden sticky top-0 z-10 bg-[#F8FAFC]"
-                  style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--color-text-tertiary)', borderBottom: '1px solid #E2E8F0' }}
+                  style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--text-muted)', borderBottom: '1px solid #E2E8F0' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span>Actions</span>
@@ -1221,9 +1221,9 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
+                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
                     <td className="px-4 py-2 text-center" style={cellBorder}>
-                       <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--color-text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
+                       <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
                     </td>
                     <td className="px-4 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
                       <ProjectCell projectName={m.project_name} defaultProjectName={reduxProjectName} />
@@ -1241,7 +1241,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
+                    <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
                       <div className="relative group/heuristic flex gap-2 w-full">
                         <textarea defaultValue={m.discussion_point || '—'} className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]" onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })} />
                         <div className="flex-shrink-0 cursor-help text-gray-300 hover:text-teal-600 mt-1" title={m.isHeuristic ? 'Fallback heuristic used' : 'AI extracted'}><Info className="w-4 h-4" /></div>
@@ -1285,11 +1285,11 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                             border: 'none',
                             boxShadow: 'none',
                             fontSize: '13px',
-                            color: 'var(--color-text-primary)',
+                            color: 'var(--text-primary)',
                             cursor: 'pointer',
                           }),
                           placeholder: (base) => ({ ...base, color: '#94A3B8', fontSize: '12px' }),
-                          singleValue: (base) => ({ ...base, color: 'var(--color-text-primary)', fontWeight: 500 }),
+                          singleValue: (base) => ({ ...base, color: 'var(--text-primary)', fontWeight: 500 }),
                           indicatorSeparator: () => ({ display: 'none' }),
                           dropdownIndicator: (base, state) => ({
                             ...base,
@@ -1321,7 +1321,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                           }}
                         />
                      </td>
-                     <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--color-text-primary)', ...cellBorder }}>
+                     <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
                        <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
                       </td>
                       <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>

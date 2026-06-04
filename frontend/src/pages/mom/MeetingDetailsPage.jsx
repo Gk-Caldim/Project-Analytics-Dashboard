@@ -738,11 +738,20 @@ const MeetingDetailsPage = () => {
 
   const handleSendFollowUp = async () => {
     showToast('Sending follow-up...');
-    // Mocking API call
-    setTimeout(() => {
+    try {
+      const { default: API } = await import('../../utils/api');
+      const payload = {
+        to: emailComposed.to,
+        subject: emailComposed.subject,
+        message: emailComposed.body
+      };
+      await API.post('/email/send', payload);
       showToast('Follow-up sent ✓');
       setEmailComposed(prev => ({ ...prev, sentAt: new Date().toISOString() }));
-    }, 1000);
+    } catch (error) {
+      console.error('Email Dispatch Failure:', error);
+      showToast('Failed to send follow-up', 'error');
+    }
   };
 
   const duplicateAgendaItem = (index) => {
