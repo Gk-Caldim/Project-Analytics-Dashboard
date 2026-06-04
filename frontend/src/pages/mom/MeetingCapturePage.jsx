@@ -339,9 +339,10 @@ const MeetingCapturePage = () => {
   const [renamingSpeaker, setRenamingSpeaker] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState(0);
+  const genProgressRef = useRef(null);
   // protectedIds: keyed by entry id, scoped to active transcript review
   const [protectedIds, setProtectedIds] = useState(() => new Set());
-
 
   const getSpeakerColor = useCallback((name) => {
     if (speakerColorMapRef.current[name] === undefined) {
@@ -349,6 +350,28 @@ const MeetingCapturePage = () => {
     }
     return SPEAKER_COLORS[speakerColorMapRef.current[name]];
   }, []);
+
+  // Drive a simulated progress counter while generating
+  useEffect(() => {
+    if (generating) {
+      setGenProgress(0);
+      let val = 0;
+      genProgressRef.current = setInterval(() => {
+        // Eased increment: fast early, slows near ceiling
+        const increment = val < 40 ? 4 + Math.random() * 4
+                        : val < 70 ? 2 + Math.random() * 2
+                        : val < 88 ? 0.8 + Math.random() * 0.8
+                        : 0.2;
+        val = Math.min(95, val + increment);
+        setGenProgress(Math.round(val));
+        if (val >= 95) clearInterval(genProgressRef.current);
+      }, 350);
+    } else {
+      clearInterval(genProgressRef.current);
+      setGenProgress(0);
+    }
+    return () => clearInterval(genProgressRef.current);
+  }, [generating]);
 
   useEffect(() => {
     const init = async () => {
@@ -835,10 +858,11 @@ const MeetingCapturePage = () => {
             onClick={handleGenerate}
             disabled={generating}
           >
-            {generating ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</> : <><Sparkles size={14} /> Generate MOM</>}
+            {generating
+              ? <><Loader size={14} className="mcp-spin-icon" /> Generating…</>
+              : <><Sparkles size={14} /> Generate MOM</>}
           </button>
         )}
-        {generating && <Progress className="absolute bottom-0 left-0 right-0 z-50 bg-blue-100/30" />}
       </div>
 
       {/* ── Progress Steps ── */}
@@ -1081,10 +1105,42 @@ const MeetingCapturePage = () => {
 
           <div className="mcp-rp-body" ref={previewBodyRef}>
             {!activeTranscript ? (
+              generating ? (
+                /* ── Processing state — enterprise-grade, no gimmicks ── */
+                <div className="mcp-generating-state">
+                  <div className="mcp-generating-inner">
+
+                    {/* Status label */}
+                    <div className="mcp-gen-status-label">
+                      <span className="mcp-gen-status-dot" />
+                      Processing
+                    </div>
+
+                    {/* Title */}
+                    <div className="mcp-generating-title">Compiling Minutes of Meeting</div>
+
+                    {/* Factual subtitle — no ellipsis jargon */}
+                    <div className="mcp-generating-subtitle">
+                      {mergedEntries.filter(e => e.type === 'dialogue' || e.type === 'manual').length} statements &nbsp;·&nbsp; {Array.from(new Set(mergedEntries.filter(e => e.speaker).map(e => e.speaker))).length} participants &nbsp;·&nbsp; {transcripts.filter(t => t.status === 'confirmed').length} transcript{transcripts.filter(t => t.status === 'confirmed').length !== 1 ? 's' : ''}
+                    </div>
+
+                    {/* Progress row: IN PROGRESS pill · percentage · bar */}
+                    <div className="mcp-gen-progress-header">
+                      <span className="mcp-gen-inprogress-badge">In Progress</span>
+                      <span className="mcp-gen-progress-pct">{genProgress}%</span>
+                    </div>
+                    <div className="mcp-generating-progress-wrap">
+                      <Progress value={genProgress} className="mcp-generating-progress-bar" />
+                    </div>
+
+                  </div>
+                </div>
+              ) : (
               <div className="mcp-rp-empty">
                 <FileText size={32} strokeWidth={1.2} color="#CBD5E1" />
                 <span className="mcp-rp-empty-text">Select a transcript from the queue to review</span>
               </div>
+              )
             ) : (
               <>
                 {/* Metadata rows */}
@@ -1176,6 +1232,15 @@ const MeetingCapturePage = () => {
               </>
             )}
           </div>
+
+          {/* ── Bottom progress bar — visible only while generating AND a transcript is active ── */}
+          {generating && activeTranscript && (
+            <div className="mcp-rp-generating-footer">
+              <Loader size={13} className="mcp-spin-icon" style={{ color: '#0D9488' }} />
+              <span>Generating MOM from {transcripts.filter(t => t.status === 'confirmed').length} transcript{transcripts.filter(t => t.status === 'confirmed').length !== 1 ? 's' : ''}…</span>
+              <Progress className="mcp-rp-generating-progress" />
+            </div>
+          )}
         </div>
       </div>
 

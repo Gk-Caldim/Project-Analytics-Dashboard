@@ -3940,4 +3940,170 @@
 [data-theme='dark'] .mcp-input-label {
   color: #64748b;
 }
+
+/* ══════════════════════════════════════════
+   PROCESSING STATE — enterprise, no gimmicks
+   Single animation: the progress bar.
+   Everything else is static typography.
+   ══════════════════════════════════════════ */
+
+/* Spin utility — used only in the topbar button */
+.mcp-spin-icon {
+  animation: mcp-spin 1s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+@keyframes mcp-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Outer container — fills rp-body height ── */
+.mcp-generating-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 48px;
+}
+
+/* ── Inner layout — left-aligned, document-style ── */
+.mcp-generating-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 420px;
+  width: 100%;
+}
+
+/* ── Status pill — "● Processing" ── */
+.mcp-gen-status-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0D9488;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+/* Single animated element: a slow-breathing dot */
+.mcp-gen-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0D9488;
+  animation: mcp-dot-breathe 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes mcp-dot-breathe {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ── Title ── */
+.mcp-generating-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+/* ── Factual subtitle ── */
+.mcp-generating-subtitle {
+  font-size: 13px;
+  color: #94A3B8;
+  font-weight: 400;
+  line-height: 1.5;
+  margin-bottom: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Progress label row: IN PROGRESS badge + percentage ── */
+.mcp-gen-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.mcp-gen-inprogress-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #CCFBF1;
+  color: #0D9488;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.mcp-gen-progress-pct {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0D9488;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ── Progress bar — the only moving element besides the dot ── */
+.mcp-generating-progress-wrap {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.mcp-generating-progress-bar {
+  height: 6px !important;
+}
+
+
+/* ── Bottom footer bar (when generating + transcript is open) ── */
+.mcp-rp-generating-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 20px;
+  background: #fff;
+  border-top: 1px solid #E2E8F0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  flex-shrink: 0;
+}
+
+.mcp-rp-generating-progress {
+  flex: 1;
+  max-width: 140px;
+}
+
+/* ── Topbar button — generating/disabled state ── */
+.mcp-generate-topbar-btn:disabled {
+  background: linear-gradient(135deg, #0D9488 0%, #0B7F74 100%) !important;
+  opacity: 0.75 !important;
+  cursor: wait !important;
+}
+
+/* ── Dark mode ── */
+[data-theme='dark'] .mcp-generating-title  { color: #e2e8f0; }
+[data-theme='dark'] .mcp-generating-subtitle { color: #475569; }
+[data-theme='dark'] .mcp-gen-status-label  { color: #34d399; }
+[data-theme='dark'] .mcp-gen-status-dot    { background: #34d399; }
+[data-theme='dark'] .mcp-gen-pipeline      { border-top-color: #1e293b; }
+[data-theme='dark'] .mcp-gen-pipeline-row  { border-bottom-color: #1e293b; }
+[data-theme='dark'] .mcp-gen-pipeline-num  { color: #334155; }
+[data-theme='dark'] .mcp-gen-pipeline-label { color: #94a3b8; }
+[data-theme='dark'] .mcp-gen-pipeline-desc  { color: #475569; }
+[data-theme='dark'] .mcp-rp-generating-footer {
+  background: #1e293b;
+  border-top-color: #334155;
+  color: #475569;
+}
 
