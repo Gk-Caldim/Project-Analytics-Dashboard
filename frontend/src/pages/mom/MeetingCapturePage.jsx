@@ -19,6 +19,7 @@ import {
   setMeetingContext, saveMOM, addMomRows, fetchMOM, setMomData
 } from '../../store/slices/momSlice';
 import { Skeleton } from '../../components/ui/skeleton';
+import { Progress } from '../../components/ui/progress';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '../../components/ui/collapsible';
 import { setActiveModule } from '../../store/slices/navSlice';
 import './tokens.css';
@@ -677,10 +678,18 @@ const MeetingCapturePage = () => {
         ];
         if (aiRows.length > 0) aiRows[0]._rawEntries = mergedEntries;
         dispatch(setMomData(aiRows));
+        
         if (aiRows.length === 0) {
           const fallback = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
           if (fallback.length > 0) {
             dispatch(setMomData(fallback));
+            dispatch(saveMOM({
+              meetingId,
+              meetingName: meetingTitle || 'Unscheduled Session',
+              projectId,
+              projectName,
+              momData: fallback
+            }));
             dispatch(setActiveModule('mom-module'));
             navigate(`/dashboard/mom/view/${meetingId}`);
             return;
@@ -689,6 +698,16 @@ const MeetingCapturePage = () => {
           setGenerating(false);
           return;
         }
+
+        // Save AI generated rows
+        dispatch(saveMOM({
+          meetingId,
+          meetingName: meetingTitle || 'Unscheduled Session',
+          projectId,
+          projectName,
+          momData: aiRows
+        }));
+
         setGenError(null);
         const destId = resp.data.sync_id || resp.data.meeting_id || meetingId;
         dispatch(setActiveModule('mom-module'));
@@ -699,6 +718,15 @@ const MeetingCapturePage = () => {
       if (rows.length > 0) rows[0]._rawEntries = mergedEntries;
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));
       dispatch(setMomData(rows));
+      if (rows.length > 0) {
+        dispatch(saveMOM({
+          meetingId,
+          meetingName: meetingTitle || 'Unscheduled Session',
+          projectId,
+          projectName,
+          momData: rows
+        }));
+      }
       if (rows.length === 0) { setGenError('Generation produced no content.'); setGenerating(false); return; }
       setGenError(null);
       dispatch(setActiveModule('mom-module'));
@@ -795,7 +823,7 @@ const MeetingCapturePage = () => {
   return (
     <div className="mcp-root mom-theme">
       {/* ── Top Bar ── */}
-      <div className="mcp-topbar">
+      <div className="mcp-topbar relative">
         <nav className="mcp-breadcrumb">
           <Link to="/dashboard" className="mcp-bc-link"><Home size={12} />Dashboard</Link>
           <ChevronRight size={12} className="mcp-bc-sep" />
@@ -810,6 +838,7 @@ const MeetingCapturePage = () => {
             {generating ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processing...</> : <><Sparkles size={14} /> Generate MOM</>}
           </button>
         )}
+        {generating && <Progress className="absolute bottom-0 left-0 right-0 z-50 bg-blue-100/30" />}
       </div>
 
       {/* ── Progress Steps ── */}
