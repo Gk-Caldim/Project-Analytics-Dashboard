@@ -27,6 +27,7 @@ import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import VPProjectDashboard from './VPProjectDashboard';
 import Modal from '../components/ui/Modal';
 import { useTheme } from '../contexts/ThemeContext';
+import { useConfirm } from '../hooks/use-confirm';
 
 
 
@@ -165,6 +166,7 @@ const getDiversePalette = () => [
 ];
 
 const ProjectTitleDashboard = () => {
+  const confirm = useConfirm();
   const { themeSettings } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -1791,7 +1793,14 @@ const ProjectTitleDashboard = () => {
       return;
     }
 
-    if (!window.confirm("Ready to dispatch? This will capture a high-fidelity scan of the report and email it directly to the designated stakeholders.")) {
+    const isConfirmed = await confirm({
+      title: 'Send Project Report',
+      description: 'A PDF of the current dashboard will be generated and emailed to the selected recipients.',
+      confirmText: 'Send',
+      cancelText: 'Cancel'
+    });
+
+    if (!isConfirmed) {
       return;
     }
 
@@ -4819,6 +4828,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
   const [showDropdown, setShowDropdown] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const inputRef = useRef(null);
+  const confirm = useConfirm();
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !email.includes('@') && email.length > 2;
 
@@ -4829,7 +4839,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
     setErrorMsg('');
   };
 
-  const handleAdd = (email, closeDropdown = true) => {
+  const handleAdd = async (email, closeDropdown = true) => {
     if (disabledEmails.includes(email)) {
       setErrorMsg('This email is already added to another field');
       setInputValue('');
@@ -4840,6 +4850,22 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
         setErrorMsg('Invalid email format');
         return;
       }
+      
+      const emailExists = allEmployees?.some(emp => String(emp.email).toLowerCase() === String(email).toLowerCase());
+      if (!emailExists) {
+        const isConfirmed = await confirm({
+          title: 'Recipient Not Found',
+          description: 'This email address is not registered in our system. Are you sure you want to add it anyway?',
+          confirmText: 'Yes, add anyway',
+          cancelText: 'Cancel'
+        });
+        
+        if (!isConfirmed) {
+          setInputValue('');
+          return;
+        }
+      }
+
       onUpdate([...emails, email]);
     }
     setInputValue('');
