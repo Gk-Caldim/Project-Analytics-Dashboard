@@ -37,7 +37,12 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
     }, [initialColumns]);
 
     // Local data state to allow Add/Edit/Delete actions purely on the client side
-    const [localData, setLocalData] = useState([]);
+    const [localData, setLocalData] = useState(() => {
+        return (data || []).map((row, idx) => ({
+            _local_id: `row_${Date.now()}_${idx}`,
+            ...row
+        }));
+    });
 
     // Auto-generate stable IDs for localData to allow checkbox selection and editing if they don't exist
     useEffect(() => {

@@ -6,7 +6,7 @@ import { setSelectedProjectFileId } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
-const ExcelTableViewer = React.lazy(() => import('../components/ExcelTableViewer'));
+import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
@@ -18,21 +18,17 @@ import { PDFViewer, pdf } from '@react-pdf/renderer';
 const ReportDocument = React.lazy(() => import('../components/ReportDocument'));
 const PdfPreviewModal = React.lazy(() => import('../components/PdfPreviewModal'));
 import useCurrency from "../hooks/useCurrency";
-const PremiumProjectCard = React.lazy(() => import('../components/project/PremiumProjectCard'));
+import PremiumProjectCard from '../components/project/PremiumProjectCard';
 import { motion } from 'framer-motion';
 import { TextGenerateEffect } from '../components/ui/text-generate-effect';
 import Skeleton from '../components/ui/skeleton';
 import { staggerContainer } from '../utils/animations';
-const CriticalIssuesWidget = React.lazy(() => import('../components/issues/CriticalIssuesWidget'));
-const VPProjectDashboard = React.lazy(() => import('./VPProjectDashboard'));
+import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
+import VPProjectDashboard from './VPProjectDashboard';
 import Modal from '../components/ui/Modal';
 import { useTheme } from '../contexts/ThemeContext';
 
 
-import { HotTable } from '@handsontable/react';
-import { registerAllModules } from 'handsontable/registry';
-import 'handsontable/dist/handsontable.full.min.css';
-registerAllModules();
 
 // Helper to get display name without project prefix
 const getDisplayFileName = (fileName, projectName) => {
@@ -1129,12 +1125,17 @@ const ProjectTitleDashboard = () => {
   }, [budgetData]);
 
   // Load submodule data from API
-  const loadSubmoduleData = async (trackerId) => {
+  const loadSubmoduleData = async (trackerId, force = false) => {
     if (!trackerId || trackerId === 'undefined' || trackerId === 'null') return;
 
-    // Prevent multiple concurrent loads for the same trackerId or re-loading if failed
+    // Prevent multiple concurrent loads for the same trackerId
     if (submoduleLoading[trackerId]) return;
-    if (submoduleData[trackerId]?.failed) return; // Don't auto-retry if failed
+
+    // Prevent reloading if we already have the data (unless forced)
+    if (!force) {
+      if (submoduleData[trackerId] && !submoduleData[trackerId].failed) return;
+      if (submoduleData[trackerId]?.failed) return; // Don't auto-retry if failed
+    }
 
     try {
       setSubmoduleLoading(prev => ({ ...prev, [trackerId]: true }));
@@ -1187,7 +1188,7 @@ const ProjectTitleDashboard = () => {
       console.log('Successfully processed submodule data for tracker:', trackerId);
 
       // Refresh the data to reflect updated types/headers
-      await loadSubmoduleData(trackerId);
+      await loadSubmoduleData(trackerId, true);
 
       // We also need to refresh the projects list because column metadata might have changed
       // which affects chart axis selection
@@ -1858,7 +1859,7 @@ const ProjectTitleDashboard = () => {
   // Render table for submodule data
   const renderSubmoduleTable = (data, fileName, trackerIdArg = null) => {
     const tId = trackerIdArg || selectedSubmodule?.trackerId;
-    const isSubmoduleLoading = tId ? submoduleLoading[tId] : false;
+    const isSubmoduleLoading = tId ? (submoduleLoading[tId] || !submoduleData[tId]) : false;
 
     if (isSubmoduleLoading) {
       return (
@@ -1952,7 +1953,7 @@ const ProjectTitleDashboard = () => {
         fileName={fileName || 'Dataset'}
         onDataUpdate={tId ? (updatedRows, updatedHeaders) => handleSubmoduleDataUpdate(tId, updatedRows, updatedHeaders) : null}
         onProcessData={tId ? (indices) => handleSubmoduleProcess(tId, indices) : null}
-        onRefresh={tId ? () => loadSubmoduleData(tId) : () => loadDashboard(selectedProjectId, selectedFileId?.replace('module-', '').replace(/^\d+-/, ''))}
+        onRefresh={tId ? () => loadSubmoduleData(tId, true) : () => loadDashboard(selectedProjectId, selectedFileId?.replace('module-', '').replace(/^\d+-/, ''))}
         loading={loading}
       />
     );
@@ -4713,24 +4714,28 @@ const ProjectTitleDashboard = () => {
             </section>
             {/* End project-dashboard-main-content */}
 
-            <PdfPreviewModal
-              show={showPdfPreview}
-              onClose={() => setShowPdfPreview(false)}
-              activeProject={activeProject}
-              milestones={milestones}
-              criticalIssues={criticalIssues.slice(0, 5)}
-              sopData={sopData}
-              summaryData={summaryData}
-              visibleSections={emailData.selectedSections}
-              availablePhases={availablePhases}
-              getTrackerForPhase={getTrackerForPhase}
-              budgetTableData={budgetTableData}
-              submoduleData={submoduleData}
-              selectedBudgetProject={selectedBudgetProject}
-              masterProjects={masterProjects}
-              budgetCurrency={budgetCurrency}
-              chartImages={pdfChartImages}
-            />
+            {showPdfPreview && (
+              <React.Suspense fallback={<div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 backdrop-blur-sm"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div></div>}>
+                <PdfPreviewModal
+                  show={showPdfPreview}
+                  onClose={() => setShowPdfPreview(false)}
+                  activeProject={activeProject}
+                  milestones={milestones}
+                  criticalIssues={criticalIssues.slice(0, 5)}
+                  sopData={sopData}
+                  summaryData={summaryData}
+                  visibleSections={emailData.selectedSections}
+                  availablePhases={availablePhases}
+                  getTrackerForPhase={getTrackerForPhase}
+                  budgetTableData={budgetTableData}
+                  submoduleData={submoduleData}
+                  selectedBudgetProject={selectedBudgetProject}
+                  masterProjects={masterProjects}
+                  budgetCurrency={budgetCurrency}
+                  chartImages={pdfChartImages}
+                />
+              </React.Suspense>
+            )}
 
             {/* Delete Confirmation Modal */}
             {projectToDelete && (
