@@ -57,6 +57,7 @@ def check_project_permission(db_project, current_user, permission_type: str):
                 
     return False
 
+@router.get("", response_model=List[ProjectResponse])
 @router.get("/", response_model=List[ProjectResponse])
 def list_projects(
     db: Session = Depends(get_db),
@@ -394,24 +395,41 @@ def get_project_structure(
     }
     """
     from sqlalchemy import func as sqlfunc
+    from sqlalchemy.orm import defer
     from app.models.upload import Upload
     from app.models.tracker_ingestion import TrackerIngestion
-    from app.utils.analytics_utils import standardize_records
+    from app.utils.analytics_utils import standardize_records, compute_tracker_summary
 
     project = db.query(crud_project.Project).filter(crud_project.Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Fetch all ingestions for this project to build the module list
-    all_ingestions = db.query(TrackerIngestion).filter(TrackerIngestion.project_id == project_id).all()
+    all_ingestions = db.query(TrackerIngestion).options(defer(TrackerIngestion.data)).filter(TrackerIngestion.project_id == project_id).all()
     
     # Build flat deduplicated modules from JSONB
     flat_modules_dict = {}
     for ing in all_ingestions:
-        std_records = standardize_records(ing.data)
-        for r in std_records:
-            mod_name = r.get("module") or "Unknown"
-            flat_modules_dict[mod_name] = flat_modules_dict.get(mod_name, 0) + 1
+        summary = ing.summary_data
+        if summary is None:
+            # Fallback/self-healing for legacy rows
+            raw_data = ing.data
+            if raw_data and isinstance(raw_data, list):
+                summary = compute_tracker_summary(raw_data)
+                ing.summary_data = summary
+                db.add(ing)
+                try:
+                    db.commit()
+                except Exception as commit_err:
+                    db.rollback()
+                    print(f"Failed to auto-save summary fallback: {commit_err}")
+            else:
+                summary = {"modules": {}}
+        
+        modules_dict = summary.get("modules", {})
+        for name, m_stat in modules_dict.items():
+            mod_name = name or "Unknown"
+            flat_modules_dict[mod_name] = flat_modules_dict.get(mod_name, 0) + m_stat.get("total", 0)
             
     flat_modules = [
         {"module_name": name, "milestones_count": count}
@@ -433,10 +451,27 @@ def get_project_structure(
         
         if upload_ingestion:
             u_mod_dict = {}
-            std_u_records = standardize_records(upload_ingestion.data)
-            for r in std_u_records:
-                m_name = r.get("module") or "Unknown"
-                u_mod_dict[m_name] = u_mod_dict.get(m_name, 0) + 1
+            summary = upload_ingestion.summary_data
+            if summary is None:
+                # Fallback/self-healing for legacy rows
+                raw_data = upload_ingestion.data
+                if raw_data and isinstance(raw_data, list):
+                    summary = compute_tracker_summary(raw_data)
+                    upload_ingestion.summary_data = summary
+                    db.add(upload_ingestion)
+                    try:
+                        db.commit()
+                    except Exception as commit_err:
+                        db.rollback()
+                        print(f"Failed to auto-save summary fallback: {commit_err}")
+                else:
+                    summary = {"modules": {}}
+            
+            modules_dict = summary.get("modules", {})
+            for name, m_stat in modules_dict.items():
+                mod_name = name or "Unknown"
+                u_mod_dict[mod_name] = u_mod_dict.get(mod_name, 0) + m_stat.get("total", 0)
+                
             upload_modules = [
                 {"module_name": name, "milestones_count": count}
                 for name, count in u_mod_dict.items()

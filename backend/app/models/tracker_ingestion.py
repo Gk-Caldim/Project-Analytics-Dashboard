@@ -11,5 +11,6 @@ class TrackerIngestion(Base):
     upload_id = Column(Integer, ForeignKey("uploads.id", ondelete="CASCADE"), nullable=True)
     file_name = Column(String, nullable=False)
     data = Column(JSONB, nullable=False)            # Cleaned records from IngestionEngine
+    summary_data = Column(JSONB, nullable=True)     # Precomputed lightweight analytics summary
     uploaded_by = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

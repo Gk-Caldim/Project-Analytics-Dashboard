@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 from app.core.database import engine, Base, get_db
 from app.core.config import FRONTEND_URL, API_PREFIX
-from app.middleware.logging_middleware import ForbiddenLoggingMiddleware
+from app.middleware.logging_middleware import ForbiddenLoggingMiddleware, RequestTimeLoggingMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -218,6 +218,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(RequestTimeLoggingMiddleware)
 
 # Include routers
 

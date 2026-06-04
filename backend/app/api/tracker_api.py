@@ -20,7 +20,7 @@ import re
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from app.core.limiter import limiter
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from sqlalchemy import func
 from typing import Optional, List
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ from app.models.upload import Upload
 from app.models.tracker_ingestion import TrackerIngestion
 
 from app.services.tracker_service import process_tracker_upload
-from app.utils.analytics_utils import standardize_records
+from app.utils.analytics_utils import standardize_records, compute_tracker_summary
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -264,19 +264,36 @@ async def get_project_modules(project_id: int, db: Session = Depends(get_db)):
         db.func.max(TrackerIngestion.created_at).label('max_created')
     ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
 
-    ingestions = db.query(TrackerIngestion).join(
+    ingestions = db.query(TrackerIngestion).options(defer(TrackerIngestion.data)).join(
         subq, 
         (TrackerIngestion.file_name == subq.c.file_name) & 
         (TrackerIngestion.created_at == subq.c.max_created)
     ).filter(TrackerIngestion.project_id == project_id).all()
 
-    all_raw_records = []
+    modules_set = set()
     for ing in ingestions:
-        if isinstance(ing.data, list):
-            all_raw_records.extend(ing.data)
-    
-    records = standardize_records(all_raw_records)
-    modules = sorted(list({r["module"] for r in records if r["module"]}))
+        summary = ing.summary_data
+        if summary is None:
+            # Fallback/self-healing for legacy rows
+            raw_data = ing.data
+            if raw_data and isinstance(raw_data, list):
+                summary = compute_tracker_summary(raw_data)
+                ing.summary_data = summary
+                db.add(ing)
+                try:
+                    db.commit()
+                except Exception as commit_err:
+                    db.rollback()
+                    logger.error(f"Failed to auto-save summary fallback: {commit_err}")
+            else:
+                summary = {"modules": {}}
+        
+        modules_dict = summary.get("modules", {})
+        for mod in modules_dict.keys():
+            if mod:
+                modules_set.add(mod)
+                
+    modules = sorted(list(modules_set))
 
     logger.info(
         "[tracker_api] project_id=%s modules=%s",

@@ -1,4 +1,5 @@
 import logging
+import time
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -20,3 +21,17 @@ class ForbiddenLoggingMiddleware(BaseHTTPMiddleware):
             )
             
         return response
+
+
+class RequestTimeLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration = round((time.perf_counter() - start_time) * 1000, 2)
+        
+        logger.info(
+            f"{request.method} {request.url.path} - "
+            f"{duration}ms"
+        )
+        return response
+

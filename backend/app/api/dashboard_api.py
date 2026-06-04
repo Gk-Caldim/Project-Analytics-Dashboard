@@ -63,11 +63,10 @@ def project_dashboard(
     }
     """
     try:
+        import time
+        start_total = time.perf_counter()
         data = get_dashboard_data(db, project_id, module_filter=module)
-
-        # Return 404 if project has no tracker data at all (total == 0)
-        # but the project itself might exist – let the caller decide how to render.
-        # We return 200 with an empty structure so dashboards render a "no data" state.
+        print(f"dashboard total: {(time.perf_counter() - start_total) * 1000:.2f}ms")
         return data
 
     except Exception as e:
