@@ -1749,8 +1749,9 @@ const ProjectTitleDashboard = () => {
       const budgetStatus = masterProjects?.find(p => p.name === selectedBudgetProject)?.status || activeProject?.status || 'Active';
       const visiblePhaseList = getVisiblePhaseList();
 
+      const { default: ReportDocumentModule } = await import('../components/ReportDocument');
       const blob = await pdf(
-        <ReportDocument
+        <ReportDocumentModule
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
@@ -1809,8 +1810,9 @@ const ProjectTitleDashboard = () => {
       const budgetStatus = masterProjects?.find(p => p.name === selectedBudgetProject)?.status || activeProject?.status || 'Active';
       const visiblePhaseList = getVisiblePhaseList();
 
+      const { default: ReportDocumentModule } = await import('../components/ReportDocument');
       const blob = await pdf(
-        <ReportDocument
+        <ReportDocumentModule
           activeProject={activeProject}
           milestones={milestones}
           criticalIssues={criticalIssues}
