@@ -49,6 +49,106 @@ GOOGLE_SCOPES    = " ".join([
     "https://www.googleapis.com/auth/calendar",
 ])
 
+import calendar
+from datetime import timedelta
+
+def get_nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> datetime:
+    cal = calendar.Calendar(firstweekday=0)
+    month_days = cal.monthdatescalendar(year, month)
+    matching_days = []
+    for week in month_days:
+        for day in week:
+            if day.month == month and day.weekday() == weekday:
+                matching_days.append(day)
+    if n == -1 or n == 5:
+        return datetime(year, month, matching_days[-1].day)
+    else:
+        idx = min(n - 1, len(matching_days) - 1)
+        return datetime(year, month, matching_days[idx].day)
+
+def parse_recurrence_pattern(start_date: datetime):
+    weekday = start_date.weekday()
+    day = start_date.day
+    year = start_date.year
+    month = start_date.month
+    cal = calendar.Calendar(firstweekday=0)
+    month_days = cal.monthdatescalendar(year, month)
+    matching_days = []
+    for week in month_days:
+        for day_obj in week:
+            if day_obj.month == month and day_obj.weekday() == weekday:
+                matching_days.append(day_obj.day)
+    n = matching_days.index(day) + 1
+    is_last = (n == len(matching_days))
+    return weekday, n, is_last
+
+def generate_recurring_dates(start_date_str: str, rule: str) -> list[str]:
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+    except Exception:
+        # Fallback if date is ISO datetime string
+        start_date = datetime.fromisoformat(start_date_str.split("T")[0])
+        
+    dates = []
+    curr = start_date
+    rule = rule.lower()
+    
+    if rule == "daily":
+        count = 10
+        for _ in range(count - 1):
+            curr += timedelta(days=1)
+            dates.append(curr.strftime("%Y-%m-%d"))
+    elif rule == "weekly":
+        count = 10
+        for _ in range(count - 1):
+            curr += timedelta(weeks=1)
+            dates.append(curr.strftime("%Y-%m-%d"))
+    elif rule == "every_weekday":
+        count = 10
+        inserted = 0
+        while inserted < count - 1:
+            curr += timedelta(days=1)
+            if curr.weekday() < 5:
+                dates.append(curr.strftime("%Y-%m-%d"))
+                inserted += 1
+    elif rule == "monthly_day":
+        count = 6
+        target_day = start_date.day
+        for _ in range(count - 1):
+            year = curr.year
+            month = curr.month + 1
+            if month > 12:
+                month = 1
+                year += 1
+            _, last_day = calendar.monthrange(year, month)
+            day = min(target_day, last_day)
+            curr = datetime(year, month, day)
+            dates.append(curr.strftime("%Y-%m-%d"))
+    elif rule == "monthly_weekday":
+        count = 6
+        weekday, n, is_last = parse_recurrence_pattern(start_date)
+        for _ in range(count - 1):
+            year = curr.year
+            month = curr.month + 1
+            if month > 12:
+                month = 1
+                year += 1
+            nth_date = get_nth_weekday_of_month(year, month, weekday, -1 if is_last else n)
+            curr = nth_date
+            dates.append(curr.strftime("%Y-%m-%d"))
+    elif rule == "yearly":
+        count = 3
+        target_month = start_date.month
+        target_day = start_date.day
+        for _ in range(count - 1):
+            year = curr.year + 1
+            _, last_day = calendar.monthrange(year, target_month)
+            day = min(target_day, last_day)
+            curr = datetime(year, target_month, day)
+            dates.append(curr.strftime("%Y-%m-%d"))
+            
+    return dates
+
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
@@ -67,6 +167,7 @@ class ScheduleRequest(BaseModel):
     project_id: Optional[int] = None
     reminder_minutes: Optional[int] = None
     reminder_notify_attendees: Optional[bool] = True
+    recurrence_rule: Optional[str] = None
 
 class MeetingUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -85,6 +186,7 @@ class MeetingUpdateRequest(BaseModel):
     intelligence_data: Optional[str] = None
     action_item_count: Optional[int] = None
     project_id: Optional[Any] = None
+    recurrence_rule: Optional[str] = None
 
 class CancelRequest(BaseModel):
     reason: Optional[str] = None
@@ -341,6 +443,8 @@ async def list_meetings(db: Session = Depends(get_db)):
                 "attendance_rate": m.attendance_rate,
                 "mom_generated": m.mom_generated,
                 "project_id":    m.project_id,
+                "recurrence_rule": m.recurrence_rule,
+                "recurrence_group_id": m.recurrence_group_id,
             })
         return {"success": True, "meetings": results}
     except Exception as e:
@@ -432,6 +536,11 @@ async def publish_meeting(
         # clean state before we start the Meeting insert transaction.
         # This is a no-op when no prior commits occurred.
         db.expire_all()
+        
+        recurrence_group_id = None
+        if req.recurrence_rule and req.recurrence_rule.lower() != "none":
+            recurrence_group_id = str(uuid.uuid4())
+            
         meeting = Meeting(
             title=req.title,
             description=req.description,
@@ -449,10 +558,41 @@ async def publish_meeting(
             project_id=req.project_id,
             reminder_minutes=req.reminder_minutes,
             reminder_notify_attendees=req.reminder_notify_attendees,
+            recurrence_rule=req.recurrence_rule,
+            recurrence_group_id=recurrence_group_id,
         )
         db.add(meeting)
         db.commit()
         db.refresh(meeting)
+
+        if recurrence_group_id:
+            try:
+                future_dates = generate_recurring_dates(req.date, req.recurrence_rule)
+                for date_str in future_dates:
+                    cloned = Meeting(
+                        title=req.title,
+                        description=req.description,
+                        date=date_str,
+                        time=req.time,
+                        duration_minutes=req.duration_minutes,
+                        platform=platform,
+                        join_url=join_url,
+                        meeting_code=meeting_code,
+                        organizer_email=req.organizer_email,
+                        attendees=json.dumps(req.attendees),
+                        agenda_text=req.agenda_text,
+                        status="scheduled",
+                        invites_sent=True,
+                        project_id=req.project_id,
+                        reminder_minutes=req.reminder_minutes,
+                        reminder_notify_attendees=req.reminder_notify_attendees,
+                        recurrence_rule=req.recurrence_rule,
+                        recurrence_group_id=recurrence_group_id,
+                    )
+                    db.add(cloned)
+                db.commit()
+            except Exception as e:
+                logger.error(f"Failed to generate future recurring instances: {e}")
 
         background_tasks.add_task(send_invites_background, meeting_data, cast(str, join_url))
 
@@ -571,6 +711,8 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "project_id":   meeting.project_id,
             "reminder_minutes": meeting.reminder_minutes,
             "reminder_notify_attendees": meeting.reminder_notify_attendees,
+            "recurrence_rule": meeting.recurrence_rule,
+            "recurrence_group_id": meeting.recurrence_group_id,
             "transcript":   json.loads(cast(str, meeting.transcript)) if meeting.transcript else [],
             "intelligence_data": json.loads(cast(str, meeting.intelligence_data)) if meeting.intelligence_data else None,
         },
@@ -582,53 +724,31 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    if req.title is not None: meeting.title = req.title  # type: ignore
-    if req.date is not None: meeting.date = req.date  # type: ignore
-    if req.time is not None: meeting.time = req.time  # type: ignore
-    if req.duration is not None: meeting.duration_minutes = req.duration  # type: ignore
-    if req.attendees is not None: meeting.attendees = json.dumps(req.attendees)  # type: ignore
-    if req.description is not None: meeting.description = req.description  # type: ignore
-    if (req.status is not None):
-        # If moving FROM cancelled TO scheduled/upcoming, clear cancellation metadata
-        if meeting.status == "cancelled" and req.status in ("scheduled", "upcoming"):
-            meeting.cancellation_reason = None # type: ignore
-            meeting.cancellation_note = None # type: ignore
-            meeting.cancelled_by = None # type: ignore
-            meeting.cancelled_at = None # type: ignore
-            meeting.attendees_notified = False # type: ignore
-        
-        meeting.status = req.status  # type: ignore
-    if req.reminder_minutes is not None: meeting.reminder_minutes = req.reminder_minutes  # type: ignore
-    if req.reminder_notify_attendees is not None: meeting.reminder_notify_attendees = req.reminder_notify_attendees  # type: ignore
-    if req.notes is not None: meeting.notes = req.notes  # type: ignore
-    if req.intelligence_data is not None: meeting.intelligence_data = req.intelligence_data  # type: ignore
-    if req.action_item_count is not None: meeting.action_item_count = req.action_item_count  # type: ignore
-    
-    # Handle linked workspace project updates safely
+    # Fetch all meetings in the recurrence group if group id is set
+    meetings = [meeting]
+    if meeting.recurrence_group_id:
+        meetings = db.query(Meeting).filter(Meeting.recurrence_group_id == meeting.recurrence_group_id).all()
+
     req_dict = req.dict(exclude_unset=True)
-    if "project_id" in req_dict:
-        val = req_dict["project_id"]
-        if val == "" or val is None:
-            meeting.project_id = None  # type: ignore
-        else:
-            try:
-                meeting.project_id = int(val)  # type: ignore
-            except ValueError:
-                meeting.project_id = None  # type: ignore
+
+    # 1. Handle platform change (once for the group)
+    new_join_url = None
+    new_meeting_code = None
+    platform_changed = False
     
-    # Handle platform change - regenerate link if platform is different
     if req.platform is not None and req.platform.lower() != meeting.platform:
         platform = req.platform.lower()
+        platform_changed = True
         meeting_data = {
-            "title":           meeting.title,
-            "description":     meeting.description or "",
+            "title":           req.title if req.title is not None else meeting.title,
+            "description":     req.description if req.description is not None else (meeting.description or ""),
             "date":            meeting.date,
-            "time":            meeting.time,
-            "duration_minutes": meeting.duration_minutes,
+            "time":            req.time if req.time is not None else meeting.time,
+            "duration_minutes": req.duration if req.duration is not None else meeting.duration_minutes,
             "platform":        platform,
-            "attendees":       json.loads(cast(str, meeting.attendees)) if meeting.attendees else [],
-            "timezone_name":   "UTC", # Defaulting to UTC for now
-            "agenda_text":     meeting.agenda_text or "",
+            "attendees":       req.attendees if req.attendees is not None else (json.loads(cast(str, meeting.attendees)) if meeting.attendees else []),
+            "timezone_name":   "UTC",
+            "agenda_text":     req.agenda_text if req.agenda_text is not None else (meeting.agenda_text or ""),
         }
         
         try:
@@ -636,55 +756,93 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
                 access_token = GoogleTokenService.get_fresh_access_token(db)
                 creator = GoogleMeetCreator(access_token)
                 result  = creator.create_meeting(meeting_data)
-                meeting.join_url     = result.get("join_url")
-                meeting.meeting_code = result.get("meeting_code")
-                meeting.platform = "google" # normalize
+                new_join_url     = result.get("join_url")
+                new_meeting_code = result.get("meeting_code")
             elif platform == "teams":
                 teams_token = get_teams_token()
                 creator = MicrosoftTeamsCreator(teams_token)
                 result  = creator.create_meeting(meeting_data)
-                meeting.join_url     = result.get("join_url")
-                meeting.meeting_code = result.get("meeting_code")
-                meeting.platform = "teams"
+                new_join_url     = result.get("join_url")
+                new_meeting_code = result.get("meeting_code")
             elif platform == "zoom":
                 account_id, client_id, client_secret = _get_zoom_credentials()
                 if not account_id or not client_id or not client_secret:
                     import random
                     mock_id = "".join(random.choices("0123456789", k=11))
-                    # Use Zoom's official test URL as the join link to prevent the "invalid link (3001)" Zoom page
-                    meeting.join_url     = "https://zoom.us/test"
-                    meeting.meeting_code = mock_id
-                    meeting.platform = "zoom"
+                    new_join_url = "https://zoom.us/test"
+                    new_meeting_code = mock_id
                 else:
                     try:
                         creator = ZoomMeetingCreator(account_id, client_id, client_secret)
                         result = creator.create_meeting(meeting_data)
-                        meeting.join_url     = result.get("join_url")
-                        meeting.meeting_code = result.get("meeting_code")
-                        meeting.platform = "zoom"
+                        new_join_url     = result.get("join_url")
+                        new_meeting_code = result.get("meeting_code")
                     except Exception as e:
                         logger.error(f"Real Zoom update failed, falling back to mock: {e}")
                         import random
                         mock_id = "".join(random.choices("0123456789", k=11))
-                        meeting.join_url     = "https://zoom.us/test"
-                        meeting.meeting_code = mock_id
-                        meeting.platform = "zoom"
+                        new_join_url = "https://zoom.us/test"
+                        new_meeting_code = mock_id
             else:
                 raise HTTPException(status_code=400, detail=f"Unknown platform: {platform}")
         except Exception as e:
             logger.error(f"Platform regeneration failed: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to regenerate meeting link: {str(e)}")
-    elif req.platform is not None:
-        # Just update the string if it's the same but maybe different case
-        meeting.platform = req.platform.lower()
 
-    if req.agenda_text is not None:
-        meeting.agenda_text = req.agenda_text  # type: ignore
-    elif req.agenda is not None:
-        meeting.agenda_text = '\n'.join(req.agenda)  # type: ignore
+    # 2. Update all meetings in the series
+    for m in meetings:
+        if req.title is not None: m.title = req.title  # type: ignore
         
+        # Only update the date of the specific instance modified
+        if not meeting.recurrence_group_id or m.id == meeting.id:
+            if req.date is not None: m.date = req.date  # type: ignore
+            
+        if req.time is not None: m.time = req.time  # type: ignore
+        if req.duration is not None: m.duration_minutes = req.duration  # type: ignore
+        if req.attendees is not None: m.attendees = json.dumps(req.attendees)  # type: ignore
+        if req.description is not None: m.description = req.description  # type: ignore
+        
+        if req.status is not None:
+            if m.status == "cancelled" and req.status in ("scheduled", "upcoming"):
+                m.cancellation_reason = None  # type: ignore
+                m.cancellation_note = None  # type: ignore
+                m.cancelled_by = None  # type: ignore
+                m.cancelled_at = None  # type: ignore
+                m.attendees_notified = False  # type: ignore
+            m.status = req.status  # type: ignore
+            
+        if req.reminder_minutes is not None: m.reminder_minutes = req.reminder_minutes  # type: ignore
+        if req.reminder_notify_attendees is not None: m.reminder_notify_attendees = req.reminder_notify_attendees  # type: ignore
+        if req.notes is not None: m.notes = req.notes  # type: ignore
+        if req.intelligence_data is not None: m.intelligence_data = req.intelligence_data  # type: ignore
+        if req.action_item_count is not None: m.action_item_count = req.action_item_count  # type: ignore
+        
+        # Handle linked workspace project updates safely
+        if "project_id" in req_dict:
+            val = req_dict["project_id"]
+            if val == "" or val is None:
+                m.project_id = None  # type: ignore
+            else:
+                try:
+                    m.project_id = int(val)  # type: ignore
+                except ValueError:
+                    m.project_id = None  # type: ignore
+
+        if platform_changed:
+            m.platform = platform  # type: ignore
+            m.join_url = new_join_url  # type: ignore
+            m.meeting_code = new_meeting_code  # type: ignore
+        elif req.platform is not None:
+            m.platform = req.platform.lower()  # type: ignore
+
+        if req.agenda_text is not None:
+            m.agenda_text = req.agenda_text  # type: ignore
+        elif req.agenda is not None:
+            m.agenda_text = '\n'.join(req.agenda)  # type: ignore
+
     db.commit()
-    db.refresh(meeting)
+    for m in meetings:
+        db.refresh(m)
     
     return await get_meeting(cast(str, meeting.id), db=db)
 
@@ -694,21 +852,28 @@ async def cancel_meeting(meeting_id: str, req: CancelRequest, db: Session = Depe
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    meeting.status = "cancelled"  # type: ignore
-    meeting.cancellation_reason = req.reason  # type: ignore
-    meeting.cancellation_note = req.note  # type: ignore
-    meeting.cancelled_by = req.cancelled_by  # type: ignore
-    meeting.cancelled_at = datetime.now(timezone.utc)  # type: ignore
-    meeting.attendees_notified = req.notify_attendees  # type: ignore
-    
+    # If it's a recurring meeting, cancel the entire series
+    meetings = [meeting]
+    if meeting.recurrence_group_id:
+        meetings = db.query(Meeting).filter(Meeting.recurrence_group_id == meeting.recurrence_group_id).all()
+
+    for m in meetings:
+        m.status = "cancelled"  # type: ignore
+        m.cancellation_reason = req.reason  # type: ignore
+        m.cancellation_note = req.note  # type: ignore
+        m.cancelled_by = req.cancelled_by  # type: ignore
+        m.cancelled_at = datetime.now(timezone.utc)  # type: ignore
+        m.attendees_notified = req.notify_attendees  # type: ignore
+
     db.commit()
-    db.refresh(meeting)
-    
-    # Mocking email trigger
-    if req.notify_attendees:
-        logger.info(f"Triggering email notifications for meeting {meeting.id} cancellation")
+    for m in meetings:
+        db.refresh(m)
         
-    return {"success": True, "message": "Meeting successfully cancelled."}
+    # Trigger notifications
+    if req.notify_attendees:
+        logger.info(f"Triggering email notifications for recurring meeting series {meeting.recurrence_group_id or meeting.id} cancellation")
+        
+    return {"success": True, "message": "Meeting and its series successfully cancelled."}
 
 @router.delete("/{meeting_id}")
 async def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
@@ -716,7 +881,12 @@ async def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    db.delete(meeting)
+    # If it's a recurring meeting, delete the entire series
+    if meeting.recurrence_group_id:
+        db.query(Meeting).filter(Meeting.recurrence_group_id == meeting.recurrence_group_id).delete()
+    else:
+        db.delete(meeting)
+        
     db.commit()
     
     return {"success": True, "message": "Meeting successfully deleted."}

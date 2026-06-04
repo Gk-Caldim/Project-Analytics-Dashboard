@@ -58,5 +58,9 @@ class Meeting(Base):
     reminder_minutes = Column(Integer, nullable=True)
     reminder_notify_attendees = Column(Boolean, default=True)
     
+    # Recurrence Settings
+    recurrence_rule = Column(String(50), nullable=True)
+    recurrence_group_id = Column(String(100), nullable=True, index=True)
+    
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

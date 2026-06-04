@@ -43,10 +43,14 @@ router = APIRouter(prefix=f"{API_PREFIX}/teams", tags=["Teams"])
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
+from typing import Optional
+import uuid
+
 class CreateMeetingRequest(BaseModel):
     title: str
     start: str   # ISO-8601 with timezone, e.g. "2025-06-10T10:00:00+05:30"
     end:   str
+    recurrence_rule: Optional[str] = None
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -129,6 +133,10 @@ async def teams_create_meeting(
         date_str = req.start[:10]
         time_str = req.start[11:16]
 
+    recurrence_group_id = None
+    if req.recurrence_rule and req.recurrence_rule.lower() != "none":
+        recurrence_group_id = str(uuid.uuid4())
+
     meeting = Meeting(
         title=req.title,
         date=date_str,
@@ -141,10 +149,37 @@ async def teams_create_meeting(
         attendees="[]",
         status="scheduled",
         invites_sent=False,
+        recurrence_rule=req.recurrence_rule,
+        recurrence_group_id=recurrence_group_id,
     )
     db.add(meeting)
     db.commit()
     db.refresh(meeting)
+
+    if recurrence_group_id:
+        try:
+            from app.api.meetings import generate_recurring_dates
+            future_dates = generate_recurring_dates(date_str, req.recurrence_rule)
+            for f_date in future_dates:
+                cloned = Meeting(
+                    title=req.title,
+                    date=f_date,
+                    time=time_str,
+                    duration_minutes=60,
+                    platform="teams",
+                    join_url=join_url,
+                    meeting_code=meeting_id,
+                    organizer_email="",
+                    attendees="[]",
+                    status="scheduled",
+                    invites_sent=False,
+                    recurrence_rule=req.recurrence_rule,
+                    recurrence_group_id=recurrence_group_id,
+                )
+                db.add(cloned)
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to generate future Teams recurring instances: {e}")
 
     return {
         "success":      True,

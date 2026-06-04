@@ -98,11 +98,16 @@ def migrate():
                 ("google_calendar_event_id", "VARCHAR(100)"),
                 ("invites_sent", "BOOLEAN DEFAULT FALSE"),
                 ("project_id", "INTEGER"),
-                ("user_id", "VARCHAR")
+                ("user_id", "VARCHAR"),
+                ("recurrence_rule", "VARCHAR(50)"),
+                ("recurrence_group_id", "VARCHAR(100)")
             ]
             
             for col_name, col_type in columns_to_add:
                 conn.execute(text(f"ALTER TABLE meetings ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+            
+            # Create index on recurrence_group_id
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_meetings_recurrence_group_id ON meetings (recurrence_group_id);"))
             
             conn.commit()
             print("  meetings updated.")

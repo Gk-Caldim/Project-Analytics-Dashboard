@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Settings, X, Plus, Calendar, Clock, Video, Globe, AlertCircle, Check, Loader2, Info, Bell, MapPin, Users, Monitor, Search, RefreshCw } from 'lucide-react';
 import { Textarea } from "../../components/ui/textarea";
 import { useConfirm } from "../../hooks/use-confirm";
 import {
@@ -233,6 +233,41 @@ const ScheduleMeetingPremiumPage = () => {
   const [projects, setProjects] = useState([]);
   const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
   const [description, setDescription] = useState('');
+  const [recurrenceRule, setRecurrenceRule] = useState('none');
+  const [isRecurrenceDropOpen, setIsRecurrenceDropOpen] = useState(false);
+
+  const recurrenceOptions = useMemo(() => {
+    const baseDate = date ? new Date(date) : new Date();
+    const getOrdinalSuffix = (num) => {
+      const j = num % 10, k = num % 100;
+      if (j === 1 && k !== 11) return num + "st";
+      if (j === 2 && k !== 12) return num + "nd";
+      if (j === 3 && k !== 13) return num + "rd";
+      return num + "th";
+    };
+    const getWeekdayOrdinalInMonth = (dateVal) => {
+      const day = dateVal.getDate();
+      const weekIdx = Math.floor((day - 1) / 7);
+      const ordinals = ["first", "second", "third", "fourth", "fifth"];
+      const temp = new Date(dateVal);
+      temp.setDate(temp.getDate() + 7);
+      const isLast = temp.getMonth() !== dateVal.getMonth();
+      return isLast ? "last" : ordinals[weekIdx];
+    };
+    const weekdayName = baseDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthName = baseDate.toLocaleDateString('en-US', { month: 'long' });
+    const dayWithSuffix = getOrdinalSuffix(baseDate.getDate());
+    const ordinalName = getWeekdayOrdinalInMonth(baseDate);
+    return [
+      { id: 'none', label: 'Does not repeat' },
+      { id: 'daily', label: 'Daily' },
+      { id: 'weekly', label: `Weekly on ${weekdayName}` },
+      { id: 'every_weekday', label: 'Every weekday (Monday - Friday)' },
+      { id: 'monthly_day', label: `Monthly on ${dayWithSuffix}` },
+      { id: 'monthly_weekday', label: `Monthly on ${ordinalName} ${weekdayName}` },
+      { id: 'yearly', label: `Yearly on ${monthName} ${dayWithSuffix}` }
+    ];
+  }, [date]);
 
   // Custom addition UI inputs
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -337,6 +372,11 @@ const ScheduleMeetingPremiumPage = () => {
               setProjectId('');
             }
             if (m.agenda && m.agenda.length > 0) setAgenda(m.agenda);
+            if (m.recurrence_rule) {
+              setRecurrenceRule(m.recurrence_rule);
+            } else {
+              setRecurrenceRule('none');
+            }
           }
         } catch (error) {
           toast.error("Failed to fetch meeting for edit");
@@ -541,7 +581,8 @@ const ScheduleMeetingPremiumPage = () => {
         duration_minutes: parseTimeToMinutes(endTime) - parseTimeToMinutes(startTime),
         platform, attendees, agenda_text: agenda.join('\n'),
         timezone, project_id: projectId || null,
-        reminder_minutes: reminder, description, color: eventColor
+        reminder_minutes: reminder, description, color: eventColor,
+        recurrence_rule: recurrenceRule
       };
       
       let response;
@@ -765,7 +806,7 @@ const ScheduleMeetingPremiumPage = () => {
   }
 
   return (
-    <div className="schedule-premium-page" onClick={() => { setShowDatePicker(false); setShowStartTimePicker(false); setShowEndTimePicker(false); }}>
+    <div className="schedule-premium-page" onClick={() => { setShowDatePicker(false); setShowStartTimePicker(false); setShowEndTimePicker(false); setIsRecurrenceDropOpen(false); }}>
       <main className="schedule-content">
         
         <section className="column-left" style={{ flex: `0 0 ${columnWidth}%` }}>
@@ -916,6 +957,42 @@ const ScheduleMeetingPremiumPage = () => {
                   </div>
 
                   {durationText && <span className="duration-tag">{durationText}</span>}
+
+                  <span className="text-[12px] font-bold text-gray-300">|</span>
+
+                  <div className="relative" onClick={(e) => { e.stopPropagation(); setIsRecurrenceDropOpen(!isRecurrenceDropOpen); setShowStartTimePicker(false); setShowEndTimePicker(false); }}>
+                    <div className="time-input-pill flex items-center gap-1.5">
+                      <RefreshCw size={13} className="text-blue-600" />
+                      <span>{recurrenceOptions.find(o => o.id === recurrenceRule)?.label || 'Does not repeat'}</span>
+                      <ChevronDown size={12} className="text-gray-400" />
+                    </div>
+                    <AnimatePresence>
+                      {isRecurrenceDropOpen && (
+                        <motion.div 
+                          layout 
+                          initial={{ opacity: 0, y: 8, scale: 0.96 }} 
+                          animate={{ opacity: 1, y: 0, scale: 1 }} 
+                          exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                          className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl z-[200] py-1.5 w-[240px] max-h-[250px] overflow-y-auto"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {recurrenceOptions.map(option => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className={`w-full text-left px-4 py-2.5 text-[12px] font-medium transition-colors border-none bg-transparent cursor-pointer ${recurrenceRule === option.id ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+                              onClick={() => {
+                                setRecurrenceRule(option.id);
+                                setIsRecurrenceDropOpen(false);
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   <div className="timezone-selector-inline" onClick={() => setIs24Hour(!is24Hour)}>
                     <Globe size={13} />
