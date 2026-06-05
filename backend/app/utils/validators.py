@@ -87,7 +87,7 @@ VALIDATORS: Dict[str, Callable[[Any, Dict], bool]] = {
     "file": lambda v, r: True,
 }
 
-def validate_custom_fields(db: Session, model_type: str, custom_fields: Dict) -> List[str]:
+def validate_custom_fields(db: Session, model_type: str, custom_fields: Dict, columns: List = None) -> List[str]:
     """
     Validates custom fields against the stored schema in the database.
     model_type: 'employee' or 'project'
@@ -97,10 +97,11 @@ def validate_custom_fields(db: Session, model_type: str, custom_fields: Dict) ->
 
     errors = []
     
-    if model_type == 'employee':
-        columns = db.query(EmployeeColumn).all()
-    else:
-        columns = db.query(ProjectColumn).all()
+    if columns is None:
+        if model_type == 'employee':
+            columns = db.query(EmployeeColumn).all()
+        else:
+            columns = db.query(ProjectColumn).all()
         
     col_map = {col.column_name: col for col in columns}
     

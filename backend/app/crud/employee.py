@@ -4,7 +4,7 @@ from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 from app.core.security import hash_password
 from typing import List, Optional
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from app.models.employee_project import EmployeeProjectMap
 from app.models.project import Project
 from app.models.project_permission import ProjectPermission
@@ -43,44 +43,54 @@ def get_employees(db: Session, skip: int = 0, limit: int = 1000) -> List[Employe
         EmployeeProjectMap.project_id
     ).all()
 
-    # Map allocations by employee_id -> set of project_ids
+    # Pre-index allocations (O(k) where k is allocations per employee)
     alloc_map = {}
     for alloc in allocations:
         if alloc.employee_id:
             alloc_map.setdefault(alloc.employee_id, set()).add(alloc.project_id)
 
+    project_id_to_name = {p.project_id: p.name for p in projects if p.project_id}
+
+    # Pre-index projects by match keys (O(Projects) time)
+    team_lead_projects = {}
+    assigned_id_projects = {}
+    pm_projects = {}
+    assigned_name_projects = {}
+
+    for proj in projects:
+        if proj.employee_id:
+            team_lead_projects.setdefault(proj.employee_id, set()).add(proj.name)
+        if proj.assigned_to_id:
+            assigned_id_projects.setdefault(proj.assigned_to_id, set()).add(proj.name)
+        if proj.project_manager:
+            pm_projects.setdefault(proj.project_manager.strip(), set()).add(proj.name)
+        if proj.assigned_to_name:
+            names = [n.strip() for n in proj.assigned_to_name.split(",") if n.strip()]
+            for name in names:
+                assigned_name_projects.setdefault(name, set()).add(proj.name)
+
+    # Match in lookup maps
     for emp in employees:
         assigned_projects = set()
 
-        # Match 1: Junction allocations (EmployeeProjectMap)
         if emp.employee_id and emp.employee_id in alloc_map:
             for pid in alloc_map[emp.employee_id]:
-                proj_name = next((p.name for p in projects if p.project_id == pid), None)
+                proj_name = project_id_to_name.get(pid)
                 if proj_name:
                     assigned_projects.add(proj_name)
 
-        # Match 2-5: Direct field assignments in Project records
-        for proj in projects:
-            # Match 2: Team Lead by ID
-            if emp.employee_id and proj.employee_id == emp.employee_id:
-                assigned_projects.add(proj.name)
-                continue
+        if emp.employee_id and emp.employee_id in team_lead_projects:
+            assigned_projects.update(team_lead_projects[emp.employee_id])
 
-            # Match 3: Assigned Employee by ID
-            if emp.employee_id and proj.assigned_to_id == emp.employee_id:
-                assigned_projects.add(proj.name)
-                continue
+        if emp.employee_id and emp.employee_id in assigned_id_projects:
+            assigned_projects.update(assigned_id_projects[emp.employee_id])
 
-            # Match 4: Project Manager by name (exact match)
-            if emp.name and proj.project_manager == emp.name:
-                assigned_projects.add(proj.name)
-                continue
-
-            # Match 5: Assigned Employee by name (exact match in comma-separated list)
-            if emp.name and proj.assigned_to_name:
-                names = [n.strip() for n in proj.assigned_to_name.split(",") if n.strip()]
-                if emp.name in names:
-                    assigned_projects.add(proj.name)
+        if emp.name:
+            emp_name_clean = emp.name.strip()
+            if emp_name_clean in pm_projects:
+                assigned_projects.update(pm_projects[emp_name_clean])
+            if emp_name_clean in assigned_name_projects:
+                assigned_projects.update(assigned_name_projects[emp_name_clean])
 
         sorted_proj_names = sorted(list(assigned_projects))
         emp.project_name = ", ".join(sorted_proj_names) if sorted_proj_names else "not assigned"
@@ -98,31 +108,51 @@ def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
     if not emp:
         return None
 
-    # Fetch all project fields needed for assignment mapping
-    projects = db.query(
-        Project.project_id,
-        Project.name,
-        Project.project_manager,
-        Project.employee_id,
-        Project.assigned_to_id,
-        Project.assigned_to_name
-    ).all()
-
     # Fetch allocations for this employee
     alloc_project_ids = set()
     if emp.employee_id:
         allocs = db.query(EmployeeProjectMap.project_id).filter(EmployeeProjectMap.employee_id == emp.employee_id).all()
         alloc_project_ids = {a.project_id for a in allocs}
 
+    # Query only candidate projects linked to this employee (broad query to prevent SQL logic drift due to CSV spacing inconsistencies)
+    project_filters = [
+        Project.employee_id == emp.employee_id,
+        Project.assigned_to_id == emp.employee_id
+    ]
+    if alloc_project_ids:
+        project_filters.append(Project.project_id.in_(list(alloc_project_ids)))
+    if emp.name:
+        project_filters.extend([
+            Project.project_manager.ilike(func.trim(emp.name)),
+            Project.assigned_to_name.ilike(f"%{emp.name}%")
+        ])
+
+    projects_query = db.query(
+        Project.project_id,
+        Project.name,
+        Project.project_manager,
+        Project.employee_id,
+        Project.assigned_to_id,
+        Project.assigned_to_name
+    )
+
+    if emp.employee_id or emp.name:
+        projects = projects_query.filter(or_(*project_filters)).all()
+    else:
+        projects = []
+
+    # Map projects to prevent sequential scans on the returned list
+    project_id_to_name = {p.project_id: p.name for p in projects if p.project_id}
+
     assigned_projects = set()
 
     # Match 1: Junction allocations (EmployeeProjectMap)
     for pid in alloc_project_ids:
-        proj_name = next((p.name for p in projects if p.project_id == pid), None)
+        proj_name = project_id_to_name.get(pid)
         if proj_name:
             assigned_projects.add(proj_name)
 
-    # Match 2-5: Direct field assignments in Project records
+    # Match 2-5: Direct field assignments in Project records (Exact Python matching preserved for correctness)
     for proj in projects:
         # Match 2: Team Lead by ID
         if emp.employee_id and proj.employee_id == emp.employee_id:
@@ -134,12 +164,12 @@ def get_employee(db: Session, employee_id: int) -> Optional[Employee]:
             assigned_projects.add(proj.name)
             continue
 
-        # Match 4: Project Manager by name (exact match)
+        # Match 4: Project Manager by name (exact case-sensitive match preserved)
         if emp.name and proj.project_manager == emp.name:
             assigned_projects.add(proj.name)
             continue
 
-        # Match 5: Assigned Employee by name (exact match in comma-separated list)
+        # Match 5: Assigned Employee by name (exact CSV comparison logic run on retrieved candidates)
         if emp.name and proj.assigned_to_name:
             names = [n.strip() for n in proj.assigned_to_name.split(",") if n.strip()]
             if emp.name in names:
@@ -159,16 +189,25 @@ def get_employee_by_employee_id(db: Session, employee_id: str) -> Optional[Emplo
 
 from app.utils.validators import validate_custom_fields
 
-def create_employee(db: Session, employee: EmployeeCreate) -> Employee:
+def create_employee(
+    db: Session, 
+    employee: EmployeeCreate, 
+    custom_columns: List = None,
+    existing_emp_ids: set = None
+) -> Employee:
     """Create a new employee and synchronized application access"""
-    # Check if employee_id already exists
+    # Check if employee_id already exists using memory cache lookup if provided
     if employee.employee_id:
-        existing = get_employee_by_employee_id(db, employee.employee_id)
-        if existing:
-            raise ValueError(f"Employee with ID {employee.employee_id} already exists")
+        if existing_emp_ids is not None:
+            if employee.employee_id in existing_emp_ids:
+                raise ValueError(f"Employee with ID {employee.employee_id} already exists")
+        else:
+            existing = get_employee_by_employee_id(db, employee.employee_id)
+            if existing:
+                raise ValueError(f"Employee with ID {employee.employee_id} already exists")
             
-    # Validate custom fields
-    validation_errors = validate_custom_fields(db, 'employee', employee.custom_fields)
+    # Validate custom fields using cached schema
+    validation_errors = validate_custom_fields(db, 'employee', employee.custom_fields, columns=custom_columns)
     if validation_errors:
         raise ValueError("; ".join(validation_errors))
 

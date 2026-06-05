@@ -75,6 +75,11 @@
   --dropdown-option-hover: #f9fafb;
   --dropdown-selected-bg: #eff6ff;
   --dropdown-selected-text: #1d4ed8;
+
+  /* Scrollbar theme variables */
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
 }
 
 [data-theme='dark'] {
@@ -128,6 +133,11 @@
   --dropdown-option-hover: #1e293b;
   --dropdown-selected-bg: rgba(30, 58, 138, 0.3);
   --dropdown-selected-text: #60a5fa;
+
+  /* Scrollbar theme variables */
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme='dark'] body {
@@ -149,17 +159,17 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--scrollbar-track);
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-thumb);
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--scrollbar-thumb-hover);
   }
 }
 
