@@ -53,14 +53,14 @@ from app.models.mom_sync_history import MomSyncHistory # noqa: F401
 from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.notification import Notification # noqa: F401
- # noqa: F401
+from app.models.project_milestone import ProjectMilestone, ProjectMilestoneColumn, ProjectDependency, ProjectBaseline, ProjectTaskFollowup, ProjectRelease # noqa: F401
 
 # Import routers
 from app.api.auth import router as auth_router
 from app.api.employees import router as employee_router
 from app.api.employees import router as employee_router
 from app.api import project as project_router
-
+from app.api.project_milestone import router as project_milestone_router
 from app.api.datasets import router as datasets_router
 from app.api.email import router as email_router  # Added email router
 from app.api import budget as budget_router
@@ -218,6 +218,7 @@ app.add_middleware(RequestTimeLoggingMiddleware)
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(employee_router, prefix=API_PREFIX)
 app.include_router(project_router.router, prefix=API_PREFIX)
+app.include_router(project_milestone_router, prefix=API_PREFIX)
 
 app.include_router(datasets_router, prefix=API_PREFIX)
 app.include_router(email_router, prefix=f"{API_PREFIX}/email", tags=["Email"]) # Added email route
