@@ -4,11 +4,13 @@ import {
   ZoomIn, ZoomOut, AlertTriangle, Calendar, Users, 
   CheckCircle, RefreshCw, Save, FolderPlus, Layers,
   ChevronUp, User, LayoutGrid, CheckSquare, Square, Eye, Sparkles, X,
-  Settings
+  Settings, Columns, Table, BarChart3
 } from 'lucide-react';
 import API from '../../utils/api';
 import { getEmployees } from '../../utils/employeeApi';
 import { toast } from 'react-hot-toast';
+import ReactECharts from 'echarts-for-react';
+import * as echarts from 'echarts';
 
 const recalculateParentIds = (tasksList) => {
   const stack = [];
@@ -350,6 +352,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [logPercent, setLogPercent] = useState(0);
   const [logNotes, setLogNotes] = useState('');
 
+  // Floating Gantt Tooltip States
+  const [hoveredTask, setHoveredTask] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
   useEffect(() => {
     if (selectedTaskId !== null) {
       const task = tasks.find(t => t.id === selectedTaskId);
@@ -361,9 +367,11 @@ const MilestoneManagement = ({ project, showNotification }) => {
     }
   }, [selectedTaskId, tasks]);
 
+
   // Baseline management
   const [baselineVersion, setBaselineVersion] = useState('Baseline_V1');
   const [showBaselineOverlay, setShowBaselineOverlay] = useState(true);
+  const [showMetricsDashboard, setShowMetricsDashboard] = useState(false);
 
   // Settings Modal States
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -392,9 +400,23 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [tempGanttShowAssignee, setTempGanttShowAssignee] = useState(true);
   const [tempShowDataType, setTempShowDataType] = useState('Planned');
   const [tempSetBaselineChecked, setTempSetBaselineChecked] = useState(false);
+  const [tempShowBaselineOverlay, setTempShowBaselineOverlay] = useState(true);
+  const [tempBaselineVersion, setTempBaselineVersion] = useState('Baseline_V1');
 
   // Row height matching dense MS Project layout
-  const rowHeight = 38;
+  const rowHeight = 56;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (showDataGrid && gridRef.current && gridRef.current.scrollTop !== scrollTop) {
+        gridRef.current.scrollTop = scrollTop;
+      }
+      if (showGantt && ganttRef.current && ganttRef.current.scrollTop !== scrollTop) {
+        ganttRef.current.scrollTop = scrollTop;
+      }
+    }, 40);
+    return () => clearTimeout(timer);
+  }, [showDataGrid, showGantt]);
 
   useEffect(() => {
     fetchInitialData();
@@ -431,6 +453,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
     setTempGanttShowAssignee(ganttShowAssignee);
     setTempShowDataType(showDataType);
     setTempSetBaselineChecked(false);
+    setTempShowBaselineOverlay(showBaselineOverlay);
+    setTempBaselineVersion(baselineVersion);
     setShowSettingsModal(true);
   };
 
@@ -446,6 +470,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
     setGanttShowPercent(tempGanttShowPercent);
     setGanttShowAssignee(tempGanttShowAssignee);
     setShowDataType(tempShowDataType);
+    setShowBaselineOverlay(tempShowBaselineOverlay);
+    setBaselineVersion(tempBaselineVersion);
     setShowSettingsModal(false);
 
     if (tempSetBaselineChecked) {
@@ -1167,17 +1193,17 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
     const name = phaseName.toLowerCase();
     if (name.includes('contracts') || name.includes('proposal')) {
-      return { border: 'border-[#00bcd4]', text: 'text-[#00bcd4]', fill: '#00bcd4', light: 'bg-[#00bcd4]/10' };
+      return { border: 'border-[#0ea5e9]', text: 'text-[#0ea5e9]', fill: '#0ea5e9', light: 'bg-[#0ea5e9]/10' };
     } else if (name.includes('design') || name.includes('engineering')) {
-      return { border: 'border-[#4caf50]', text: 'text-[#4caf50]', fill: '#4caf50', light: 'bg-[#4caf50]/10' };
+      return { border: 'border-[#3b82f6]', text: 'text-[#3b82f6]', fill: '#3b82f6', light: 'bg-[#3b82f6]/10' };
     } else if (name.includes('procurement')) {
-      return { border: 'border-[#9e9e9e]', text: 'text-[var(--text-primary)]', fill: '#9e9e9e', light: 'bg-slate-700/20' };
+      return { border: 'border-[#8b5cf6]', text: 'text-[#8b5cf6]', fill: '#8b5cf6', light: 'bg-[#8b5cf6]/10' };
     } else if (name.includes('construction') || name.includes('manufacturing')) {
-      return { border: 'border-[#ff9800]', text: 'text-[#ff9800]', fill: '#ff9800', light: 'bg-[#ff9800]/10' };
-    } else if (name.includes('closing') || name.includes('post')) {
-      return { border: 'border-[#8bc34a]', text: 'text-[#8bc34a]', fill: '#8bc34a', light: 'bg-[#8bc34a]/10' };
+      return { border: 'border-[#f97316]', text: 'text-[#f97316]', fill: '#f97316', light: 'bg-[#f97316]/10' };
+    } else if (name.includes('closing') || name.includes('post') || name.includes('handover')) {
+      return { border: 'border-[#10b981]', text: 'text-[#10b981]', fill: '#10b981', light: 'bg-[#10b981]/10' };
     }
-    return { border: 'border-[#03a9f4]', text: 'text-[#03a9f4]', fill: '#03a9f4', light: 'bg-[#03a9f4]/10' };
+    return { border: 'border-[#14b8a6]', text: 'text-[#14b8a6]', fill: '#14b8a6', light: 'bg-[#14b8a6]/10' };
   };
 
   const resourceOverallocations = useMemo(() => {
@@ -1289,6 +1315,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
         varianceDays = Math.ceil((new Date(t.actual_start) - plannedStart) / 86400000);
       }
 
+      const isOverdue = showOverdueTaskShading && (t.status === 'Delayed' || varianceDays > 0);
+
       return {
         id: t.id,
         plannedLeft,
@@ -1312,10 +1340,16 @@ const MilestoneManagement = ({ project, showNotification }) => {
         pinType: t.custom_values?.pin_type || '',
         status: t.status,
         varianceDays,
-        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        isOverdue,
+        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        plannedStartStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        plannedEndStr: plannedEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        actualStartStr: t.actual_start ? new Date(t.actual_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not Started',
+        actualEndStr: t.actual_end ? new Date(t.actual_end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : (t.actual_start ? 'In Progress' : 'N/A'),
+        duration: Math.ceil((plannedEnd - plannedStart) / 86400000) || 1
       };
     });
-  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks]);
+  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks, showOverdueTaskShading]);
 
   // SVG Connector Lines
   const dependencyLines = useMemo(() => {
@@ -1324,6 +1358,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
     ganttBars.forEach((b, idx) => {
       if (b) barsMap[b.id] = { bar: b, index: idx };
     });
+
+    const isActualMode = showDataType === 'Actual';
 
     dependencies.forEach((d, depIdx) => {
       const predObj = barsMap[d.predecessor_task_id];
@@ -1342,36 +1378,54 @@ const MilestoneManagement = ({ project, showNotification }) => {
         return;
       }
 
-      const y1 = predIdx * rowHeight + rowHeight / 2;
-      const y2 = succIdx * rowHeight + rowHeight / 2;
+      // Skip dependency line in actual mode if either bar doesn't have an actual start date
+      if (isActualMode && (pred.actualLeft === null || succ.actualLeft === null)) {
+        return;
+      }
 
-      let x1 = pred.plannedLeft + pred.plannedWidth;
-      let x2 = succ.plannedLeft;
+      // Vertical center offset of active bar is 24px (top 20px + 4px half-height)
+      const yOffset = 24;
+      const y1 = predIdx * rowHeight + yOffset;
+      const y2 = succIdx * rowHeight + yOffset;
+
+      // Adjust terminal points by 5px so arrowheads touch the borders instead of clipping
+      let x1 = isActualMode ? pred.actualLeft + pred.actualWidth : pred.plannedLeft + pred.plannedWidth;
+      let x2 = (isActualMode ? succ.actualLeft : succ.plannedLeft) - 5;
 
       if (d.type === 'SS') {
-        x1 = pred.plannedLeft;
-        x2 = succ.plannedLeft;
+        x1 = isActualMode ? pred.actualLeft : pred.plannedLeft;
+        x2 = (isActualMode ? succ.actualLeft : succ.plannedLeft) - 5;
       } else if (d.type === 'FF') {
-        x1 = pred.plannedLeft + pred.plannedWidth;
-        x2 = succ.plannedLeft + succ.plannedWidth;
+        x1 = isActualMode ? pred.actualLeft + pred.actualWidth : pred.plannedLeft + pred.plannedWidth;
+        x2 = (isActualMode ? succ.actualLeft + succ.actualWidth : succ.plannedLeft + succ.plannedWidth) + 5;
       } else if (d.type === 'SF') {
-        x1 = pred.plannedLeft;
-        x2 = succ.plannedLeft + succ.plannedWidth;
+        x1 = isActualMode ? pred.actualLeft : pred.plannedLeft;
+        x2 = (isActualMode ? succ.actualLeft + succ.actualWidth : succ.plannedLeft + succ.plannedWidth) + 5;
       }
 
       const isCriticalLink = pred.isCritical && succ.isCritical;
-      const color = isCriticalLink ? '#ef4444' : 'var(--border-strong)';
+      const color = isCriticalLink ? '#ef4444' : '#94a3b8';
 
       let path = '';
+      const midwayY = y1 + (y2 - y1) / 2;
+      const dx = x2 - x1;
+
       if (d.type === 'FS') {
-        if (x2 >= x1 + 12) {
-          path = `M ${x1} ${y1} L ${x1 + 6} ${y1} L ${x1 + 6} ${y2} L ${x2} ${y2}`;
+        if (dx >= 12) {
+          path = `M ${x1} ${y1} H ${x1 + 8} V ${y2} H ${x2}`;
         } else {
-          const midwayY = y1 + (y2 - y1) / 2;
-          path = `M ${x1} ${y1} L ${x1 + 6} ${y1} L ${x1 + 6} ${midwayY} L ${x2 - 6} ${midwayY} L ${x2 - 6} ${y2} L ${x2} ${y2}`;
+          path = `M ${x1} ${y1} H ${x1 + 8} V ${midwayY} H ${x2 - 8} V ${y2} H ${x2}`;
         }
+      } else if (d.type === 'SS') {
+        const minX = Math.min(x1, x2) - 8;
+        path = `M ${x1} ${y1} H ${minX} V ${y2} H ${x2}`;
+      } else if (d.type === 'FF') {
+        const maxX = Math.max(x1, x2) + 8;
+        path = `M ${x1} ${y1} H ${maxX} V ${y2} H ${x2}`;
+      } else if (d.type === 'SF') {
+        path = `M ${x1} ${y1} H ${x1 - 8} V ${midwayY} H ${x2 + 8} V ${y2} H ${x2}`;
       } else {
-        path = `M ${x1} ${y1} L ${Math.min(x1, x2) - 8} ${y1} L ${Math.min(x1, x2) - 8} ${y2} L ${x2} ${y2}`;
+        path = `M ${x1} ${y1} L ${x2} ${y2}`;
       }
 
       lines.push({
@@ -1383,13 +1437,144 @@ const MilestoneManagement = ({ project, showNotification }) => {
     });
 
     return lines;
-  }, [ganttBars, dependencies, visibleIndices]);
+  }, [ganttBars, dependencies, visibleIndices, rowHeight, showDataType]);
+
+  const getSCurveOption = () => {
+    const validTasks = tasks.filter(t => t.start_date && t.end_date);
+    if (validTasks.length === 0) {
+      return {
+        title: { text: 'No date data available', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } }
+      };
+    }
+
+    const startDates = validTasks.map(t => new Date(t.start_date));
+    const endDates = validTasks.map(t => new Date(t.end_date));
+    const minDate = new Date(Math.min(...startDates));
+    const maxDate = new Date(Math.max(...endDates));
+    
+    const intervals = 8;
+    const xAxisData = [];
+    const plannedData = [];
+    const actualData = [];
+
+    for (let i = 0; i <= intervals; i++) {
+      const checkDate = new Date(minDate.getTime() + (maxDate - minDate) * (i / intervals));
+      const dateStr = `${checkDate.getDate()}/${checkDate.getMonth() + 1}`;
+      xAxisData.push(dateStr);
+
+      let totalWeight = 0;
+      let cumulativePlannedProgress = 0;
+      let cumulativeActualProgress = 0;
+
+      validTasks.forEach(t => {
+        const duration = Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / 86400000) || 1;
+        const weight = duration;
+        totalWeight += weight;
+
+        const pStart = new Date(t.start_date);
+        const pEnd = new Date(t.end_date);
+        let plannedPct = 0;
+        if (checkDate >= pEnd) {
+          plannedPct = 100;
+        } else if (checkDate >= pStart) {
+          plannedPct = (checkDate - pStart) / (pEnd - pStart) * 100;
+        }
+        cumulativePlannedProgress += (plannedPct * weight);
+
+        let actualPct = 0;
+        if (t.status === 'Completed' && t.actual_end && new Date(t.actual_end) <= checkDate) {
+          actualPct = 100;
+        } else {
+          const history = t.custom_values?.progress_history || [];
+          const pastEntries = history.filter(h => h.date && new Date(h.date) <= checkDate);
+          if (pastEntries.length > 0) {
+            pastEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+            actualPct = pastEntries[0].complete_percent || 0;
+          } else if (t.actual_start && new Date(t.actual_start) <= checkDate) {
+            actualPct = 10;
+          }
+        }
+        cumulativeActualProgress += (actualPct * weight);
+      });
+
+      plannedData.push(Math.round((cumulativePlannedProgress / (totalWeight || 1)) * 10) / 10);
+      actualData.push(Math.round((cumulativeActualProgress / (totalWeight || 1)) * 10) / 10);
+    }
+
+    return {
+      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
+      legend: { data: ['Planned (S-Curve)', 'Actual Progress'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '15%' },
+      xAxis: { type: 'category', data: xAxisData, axisLine: { lineStyle: { color: '#334155' } }, axisLabel: { color: '#94a3b8', fontSize: 8 } },
+      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%', color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [
+        { 
+          name: 'Planned (S-Curve)', 
+          type: 'line', 
+          data: plannedData, 
+          smooth: true, 
+          lineStyle: { width: 2, color: '#3b82f6' }, 
+          itemStyle: { color: '#3b82f6' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(59, 130, 246, 0.15)' },
+              { offset: 1, color: 'rgba(59, 130, 246, 0)' }
+            ])
+          }
+        },
+        { name: 'Actual Progress', type: 'line', data: actualData, smooth: true, lineStyle: { width: 2, color: '#10b981' }, itemStyle: { color: '#10b981' } }
+      ]
+    };
+  };
+
+  const getResourceWorkloadOption = () => {
+    const resourceCounts = {};
+    const completedCounts = {};
+    
+    tasks.forEach(t => {
+      if (t.assigned_to && t.assigned_to.length > 0) {
+        t.assigned_to.forEach(uid => {
+          const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
+          const name = emp ? emp.employee_name : uid;
+          
+          resourceCounts[name] = (resourceCounts[name] || 0) + 1;
+          if (t.status === 'Completed') {
+            completedCounts[name] = (completedCounts[name] || 0) + 1;
+          } else {
+            completedCounts[name] = completedCounts[name] || 0;
+          }
+        });
+      }
+    });
+
+    const names = Object.keys(resourceCounts);
+    if (names.length === 0) {
+      return {
+        title: { text: 'No resource assignments', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } }
+      };
+    }
+
+    const totalTasks = names.map(n => resourceCounts[n]);
+    const completedTasks = names.map(n => completedCounts[n]);
+
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
+      legend: { data: ['Total Assigned', 'Completed'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '15%' },
+      xAxis: { type: 'category', data: names, axisLine: { lineStyle: { color: '#334155' } }, axisLabel: { color: '#94a3b8', fontSize: 8, rotate: 20 } },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [
+        { name: 'Total Assigned', type: 'bar', data: totalTasks, itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] }, barWidth: '40%' },
+        { name: 'Completed', type: 'bar', data: completedTasks, itemStyle: { color: '#10b981', borderRadius: [4, 4, 0, 0] }, barWidth: '40%', barGap: '10%' }
+      ]
+    };
+  };
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg)] text-[var(--text-primary)] select-none font-sans antialiased text-xs transition-colors duration-200">
       
       {/* PROFESSIONAL SCHEDULING CONTROL PANEL */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-[var(--surface)] border-b border-[var(--border-subtle)] shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-[var(--surface)] border-b border-[var(--border-subtle)] shrink-0 sticky top-0 z-30">
         <div className="flex flex-wrap items-center gap-2.5">
           
           {/* Row actions */}
@@ -1466,10 +1651,22 @@ const MilestoneManagement = ({ project, showNotification }) => {
         <div className="flex items-center gap-3">
           <button
             onClick={openSettingsModal}
-            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg font-bold transition-all flex items-center gap-1"
+            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg font-bold transition-all"
             title="Gantt Settings"
           >
             <Settings size={13} /> Settings
+          </button>
+
+          <button
+            onClick={() => setShowMetricsDashboard(prev => !prev)}
+            className={`flex items-center gap-1 px-3 py-1.5 border border-[var(--border-subtle)] rounded-lg font-bold transition-all ${
+              showMetricsDashboard 
+                ? 'bg-indigo-600/15 border-indigo-500 text-indigo-400 shadow' 
+                : 'bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)]'
+            }`}
+            title="Toggle Schedule Analytics"
+          >
+            <Sparkles size={13} /> Analytics
           </button>
 
           <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg font-bold">
@@ -1482,6 +1679,37 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 {lvl}
               </button>
             ))}
+          </div>
+
+          <span className="h-4 w-[1px] bg-[var(--border-subtle)]" />
+
+          {/* Layout Mode Control */}
+          <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg font-bold text-xs" title="Select layout view">
+            {[
+              { id: 'split', label: 'Split View', icon: <Columns size={13} />, grid: true, gantt: true },
+              { id: 'table', label: 'Max Table', icon: <Table size={13} />, grid: true, gantt: false },
+              { id: 'chart', label: 'Max Chart', icon: <BarChart3 size={13} />, grid: false, gantt: true }
+            ].map(mode => {
+              const active = (mode.grid === showDataGrid && mode.gantt === showGantt);
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => {
+                    setShowDataGrid(mode.grid);
+                    setShowGantt(mode.gantt);
+                    setHoveredTask(null);
+                  }}
+                  className={`px-3 py-1 rounded transition-all flex items-center gap-1.5 ${
+                    active 
+                      ? 'bg-indigo-600 text-white shadow' 
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  {mode.icon}
+                  <span>{mode.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <span className="h-4 w-[1px] bg-[var(--border-subtle)]" />
@@ -1504,7 +1732,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
       </div>
 
       {/* FILTER & BASELINE DOCK */}
-      <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)]">
+      <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] sticky top-[52px] z-[25]">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span>Department:</span>
@@ -1560,413 +1788,556 @@ const MilestoneManagement = ({ project, showNotification }) => {
         </div>
       </div>
 
+      {/* COLLAPSIBLE ECHARTS SUMMARY DASHBOARD */}
+      {showMetricsDashboard && (
+        <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] p-4 flex flex-col gap-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 uppercase tracking-wider">
+              <Sparkles size={13} className="text-indigo-500" /> Project Schedule Analytics
+            </h3>
+            <button 
+              onClick={() => setShowMetricsDashboard(false)}
+              className="text-[10px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] uppercase bg-[var(--bg)] border border-[var(--border-subtle)] px-2 py-0.5 rounded transition-all"
+            >
+              Hide Dashboard
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Chart 1: S-Curve */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-60 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Schedule S-Curve (Planned vs Actual Completion)</span>
+              <div className="flex-1 min-h-0">
+                <ReactECharts option={getSCurveOption()} style={{ height: '100%', width: '100%' }} />
+              </div>
+            </div>
+
+            {/* Chart 2: Resource Workload */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-60 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Resource Workload (Total Assigned vs Completed Tasks)</span>
+              <div className="flex-1 min-h-0">
+                <ReactECharts option={getResourceWorkloadOption()} style={{ height: '100%', width: '100%' }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DENSE GRID & GANTT SPLIT WRAPPER */}
       <div className="flex-1 min-h-0 flex relative bg-[var(--bg)] text-[var(--text-primary)]">
         
         {/* SPREADSHEET TABLE GRID */}
         {showDataGrid && (
           <div 
-            ref={gridRef}
             style={{ width: showGantt ? tableWidth : '100%' }}
-            className={`h-full overflow-x-auto shrink-0 border-r border-[var(--border-subtle)] relative custom-scrollbar text-[12px] ${showGantt ? 'overflow-y-hidden' : 'overflow-y-auto'}`}
-            onScroll={handleScroll}
+            className="h-full shrink-0 border-r border-slate-200 dark:border-slate-800 relative master-table-container dark:bg-slate-900 flex flex-col overflow-hidden"
           >
-            <table 
-              style={{ width: '100%', minWidth: `${1620 + customColumns.length * 128}px` }}
-              className="text-left border-collapse table-fixed select-text"
-            >
-              <thead className="bg-[var(--surface)] text-[var(--text-secondary)] border-b border-[var(--border-subtle)] sticky top-0 z-20">
-                <tr className="h-10 text-[10px] tracking-wider uppercase font-semibold text-[var(--text-muted)]">
-                  <th className="w-10 px-2 text-center border-r border-[var(--border-subtle)]">All</th>
-                  <th className="w-12 px-2 text-center border-r border-[var(--border-subtle)]">Info</th>
-                  <th className="w-16 px-2 border-r border-[var(--border-subtle)]">Pin</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Department</th>
-                  <th className="w-64 px-3 border-r border-[var(--border-subtle)]">Activity Name</th>
-                  <th className="w-24 px-2 border-r border-[var(--border-subtle)] text-center">Sub Activity</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Start Date</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)]">End Date</th>
-                  <th className="w-20 px-2 border-r border-[var(--border-subtle)] text-center">Duration</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Actual Start</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Actual End</th>
-                  <th className="w-24 px-2 border-r border-[var(--border-subtle)] text-center">Variance</th>
-                  <th className="w-14 px-2 border-r border-[var(--border-subtle)] text-center">% Comp</th>
-                  <th className="w-36 px-2 border-r border-[var(--border-subtle)]">Assigned To</th>
-                  <th className="w-24 px-2 border-r border-[var(--border-subtle)]">Status</th>
-                  <th className="w-32 px-2 border-r border-[var(--border-subtle)]">Predecessors</th>
-                  
-                  {customColumns.map(col => (
-                    <th key={col.id} className="w-32 px-2 border-r border-[var(--border-subtle)] relative group">
-                      <span className="truncate pr-4 block">{col.column_label}</span>
-                      <button
-                        onClick={() => handleDeleteCustomColumn(col.id)}
-                        className="absolute right-1 top-2.5 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </th>
-                  ))}
-                  
-                  <th className="w-28 px-2">Follow-up</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ height: visibleIndices.start * rowHeight }} />
-
-                {filteredTasks.slice(visibleIndices.start, visibleIndices.end).map((task, visibleIndex) => {
-                  const isSelected = selectedTaskId === task.id;
-                  const indentPadding = task.indent_level * 16;
-                  const taskIdx = task.originalIndex;
-                  const phase = getPhaseColors(taskIdx);
-                  const isParent = task.item_type === 'Phase' || tasks.some(t => t.parent_id === task.id);
-
-                  // Format Duration display
-                  let durationDays = '0 days';
-                  if (task.start_date && task.end_date) {
-                    const days = Math.ceil((new Date(task.end_date) - new Date(task.start_date)) / 86400000);
-                    durationDays = days === 0 ? '0 days' : `${days} day${days > 1 ? 's' : ''}`;
-                  }
-
-                  // Format date string to display
-                  const formatDate = (dateStr) => {
-                    if (!dateStr) return '';
-                    const d = new Date(dateStr);
-                    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
-                  };
-
-                  // Format schedule variance / delay display
-                  let varianceText = 'On Track';
-                  let varianceColor = 'text-slate-400';
-                  const plannedEnd = task.end_date ? new Date(task.end_date) : null;
-                  const actualEnd = task.actual_end ? new Date(task.actual_end) : null;
-                  const curDate = new Date();
-                  
-                  if (task.status === 'Completed' && actualEnd && plannedEnd) {
-                    const v = Math.ceil((actualEnd - plannedEnd) / 86400000);
-                    if (v > 0) {
-                      varianceText = `+${v}d Delay`;
-                      varianceColor = 'text-rose-500 font-bold';
-                    } else if (v < 0) {
-                      varianceText = `${v}d Advance`;
-                      varianceColor = 'text-emerald-500 font-bold';
-                    }
-                  } else if ((task.status === 'Delayed' || (curDate > plannedEnd && task.complete_percent < 100)) && plannedEnd) {
-                    const v = Math.ceil((curDate - plannedEnd) / 86400000);
-                    varianceText = `+${v}d Delay`;
-                    varianceColor = 'text-rose-500 font-bold';
-                  } else if (task.actual_start && task.start_date) {
-                    const v = Math.ceil((new Date(task.actual_start) - new Date(task.start_date)) / 86400000);
-                    if (v > 0) {
-                      varianceText = `+${v}d Start Delay`;
-                      varianceColor = 'text-rose-500 font-bold';
-                    } else if (v < 0) {
-                      varianceText = `${v}d Early Start`;
-                      varianceColor = 'text-emerald-500 font-bold';
-                    }
-                  }
-
-                  return (
-                    <tr 
-                      key={task.id}
-                      onClick={() => setSelectedTaskId(task.id)}
-                      style={{ height: rowHeight }}
-                      className={`border-b border-[var(--border-subtle)]/30 hover:bg-[var(--table-hover)] transition-colors ${
-                        isSelected ? 'bg-[var(--active-menu)]/15 border-[var(--border-subtle)]' : ''
-                      } ${task.is_critical ? 'bg-rose-500/5' : ''} ${
-                        isParent ? 'bg-slate-50/60 dark:bg-slate-900/40' : ''
-                      }`}
-                    >
-                      {/* Index */}
-                      <td className="px-2 text-center border-r border-[var(--border-subtle)] font-mono text-[10px] text-[var(--text-muted)] font-bold select-none">{taskIdx + 1}</td>
-                      
-                      {/* Info Column */}
-                      <td className="px-2 text-center border-r border-[var(--border-subtle)] select-none">
-                        <div className="flex items-center justify-center gap-1">
-                          {task.is_critical && (
-                            <span className="size-2 rounded-full bg-rose-500" title="Critical Path Activity" />
-                          )}
-                          {task.item_type === 'Approval Gate' && (
-                            <span className="size-2 rotate-45 bg-yellow-500 border border-yellow-600 block" title="Approval / Stage Gate" />
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Pin Column */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] text-center select-none">
-                        <select
-                          value={task.custom_values?.pin_type || ''}
-                          onChange={e => handleCellChange(task.id, 'custom:pin_type', e.target.value)}
-                          className="w-full bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] font-medium"
-                        >
-                          <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">--</option>
-                          <option value="star" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">⭐ Star</option>
-                          <option value="flag" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">🚩 Flag</option>
-                          <option value="arrow" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">➡️ Arrow</option>
-                        </select>
-                      </td>
-
-                      {/* Department */}
-                      <td className="px-2 border-r border-[var(--border-subtle)]">
-                        <input
-                          type="text"
-                          list="departments-list"
-                          value={task.department || ''}
-                          onChange={e => handleCellChange(task.id, 'department', e.target.value)}
-                          className="w-full bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] font-medium"
-                        />
-                      </td>
-
-                      {/* Activity Name */}
-                      <td 
-                        className="px-3 border-r border-[var(--border-subtle)] relative truncate flex items-center h-full select-none"
-                        style={{ paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
-                      >
-                        {task.indent_level > 0 && (
-                          <div 
-                            className={`absolute left-0 top-0 bottom-0 border-l-2 ${phase.border} opacity-50`} 
-                            style={{ left: `${(task.indent_level) * 16}px` }} 
-                          />
-                        )}
-
-                        <input
-                          type="text"
-                          value={task.activity_name || ''}
-                          onChange={e => handleCellChange(task.id, 'activity_name', e.target.value)}
-                          className={`w-full bg-transparent border-0 outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 py-0.5 ${isParent ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}
-                        />
-                      </td>
-
-                      {/* Sub Activity */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] text-center select-none">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveParentTask(task);
-                          }}
-                          className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/10 hover:bg-indigo-500 text-indigo-400 hover:text-white border border-indigo-500/20 font-bold transition-all"
-                        >
-                          Manage ({tasks.filter(t => t.parent_id === task.id).length})
-                        </button>
-                      </td>
-
-                      {/* Start Date */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] font-mono font-semibold text-[var(--text-muted)]">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)] text-xs">{formatDate(task.start_date)}</span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={task.start_date ? task.start_date.split('T')[0] : ''}
-                            onChange={e => handleCellChange(task.id, 'start_date', e.target.value)}
-                            className="w-full bg-transparent border-0 outline-none text-[11px] text-[var(--text-primary)] font-mono"
-                          />
-                        )}
-                      </td>
-
-                      {/* End Date */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] font-mono font-semibold text-[var(--text-muted)]">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)] text-xs">{formatDate(task.end_date)}</span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={task.end_date ? task.end_date.split('T')[0] : ''}
-                            onChange={e => handleCellChange(task.id, 'end_date', e.target.value)}
-                            className="w-full bg-transparent border-0 outline-none text-[11px] text-[var(--text-primary)] font-mono"
-                          />
-                        )}
-                      </td>
-
-                      {/* Duration (NEW) */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono">
-                        <span className={`text-[11px] ${isParent ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                          {durationDays}
+            <div className="master-table-scroll flex-grow min-h-0 flex flex-col">
+              <div 
+                ref={gridRef}
+                className="master-table-scroll-inner custom-scrollbar flex-grow overflow-x-auto"
+                style={{ overflowY: showGantt ? 'hidden' : 'auto' }}
+                onScroll={handleScroll}
+              >
+                <table 
+                  style={{ width: '100%', minWidth: `${2414 + customColumns.length * 128}px` }}
+                  className="master-table table-fixed select-text"
+                >
+                  <thead className="sticky top-0 z-20">
+                    {/* ── GROUP HEADER ROW ── */}
+                    <tr className="h-7 text-[9px] font-extrabold uppercase tracking-widest bg-slate-200 dark:bg-slate-900 text-slate-500 dark:text-slate-500 border-b border-slate-300/60 dark:border-slate-700/60">
+                      {/* WBS / Identity group */}
+                      <th colSpan={1} className="sticky left-0 top-0 z-30 bg-slate-200 dark:bg-slate-900 border-r border-slate-300/60 dark:border-slate-700/60 w-10" />
+                      <th colSpan={4} className="sticky left-10 top-0 z-30 bg-slate-200 dark:bg-slate-900 border-r-2 border-indigo-400/40 dark:border-indigo-500/30 px-3 text-left">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />
+                          WBS / Activity
                         </span>
-                      </td>
-
-                      {/* Actual Start */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] font-mono font-semibold text-[var(--text-muted)]">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)] text-xs">{formatDate(task.actual_start)}</span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={task.actual_start ? task.actual_start.split('T')[0] : ''}
-                            onChange={e => handleCellChange(task.id, 'actual_start', e.target.value)}
-                            className="w-full bg-transparent border-0 outline-none text-[11px] text-[var(--text-primary)] font-mono"
-                          />
-                        )}
-                      </td>
-
-                      {/* Actual End */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] font-mono font-semibold text-[var(--text-muted)]">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)] text-xs">{formatDate(task.actual_end)}</span>
-                        ) : (
-                          <input
-                            type="date"
-                            value={task.actual_end ? task.actual_end.split('T')[0] : ''}
-                            onChange={e => handleCellChange(task.id, 'actual_end', e.target.value)}
-                            className="w-full bg-transparent border-0 outline-none text-[11px] text-[var(--text-primary)] font-mono"
-                          />
-                        )}
-                      </td>
-
-                      {/* Variance (NEW) */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono text-[10px]">
-                        <span className={varianceColor}>
-                          {varianceText}
+                      </th>
+                      {/* Planned Schedule group */}
+                      <th colSpan={3} className="border-r-2 border-blue-400/40 dark:border-blue-500/30 px-3 text-left bg-blue-50/60 dark:bg-blue-950/20">
+                        <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                          Planned Schedule
                         </span>
-                      </td>
-
-                      {/* Complete % */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono text-xs">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)]">{task.complete_percent || 0}%</span>
-                        ) : (
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={task.complete_percent || 0}
-                            readOnly={!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0}
-                            onChange={e => handleCellChange(task.id, 'complete_percent', parseFloat(e.target.value) || 0)}
-                            className={`w-full bg-transparent border-0 outline-none text-center font-semibold ${
-                              (!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0)
-                                ? 'text-slate-400 cursor-not-allowed'
-                                : 'text-[var(--text-primary)]'
-                            }`}
-                            title={(!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0) ? "Calculated from Resource weights/progress" : "Manual Completion %"}
-                          />
-                        )}
-                      </td>
-
-                      {/* Assigned To */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] truncate">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveAssignTask(task);
-                          }}
-                          className="w-full text-left truncate hover:text-indigo-500 font-medium py-1"
-                        >
-                          {task.assigned_to && task.assigned_to.length > 0 ? (
-                            task.assigned_to.map(uid => {
-                              const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
-                              return emp ? emp.employee_name : uid;
-                            }).join(', ')
-                          ) : (
-                            <span className="text-[var(--text-muted)] italic text-[11px]">Unassigned</span>
-                          )}
-                        </button>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-2 border-r border-[var(--border-subtle)]">
-                        {isParent ? (
-                          <span className="font-bold text-[var(--text-primary)] text-[10px] tracking-wide uppercase px-1">{task.status || 'Not Started'}</span>
-                        ) : (
-                          <select
-                            value={task.status || 'Not Started'}
-                            onChange={e => handleCellChange(task.id, 'status', e.target.value)}
-                            className="w-full bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] font-bold"
+                      </th>
+                      {/* Actual Schedule group */}
+                      <th colSpan={3} className="border-r-2 border-emerald-400/40 dark:border-emerald-500/30 px-3 text-left bg-emerald-50/60 dark:bg-emerald-950/20">
+                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                          Actual Schedule
+                        </span>
+                      </th>
+                      {/* Control group */}
+                      <th colSpan={4 + customColumns.length} className="border-r-2 border-amber-400/40 dark:border-amber-500/30 px-3 text-left bg-amber-50/40 dark:bg-amber-950/10">
+                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                          Control & Assignment
+                        </span>
+                      </th>
+                      <th colSpan={1} className="px-3 text-left bg-slate-200 dark:bg-slate-900" />
+                    </tr>
+                    {/* ── COLUMN HEADER ROW ── */}
+                    <tr className="h-9 text-[10px] tracking-widest uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-b-2 border-slate-200/80 dark:border-slate-700">
+                      <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 border-r border-slate-200/80 dark:border-slate-700/80 w-10 px-2 text-center">#</th>
+                      <th className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 border-r-2 border-indigo-300/50 dark:border-indigo-700/40 w-96 px-3 text-left">Activity Name</th>
+                      <th className="w-12 px-2 text-center border-r border-slate-200/80 dark:border-slate-700/60">Info</th>
+                      <th className="w-16 px-2 border-r border-slate-200/80 dark:border-slate-700/60">Pin</th>
+                      <th className="w-36 px-2 border-r-2 border-indigo-300/50 dark:border-indigo-700/40">Dept.</th>
+                      {/* Planned – blue tint */}
+                      <th className="w-32 px-2 border-r border-blue-200/60 dark:border-blue-800/30 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">Start Date</th>
+                      <th className="w-32 px-2 border-r border-blue-200/60 dark:border-blue-800/30 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">End Date</th>
+                      <th className="w-24 px-2 border-r-2 border-blue-300/50 dark:border-blue-700/40 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400 text-center">Duration</th>
+                      {/* Actual – emerald tint */}
+                      <th className="w-32 px-2 border-r border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400">Act. Start</th>
+                      <th className="w-32 px-2 border-r border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400">Act. End</th>
+                      <th className="w-28 px-2 border-r-2 border-emerald-300/50 dark:border-emerald-700/40 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 text-center">Variance</th>
+                      {/* Control – amber tint */}
+                      <th className="w-20 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 text-center">% Done</th>
+                      <th className="w-28 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 text-center">Sub-Acts</th>
+                      <th className="w-48 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Assigned To</th>
+                      <th className="w-28 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Status</th>
+                      <th className="w-40 px-2 border-r-2 border-amber-300/50 dark:border-amber-700/40 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Predecessors</th>
+                      {customColumns.map(col => (
+                        <th key={col.id} className="w-32 px-2 border-r border-slate-200/80 dark:border-slate-700/60 relative group">
+                          <span className="truncate pr-4 block">{col.column_label}</span>
+                          <button
+                            onClick={() => handleDeleteCustomColumn(col.id)}
+                            className="absolute right-1 top-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
-                              <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
+                            <Trash2 size={11} />
+                          </button>
+                        </th>
+                      ))}
+                      <th className="w-32 px-2">Follow-up</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ height: visibleIndices.start * rowHeight }} />
 
-                      {/* Predecessors */}
-                      <td className="px-2 border-r border-[var(--border-subtle)] font-mono text-xs text-[var(--text-muted)]">
-                        <input
-                          type="text"
-                          placeholder="e.g. 1FS+3d"
-                          disabled={isParent}
-                          value={task.dependencies_as_successor ? task.dependencies_as_successor.map(d => {
-                            const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
-                            const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
-                            return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
-                          }).join(', ') : ''}
-                          onChange={e => {
-                            const inputStr = e.target.value;
-                            const parts = inputStr.split(',').map(s => s.trim()).filter(Boolean);
-                            const parsedDeps = [];
-                            parts.forEach(part => {
-                              const match = part.match(/^(\d+)(FS|SS|FF|SF)?(?:([\+\-]\d+)d)?$/i);
-                              if (match) {
-                                const predRowIdx = parseInt(match[1]) - 1;
-                                const depType = (match[2] || 'FS').toUpperCase();
-                                const lagVal = match[3] ? parseInt(match[3]) : 0;
-                                
-                                const predTask = filteredTasks[predRowIdx];
-                                if (predTask && predTask.id !== task.id) {
-                                    parsedDeps.push({
-                                      predecessor_task_id: predTask.id,
-                                      successor_task_id: task.id,
-                                      type: depType,
-                                      lag_days: lagVal
-                                    });
-                                }
-                              }
-                            });
-                            setDependencies(prev => {
-                              const filtered = prev.filter(d => d.successor_task_id !== task.id);
-                              return [...filtered, ...parsedDeps];
-                            });
-                          }}
-                          className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)] font-semibold"
-                        />
-                      </td>
+                    {filteredTasks.slice(visibleIndices.start, visibleIndices.end).map((task, visibleIndex) => {
+                      const isSelected = selectedTaskId === task.id;
+                      const indentPadding = task.indent_level * 16;
+                      const taskIdx = task.originalIndex;
+                      const phase = getPhaseColors(taskIdx);
+                      const isParent = task.item_type === 'Phase' || tasks.some(t => t.parent_id === task.id);
+                      const isMilestoneRow = task.item_type === 'Milestone' || task.item_type === 'Approval Gate';
+                      const rowIsEven = (visibleIndices.start + visibleIndex) % 2 === 0;
 
-                      {/* Custom fields */}
-                      {customColumns.map(col => {
-                        const val = task.custom_values?.[col.column_name] || '';
-                        return (
-                          <td key={col.id} className="px-2 border-r border-[var(--border-subtle)]">
-                            {col.data_type === 'select' ? (
-                              <select
-                                value={val}
-                                onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)]"
-                              >
-                                <option value="">--</option>
-                                {col.options?.map(o => (
-                                  <option key={o} value={o} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{o}</option>
-                                ))}
-                              </select>
+                      // Item type badge config
+                      const typeBadge = {
+                        'Phase':        { bg: 'bg-orange-500/15 border-orange-400/40', text: 'text-orange-500 dark:text-orange-400', label: 'Phase' },
+                        'Milestone':    { bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: '◆ MS' },
+                        'Approval Gate':{ bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: '◆ Gate' },
+                        'Task':         { bg: 'bg-indigo-500/10 border-indigo-400/30', text: 'text-indigo-600 dark:text-indigo-400', label: 'Task' },
+                        'Sub Task':     { bg: 'bg-slate-200/80 border-slate-300/40 dark:bg-slate-700/30 dark:border-slate-600/30', text: 'text-slate-500 dark:text-slate-400', label: 'Sub' },
+                      }[task.item_type] || { bg: 'bg-slate-200/60 border-slate-300/30', text: 'text-slate-400', label: task.item_type || 'Task' };
+
+                      // Status badge config
+                      const statusBadge = {
+                        'Completed':   { pill: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30', dot: 'bg-emerald-500' },
+                        'In Progress': { pill: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30', dot: 'bg-blue-500' },
+                        'Delayed':     { pill: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30', dot: 'bg-rose-500' },
+                        'Upcoming':    { pill: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-400 dark:border-indigo-500/30', dot: 'bg-indigo-400' },
+                        'On Hold':     { pill: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30', dot: 'bg-amber-500' },
+                        'Cancelled':   { pill: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700/40 dark:text-slate-400 dark:border-slate-600/30', dot: 'bg-slate-400' },
+                        'Not Started': { pill: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/30 dark:text-slate-400 dark:border-slate-600/30', dot: 'bg-slate-300 dark:bg-slate-600' },
+                      }[task.status] || { pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-300' };
+
+                      // Format Duration display
+                      let durationDays = '—';
+                      if (task.start_date && task.end_date) {
+                        const days = Math.ceil((new Date(task.end_date) - new Date(task.start_date)) / 86400000);
+                        durationDays = days === 0 ? '0d' : `${days}d`;
+                      }
+
+                      // Format date string to display
+                      const formatDate = (dateStr) => {
+                        if (!dateStr) return '';
+                        const d = new Date(dateStr);
+                        return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+                      };
+
+                      // Format schedule variance / delay display
+                      let varianceText = 'On Track';
+                      let varianceColor = 'text-slate-400';
+                      const plannedEnd = task.end_date ? new Date(task.end_date) : null;
+                      const actualEnd = task.actual_end ? new Date(task.actual_end) : null;
+                      const curDate = new Date();
+                      
+                      if (task.status === 'Completed' && actualEnd && plannedEnd) {
+                        const v = Math.ceil((actualEnd - plannedEnd) / 86400000);
+                        if (v > 0) {
+                          varianceText = `+${v}d Delay`;
+                          varianceColor = 'text-rose-500 font-bold';
+                        } else if (v < 0) {
+                          varianceText = `${v}d Advance`;
+                          varianceColor = 'text-emerald-500 font-bold';
+                        }
+                      } else if ((task.status === 'Delayed' || (curDate > plannedEnd && task.complete_percent < 100)) && plannedEnd) {
+                        const v = Math.ceil((curDate - plannedEnd) / 86400000);
+                        varianceText = `+${v}d Delay`;
+                        varianceColor = 'text-rose-500 font-bold';
+                      } else if (task.actual_start && task.start_date) {
+                        const v = Math.ceil((new Date(task.actual_start) - new Date(task.start_date)) / 86400000);
+                        if (v > 0) {
+                          varianceText = `+${v}d Start Delay`;
+                          varianceColor = 'text-rose-500 font-bold';
+                        } else if (v < 0) {
+                          varianceText = `${v}d Early Start`;
+                          varianceColor = 'text-emerald-500 font-bold';
+                        }
+                      }
+
+                      const isOverdue = showOverdueTaskShading && (task.status === 'Delayed' || varianceText.includes('Delay'));
+
+                      // Row background: selected > overdue > critical > parent > even/odd stripe
+                      const rowBg = isSelected
+                        ? 'bg-blue-50/60 dark:bg-blue-900/15'
+                        : isOverdue
+                          ? 'bg-rose-50/60 dark:bg-rose-950/15 border-l-4 border-l-rose-500'
+                          : task.is_critical
+                            ? 'bg-rose-50/30 dark:bg-rose-950/10'
+                            : isParent
+                              ? 'bg-slate-100/80 dark:bg-slate-800/60'
+                              : rowIsEven
+                                ? 'bg-white dark:bg-slate-900'
+                                : 'bg-slate-50/50 dark:bg-slate-800/20';
+
+                      const stickyBg = isSelected 
+                        ? 'bg-blue-50/95 dark:bg-blue-950/60' 
+                        : isParent 
+                          ? 'bg-slate-100 dark:bg-slate-800' 
+                          : isOverdue 
+                            ? 'bg-red-50/95 dark:bg-red-950/20'
+                            : task.is_critical 
+                              ? 'bg-rose-500/10 dark:bg-rose-950/10' 
+                              : rowIsEven ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20';
+
+                      const hasOverAllocation = showOverAllocationMessage && task.assigned_to?.some(uid => 
+                        resourceOverallocations.some(warn => String(warn.employeeId) === String(uid))
+                      );
+
+                      return (
+                        <tr 
+                          key={task.id}
+                          onClick={() => setSelectedTaskId(task.id)}
+                          style={{ height: rowHeight }}
+                          className={`group border-b border-slate-200/60 dark:border-slate-700/50 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors duration-100 cursor-pointer ${rowBg} ${
+                            isSelected ? 'ring-1 ring-inset ring-blue-400/30' : ''
+                          } ${isParent ? 'font-semibold' : ''}`}
+                        >
+                          {/* Index */}
+                          <td className={`sticky left-0 z-10 border-r border-slate-200/80 dark:border-slate-700/60 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
+                          
+                          {/* Activity Name */}
+                          <td 
+                            className={`sticky left-10 z-10 border-r-2 border-indigo-200/40 dark:border-indigo-700/30 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
+                            style={{ paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
+                          >
+                            <div className="w-full h-full flex items-center relative truncate gap-1.5">
+                              {task.indent_level > 0 && (
+                                <div 
+                                  className={`absolute left-0 top-0 bottom-0 border-l-2 ${phase.border} opacity-50`} 
+                                  style={{ left: `${(task.indent_level) * 16}px` }} 
+                                />
+                              )}
+
+                              <input
+                                type="text"
+                                value={task.activity_name || ''}
+                                onChange={e => handleCellChange(task.id, 'activity_name', e.target.value)}
+                                className={`w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}
+                              />
+                            </div>
+                          </td>
+
+                          {/* Info Column */}
+                          <td className="px-2 text-center border-r border-slate-200/80 dark:border-slate-800/80 select-none">
+                            <div className="flex items-center justify-center gap-1">
+                              {task.is_critical && (
+                                <span className="size-2 rounded-full bg-rose-500" title="Critical Path Activity" />
+                              )}
+                              {task.item_type === 'Approval Gate' && (
+                                <span className="size-2 rotate-45 bg-yellow-500 border border-yellow-600 block" title="Approval / Stage Gate" />
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Pin Column */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center select-none">
+                            <select
+                              value={task.custom_values?.pin_type || ''}
+                              onChange={e => handleCellChange(task.id, 'custom:pin_type', e.target.value)}
+                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1 py-0.5 transition-all text-xs text-slate-700 dark:text-slate-200 font-medium"
+                            >
+                              <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">--</option>
+                              <option value="star" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">⭐ Star</option>
+                              <option value="flag" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">🚩 Flag</option>
+                              <option value="arrow" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">➡️ Arrow</option>
+                            </select>
+                          </td>
+
+                          {/* Department */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            <input
+                              type="text"
+                              list="departments-list"
+                              value={task.department || ''}
+                              onChange={e => handleCellChange(task.id, 'department', e.target.value)}
+                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-xs text-slate-700 dark:text-slate-200 font-medium"
+                            />
+                          </td>
+
+                          {/* Sub Activity */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center select-none">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveParentTask(task);
+                              }}
+                              className="px-2 py-1 text-[10px] font-bold bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-md shadow-sm transition-all active:scale-95 flex items-center gap-1 mx-auto"
+                            >
+                              <span>Manage</span>
+                              <span className="bg-white/20 rounded px-1">{tasks.filter(t => t.parent_id === task.id).length}</span>
+                            </button>
+                          </td>
+
+                          {/* Start Date */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            {isParent ? (
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.start_date)}</span>
                             ) : (
                               <input
-                                type={col.data_type === 'number' ? 'number' : col.data_type === 'date' ? 'date' : 'text'}
-                                value={val}
-                                onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)]"
+                                type="date"
+                                value={task.start_date ? task.start_date.split('T')[0] : ''}
+                                onChange={e => handleCellChange(task.id, 'start_date', e.target.value)}
+                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
                               />
                             )}
                           </td>
-                        );
-                      })}
 
-                      {/* Follow-up */}
-                      <td className="px-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openFollowupEditor(task);
-                          }}
-                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-white bg-[var(--surface)] hover:bg-[var(--table-hover)] px-2 py-0.5 rounded border border-[var(--border-subtle)] transition-colors"
-                        >
-                          <Calendar size={11} />
-                          {task.followups && task.followups.length > 0 ? 'Logged' : 'Set'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                          {/* End Date */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            {isParent ? (
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.end_date)}</span>
+                            ) : (
+                              <input
+                                type="date"
+                                value={task.end_date ? task.end_date.split('T')[0] : ''}
+                                onChange={e => handleCellChange(task.id, 'end_date', e.target.value)}
+                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
+                              />
+                            )}
+                          </td>
 
-                <tr style={{ height: (filteredTasks.length - visibleIndices.end) * rowHeight }} />
-              </tbody>
-            </table>
+                          {/* Duration */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-xs text-slate-700 dark:text-slate-200 font-semibold select-none">
+                            {durationDays}
+                          </td>
+
+                          {/* Actual Start */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            {isParent ? (
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.actual_start)}</span>
+                            ) : (
+                              <input
+                                type="date"
+                                value={task.actual_start ? task.actual_start.split('T')[0] : ''}
+                                onChange={e => handleCellChange(task.id, 'actual_start', e.target.value)}
+                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
+                              />
+                            )}
+                          </td>
+
+                          {/* Actual End */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            {isParent ? (
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.actual_end)}</span>
+                            ) : (
+                              <input
+                                type="date"
+                                value={task.actual_end ? task.actual_end.split('T')[0] : ''}
+                                onChange={e => handleCellChange(task.id, 'actual_end', e.target.value)}
+                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
+                              />
+                            )}
+                          </td>
+
+                          {/* Variance */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-[10px]">
+                            <span className={varianceColor}>
+                              {varianceText}
+                            </span>
+                          </td>
+
+                          {/* Complete % */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-xs">
+                            {isParent ? (
+                              <span className="font-bold text-slate-800 dark:text-slate-100">{task.complete_percent || 0}%</span>
+                            ) : (
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={task.complete_percent || 0}
+                                readOnly={!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0}
+                                onChange={e => handleCellChange(task.id, 'complete_percent', parseFloat(e.target.value) || 0)}
+                                className={`w-full bg-transparent border-0 outline-none text-center font-semibold focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all ${
+                                  (!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0)
+                                    ? 'text-slate-400 cursor-not-allowed'
+                                    : 'text-slate-700 dark:text-slate-200'
+                                }`}
+                                title={(!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0) ? "Calculated from Resource weights/progress" : "Manual Completion %"}
+                              />
+                            )}
+                          </td>
+
+                          {/* Assigned To */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 truncate">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveAssignTask(task);
+                              }}
+                              className={`w-full text-left truncate hover:text-indigo-500 font-medium py-1 flex items-center gap-1 text-xs ${
+                                hasOverAllocation ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-200'
+                              }`}
+                              title={hasOverAllocation ? "Warning: Overallocated resource assigned!" : "Assign resources"}
+                            >
+                              {hasOverAllocation && <span className="text-rose-500 font-bold text-xs" title="Overallocated resource">⚠️</span>}
+                              <span>
+                                {task.assigned_to && task.assigned_to.length > 0 ? (
+                                  task.assigned_to.map(uid => {
+                                    const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
+                                    return emp ? emp.employee_name : uid;
+                                  }).join(', ')
+                                ) : (
+                                  <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Unassigned</span>
+                                )}
+                              </span>
+                            </button>
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                            {isParent ? (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider ${statusBadge.pill}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
+                                {task.status || 'Not Started'}
+                              </span>
+                            ) : (
+                              <div className="relative group/status">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider cursor-pointer ${statusBadge.pill} group-hover/status:ring-1 group-hover/status:ring-current/30 transition-all`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
+                                  {task.status || 'Not Started'}
+                                </span>
+                                <select
+                                  value={task.status || 'Not Started'}
+                                  onChange={e => handleCellChange(task.id, 'status', e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                >
+                                  {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
+                                    <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Predecessors */}
+                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 font-mono text-xs text-slate-500 dark:text-slate-400">
+                            <input
+                              type="text"
+                              placeholder="e.g. 1FS+3d"
+                              disabled={isParent}
+                              value={task.dependencies_as_successor ? task.dependencies_as_successor.map(d => {
+                                const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
+                                const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
+                                return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
+                              }).join(', ') : ''}
+                              onChange={e => {
+                                const inputStr = e.target.value;
+                                const parts = inputStr.split(',').map(s => s.trim()).filter(Boolean);
+                                const parsedDeps = [];
+                                parts.forEach(part => {
+                                  const match = part.match(/^(\d+)(FS|SS|FF|SF)?(?:([\+\-]\d+)d)?$/i);
+                                  if (match) {
+                                    const predRowIdx = parseInt(match[1]) - 1;
+                                    const depType = (match[2] || 'FS').toUpperCase();
+                                    const lagVal = match[3] ? parseInt(match[3]) : 0;
+                                    
+                                    const predTask = filteredTasks[predRowIdx];
+                                    if (predTask && predTask.id !== task.id) {
+                                        parsedDeps.push({
+                                          predecessor_task_id: predTask.id,
+                                          successor_task_id: task.id,
+                                          type: depType,
+                                          lag_days: lagVal
+                                        });
+                                    }
+                                  }
+                                });
+                                setDependencies(prev => {
+                                  const filtered = prev.filter(d => d.successor_task_id !== task.id);
+                                  return [...filtered, ...parsedDeps];
+                                });
+                              }}
+                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-slate-600 dark:text-slate-300 font-semibold"
+                            />
+                          </td>
+
+                          {/* Custom fields */}
+                          {customColumns.map(col => {
+                            const val = task.custom_values?.[col.column_name] || '';
+                            return (
+                              <td key={col.id} className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
+                                {col.data_type === 'select' ? (
+                                  <select
+                                    value={val}
+                                    onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
+                                    className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1 py-0.5 transition-all text-slate-700 dark:text-slate-200"
+                                  >
+                                    <option value="">--</option>
+                                    {col.options?.map(o => (
+                                      <option key={o} value={o} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{o}</option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <input
+                                    type={col.data_type === 'number' ? 'number' : col.data_type === 'date' ? 'date' : 'text'}
+                                    value={val}
+                                    onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
+                                    className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-slate-700 dark:text-slate-200"
+                                  />
+                                )}
+                              </td>
+                            );
+                          })}
+
+                          {/* Follow-up */}
+                          <td className="px-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openFollowupEditor(task);
+                              }}
+                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-white bg-slate-100 hover:bg-indigo-600 dark:bg-slate-800 dark:hover:bg-indigo-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 transition-colors"
+                            >
+                              <Calendar size={11} />
+                              {task.followups && task.followups.length > 0 ? 'Logged' : 'Set'}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    <tr style={{ height: (filteredTasks.length - visibleIndices.end) * rowHeight }} />
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1974,8 +2345,12 @@ const MilestoneManagement = ({ project, showNotification }) => {
         {showDataGrid && showGantt && (
           <div 
             onMouseDown={startResize}
-            className="w-[5px] h-full hover:bg-indigo-500/40 cursor-col-resize active:bg-indigo-600 shrink-0 bg-[var(--surface)] border-x border-[var(--border-subtle)] z-10"
-          />
+            onDoubleClick={() => setTableWidth(650)}
+            title="Drag to resize split view, double-click to reset"
+            className="w-1.5 h-full cursor-col-resize shrink-0 bg-[var(--surface)] border-x border-[var(--border-subtle)] hover:bg-indigo-500/20 hover:border-indigo-500/30 active:bg-indigo-600 transition-all z-10 flex items-center justify-center group"
+          >
+            <div className="w-[2px] h-10 bg-slate-500/30 group-hover:bg-indigo-500 rounded-full transition-colors" />
+          </div>
         )}
 
         {/* GANTT VIEW TIMELINE */}
@@ -2059,15 +2434,15 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
               {/* DEPENDENCY ARROW RENDER LAYER */}
               <svg 
-                className="absolute top-10 left-0 w-full h-full pointer-events-none z-10"
+                className="absolute top-10 left-0 w-full h-full pointer-events-none z-10 mix-blend-multiply dark:mix-blend-screen opacity-70"
                 style={{ width: timelineWidth, height: filteredTasks.length * rowHeight }}
               >
                 <defs>
                   <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <polygon points="0 0, 6 3, 0 6" fill="var(--border-strong)" />
+                    <path d="M0,1 L5,3 L0,5 Z" fill="#94a3b8" opacity="0.45" />
                   </marker>
                   <marker id="arrowhead-critical" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <polygon points="0 0, 6 3, 0 6" fill="#ef4444" />
+                    <path d="M0,1 L5,3 L0,5 Z" fill="#ef4444" opacity="0.65" />
                   </marker>
                 </defs>
 
@@ -2077,7 +2452,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     d={line.d}
                     fill="none"
                     stroke={line.color}
-                    strokeWidth={line.isCriticalLink ? 1.8 : 1.2}
+                    strokeWidth={line.isCriticalLink ? 1.2 : 0.8}
+                    strokeOpacity={line.isCriticalLink ? 0.65 : 0.45}
                     markerEnd={line.isCriticalLink ? "url(#arrowhead-critical)" : "url(#arrowhead)"}
                   />
                 ))}
@@ -2107,12 +2483,61 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   const isCritical = bar.isCritical;
                   const color = bar.colors.fill;
 
+                  // Derive which bar layers to show from the global showDataType setting
+                  const showPlannedGantt  = showDataType === 'Planned'  || showDataType === 'Baseline';
+                  const showActualGantt   = showDataType === 'Actual';
+                  const showBaselineGantt = (showDataType === 'Baseline') && showBaselineOverlay;
+
+                  // Vertical position offsets – shift actual bar to center when planned is hidden
+                  const plannedBarTop = '20px';
+                  const actualBarTop  = showPlannedGantt ? '32px' : '20px';
+                  const plannedTop    = '19px';
+                  const actualTop     = showPlannedGantt ? '31px' : '19px';
+
+                  // Horizontal label / date anchors
+                  const dateLeft  = bar.plannedLeft - 44;
+                  const labelLeft = (showPlannedGantt
+                    ? bar.plannedLeft + bar.plannedWidth
+                    : (bar.isActualActive && bar.actualLeft !== null
+                        ? bar.actualLeft + (bar.actualWidth || 0)
+                        : bar.plannedLeft + bar.plannedWidth)
+                  ) + 6;
+
+                  const activeLeft = Math.min(
+                    bar.plannedLeft,
+                    bar.actualLeft !== null ? bar.actualLeft : bar.plannedLeft,
+                    bar.baselineLeft !== null ? bar.baselineLeft : bar.plannedLeft
+                  ) - (bar.pinType ? 24 : 12);
+
+                  const activeRight = Math.max(
+                    bar.plannedLeft + bar.plannedWidth,
+                    bar.isActualActive && bar.actualLeft !== null && bar.actualWidth !== null ? bar.actualLeft + bar.actualWidth : 0,
+                    showBaselineOverlay && bar.baselineLeft !== null && bar.baselineWidth !== null ? bar.baselineLeft + bar.baselineWidth : 0
+                  ) + 250;
+
+                  const activeWidth = Math.max(50, activeRight - activeLeft);
+
                   return (
                     <div 
                       key={bar.id}
                       style={{ height: rowHeight }}
                       className={`flex flex-col justify-center relative group w-full ${isSelected ? 'bg-indigo-500/5' : ''}`}
                     >
+                      {/* Interactive Hover Detector Overlay (only covers active horizontal span) */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: activeLeft,
+                          width: activeWidth,
+                          top: 0,
+                          bottom: 0,
+                          zIndex: 30
+                        }}
+                        onMouseEnter={(e) => setHoveredTask(bar)}
+                        onMouseMove={(e) => setTooltipPos({ x: e.clientX + 16, y: e.clientY + 16 })}
+                        onMouseLeave={() => setHoveredTask(null)}
+                        className="cursor-pointer"
+                      />
                       {/* Pin Icons */}
                       {bar.pinType && (
                         <div 
@@ -2121,6 +2546,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             left: bar.plannedLeft - 24, 
                             width: '16px',
                             height: '16px',
+                            top: '20px'
                           }}
                         >
                           {bar.pinType === 'star' && <span className="text-[14px]" title="Starred Task">⭐</span>}
@@ -2132,25 +2558,29 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       {isMilestone ? (
                         <>
                           {/* Planned Milestone Diamond */}
-                          <div 
-                            className="absolute size-3 shadow-md flex items-center justify-center z-10"
-                            style={{ 
-                              left: bar.plannedLeft - 6,
-                              width: '10px',
-                              height: '10px',
-                              transform: 'rotate(45deg)',
-                              backgroundColor: color,
-                              border: `1.5px solid ${isCritical ? '#f43f5e' : '#fff'}`
-                            }}
-                            title={`Planned Milestone: ${bar.activityName}`}
-                          />
-                          {/* Actual Milestone Diamond (if actual start exists) */}
-                          {bar.isActualActive && (
+                          {showPlannedGantt && (
                             <div 
                               className="absolute size-3 shadow-md flex items-center justify-center z-10"
                               style={{ 
-                                left: bar.actualLeft - 6,
-                                top: '22px',
+                                left: bar.plannedLeft - 5,
+                                top: plannedTop,
+                                width: '10px',
+                                height: '10px',
+                                transform: 'rotate(45deg)',
+                                backgroundColor: color,
+                                border: `1.5px solid ${isCritical ? '#f43f5e' : '#fff'}`,
+                                boxShadow: bar.isOverdue ? '0 0 0 2px #ef4444, 0 0 8px rgba(239, 68, 68, 0.5)' : 'none'
+                              }}
+                              title={`Planned Milestone: ${bar.activityName}`}
+                            />
+                          )}
+                          {/* Actual Milestone Diamond (if actual start exists) */}
+                          {showActualGantt && bar.isActualActive && (
+                            <div 
+                              className="absolute size-3 shadow-md flex items-center justify-center z-10"
+                              style={{ 
+                                left: bar.actualLeft - 5,
+                                top: actualTop,
                                 width: '10px',
                                 height: '10px',
                                 transform: 'rotate(45deg)',
@@ -2161,29 +2591,31 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             />
                           )}
                           <span 
-                            style={{ left: bar.plannedLeft - 50, width: '40px' }}
+                            style={{ left: dateLeft, width: '40px', top: '19px' }}
                             className="absolute text-[8px] font-mono text-[var(--text-muted)] text-right pr-1 select-none pointer-events-none z-10"
                           >
-                            {bar.startDateStr}
+                            {showPlannedGantt ? bar.startDateStr : (bar.isActualActive ? bar.actualStartStr.split(',')[0] : '')}
                           </span>
                         </>
                       ) : isParent ? (
                         <>
                           {/* Planned Parent Summary Bar */}
-                          <svg 
-                            className="absolute h-3 overflow-visible pointer-events-none" 
-                            style={{ left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: '8px' }}
-                          >
-                            <path d={`M 2 2 H ${bar.plannedWidth + 2} V 6 H 2 Z`} fill={color} />
-                            <path d="M 2 2 L 6 6 L 6 2 Z" fill={color} />
-                            <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 6 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
-                          </svg>
+                          {showPlannedGantt && (
+                            <svg 
+                              className="absolute h-3 overflow-visible pointer-events-none" 
+                              style={{ left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: plannedBarTop }}
+                            >
+                              <path d={`M 2 2 H ${bar.plannedWidth + 2} V 8 H 2 Z`} fill={color} />
+                              <path d="M 2 2 L 6 8 L 6 2 Z" fill={color} />
+                              <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 8 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
+                            </svg>
+                          )}
 
                           {/* Actual Parent Summary Bar */}
-                          {bar.isActualActive && (
+                          {showActualGantt && bar.isActualActive && (
                             <svg 
                               className="absolute h-2.5 overflow-visible pointer-events-none" 
-                              style={{ left: bar.actualLeft - 2, width: Math.max(8, bar.actualWidth) + 4, top: '22px' }}
+                              style={{ left: bar.actualLeft - 2, width: Math.max(8, bar.actualWidth) + 4, top: actualBarTop }}
                             >
                               <path d={`M 2 1 H ${bar.actualWidth + 2} V 5 H 2 Z`} fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
                               <path d="M 2 1 L 5 4 L 5 1 Z" fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
@@ -2194,36 +2626,39 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       ) : (
                         <>
                           {/* Planned Bar */}
-                          <div 
-                            style={{ left: bar.plannedLeft, width: bar.plannedWidth, top: '8px' }}
-                            className={`absolute h-2.5 rounded shadow-sm flex items-center overflow-hidden bg-slate-300 dark:bg-slate-700/50`}
-                            title={`Planned: ${bar.activityName} (${Math.round(bar.plannedWidth / pxPerDay)} Days)`}
-                          >
+                          {showPlannedGantt && (
                             <div 
-                              style={{ 
-                                width: `${bar.completePercent}%`,
-                                backgroundColor: isCritical ? '#ef4444' : color
-                              }} 
-                              className="h-full rounded-l"
-                            />
-                          </div>
+                              style={{ left: bar.plannedLeft, width: bar.plannedWidth, top: plannedBarTop, height: '8px' }}
+                              className={`absolute rounded shadow-sm flex items-center overflow-hidden bg-slate-300 dark:bg-slate-700/50 ${
+                                bar.isOverdue ? 'ring-2 ring-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : ''
+                              }`}
+                            >
+                              <div 
+                                style={{ 
+                                  width: `${bar.completePercent}%`,
+                                  backgroundColor: isCritical ? '#ef4444' : color
+                                }} 
+                                className="h-full rounded-l"
+                              />
+                            </div>
+                          )}
 
                           {/* Actual Bar (drawn if actual start is set) */}
-                          {bar.isActualActive && (
+                          {showActualGantt && bar.isActualActive && (
                             <div 
                               style={{ 
                                 left: bar.actualLeft, 
                                 width: bar.actualWidth,
-                                top: '22px'
+                                top: actualBarTop,
+                                height: '8px'
                               }}
-                              className={`absolute h-2 rounded shadow-sm flex items-center overflow-hidden ${
+                              className={`absolute rounded shadow-sm flex items-center overflow-hidden ${
                                 bar.status === 'Completed' 
                                   ? 'bg-emerald-500/20 border border-emerald-500' 
                                   : bar.status === 'Delayed'
                                   ? 'bg-rose-500/20 border border-rose-500'
                                   : 'bg-amber-500/20 border border-amber-500'
                               }`}
-                              title={`Actual: ${bar.activityName} (${bar.status})`}
                             >
                               <div 
                                 style={{ 
@@ -2240,17 +2675,17 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           )}
 
                           {/* Delay / Variance Indicator */}
-                          {bar.varianceDays > 0 && (
+                          {showPlannedGantt && bar.varianceDays > 0 && (
                             <span 
-                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '19px' }}
                               className="absolute text-[8px] font-mono text-rose-500 font-bold bg-rose-500/10 px-1 py-0.2 rounded pointer-events-none"
                             >
                               +{bar.varianceDays}d Delay
                             </span>
                           )}
-                          {bar.varianceDays < 0 && (
+                          {showPlannedGantt && bar.varianceDays < 0 && (
                             <span 
-                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '19px' }}
                               className="absolute text-[8px] font-mono text-emerald-500 font-bold bg-emerald-500/10 px-1 py-0.2 rounded pointer-events-none"
                             >
                               {bar.varianceDays}d Advance
@@ -2260,18 +2695,21 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       )}
 
                       {/* BASELINE SNAPSHOT UNDERLAY */}
-                      {showBaselineOverlay && bar.baselineLeft !== null && bar.baselineWidth !== null && (
+                      {showBaselineGantt && bar.baselineLeft !== null && bar.baselineWidth !== null && (
                         <div 
-                          style={{ left: bar.baselineLeft, width: bar.baselineWidth, top: '32px' }}
-                          className="absolute h-0.5 bg-yellow-500/60 dark:bg-yellow-500/40 rounded-sm"
+                          style={{ left: bar.baselineLeft, width: bar.baselineWidth, top: '45px', height: '3px' }}
+                          className="absolute bg-yellow-500/60 dark:bg-yellow-500/40 rounded-sm"
                           title="Baseline Snapshot"
                         />
                       )}
 
                       {/* Labels next to Gantt Bars */}
                       <span 
-                        style={{ left: (bar.plannedLeft + bar.plannedWidth + (bar.varianceDays !== 0 ? 54 : 12)), top: '6px' }}
-                        className="absolute text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap opacity-75 group-hover:opacity-100 pointer-events-none"
+                        style={{ 
+                          left: labelLeft, 
+                          top: '19px' 
+                        }}
+                        className="absolute text-[10px] font-bold text-[var(--text-primary)] dark:text-slate-200 whitespace-nowrap opacity-90 group-hover:opacity-100 pointer-events-none"
                       >
                         {ganttShowTaskName && bar.activityName}
                         {ganttShowPercent && bar.completePercent > 0 && ` (${bar.completePercent}%)`} 
@@ -2535,69 +2973,79 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
       {/* DYNAMIC COLUMN BUILDER MODAL */}
       {showAddColModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-xs flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)]">
-            <h3 className="font-bold text-[var(--text-primary)] text-sm">Add Custom Grid Column</h3>
-            
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Column Key (English words only)</label>
-              <input
-                type="text"
-                placeholder="e.g. priority_code"
-                value={newColName}
-                onChange={e => setNewColName(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Display Title</label>
-              <input
-                type="text"
-                placeholder="e.g. Priority Code"
-                value={newColLabel}
-                onChange={e => setNewColLabel(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Data Type</label>
-              <select
-                value={newColType}
-                onChange={e => setNewColType(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded outline-none"
-              >
-                <option value="text" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Text</option>
-                <option value="number" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Number</option>
-                <option value="date" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Date</option>
-                <option value="select" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Dropdown List</option>
-              </select>
-            </div>
-
-            {newColType === 'select' && (
-              <div className="flex flex-col gap-1">
-                <label className="text-[var(--text-muted)] font-semibold">Dropdown Options (Comma separated)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Critical, High, Low"
-                  value={newColOptions}
-                  onChange={e => setNewColOptions(e.target.value)}
-                  className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none"
-                />
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 mt-2">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4 shadow-xl">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Add Custom Grid Column</h3>
               <button
                 onClick={() => setShowAddColModal(false)}
-                className="px-3 py-1.5 border border-[var(--border-subtle)] hover:bg-[var(--table-hover)] rounded font-bold text-[var(--text-muted)]"
+                className="app-modal-close-btn"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="app-modal-body space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Column Key (English words only)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. priority_code"
+                  value={newColName}
+                  onChange={e => setNewColName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Display Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Priority Code"
+                  value={newColLabel}
+                  onChange={e => setNewColLabel(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Data Type</label>
+                <select
+                  value={newColType}
+                  onChange={e => setNewColType(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all"
+                >
+                  <option value="text" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Text</option>
+                  <option value="number" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Number</option>
+                  <option value="date" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Date</option>
+                  <option value="select" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Dropdown List</option>
+                </select>
+              </div>
+
+              {newColType === 'select' && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Dropdown Options (Comma separated)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Critical, High, Low"
+                    value={newColOptions}
+                    onChange={e => setNewColOptions(e.target.value)}
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="app-modal-footer">
+              <button
+                onClick={() => setShowAddColModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddCustomColumn}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow"
+                className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
               >
                 Create
               </button>
@@ -2608,52 +3056,62 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
       {/* FOLLOW-UP DIALOG */}
       {editingFollowupTaskId !== null && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-xs flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)]">
-            <h3 className="font-bold text-[var(--text-primary)] text-sm">Schedule Follow-up Action</h3>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Action Date</label>
-              <input
-                type="date"
-                value={followupDate}
-                onChange={e => setFollowupDate(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none font-mono"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Owner</label>
-              <input
-                type="text"
-                placeholder="Employee / Owner Name"
-                value={followupOwner}
-                onChange={e => setFollowupOwner(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[var(--text-muted)] font-semibold">Action Notes</label>
-              <textarea
-                rows="3"
-                placeholder="Specify follow-up details..."
-                value={followupNotes}
-                onChange={e => setFollowupNotes(e.target.value)}
-                className="w-full px-2.5 py-2 border border-[var(--border-subtle)] bg-[var(--bg)] rounded text-[var(--text-primary)] outline-none resize-none"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 mt-2">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-sm w-full mx-4 shadow-xl">
+            <div className="app-modal-header">
+              <h3 className="app-modal-title">Schedule Follow-up Action</h3>
               <button
                 onClick={() => setEditingFollowupTaskId(null)}
-                className="px-3 py-1.5 border border-[var(--border-subtle)] hover:bg-[var(--table-hover)] rounded font-bold text-[var(--text-muted)]"
+                className="app-modal-close-btn"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="app-modal-body space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Action Date</label>
+                <input
+                  type="date"
+                  value={followupDate}
+                  onChange={e => setFollowupDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Owner</label>
+                <input
+                  type="text"
+                  placeholder="Employee / Owner Name"
+                  value={followupOwner}
+                  onChange={e => setFollowupOwner(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Action Notes</label>
+                <textarea
+                  rows="3"
+                  placeholder="Specify follow-up details..."
+                  value={followupNotes}
+                  onChange={e => setFollowupNotes(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-900 dark:text-slate-100 transition-all resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="app-modal-footer">
+              <button
+                onClick={() => setEditingFollowupTaskId(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveFollowup}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow"
+                className="px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
               >
                 Confirm
               </button>
@@ -2664,114 +3122,176 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
       {/* GANTT SETTINGS DIALOG */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#1e242b] border border-slate-700 rounded-xl p-5 w-full max-w-xs flex flex-col gap-4 shadow-2xl text-xs text-slate-200">
-            <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-              <h3 className="font-bold text-white text-base">Show</h3>
-              <button onClick={() => setShowSettingsModal(false)} className="text-slate-400 hover:text-white">
+        <div className="app-modal-overlay">
+          <div className="app-modal-container max-w-md w-full mx-4 shadow-xl">
+            <div className="app-modal-header">
+              <div>
+                <h3 className="app-modal-title">Gantt Chart Settings</h3>
+                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Configure layout, display, and data type for the Gantt view</p>
+              </div>
+              <button onClick={() => setShowSettingsModal(false)} className="app-modal-close-btn">
                 <X size={16} />
               </button>
             </div>
             
-            <div className="overflow-y-auto max-h-[60vh] pr-1 flex flex-col gap-4 custom-scrollbar">
+            <div className="app-modal-body overflow-y-auto max-h-[65vh] pr-1 custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               
-              {/* SHOW FEATURE */}
+              {/* ── SHOW FEATURE ── */}
               <div className="flex flex-col gap-2">
-                <h4 className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Show Feature:</h4>
-                <div className="flex flex-col gap-2 pl-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-3 rounded-full bg-indigo-500" />
+                  <h4 className="font-extrabold text-[var(--text-primary)] uppercase text-[10px] tracking-wider">Show / Hide Panels</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 pl-1">
                   {[
-                    { id: 'gantt', label: 'Gantt', val: tempShowGantt, set: setTempShowGantt },
-                    { id: 'grid', label: 'Data Grid', val: tempShowDataGrid, set: setTempShowDataGrid },
-                    { id: 'today', label: 'Today Line', val: tempShowTodayLine, set: setTempShowTodayLine },
-                    { id: 'nonworking', label: 'Non-Working Day Shading', val: tempShowNonWorkingDayShading, set: setTempShowNonWorkingDayShading },
-                    { id: 'overdue', label: 'Overdue Task Shading', val: tempShowOverdueTaskShading, set: setTempShowOverdueTaskShading },
-                    { id: 'overallocation', label: 'Over-Allocation Message', val: tempShowOverAllocationMessage, set: setTempShowOverAllocationMessage },
-                    { id: 'summarydelete', label: 'Summary Task Delete Message', val: tempShowSummaryDeleteMessage, set: setTempShowSummaryDeleteMessage },
+                    { id: 'gantt',        label: 'Gantt Chart',              hint: 'Shows the timeline bar chart', val: tempShowGantt, set: setTempShowGantt },
+                    { id: 'grid',         label: 'Data Grid',                hint: 'Shows the spreadsheet table', val: tempShowDataGrid, set: setTempShowDataGrid },
+                    { id: 'today',        label: 'Today Line',               hint: 'Red vertical marker for today', val: tempShowTodayLine, set: setTempShowTodayLine },
+                    { id: 'nonworking',   label: 'Non-Working Shading',      hint: 'Weekend background tint', val: tempShowNonWorkingDayShading, set: setTempShowNonWorkingDayShading },
+                    { id: 'overdue',      label: 'Overdue Row Shading',      hint: 'Red tint on delayed tasks', val: tempShowOverdueTaskShading, set: setTempShowOverdueTaskShading },
+                    { id: 'overalloc',    label: 'Over-Allocation Alerts',   hint: 'Resource conflict warnings', val: tempShowOverAllocationMessage, set: setTempShowOverAllocationMessage },
+                    { id: 'summarydelete', label: 'Summary Delete Warning',  hint: 'Warn before deleting phases', val: tempShowSummaryDeleteMessage, set: setTempShowSummaryDeleteMessage },
                   ].map(f => (
-                    <label key={f.id} className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                    <label key={f.id} className="flex items-start gap-2 cursor-pointer group select-none">
                       <input
                         type="checkbox"
                         checked={f.val}
                         onChange={e => f.set(e.target.checked)}
-                        className="rounded border-slate-600 bg-slate-800 text-[#a3e635] focus:ring-0 focus:ring-offset-0 size-3.5 accent-[#a3e635]"
+                        className="mt-0.5 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-0 focus:ring-offset-0 size-3.5 flex-shrink-0"
                       />
-                      <span className="text-xs font-semibold">{f.label}</span>
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-indigo-500 transition-colors">{f.label}</span>
+                        <span className="text-[9px] text-[var(--text-muted)]">{f.hint}</span>
+                      </div>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* SHOW ON GANTT BARS */}
-              <div className="flex flex-col gap-2">
-                <h4 className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Show on Gantt Bars:</h4>
-                <div className="flex flex-col gap-2 pl-1">
+              {/* ── GANTT BAR LABELS ── */}
+              <div className="flex flex-col gap-2 pt-3 border-t border-[var(--border-subtle)]/40">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-3 rounded-full bg-blue-500" />
+                  <h4 className="font-extrabold text-[var(--text-primary)] uppercase text-[10px] tracking-wider">Gantt Bar Labels</h4>
+                </div>
+                <div className="flex items-center gap-6 pl-1 flex-wrap">
                   {[
-                    { id: 'taskname', label: 'Task Name', val: tempGanttShowTaskName, set: setTempGanttShowTaskName },
-                    { id: 'percent', label: '% Complete', val: tempGanttShowPercent, set: setTempGanttShowPercent },
-                    { id: 'assignee', label: 'Assignee', val: tempGanttShowAssignee, set: setTempGanttShowAssignee },
+                    { id: 'taskname', label: 'Task Name',  val: tempGanttShowTaskName, set: setTempGanttShowTaskName },
+                    { id: 'percent',  label: '% Complete', val: tempGanttShowPercent,  set: setTempGanttShowPercent },
+                    { id: 'assignee', label: 'Assignee',   val: tempGanttShowAssignee, set: setTempGanttShowAssignee },
                   ].map(f => (
-                    <label key={f.id} className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                    <label key={f.id} className="flex items-center gap-2 cursor-pointer select-none group">
                       <input
                         type="checkbox"
                         checked={f.val}
                         onChange={e => f.set(e.target.checked)}
-                        className="rounded border-slate-600 bg-slate-800 text-[#a3e635] focus:ring-0 focus:ring-offset-0 size-3.5 accent-[#a3e635]"
+                        className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-blue-600 focus:ring-0 focus:ring-offset-0 size-3.5"
                       />
-                      <span className="text-xs font-semibold">{f.label}</span>
+                      <span className="text-[11px] font-semibold text-[var(--text-primary)] group-hover:text-blue-500 transition-colors">{f.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* SHOW DATA */}
-              <div className="flex flex-col gap-2">
-                <h4 className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Show Data:</h4>
-                <div className="flex flex-col gap-2 pl-1">
-                  {['Planned', 'Actual', 'Baseline'].map(type => (
-                    <label key={type} className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none">
-                      <input
-                        type="radio"
-                        name="showDataType"
-                        checked={tempShowDataType === type}
-                        onChange={() => setTempShowDataType(type)}
-                        className="border-slate-600 bg-slate-800 text-[#a3e635] focus:ring-0 focus:ring-offset-0 size-3.5 accent-[#a3e635]"
-                      />
-                      <span className="text-xs font-semibold">{type}</span>
-                    </label>
+              {/* ── SHOW DATA TYPE ── */}
+              <div className="flex flex-col gap-2 pt-3 border-t border-[var(--border-subtle)]/40">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-3 rounded-full bg-emerald-500" />
+                  <h4 className="font-extrabold text-[var(--text-primary)] uppercase text-[10px] tracking-wider">Display Data Type</h4>
+                </div>
+                <div className="flex items-center gap-1 pl-1">
+                  {[
+                    { type: 'Planned',  desc: 'Planned bars only', color: 'bg-indigo-600' },
+                    { type: 'Actual',   desc: 'Actual progress bars', color: 'bg-emerald-600' },
+                    { type: 'Baseline', desc: 'Planned + Baseline overlay', color: 'bg-amber-600' },
+                  ].map(({ type, desc, color }) => (
+                    <button
+                      key={type}
+                      onClick={() => setTempShowDataType(type)}
+                      className={`flex-1 flex flex-col items-center gap-1 py-2 px-3 rounded-lg border-2 transition-all text-center ${
+                        tempShowDataType === type
+                          ? `border-indigo-500 bg-indigo-500/10 text-[var(--text-primary)]`
+                          : 'border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
+                      }`}
+                    >
+                      <span className={`w-6 h-2 rounded-full ${tempShowDataType === type ? color : 'bg-slate-400/40'} transition-colors`} />
+                      <span className="text-[10px] font-bold">{type}</span>
+                      <span className="text-[8px] leading-tight">{desc}</span>
+                    </button>
                   ))}
                 </div>
-              </div>
 
-              {/* ADVANCED */}
-              <div className="flex flex-col gap-2">
-                <h4 className="font-bold text-slate-400 uppercase text-[9px] tracking-wider">Advanced:</h4>
-                <div className="flex flex-col gap-2 pl-1">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-slate-300 hover:text-white select-none">
+                {/* Baseline overlay toggle — only relevant when Baseline data type is selected */}
+                {tempShowDataType === 'Baseline' && (
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none mt-2 pl-1 p-2.5 rounded-lg bg-amber-500/8 border border-amber-400/20">
                     <input
                       type="checkbox"
-                      checked={tempSetBaselineChecked}
-                      onChange={e => setTempSetBaselineChecked(e.target.checked)}
-                      className="rounded border-slate-600 bg-slate-800 text-[#a3e635] focus:ring-0 focus:ring-offset-0 size-3.5 accent-[#a3e635]"
+                      checked={tempShowBaselineOverlay}
+                      onChange={e => setTempShowBaselineOverlay(e.target.checked)}
+                      className="rounded border-amber-300 dark:border-amber-600 bg-white dark:bg-slate-800 text-amber-600 focus:ring-0 focus:ring-offset-0 size-3.5"
                     />
-                    <span className="text-xs font-semibold">Set Baseline</span>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Show Baseline Overlay</span>
+                      <span className="text-[9px] text-[var(--text-muted)]">Display baseline snapshot bars below planned bars</span>
+                    </div>
                   </label>
+                )}
+              </div>
+
+              {/* ── ADVANCED ── */}
+              <div className="flex flex-col gap-3 pt-3 border-t border-[var(--border-subtle)]/40">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-1 w-3 rounded-full bg-rose-500" />
+                  <h4 className="font-extrabold text-[var(--text-primary)] uppercase text-[10px] tracking-wider">Advanced</h4>
+                </div>
+                <div className="flex flex-col gap-3 pl-1">
+                  {/* Baseline Snapshot */}
+                  <div className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--border-subtle)]/60 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-semibold text-[var(--text-primary)]">Create Baseline Snapshot</span>
+                        <span className="text-[9px] text-[var(--text-muted)]">Saves current planned dates as a named baseline</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={tempSetBaselineChecked}
+                          onChange={e => setTempSetBaselineChecked(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 dark:bg-slate-600 rounded-full peer peer-checked:bg-indigo-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-4" />
+                      </label>
+                    </div>
+                    {tempSetBaselineChecked && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-[var(--text-muted)] font-semibold uppercase flex-shrink-0">Version Name</span>
+                        <input
+                          type="text"
+                          value={tempBaselineVersion}
+                          onChange={e => setTempBaselineVersion(e.target.value)}
+                          placeholder="e.g. Baseline_V1"
+                          className="flex-1 px-2 py-1 border border-[var(--border-subtle)] bg-[var(--surface)] text-[var(--text-primary)] rounded text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-700 pt-3">
+            <div className="app-modal-footer">
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="px-4 py-1.5 bg-[#3b4252] hover:bg-[#434c5e] text-white rounded font-bold transition-all text-xs"
+                className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveSettings}
-                className="px-4 py-1.5 bg-[#a3e635] hover:bg-[#bef264] text-slate-900 rounded font-bold transition-all text-xs shadow-md font-sans"
+                className="px-5 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition-all active:scale-[0.98]"
               >
-                Save
+                Apply Settings
               </button>
             </div>
           </div>
@@ -2780,52 +3300,78 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
       {/* SUB-ACTIVITIES MODAL */}
       {activeParentTask && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-5xl flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)] max-h-[85vh]">
-            <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-2.5">
-              <h3 className="font-bold text-[var(--text-primary)] text-sm">
-                Sub-Activities for: <span className="text-indigo-500 font-extrabold">{activeParentTask.activity_name}</span>
-              </h3>
-              <button 
-                onClick={() => setActiveParentTask(null)} 
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-              >
+        <div className="app-modal-overlay z-[9999]">
+          <div className="app-modal-container w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="app-modal-header">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                  <Layers size={16} className="text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="app-modal-title">Sub-Activities</h3>
+                  <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5 truncate max-w-[380px]">
+                    Parent: <span className="text-indigo-400 font-semibold">{activeParentTask.activity_name}</span>
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setActiveParentTask(null)} className="app-modal-close-btn">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="overflow-auto flex-1 min-h-[200px] border border-[var(--border-subtle)]/40 rounded-lg custom-scrollbar">
-              <table className="w-full text-left border-collapse table-fixed select-text">
-                <thead className="bg-[var(--surface)] text-[var(--text-secondary)] border-b border-[var(--border-subtle)] sticky top-0 z-10">
-                  <tr className="h-8 text-[10px] uppercase font-bold text-[var(--text-muted)]">
-                    <th className="w-12 px-2 text-center border-r border-[var(--border-subtle)]/30">WBS</th>
-                    <th className="w-48 px-3 border-r border-[var(--border-subtle)]/30">Sub-Activity Name</th>
-                    <th className="w-24 px-2 border-r border-[var(--border-subtle)]/30">Type</th>
-                    <th className="w-28 px-2 border-r border-[var(--border-subtle)]/30">Start Date</th>
-                    <th className="w-28 px-2 border-r border-[var(--border-subtle)]/30">End Date</th>
-                    <th className="w-28 px-2 border-r border-[var(--border-subtle)]/30">Actual Start</th>
-                    <th className="w-28 px-2 border-r border-[var(--border-subtle)]/30">Actual End</th>
-                    <th className="w-16 px-2 border-r border-[var(--border-subtle)]/30 text-center">% Comp</th>
-                    <th className="w-28 px-2 border-r border-[var(--border-subtle)]/30">Status</th>
-                    <th className="w-40 px-2 border-r border-[var(--border-subtle)]/30">Assigned To</th>
-                    <th className="w-16 px-2 text-center">Delete</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="app-modal-body flex-1 overflow-hidden flex flex-col gap-3 min-h-0">
+              {/* Sub-activity count badge */}
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold uppercase tracking-wide">
+                  {tasks.filter(t => t.parent_id === activeParentTask.id).length} sub-activities
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)] font-medium">
+                  WBS: {activeParentTask.wbs_code || '—'}
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-auto min-h-0 rounded-xl border border-[var(--border-subtle)]/60 custom-scrollbar">
+                <table className="w-full text-left border-collapse table-fixed select-text text-[11px]">
+                  <thead className="sticky top-0 z-10">
+                    <tr style={{ background: 'var(--surface)' }} className="border-b-2 border-[var(--border-subtle)]/60">
+                      <th className="w-12 px-2 py-3 text-center border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">WBS</th>
+                      <th className="w-52 px-3 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Sub-Activity Name</th>
+                      <th className="w-24 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Type</th>
+                      <th className="w-28 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Start Date</th>
+                      <th className="w-28 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">End Date</th>
+                      <th className="w-28 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Actual Start</th>
+                      <th className="w-28 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Actual End</th>
+                      <th className="w-16 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)] text-center">% Done</th>
+                      <th className="w-28 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Status</th>
+                      <th className="w-44 px-2 py-3 border-r border-[var(--border-subtle)]/30 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)]">Assigned To</th>
+                      <th className="w-14 px-2 py-3 text-[9px] font-extrabold uppercase tracking-widest text-[var(--text-muted)] text-center">Del</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {tasks
                     .filter(t => t.parent_id === activeParentTask.id)
                     .map((sub, sIdx) => {
                       const subWbs = `${activeParentTask.wbs_code || '1'}.${sIdx + 1}`;
+                      const statusColors = {
+                        'Completed': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+                        'In Progress': 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+                        'Delayed': 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+                        'On Hold': 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                        'Not Started': 'text-slate-400 bg-slate-500/10 border-slate-500/20',
+                      };
                       return (
-                        <tr key={sub.id} className="h-9 border-b border-[var(--border-subtle)]/20 hover:bg-[var(--table-hover)] transition-colors">
-                          <td className="px-2 text-center border-r border-[var(--border-subtle)]/20 font-mono text-[10px] text-[var(--text-muted)] font-bold">{subWbs}</td>
+                        <tr key={sub.id} className="border-b border-[var(--border-subtle)]/20 hover:bg-indigo-500/[0.04] transition-colors group" style={{ height: '44px' }}>
+                          <td className="px-2 text-center border-r border-[var(--border-subtle)]/20">
+                            <span className="font-mono text-[9px] text-indigo-400 font-extrabold bg-indigo-500/10 px-1.5 py-0.5 rounded">{subWbs}</span>
+                          </td>
                           
                           <td className="px-3 border-r border-[var(--border-subtle)]/20">
                             <input
                               type="text"
                               value={sub.activity_name || ''}
                               onChange={e => handleCellChange(sub.id, 'activity_name', e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)]"
+                              className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)] font-medium focus:text-indigo-300 transition-colors placeholder-[var(--text-muted)]"
+                              placeholder="Activity name…"
                             />
                           </td>
 
@@ -2833,7 +3379,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             <select
                               value={sub.task_type || 'sub_activity'}
                               onChange={e => handleCellChange(sub.id, 'task_type', e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)] font-semibold"
+                              className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)] font-semibold text-[10px] cursor-pointer"
                             >
                               <option value="sub_activity" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Sub Activity</option>
                               <option value="activity" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">Activity</option>
@@ -2878,24 +3424,37 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             />
                           </td>
 
-                          <td className="px-2 border-r border-[var(--border-subtle)]/20 text-center font-mono">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={sub.complete_percent || 0}
-                              onChange={e => handleCellChange(sub.id, 'complete_percent', parseFloat(e.target.value) || 0)}
-                              className="w-full bg-transparent border-0 outline-none text-center text-[var(--text-primary)] font-semibold"
-                            />
+                          <td className="px-2 border-r border-[var(--border-subtle)]/20 text-center">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={sub.complete_percent || 0}
+                                onChange={e => handleCellChange(sub.id, 'complete_percent', parseFloat(e.target.value) || 0)}
+                                className="w-full bg-transparent border-0 outline-none text-center text-[var(--text-primary)] font-bold font-mono text-[10px]"
+                              />
+                              <div className="w-full h-1 rounded-full bg-[var(--border-subtle)]/30 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    (sub.complete_percent || 0) >= 100 ? 'bg-emerald-500' :
+                                    (sub.complete_percent || 0) > 0 ? 'bg-indigo-500' : 'bg-slate-600'
+                                  }`}
+                                  style={{ width: `${Math.min(100, sub.complete_percent || 0)}%` }}
+                                />
+                              </div>
+                            </div>
                           </td>
 
                           <td className="px-2 border-r border-[var(--border-subtle)]/20">
                             <select
                               value={sub.status || 'Not Started'}
                               onChange={e => handleCellChange(sub.id, 'status', e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none text-[var(--text-primary)] font-semibold"
+                              className={`w-full bg-transparent border-0 outline-none font-bold text-[10px] cursor-pointer ${
+                                statusColors[sub.status] || statusColors['Not Started']
+                              }`}
                             >
-                              {['Not Started', 'In Progress', 'Completed', 'On Hold'].map(s => (
+                              {['Not Started', 'In Progress', 'Completed', 'On Hold', 'Delayed'].map(s => (
                                 <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
                               ))}
                             </select>
@@ -2904,15 +3463,17 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           <td className="px-2 border-r border-[var(--border-subtle)]/20 truncate">
                             <button
                               onClick={() => setActiveAssignTask(sub)}
-                              className="w-full text-left truncate hover:text-indigo-500 font-medium py-1 text-[11px]"
+                              className="w-full text-left truncate font-medium text-[10px] transition-colors"
                             >
                               {sub.assigned_to && sub.assigned_to.length > 0 ? (
-                                sub.assigned_to.map(uid => {
-                                  const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
-                                  return emp ? emp.employee_name : uid;
-                                }).join(', ')
+                                <span className="text-indigo-400 hover:text-indigo-300 font-semibold">
+                                  {sub.assigned_to.map(uid => {
+                                    const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
+                                    return emp ? emp.employee_name : uid;
+                                  }).join(', ')}
+                                </span>
                               ) : (
-                                <span className="text-[var(--text-muted)] italic text-[11px]">Unassigned</span>
+                                <span className="text-[var(--text-muted)] italic hover:text-indigo-400">Unassigned — click to assign</span>
                               )}
                             </button>
                           </td>
@@ -2920,10 +3481,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           <td className="px-2 text-center">
                             <button
                               onClick={() => handleDeleteSubActivity(sub.id)}
-                              className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100"
                               title="Delete Sub-Activity"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12} />
                             </button>
                           </td>
                         </tr>
@@ -2931,26 +3492,30 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     })}
                   {tasks.filter(t => t.parent_id === activeParentTask.id).length === 0 && (
                     <tr>
-                      <td colSpan="11" className="py-6 text-center text-[var(--text-muted)] italic">
-                        No sub-activities configured. Click "Add Sub-Activity" to begin.
+                      <td colSpan="11" className="py-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Layers size={28} className="text-[var(--text-muted)]/40" />
+                          <p className="text-[var(--text-muted)] text-xs font-medium">No sub-activities configured</p>
+                          <p className="text-[var(--text-muted)]/60 text-[10px]">Click &quot;Add Sub-Activity&quot; below to begin</p>
+                        </div>
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            </div>
 
-            <div className="flex justify-between items-center mt-3">
+            <div className="app-modal-footer">
               <button
                 onClick={handleAddSubActivity}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-md transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98]"
               >
-                <Plus size={13} /> Add Sub-Activity
+                <Plus size={14} /> Add Sub-Activity
               </button>
-
               <button
                 onClick={() => setActiveParentTask(null)}
-                className="px-4 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg font-bold transition-all"
+                className="px-5 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg hover:bg-[var(--table-hover)] transition-all"
               >
                 Done
               </button>
@@ -2962,82 +3527,121 @@ const MilestoneManagement = ({ project, showNotification }) => {
       {/* ASSIGNED TO CHECKLIST MODAL */}
       {activeAssignTask && (() => {
         const liveTask = tasks.find(t => t.id === activeAssignTask.id) || activeAssignTask;
+        const assignedCount = (activeAssignTask.assigned_to || []).length;
         return (
-          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-            <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-sm flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)]">
-              <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-2">
-                <h3 className="font-bold text-[var(--text-primary)] text-sm truncate">
-                  Assign Team: <span className="text-indigo-500 font-extrabold">{activeAssignTask.activity_name}</span>
-                </h3>
-                <button 
-                  onClick={() => setActiveAssignTask(null)} 
-                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                >
+          <div className="app-modal-overlay z-[99999]">
+            <div className="app-modal-container w-full max-w-md flex flex-col">
+              <div className="app-modal-header">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+                    <Users size={15} className="text-indigo-400" />
+                  </div>
+                  <div>
+                    <h3 className="app-modal-title">Assign Team Members</h3>
+                    <p className="text-[10px] text-[var(--text-muted)] font-medium mt-0.5 truncate max-w-[260px]">
+                      <span className="text-indigo-400 font-semibold">{activeAssignTask.activity_name}</span>
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setActiveAssignTask(null)} className="app-modal-close-btn">
                   <X size={16} />
                 </button>
               </div>
 
-              {/* Manual Override Checkbox */}
-              <div className="flex items-center justify-between p-2.5 bg-slate-500/5 border border-[var(--border-subtle)]/30 rounded-lg">
-                <span className="font-semibold text-xs text-[var(--text-secondary)]">Manual Progress Override</span>
-                <input
-                  type="checkbox"
-                  checked={activeAssignTask.custom_values?.manual_completion_override || false}
-                  onChange={e => {
-                    const val = e.target.checked;
-                    handleCellChange(activeAssignTask.id, 'custom:manual_completion_override', val);
-                    setActiveAssignTask(prev => ({
-                      ...prev,
-                      custom_values: {
-                        ...(prev.custom_values || {}),
-                        manual_completion_override: val
-                      }
-                    }));
-                  }}
-                  className="rounded border-[var(--border-subtle)] text-indigo-600 focus:ring-0 size-3.5"
-                />
-              </div>
+              <div className="app-modal-body flex flex-col gap-4">
 
-              <div className="overflow-y-auto max-h-[40vh] pr-1 flex flex-col gap-2.5 custom-scrollbar">
+                {/* Assignment Summary Badge */}
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold">
+                    <Users size={10} />
+                    {assignedCount} assigned
+                  </span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    of {projectTeam.length} team members
+                  </span>
+                </div>
+
+                {/* Manual Override Toggle */}
+                <div className="flex items-center justify-between p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-xs text-[var(--text-primary)]">Manual Progress Override</span>
+                    <span className="text-[10px] text-[var(--text-muted)] mt-0.5">Disable auto-calculation from resource weights</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer ml-3">
+                    <input
+                      type="checkbox"
+                      checked={activeAssignTask.custom_values?.manual_completion_override || false}
+                      onChange={e => {
+                        const val = e.target.checked;
+                        handleCellChange(activeAssignTask.id, 'custom:manual_completion_override', val);
+                        setActiveAssignTask(prev => ({
+                          ...prev,
+                          custom_values: {
+                            ...(prev.custom_values || {}),
+                            manual_completion_override: val
+                          }
+                        }));
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:bg-indigo-600 transition-colors relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 after:rounded-full after:bg-white after:transition-all peer-checked:after:translate-x-4"></div>
+                  </label>
+                </div>
+
+                {/* Team Members List */}
+                <div className="overflow-y-auto max-h-[42vh] flex flex-col gap-2 custom-scrollbar pr-0.5">
                 {projectTeam.map(member => {
                   const isAssigned = (activeAssignTask.assigned_to || []).includes(String(member.employee_id));
+                  const initials = (member.employee_name || '??').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                  const avatarColors = ['bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-cyan-500', 'bg-violet-500'];
+                  const avatarColor = avatarColors[member.employee_id % avatarColors.length] || 'bg-indigo-500';
                   return (
-                    <div 
-                      key={member.employee_id} 
-                      className="flex flex-col gap-2.5 p-2 rounded hover:bg-[var(--table-hover)]/30 border border-[var(--border-subtle)]/10"
+                    <div
+                      key={member.employee_id}
+                      className={`flex flex-col gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
+                        isAssigned
+                          ? 'bg-indigo-500/8 border-indigo-500/30 shadow-sm shadow-indigo-500/10'
+                          : 'border-[var(--border-subtle)]/30 hover:border-[var(--border-subtle)] hover:bg-[var(--table-hover)]/40'
+                      }`}
+                      onClick={() => {
+                        const currentAssigned = activeAssignTask.assigned_to || [];
+                        const nextAssigned = isAssigned
+                          ? currentAssigned.filter(id => String(id) !== String(member.employee_id))
+                          : [...currentAssigned, String(member.employee_id)];
+                        handleCellChange(activeAssignTask.id, 'assigned_to', nextAssigned);
+                        setActiveAssignTask(prev => ({ ...prev, assigned_to: nextAssigned }));
+                      }}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="checkbox"
-                          checked={isAssigned}
-                          onChange={e => {
-                            const currentAssigned = activeAssignTask.assigned_to || [];
-                            let nextAssigned;
-                            if (e.target.checked) {
-                              nextAssigned = [...currentAssigned, String(member.employee_id)];
-                            } else {
-                              nextAssigned = currentAssigned.filter(id => String(id) !== String(member.employee_id));
-                            }
-                            
-                            handleCellChange(activeAssignTask.id, 'assigned_to', nextAssigned);
-                            setActiveAssignTask(prev => ({ ...prev, assigned_to: nextAssigned }));
-                          }}
-                          className="rounded border-[var(--border-subtle)] text-indigo-600 focus:ring-0 size-3.5"
-                        />
+                      <div className="flex items-center gap-3">
+                        {/* Avatar */}
+                        <div className={`w-8 h-8 rounded-full ${avatarColor} flex items-center justify-center text-white font-extrabold text-[10px] flex-shrink-0 shadow-sm`}>
+                          {initials}
+                        </div>
+                        {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold truncate text-[var(--text-primary)]">{member.employee_name}</div>
-                          <div className="text-[9px] text-[var(--text-muted)] flex items-center gap-1.5">
+                          <div className="font-bold text-[11px] text-[var(--text-primary)] truncate">{member.employee_name}</div>
+                          <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] mt-0.5">
                             <span className="font-semibold text-indigo-400">{member.role}</span>
-                            <span>•</span>
+                            <span className="text-[var(--border-subtle)]">•</span>
                             <span>{member.employee_department}</span>
                           </div>
                         </div>
+                        {/* Checkbox indicator */}
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border-2 transition-all ${
+                          isAssigned ? 'bg-indigo-600 border-indigo-600' : 'border-[var(--border-subtle)] bg-transparent'
+                        }`}>
+                          {isAssigned && <CheckCircle size={11} className="text-white" />}
+                        </div>
                       </div>
 
+                      {/* Resource weight & progress — expanded when assigned */}
                       {isAssigned && !activeAssignTask.custom_values?.manual_completion_override && (
-                        <div className="flex items-center gap-4 pl-6 border-t border-[var(--border-subtle)]/15 pt-2">
-                          <div className="flex items-center gap-1 flex-1">
-                            <span className="text-[9px] text-[var(--text-muted)] font-semibold">Weight:</span>
+                        <div
+                          className="flex items-center gap-3 pl-11 border-t border-indigo-500/15 pt-2 mt-0.5"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Weight</span>
                             <input
                               type="number"
                               min="0"
@@ -3050,18 +3654,15 @@ const MilestoneManagement = ({ project, showNotification }) => {
                                 handleCellChange(activeAssignTask.id, 'custom:resource_weights', newWeights);
                                 setActiveAssignTask(prev => ({
                                   ...prev,
-                                  custom_values: {
-                                    ...(prev.custom_values || {}),
-                                    resource_weights: newWeights
-                                  }
+                                  custom_values: { ...(prev.custom_values || {}), resource_weights: newWeights }
                                 }));
                               }}
-                              className="w-14 px-1 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-semibold text-center focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
+                              className="w-16 px-2 py-1 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded-lg font-bold text-center focus:ring-2 focus:ring-indigo-500/50 outline-none font-mono text-[11px]"
                             />
                           </div>
 
-                          <div className="flex items-center gap-1 flex-1">
-                            <span className="text-[9px] text-[var(--text-muted)] font-semibold">Prog %:</span>
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Progress %</span>
                             <input
                               type="number"
                               min="0"
@@ -3074,13 +3675,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
                                 handleCellChange(activeAssignTask.id, 'custom:resource_progress', newProg);
                                 setActiveAssignTask(prev => ({
                                   ...prev,
-                                  custom_values: {
-                                    ...(prev.custom_values || {}),
-                                    resource_progress: newProg
-                                  }
+                                  custom_values: { ...(prev.custom_values || {}), resource_progress: newProg }
                                 }));
                               }}
-                              className="w-14 px-1 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-semibold text-center focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
+                              className="w-16 px-2 py-1 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded-lg font-bold text-center focus:ring-2 focus:ring-indigo-500/50 outline-none font-mono text-[11px]"
                             />
                           </div>
                         </div>
@@ -3089,29 +3687,40 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   );
                 })}
                 {projectTeam.length === 0 && (
-                  <p className="text-center text-[var(--text-muted)] italic py-4">No project team members configured.</p>
+                  <div className="py-10 text-center flex flex-col items-center gap-2">
+                    <Users size={28} className="text-[var(--text-muted)]/40" />
+                    <p className="text-[var(--text-muted)] text-xs font-medium">No project team members configured.</p>
+                  </div>
                 )}
-              </div>
-
-              {/* Live Status and Percent Complete summary */}
-              <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2.5 text-[10px] font-bold">
-                <div className="flex items-center gap-1">
-                  <span className="text-[var(--text-muted)] uppercase">Progress:</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-mono text-xs">{liveTask.complete_percent || 0}%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[var(--text-muted)] uppercase">Status:</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 text-xs tracking-wide">{liveTask.status || 'Not Started'}</span>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
-                <button
-                  onClick={() => setActiveAssignTask(null)}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow transition-colors"
-                >
-                  Confirm
-                </button>
+              {/* Live task metrics footer summary */}
+              <div className="app-modal-footer flex-col gap-3">
+                <div className="w-full flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider">Task Progress</span>
+                      <span className="font-mono font-extrabold text-indigo-400 text-sm">{liveTask.complete_percent || 0}%</span>
+                    </div>
+                    <div className="w-px h-8 bg-[var(--border-subtle)]/40"></div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider">Status</span>
+                      <span className={`font-bold text-[11px] ${
+                        liveTask.status === 'Completed' ? 'text-emerald-400' :
+                        liveTask.status === 'Delayed' ? 'text-rose-400' :
+                        liveTask.status === 'In Progress' ? 'text-blue-400' :
+                        'text-slate-400'
+                      }`}>{liveTask.status || 'Not Started'}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveAssignTask(null)}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow shadow-indigo-500/20 text-sm transition-all active:scale-[0.98]"
+                  >
+                    Confirm
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3124,6 +3733,86 @@ const MilestoneManagement = ({ project, showNotification }) => {
           <option key={d} value={d} />
         ))}
       </datalist>
+
+      {/* GANTT INTERACTIVE HOVER TOOLTIP */}
+      {hoveredTask && (
+        <div 
+          className="fixed z-[10000] pointer-events-none bg-slate-950/98 border border-slate-700/50 shadow-2xl rounded-xl p-4 text-[11px] text-slate-200 flex flex-col gap-2 backdrop-blur-lg max-w-sm transition-all duration-75 animate-fadeIn min-w-[240px] shadow-indigo-500/5"
+          style={{ 
+            left: Math.min(window.innerWidth - 260, tooltipPos.x), 
+            top: Math.min(window.innerHeight - 240, tooltipPos.y) 
+          }}
+        >
+          {/* Header row */}
+          <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
+            <span className="font-mono text-indigo-400 font-extrabold text-xs">WBS {hoveredTask.wbsCode}</span>
+            <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-extrabold uppercase tracking-wide ${
+              hoveredTask.status === 'Completed' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+              hoveredTask.status === 'Delayed' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+              hoveredTask.status === 'In Progress' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+              'bg-slate-800 text-slate-400 border border-slate-700'
+            }`}>
+              {hoveredTask.status}
+            </span>
+          </div>
+
+          {/* Activity Name */}
+          <div className="font-extrabold text-xs text-white leading-snug">{hoveredTask.activityName}</div>
+
+          {/* Timeline details section */}
+          <div className="flex flex-col gap-1.5 py-1.5 border-y border-slate-800/60 text-slate-300">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-slate-500 font-bold uppercase">Planned Schedule</span>
+              <span className="font-mono text-slate-200">{hoveredTask.plannedStartStr} – {hoveredTask.plannedEndStr}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-slate-500 font-bold uppercase">Planned Duration</span>
+              <span className="font-semibold text-slate-200">{hoveredTask.duration} day{hoveredTask.duration > 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-slate-500 font-bold uppercase">Actual Schedule</span>
+              <span className="font-mono text-slate-200">{hoveredTask.actualStartStr} – {hoveredTask.actualEndStr}</span>
+            </div>
+          </div>
+
+          {/* Progress & Variance metrics */}
+          <div className="grid grid-cols-2 gap-3 pt-1 text-slate-300">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 font-bold uppercase">Variance</span>
+              <span className={`font-mono font-extrabold text-[11px] mt-0.5 ${
+                hoveredTask.varianceDays > 0 ? 'text-rose-400' : 
+                hoveredTask.varianceDays < 0 ? 'text-emerald-400' : 'text-slate-400'
+              }`}>
+                {hoveredTask.varianceDays > 0 ? `+${hoveredTask.varianceDays}d Delay` :
+                 hoveredTask.varianceDays < 0 ? `${hoveredTask.varianceDays}d Advance` : 'On Track'}
+              </span>
+            </div>
+
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 font-bold uppercase">Progress</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex-1 h-2 rounded-full bg-slate-800 border border-slate-700/50 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full ${
+                      hoveredTask.status === 'Completed' ? 'bg-emerald-500' :
+                      hoveredTask.status === 'Delayed' ? 'bg-rose-500' : 'bg-indigo-500'
+                    }`} 
+                    style={{ width: `${hoveredTask.completePercent}%` }} 
+                  />
+                </div>
+                <span className="font-extrabold text-white font-mono">{hoveredTask.completePercent}%</span>
+              </div>
+            </div>
+
+            {hoveredTask.assignedToNames && (
+              <div className="flex flex-col col-span-2 border-t border-slate-800/40 pt-1.5">
+                <span className="text-[9px] text-slate-500 font-bold uppercase">Assigned Team</span>
+                <span className="truncate text-slate-300 font-semibold mt-0.5">{hoveredTask.assignedToNames}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
