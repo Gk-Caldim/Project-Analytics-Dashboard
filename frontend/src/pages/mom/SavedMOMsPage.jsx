@@ -574,14 +574,14 @@ const ActionItemsTable = ({ syncId }) => {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => startEditRow(item)}
-                          className="p-1.5 text-slate-300 hover:text-blue-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-1.5 text-slate-400 hover:text-blue-500 rounded transition-colors"
                           title="Edit"
                         >
                           <Edit3 size={14} />
                         </button>
                         <button
                           onClick={() => setDeletingRowId(item.id)}
-                          className="p-1.5 text-slate-300 hover:text-red-500 rounded transition-colors opacity-0 group-hover:opacity-100"
+                          className="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors"
                           title="Delete"
                         >
                           <Trash2 size={14} />
