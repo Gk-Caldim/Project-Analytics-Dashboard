@@ -58,6 +58,28 @@ def get_hierarchy_maps(tasks: List[ProjectMilestone]) -> Tuple[Dict[int, List[in
         
     return parent_to_children, child_to_parent
 
+def get_status_from_progress_and_dates(complete_percent: float, start_date: datetime, end_date: datetime, current_status: str) -> str:
+    if current_status in ("Cancelled", "On Hold"):
+        return current_status
+    if complete_percent >= 100.0:
+        return "Completed"
+    
+    now = datetime.utcnow()
+    now = datetime(now.year, now.month, now.day)
+    start = datetime(start_date.year, start_date.month, start_date.day) if start_date else None
+    end = datetime(end_date.year, end_date.month, end_date.day) if end_date else None
+    
+    if complete_percent > 0.0:
+        if end and now > end:
+            return "Delayed"
+        return "In Progress"
+        
+    if start and now > start:
+        return "Delayed"
+    if start and now >= (start - timedelta(days=7)):
+        return "Upcoming"
+    return "Not Started"
+
 def rollup_parent_nodes(
     tasks_dict: Dict[int, ProjectMilestone],
     parent_to_children: Dict[int, List[int]]
@@ -126,12 +148,9 @@ def rollup_parent_nodes(
             parent.complete_percent = 0.0
             
         # 4. Status
-        if parent.complete_percent >= 100.0:
-            parent.status = "Completed"
-        elif parent.complete_percent > 0.0:
-            parent.status = "In Progress"
-        else:
-            parent.status = "Not Started"
+        parent.status = get_status_from_progress_and_dates(
+            parent.complete_percent, parent.start_date, parent.end_date, parent.status
+        )
 
 def run_critical_path_method(
     tasks: List[ProjectMilestone],
@@ -301,6 +320,30 @@ def recalculate_project_schedule(db: Session, project_id: str):
     
     # 3. Perform parent rollup bottom-up
     tasks_dict = {t.id: t for t in tasks}
+    
+    # Apply leaf task rules: resource-weighted complete_percent and automatic status
+    for task in tasks:
+        is_parent = task.id in all_parent_ids or task.item_type == "Phase"
+        if not is_parent:
+            custom_vals = task.custom_values or {}
+            is_manual = custom_vals.get("manual_completion_override", False)
+            assigned_to_list = task.assigned_to
+            if not is_manual and assigned_to_list:
+                total_weight = 0.0
+                weighted_prog = 0.0
+                resource_weights = custom_vals.get("resource_weights", {})
+                resource_progress = custom_vals.get("resource_progress", {})
+                for uid in assigned_to_list:
+                    w = float(resource_weights.get(str(uid), 1.0))
+                    p = float(resource_progress.get(str(uid), 0.0))
+                    total_weight += w
+                    weighted_prog += w * p
+                task.complete_percent = round(weighted_prog / total_weight, 2) if total_weight > 0 else 0.0
+            
+            task.status = get_status_from_progress_and_dates(
+                task.complete_percent, task.start_date, task.end_date, task.status
+            )
+
     rollup_parent_nodes(tasks_dict, parent_to_children)
     
     # Commit changes

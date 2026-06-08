@@ -10,58 +10,291 @@ import API from '../../utils/api';
 import { getEmployees } from '../../utils/employeeApi';
 import { toast } from 'react-hot-toast';
 
-const rollupParentTasks = (allTasks) => {
-  // Build parent-to-children mapping
+const recalculateParentIds = (tasksList) => {
+  const stack = [];
+  return tasksList.map(task => {
+    // Pop from stack until we find a potential parent (lower indent level)
+    while (stack.length > 0 && stack[stack.length - 1].indent_level >= task.indent_level) {
+      stack.pop();
+    }
+    
+    let parent_id = null;
+    if (stack.length > 0) {
+      parent_id = stack[stack.length - 1].id;
+    }
+    
+    stack.push({ id: task.id, indent_level: task.indent_level });
+    
+    return {
+      ...task,
+      parent_id
+    };
+  });
+};
+const sortTasksHierarchically = (allTasks) => {
+  const parentToChildren = {};
+  const roots = [];
+
+  allTasks.forEach(task => {
+    if (task.parent_id) {
+      parentToChildren[task.parent_id] = parentToChildren[task.parent_id] || [];
+      parentToChildren[task.parent_id].push(task);
+    } else {
+      roots.push(task);
+    }
+  });
+
+  // Sort roots by row_order
+  roots.sort((a, b) => (a.row_order || 0) - (b.row_order || 0));
+
+  // Sort children by row_order
+  Object.keys(parentToChildren).forEach(parentId => {
+    parentToChildren[parentId].sort((a, b) => (a.row_order || 0) - (b.row_order || 0));
+  });
+
+  const result = [];
+  const traverse = (node) => {
+    result.push(node);
+    const children = parentToChildren[node.id];
+    if (children) {
+      children.forEach(child => traverse(child));
+    }
+  };
+
+  roots.forEach(root => traverse(root));
+
+  // For any tasks that might have been left out (e.g. parent_id refers to non-existent task)
+  allTasks.forEach(task => {
+    if (!result.find(r => r.id === task.id)) {
+      result.push(task);
+    }
+  });
+
+  return result;
+};
+
+const runClientCPM = (allTasks, deps, projectStartDate) => {
+  if (!allTasks || allTasks.length === 0) return allTasks;
+
+  // 1. Build map of tasks
+  const tasksMap = {};
+  allTasks.forEach(t => {
+    tasksMap[t.id] = { ...t };
+  });
+
+  // 2. Identify parents
   const parentToChildren = {};
   allTasks.forEach(t => {
+    if (t.parent_id) {
+      parentToChildren[t.parent_id] = parentToChildren[t.parent_id] || [];
+      parentToChildren[t.parent_id].push(t.id);
+    }
+  });
+  const allParentIds = new Set(Object.keys(parentToChildren).map(Number));
+
+  // 3. Build Adjacency List for CPM (only for leaf tasks, since parents are rolled up)
+  const successors = {};
+  const predecessors = {};
+  const inDegrees = {};
+  
+  allTasks.forEach(t => {
+    successors[t.id] = [];
+    predecessors[t.id] = [];
+    inDegrees[t.id] = 0;
+  });
+
+  deps.forEach(dep => {
+    const pId = dep.predecessor_task_id;
+    const sId = dep.successor_task_id;
+    if (successors[pId] && successors[sId]) {
+      successors[pId].push({ successorId: sId, type: dep.type, lag: dep.lag_days });
+      predecessors[sId].push({ predecessorId: pId, type: dep.type, lag: dep.lag_days });
+      inDegrees[sId]++;
+    }
+  });
+
+  // Topological Sort (Kahn's Algorithm)
+  const queue = [];
+  allTasks.forEach(t => {
+    if (inDegrees[t.id] === 0) queue.push(t.id);
+  });
+
+  const topoOrder = [];
+  while (queue.length > 0) {
+    const u = queue.shift();
+    topoOrder.push(u);
+    successors[u].forEach(edge => {
+      inDegrees[edge.successorId]--;
+      if (inDegrees[edge.successorId] === 0) {
+        queue.push(edge.successorId);
+      }
+    });
+  }
+
+  if (topoOrder.length !== allTasks.length) {
+    console.warn("Cycle detected in client-side scheduling! Skipping auto-schedule.");
+    return allTasks;
+  }
+
+  // Forward Pass
+  const earlyStart = {};
+  const earlyFinish = {};
+  const projStart = new Date(projectStartDate || new Date());
+
+  topoOrder.forEach(tid => {
+    const task = tasksMap[tid];
+    const isParent = allParentIds.has(tid) || task.item_type === 'Phase';
+    
+    let duration = 0;
+    if (task.start_date && task.end_date) {
+      duration = Math.max(0, Math.ceil((new Date(task.end_date) - new Date(task.start_date)) / 86400000));
+    }
+
+    const preds = predecessors[tid];
+    let es = new Date(task.start_date || projStart);
+
+    if (preds && preds.length > 0 && !isParent) {
+      const candidates = preds.map(edge => {
+        const predES = earlyStart[edge.predecessorId] || projStart;
+        const predEF = earlyFinish[edge.predecessorId] || projStart;
+        
+        let cES = new Date(predEF);
+        if (edge.type === 'FS') {
+          cES = new Date(predEF.getTime() + edge.lag * 86400000);
+        } else if (edge.type === 'SS') {
+          cES = new Date(predES.getTime() + edge.lag * 86400000);
+        } else if (edge.type === 'FF') {
+          cES = new Date(predEF.getTime() + edge.lag * 86400000 - duration * 86400000);
+        } else if (edge.type === 'SF') {
+          cES = new Date(predES.getTime() + edge.lag * 86400000 - duration * 86400000);
+        }
+        return cES;
+      });
+      es = new Date(Math.max(...candidates.map(c => c.getTime())));
+    }
+
+    earlyStart[tid] = es;
+    earlyFinish[tid] = new Date(es.getTime() + duration * 86400000);
+
+    if (!isParent) {
+      task.start_date = es.toISOString();
+      task.end_date = earlyFinish[tid].toISOString();
+    }
+  });
+
+  return Object.values(tasksMap);
+};
+
+const rollupParentTasks = (allTasks) => {
+  // 1. Recalculate parent_id based on indent level sequence
+  const tasksWithParents = recalculateParentIds(allTasks);
+
+  // 2. Build parent-to-children mapping
+  const parentToChildren = {};
+  tasksWithParents.forEach(t => {
     if (t.parent_id) {
       parentToChildren[t.parent_id] = parentToChildren[t.parent_id] || [];
       parentToChildren[t.parent_id].push(t);
     }
   });
 
-  return allTasks.map(task => {
-    const children = parentToChildren[task.id];
-    if (children && children.length > 0) {
-      // 1. Rollup Planned Start & End
+  // 3. Rollup bottom-up (deepest indent level first)
+  const taskMap = {};
+  tasksWithParents.forEach(t => {
+    taskMap[t.id] = { ...t };
+  });
+
+  const parentIds = Object.keys(parentToChildren);
+  parentIds.sort((a, b) => {
+    const taskA = taskMap[a];
+    const taskB = taskMap[b];
+    return (taskB?.indent_level || 0) - (taskA?.indent_level || 0);
+  });
+
+  const getStatusFromProgressAndDates = (completePercent, startDate, endDate, statusVal) => {
+    if (statusVal === 'Cancelled' || statusVal === 'On Hold') return statusVal;
+    if (completePercent >= 100) return 'Completed';
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    if (completePercent > 0) {
+      if (end && now > end) return 'Delayed';
+      return 'In Progress';
+    }
+    // completePercent == 0
+    if (start && now > start) return 'Delayed';
+    if (start && now >= new Date(start.getTime() - 7 * 86400000)) return 'Upcoming';
+    return 'Not Started';
+  };
+
+  parentIds.forEach(pid => {
+    const parent = taskMap[pid];
+    if (!parent) return;
+    
+    const children = parentToChildren[pid].map(c => taskMap[c.id]).filter(Boolean);
+    if (children.length > 0) {
+      // Rollup Planned Start & End
       const validStarts = children.map(c => c.start_date).filter(Boolean).map(d => new Date(d));
       const validEnds = children.map(c => c.end_date).filter(Boolean).map(d => new Date(d));
-      
-      const newStart = validStarts.length > 0 ? new Date(Math.min(...validStarts)).toISOString() : task.start_date;
-      const newEnd = validEnds.length > 0 ? new Date(Math.max(...validEnds)).toISOString() : task.end_date;
-      
-      // 2. Rollup Complete Percent (Duration-weighted)
+      if (validStarts.length > 0) parent.start_date = new Date(Math.min(...validStarts)).toISOString();
+      if (validEnds.length > 0) parent.end_date = new Date(Math.max(...validEnds)).toISOString();
+
+      // Rollup Actual Start & End
+      const validActStarts = children.map(c => c.actual_start).filter(Boolean).map(d => new Date(d));
+      if (validActStarts.length > 0) parent.actual_start = new Date(Math.min(...validActStarts)).toISOString();
+      else parent.actual_start = null;
+
+      const allChildrenCompleted = children.every(c => c.status === 'Completed');
+      const validActEnds = children.map(c => c.actual_end).filter(Boolean).map(d => new Date(d));
+      if (allChildrenCompleted && validActEnds.length > 0) {
+        parent.actual_end = new Date(Math.max(...validActEnds)).toISOString();
+      } else {
+        parent.actual_end = null;
+      }
+
+      // Rollup Complete Percent (Duration-weighted)
       let totalDuration = 0;
       let weightedCompleteness = 0;
       children.forEach(c => {
         let dur = 1;
         if (c.start_date && c.end_date) {
-          dur = Math.max(1, Math.ceil((new Date(c.end_date) - new Date(c.start_date)) / (1000 * 60 * 60 * 24)));
+          dur = Math.max(1, Math.ceil((new Date(c.end_date) - new Date(c.start_date)) / 86400000));
         }
         totalDuration += dur;
         weightedCompleteness += dur * (c.complete_percent || 0);
       });
-      
-      const newCompletePercent = totalDuration > 0 ? Math.round(weightedCompleteness / totalDuration) : 0;
-      
-      // 3. Rollup Status
-      let newStatus = 'Not Started';
-      if (newCompletePercent >= 100) {
-        newStatus = 'Completed';
-      } else if (newCompletePercent > 0) {
-        newStatus = 'In Progress';
-      }
-      
-      return {
-        ...task,
-        start_date: newStart,
-        end_date: newEnd,
-        complete_percent: newCompletePercent,
-        status: newStatus
-      };
+      parent.complete_percent = totalDuration > 0 ? Math.round(weightedCompleteness / totalDuration) : 0;
+
+      // Rollup Status
+      parent.status = getStatusFromProgressAndDates(parent.complete_percent, parent.start_date, parent.end_date, parent.status);
     }
-    return task;
   });
+
+  // Also apply automatic status and resource-weighted progress to all leaf tasks!
+  tasksWithParents.forEach(t => {
+    const isLeaf = !parentToChildren[t.id] || parentToChildren[t.id].length === 0;
+    if (isLeaf) {
+      const task = taskMap[t.id];
+      const isManual = task.custom_values?.manual_completion_override || false;
+      if (!isManual && task.assigned_to && task.assigned_to.length > 0) {
+        let totalWeight = 0;
+        let weightedProg = 0;
+        task.assigned_to.forEach(uid => {
+          const w = task.custom_values?.resource_weights?.[uid] !== undefined ? parseFloat(task.custom_values.resource_weights[uid]) : 1;
+          const p = task.custom_values?.resource_progress?.[uid] !== undefined ? parseFloat(task.custom_values.resource_progress[uid]) : 0;
+          totalWeight += w;
+          weightedProg += w * p;
+        });
+        task.complete_percent = totalWeight > 0 ? Math.round(weightedProg / totalWeight) : 0;
+      }
+
+      // Resolve status based on dates and complete_percent
+      task.status = getStatusFromProgressAndDates(task.complete_percent, task.start_date, task.end_date, task.status);
+    }
+  });
+
+  return tasksWithParents.map(t => taskMap[t.id]);
 };
 
 const MilestoneManagement = ({ project, showNotification }) => {
@@ -111,6 +344,22 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
   // Selected row
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+
+  // Progress logs state
+  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  const [logPercent, setLogPercent] = useState(0);
+  const [logNotes, setLogNotes] = useState('');
+
+  useEffect(() => {
+    if (selectedTaskId !== null) {
+      const task = tasks.find(t => t.id === selectedTaskId);
+      if (task) {
+        setLogPercent(task.complete_percent || 0);
+        setLogNotes('');
+        setLogDate(new Date().toISOString().split('T')[0]);
+      }
+    }
+  }, [selectedTaskId, tasks]);
 
   // Baseline management
   const [baselineVersion, setBaselineVersion] = useState('Baseline_V1');
@@ -208,10 +457,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
     try {
       setLoading(true);
       const mRes = await API.get(`/projects/${project.project_id}/milestones`);
-      setTasks(mRes.data || []);
-
+      const fetchedTasks = mRes.data || [];
+      
       const deps = [];
-      mRes.data.forEach(task => {
+      fetchedTasks.forEach(task => {
         if (task.dependencies_as_successor) {
           task.dependencies_as_successor.forEach(d => {
             deps.push({
@@ -224,6 +473,11 @@ const MilestoneManagement = ({ project, showNotification }) => {
         }
       });
       setDependencies(deps);
+
+      const tasksWithParents = recalculateParentIds(fetchedTasks);
+      const scheduled = runClientCPM(tasksWithParents, deps, project.start_date);
+      const rolled = rollupParentTasks(scheduled);
+      setTasks(rolled);
 
       const cRes = await API.get(`/projects/${project.project_id}/milestones/columns`);
       setCustomColumns(cRes.data || []);
@@ -241,7 +495,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
         console.error("Failed to load project team:", teamError);
       }
 
-      calculateTimelineRange(mRes.data || []);
+      calculateTimelineRange(rolled);
     } catch (e) {
       console.error(e);
       toast.error('Failed to load milestone data');
@@ -337,6 +591,204 @@ const MilestoneManagement = ({ project, showNotification }) => {
     return daysBetween * pxPerDay;
   }, [daysBetween, pxPerDay]);
 
+  const timelineHeaders = useMemo(() => {
+    const topHeaders = [];
+    const bottomHeaders = [];
+
+    if (zoomLevel === 'Day') {
+      let currentMonthStartIdx = 0;
+      let currentMonthLabel = '';
+      let daysInGroup = 0;
+
+      for (let i = 0; i < daysBetween; i++) {
+        const date = new Date(timelineStart);
+        date.setDate(date.getDate() + i);
+
+        const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const dayLabel = String(date.getDate());
+
+        bottomHeaders.push({
+          key: `b-${i}`,
+          left: i * pxPerDay,
+          width: pxPerDay,
+          label: dayLabel,
+          title: date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
+          className: "border-l border-[var(--border-subtle)]/40 justify-center text-[8px]"
+        });
+
+        if (i === 0) {
+          currentMonthLabel = monthLabel;
+          currentMonthStartIdx = 0;
+          daysInGroup = 1;
+        } else if (monthLabel === currentMonthLabel) {
+          daysInGroup++;
+        } else {
+          topHeaders.push({
+            key: `t-${currentMonthStartIdx}`,
+            left: currentMonthStartIdx * pxPerDay,
+            width: daysInGroup * pxPerDay,
+            label: currentMonthLabel,
+          });
+          currentMonthLabel = monthLabel;
+          currentMonthStartIdx = i;
+          daysInGroup = 1;
+        }
+      }
+      if (daysInGroup > 0) {
+        topHeaders.push({
+          key: `t-${currentMonthStartIdx}`,
+          left: currentMonthStartIdx * pxPerDay,
+          width: daysInGroup * pxPerDay,
+          label: currentMonthLabel,
+        });
+      }
+
+    } else if (zoomLevel === 'Week') {
+      let currentMonthStartIdx = 0;
+      let currentMonthLabel = '';
+      let daysInGroup = 0;
+
+      let lastWeekStartIdx = 0;
+      for (let i = 0; i < daysBetween; i++) {
+        const date = new Date(timelineStart);
+        date.setDate(date.getDate() + i);
+
+        const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const isWeekStart = date.getDay() === 1 || i === 0;
+
+        if (isWeekStart && i > 0) {
+          const weekStartDate = new Date(timelineStart);
+          weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
+          bottomHeaders.push({
+            key: `b-${lastWeekStartIdx}`,
+            left: lastWeekStartIdx * pxPerDay,
+            width: (i - lastWeekStartIdx) * pxPerDay,
+            label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
+            title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
+            className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
+          });
+          lastWeekStartIdx = i;
+        }
+
+        if (i === 0) {
+          currentMonthLabel = monthLabel;
+          currentMonthStartIdx = 0;
+          daysInGroup = 1;
+        } else if (monthLabel === currentMonthLabel) {
+          daysInGroup++;
+        } else {
+          topHeaders.push({
+            key: `t-${currentMonthStartIdx}`,
+            left: currentMonthStartIdx * pxPerDay,
+            width: daysInGroup * pxPerDay,
+            label: currentMonthLabel,
+          });
+          currentMonthLabel = monthLabel;
+          currentMonthStartIdx = i;
+          daysInGroup = 1;
+        }
+      }
+
+      if (lastWeekStartIdx < daysBetween) {
+        const weekStartDate = new Date(timelineStart);
+        weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
+        bottomHeaders.push({
+          key: `b-${lastWeekStartIdx}`,
+          left: lastWeekStartIdx * pxPerDay,
+          width: (daysBetween - lastWeekStartIdx) * pxPerDay,
+          label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
+          title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
+          className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
+        });
+      }
+
+      if (daysInGroup > 0) {
+        topHeaders.push({
+          key: `t-${currentMonthStartIdx}`,
+          left: currentMonthStartIdx * pxPerDay,
+          width: daysInGroup * pxPerDay,
+          label: currentMonthLabel,
+        });
+      }
+
+    } else if (zoomLevel === 'Month') {
+      let currentYearStartIdx = 0;
+      let currentYearLabel = '';
+      let daysInYearGroup = 0;
+
+      let lastMonthStartIdx = 0;
+      let lastMonthLabel = '';
+
+      for (let i = 0; i < daysBetween; i++) {
+        const date = new Date(timelineStart);
+        date.setDate(date.getDate() + i);
+
+        const yearLabel = String(date.getFullYear());
+        const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+        const isMonthStart = date.getDate() === 1 || i === 0;
+
+        if (isMonthStart && i > 0) {
+          const monthStartDate = new Date(timelineStart);
+          monthStartDate.setDate(monthStartDate.getDate() + lastMonthStartIdx);
+          bottomHeaders.push({
+            key: `b-${lastMonthStartIdx}`,
+            left: lastMonthStartIdx * pxPerDay,
+            width: (i - lastMonthStartIdx) * pxPerDay,
+            label: lastMonthLabel,
+            title: monthStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            className: "border-l border-[var(--border-subtle)]/40 px-1 justify-center font-bold text-[9px]"
+          });
+          lastMonthStartIdx = i;
+          lastMonthLabel = monthName;
+        } else if (i === 0) {
+          lastMonthLabel = monthName;
+        }
+
+        if (i === 0) {
+          currentYearLabel = yearLabel;
+          currentYearStartIdx = 0;
+          daysInYearGroup = 1;
+        } else if (yearLabel === currentYearLabel) {
+          daysInYearGroup++;
+        } else {
+          topHeaders.push({
+            key: `t-${currentYearStartIdx}`,
+            left: currentYearStartIdx * pxPerDay,
+            width: daysInYearGroup * pxPerDay,
+            label: currentYearLabel,
+          });
+          currentYearLabel = yearLabel;
+          currentYearStartIdx = i;
+          daysInYearGroup = 1;
+        }
+      }
+
+      if (lastMonthStartIdx < daysBetween) {
+        const monthStartDate = new Date(timelineStart);
+        monthStartDate.setDate(monthStartDate.getDate() + lastMonthStartIdx);
+        bottomHeaders.push({
+          key: `b-${lastMonthStartIdx}`,
+          left: lastMonthStartIdx * pxPerDay,
+          width: (daysBetween - lastMonthStartIdx) * pxPerDay,
+          label: lastMonthLabel,
+          title: monthStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          className: "border-l border-[var(--border-subtle)]/40 px-1 justify-center font-bold text-[9px]"
+        });
+      }
+
+      if (daysInYearGroup > 0) {
+        topHeaders.push({
+          key: `t-${currentYearStartIdx}`,
+          left: currentYearStartIdx * pxPerDay,
+          width: daysInYearGroup * pxPerDay,
+          label: currentYearLabel,
+        });
+      }
+    }
+
+    return { topHeaders, bottomHeaders };
+  }, [zoomLevel, timelineStart, daysBetween, pxPerDay]);
+
   const handleScroll = (e) => {
     const top = e.target.scrollTop;
     setScrollTop(top);
@@ -366,9 +818,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
   };
 
   const filteredTasks = useMemo(() => {
-    // Only show root tasks in the main spreadsheet list
-    return tasks
-      .filter(t => !t.parent_id)
+    const sorted = sortTasksHierarchically(tasks);
+    return sorted
       .map((t, idx) => ({ ...t, originalIndex: idx }))
       .filter(t => {
         if (departmentFilter !== 'All' && t.department !== departmentFilter) return false;
@@ -387,7 +838,9 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const setAndRollupTasks = (updater) => {
     setTasks(prev => {
       const nextTasks = typeof updater === 'function' ? updater(prev) : updater;
-      return rollupParentTasks(nextTasks);
+      const tasksWithParents = recalculateParentIds(nextTasks);
+      const scheduledTasks = runClientCPM(tasksWithParents, dependencies, project.start_date);
+      return rollupParentTasks(scheduledTasks);
     });
   };
 
@@ -669,6 +1122,37 @@ const MilestoneManagement = ({ project, showNotification }) => {
     toast.success('Follow-up scheduled.');
   };
 
+  const handleAddProgressLog = (taskId, dateStr, percent, notesStr) => {
+    setAndRollupTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        const task = { ...t };
+        const currentHistory = task.custom_values?.progress_history || [];
+        const newEntry = {
+          date: dateStr,
+          complete_percent: percent,
+          notes: notesStr
+        };
+        
+        const newHistory = [...currentHistory, newEntry].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        task.custom_values = {
+          ...(task.custom_values || {}),
+          progress_history: newHistory
+        };
+
+        const isManual = task.custom_values?.manual_completion_override || false;
+        const hasResources = task.assigned_to && task.assigned_to.length > 0;
+        if (isManual || !hasResources) {
+          task.complete_percent = percent;
+        }
+
+        return task;
+      }
+      return t;
+    }));
+    toast.success("Progress log entry added.");
+  };
+
   // Map tasks to their parent phase color code
   const getPhaseColors = (taskIndex) => {
     let currentColor = 'cyan';
@@ -761,33 +1245,25 @@ const MilestoneManagement = ({ project, showNotification }) => {
   // Gantt Bars Mapping
   const ganttBars = useMemo(() => {
     return filteredTasks.map((t, idx) => {
-      let start = null;
-      let end = null;
+      if (!t.start_date || !t.end_date) return null;
 
-      // Select dates based on showDataType configuration
-      if (showDataType === 'Actual' && t.actual_start && t.actual_end) {
-        start = new Date(t.actual_start);
-        end = new Date(t.actual_end);
-      } else if (showDataType === 'Baseline') {
-        const activeBaseline = t.baselines?.find(b => b.baseline_version === baselineVersion);
-        if (activeBaseline && activeBaseline.baseline_start && activeBaseline.baseline_end) {
-          start = new Date(activeBaseline.baseline_start);
-          end = new Date(activeBaseline.baseline_end);
-        }
+      const plannedStart = new Date(t.start_date);
+      const plannedEnd = new Date(t.end_date);
+      
+      const plannedLeft = ((plannedStart - timelineStart) / 86400000) * pxPerDay;
+      const plannedWidth = Math.max(4, ((plannedEnd - plannedStart) / 86400000) * pxPerDay);
+
+      let actualLeft = null;
+      let actualWidth = null;
+      let isActualActive = false;
+
+      if (t.actual_start) {
+        isActualActive = true;
+        const actStart = new Date(t.actual_start);
+        const actEnd = t.actual_end ? new Date(t.actual_end) : new Date(); // use current date if in progress
+        actualLeft = ((actStart - timelineStart) / 86400000) * pxPerDay;
+        actualWidth = Math.max(4, ((actEnd - actStart) / 86400000) * pxPerDay);
       }
-
-      // Fallback
-      if (!start || !end) {
-        if (!t.start_date || !t.end_date) return null;
-        start = new Date(t.start_date);
-        end = new Date(t.end_date);
-      }
-
-      const startOffset = Math.max(0, (start - timelineStart) / (1000 * 60 * 60 * 24));
-      const dur = Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
-
-      const left = startOffset * pxPerDay;
-      const width = dur * pxPerDay;
 
       let baselineLeft = null;
       let baselineWidth = null;
@@ -795,22 +1271,31 @@ const MilestoneManagement = ({ project, showNotification }) => {
       if (activeBaseline && activeBaseline.baseline_start && activeBaseline.baseline_end) {
         const bStart = new Date(activeBaseline.baseline_start);
         const bEnd = new Date(activeBaseline.baseline_end);
-        const bOffset = Math.max(0, (bStart - timelineStart) / (1000 * 60 * 60 * 24));
-        const bDur = Math.max(0, (bEnd - bStart) / (1000 * 60 * 60 * 24));
-        baselineLeft = bOffset * pxPerDay;
-        baselineWidth = bDur * pxPerDay;
+        baselineLeft = ((bStart - timelineStart) / 86400000) * pxPerDay;
+        baselineWidth = Math.max(4, ((bEnd - bStart) / 86400000) * pxPerDay);
       }
 
       const colors = getPhaseColors(t.originalIndex);
+      const isMilestone = t.item_type === 'Milestone' || t.item_type === 'Approval Gate';
       
-      const isMilestone = t.item_type === 'Milestone' || t.item_type === 'Approval Gate' || dur === 0;
-      const isOverdue = !isMilestone && t.item_type !== 'Phase' && new Date(t.end_date) < new Date() && (t.complete_percent || 0) < 100 && t.status !== 'Completed';
-      const startDateStr = start ? start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      // Calculate delay / variance (days)
+      let varianceDays = 0;
+      const curDate = new Date();
+      if (t.status === 'Completed' && t.actual_end) {
+        varianceDays = Math.ceil((new Date(t.actual_end) - plannedEnd) / 86400000);
+      } else if (t.status === 'Delayed' || (curDate > plannedEnd && t.complete_percent < 100)) {
+        varianceDays = Math.ceil((curDate - plannedEnd) / 86400000);
+      } else if (t.actual_start) {
+        varianceDays = Math.ceil((new Date(t.actual_start) - plannedStart) / 86400000);
+      }
 
       return {
         id: t.id,
-        left,
-        width,
+        plannedLeft,
+        plannedWidth,
+        actualLeft,
+        actualWidth,
+        isActualActive,
         baselineLeft,
         baselineWidth,
         isMilestone,
@@ -825,11 +1310,12 @@ const MilestoneManagement = ({ project, showNotification }) => {
           return emp ? emp.employee_name : uid;
         }).filter(Boolean).join(', '),
         pinType: t.custom_values?.pin_type || '',
-        isOverdue,
-        startDateStr
+        status: t.status,
+        varianceDays,
+        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
       };
     });
-  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, showDataType, tasks]);
+  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks]);
 
   // SVG Connector Lines
   const dependencyLines = useMemo(() => {
@@ -859,18 +1345,18 @@ const MilestoneManagement = ({ project, showNotification }) => {
       const y1 = predIdx * rowHeight + rowHeight / 2;
       const y2 = succIdx * rowHeight + rowHeight / 2;
 
-      let x1 = pred.left + pred.width;
-      let x2 = succ.left;
+      let x1 = pred.plannedLeft + pred.plannedWidth;
+      let x2 = succ.plannedLeft;
 
       if (d.type === 'SS') {
-        x1 = pred.left;
-        x2 = succ.left;
+        x1 = pred.plannedLeft;
+        x2 = succ.plannedLeft;
       } else if (d.type === 'FF') {
-        x1 = pred.left + pred.width;
-        x2 = succ.left + succ.width;
+        x1 = pred.plannedLeft + pred.plannedWidth;
+        x2 = succ.plannedLeft + succ.plannedWidth;
       } else if (d.type === 'SF') {
-        x1 = pred.left;
-        x2 = succ.left + succ.width;
+        x1 = pred.plannedLeft;
+        x2 = succ.plannedLeft + succ.plannedWidth;
       }
 
       const isCriticalLink = pred.isCritical && succ.isCritical;
@@ -1086,7 +1572,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
             onScroll={handleScroll}
           >
             <table 
-              style={{ width: '100%', minWidth: `${1460 + customColumns.length * 128}px` }}
+              style={{ width: '100%', minWidth: `${1620 + customColumns.length * 128}px` }}
               className="text-left border-collapse table-fixed select-text"
             >
               <thead className="bg-[var(--surface)] text-[var(--text-secondary)] border-b border-[var(--border-subtle)] sticky top-0 z-20">
@@ -1096,11 +1582,13 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   <th className="w-16 px-2 border-r border-[var(--border-subtle)]">Pin</th>
                   <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Department</th>
                   <th className="w-64 px-3 border-r border-[var(--border-subtle)]">Activity Name</th>
-                  <th className="w-28 px-2 border-r border-[var(--border-subtle)] text-center">Sub Activity</th>
+                  <th className="w-24 px-2 border-r border-[var(--border-subtle)] text-center">Sub Activity</th>
                   <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Start Date</th>
                   <th className="w-28 px-2 border-r border-[var(--border-subtle)]">End Date</th>
+                  <th className="w-20 px-2 border-r border-[var(--border-subtle)] text-center">Duration</th>
                   <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Actual Start</th>
                   <th className="w-28 px-2 border-r border-[var(--border-subtle)]">Actual End</th>
+                  <th className="w-24 px-2 border-r border-[var(--border-subtle)] text-center">Variance</th>
                   <th className="w-14 px-2 border-r border-[var(--border-subtle)] text-center">% Comp</th>
                   <th className="w-36 px-2 border-r border-[var(--border-subtle)]">Assigned To</th>
                   <th className="w-24 px-2 border-r border-[var(--border-subtle)]">Status</th>
@@ -1134,7 +1622,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   // Format Duration display
                   let durationDays = '0 days';
                   if (task.start_date && task.end_date) {
-                    const days = Math.ceil((new Date(task.end_date) - new Date(task.start_date)) / (1000 * 60 * 60 * 24));
+                    const days = Math.ceil((new Date(task.end_date) - new Date(task.start_date)) / 86400000);
                     durationDays = days === 0 ? '0 days' : `${days} day${days > 1 ? 's' : ''}`;
                   }
 
@@ -1145,12 +1633,47 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
                   };
 
+                  // Format schedule variance / delay display
+                  let varianceText = 'On Track';
+                  let varianceColor = 'text-slate-400';
+                  const plannedEnd = task.end_date ? new Date(task.end_date) : null;
+                  const actualEnd = task.actual_end ? new Date(task.actual_end) : null;
+                  const curDate = new Date();
+                  
+                  if (task.status === 'Completed' && actualEnd && plannedEnd) {
+                    const v = Math.ceil((actualEnd - plannedEnd) / 86400000);
+                    if (v > 0) {
+                      varianceText = `+${v}d Delay`;
+                      varianceColor = 'text-rose-500 font-bold';
+                    } else if (v < 0) {
+                      varianceText = `${v}d Advance`;
+                      varianceColor = 'text-emerald-500 font-bold';
+                    }
+                  } else if ((task.status === 'Delayed' || (curDate > plannedEnd && task.complete_percent < 100)) && plannedEnd) {
+                    const v = Math.ceil((curDate - plannedEnd) / 86400000);
+                    varianceText = `+${v}d Delay`;
+                    varianceColor = 'text-rose-500 font-bold';
+                  } else if (task.actual_start && task.start_date) {
+                    const v = Math.ceil((new Date(task.actual_start) - new Date(task.start_date)) / 86400000);
+                    if (v > 0) {
+                      varianceText = `+${v}d Start Delay`;
+                      varianceColor = 'text-rose-500 font-bold';
+                    } else if (v < 0) {
+                      varianceText = `${v}d Early Start`;
+                      varianceColor = 'text-emerald-500 font-bold';
+                    }
+                  }
+
                   return (
                     <tr 
                       key={task.id}
                       onClick={() => setSelectedTaskId(task.id)}
                       style={{ height: rowHeight }}
-                      className={`border-b border-[var(--border-subtle)]/30 hover:bg-[var(--table-hover)] transition-colors ${isSelected ? 'bg-[var(--active-menu)]/15 border-[var(--border-subtle)]' : ''} ${task.is_critical ? 'bg-rose-500/5' : ''}`}
+                      className={`border-b border-[var(--border-subtle)]/30 hover:bg-[var(--table-hover)] transition-colors ${
+                        isSelected ? 'bg-[var(--active-menu)]/15 border-[var(--border-subtle)]' : ''
+                      } ${task.is_critical ? 'bg-rose-500/5' : ''} ${
+                        isParent ? 'bg-slate-50/60 dark:bg-slate-900/40' : ''
+                      }`}
                     >
                       {/* Index */}
                       <td className="px-2 text-center border-r border-[var(--border-subtle)] font-mono text-[10px] text-[var(--text-muted)] font-bold select-none">{taskIdx + 1}</td>
@@ -1253,6 +1776,13 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         )}
                       </td>
 
+                      {/* Duration (NEW) */}
+                      <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono">
+                        <span className={`text-[11px] ${isParent ? 'font-bold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
+                          {durationDays}
+                        </span>
+                      </td>
+
                       {/* Actual Start */}
                       <td className="px-2 border-r border-[var(--border-subtle)] font-mono font-semibold text-[var(--text-muted)]">
                         {isParent ? (
@@ -1281,6 +1811,13 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         )}
                       </td>
 
+                      {/* Variance (NEW) */}
+                      <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono text-[10px]">
+                        <span className={varianceColor}>
+                          {varianceText}
+                        </span>
+                      </td>
+
                       {/* Complete % */}
                       <td className="px-2 border-r border-[var(--border-subtle)] text-center font-mono text-xs">
                         {isParent ? (
@@ -1291,8 +1828,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             min="0"
                             max="100"
                             value={task.complete_percent || 0}
+                            readOnly={!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0}
                             onChange={e => handleCellChange(task.id, 'complete_percent', parseFloat(e.target.value) || 0)}
-                            className="w-full bg-transparent border-0 outline-none text-center text-[var(--text-primary)] font-semibold"
+                            className={`w-full bg-transparent border-0 outline-none text-center font-semibold ${
+                              (!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0)
+                                ? 'text-slate-400 cursor-not-allowed'
+                                : 'text-[var(--text-primary)]'
+                            }`}
+                            title={(!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0) ? "Calculated from Resource weights/progress" : "Manual Completion %"}
                           />
                         )}
                       </td>
@@ -1319,15 +1862,19 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
                       {/* Status */}
                       <td className="px-2 border-r border-[var(--border-subtle)]">
-                        <select
-                          value={task.status || 'Not Started'}
-                          onChange={e => handleCellChange(task.id, 'status', e.target.value)}
-                          className="w-full bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] font-bold"
-                        >
-                          {['Not Started', 'In Progress', 'Completed', 'On Hold'].map(s => (
-                            <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
-                          ))}
-                        </select>
+                        {isParent ? (
+                          <span className="font-bold text-[var(--text-primary)] text-[10px] tracking-wide uppercase px-1">{task.status || 'Not Started'}</span>
+                        ) : (
+                          <select
+                            value={task.status || 'Not Started'}
+                            onChange={e => handleCellChange(task.id, 'status', e.target.value)}
+                            className="w-full bg-transparent border-0 outline-none text-xs text-[var(--text-primary)] font-bold"
+                          >
+                            {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
+                              <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
+                            ))}
+                          </select>
+                        )}
                       </td>
 
                       {/* Predecessors */}
@@ -1335,8 +1882,9 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         <input
                           type="text"
                           placeholder="e.g. 1FS+3d"
+                          disabled={isParent}
                           value={task.dependencies_as_successor ? task.dependencies_as_successor.map(d => {
-                            const predTaskIdx = tasks.findIndex(pt => pt.id === d.predecessor_task_id);
+                            const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
                             const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
                             return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
                           }).join(', ') : ''}
@@ -1351,7 +1899,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                                 const depType = (match[2] || 'FS').toUpperCase();
                                 const lagVal = match[3] ? parseInt(match[3]) : 0;
                                 
-                                const predTask = tasks[predRowIdx];
+                                const predTask = filteredTasks[predRowIdx];
                                 if (predTask && predTask.id !== task.id) {
                                     parsedDeps.push({
                                       predecessor_task_id: predTask.id,
@@ -1438,40 +1986,34 @@ const MilestoneManagement = ({ project, showNotification }) => {
             onScroll={handleScroll}
           >
             <div style={{ width: timelineWidth, height: filteredTasks.length * rowHeight + 40 }} className="relative bg-[var(--surface)]">
-              
-              {/* TIMELINE MONTH / WEEK HEADERS */}
+                    {/* TIMELINE MONTH / WEEK HEADERS */}
               <div className="h-10 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] sticky top-0 z-20 flex flex-col justify-end select-none">
                 
-                {/* Top Monthly Header */}
-                <div className="absolute top-0 left-0 w-full h-5 bg-[var(--bg)] border-b border-[var(--border-subtle)] flex text-[10px] font-bold text-[var(--text-muted)] uppercase items-center px-4 tracking-wider">
-                  <span>Timeline Schedule ({daysBetween} Days Span)</span>
+                {/* Top Tier Header (Month & Year or Year) */}
+                <div className="absolute top-0 left-0 w-full h-5 bg-[var(--bg)] border-b border-[var(--border-subtle)] flex text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider relative overflow-hidden">
+                  {timelineHeaders.topHeaders.map(th => (
+                    <div
+                      key={th.key}
+                      style={{ left: th.left, width: th.width }}
+                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/30 px-2 flex items-center justify-start truncate font-extrabold"
+                    >
+                      {th.label}
+                    </div>
+                  ))}
                 </div>
                 
-                {/* Sub-header showing Week Commencing */}
-                <div className="flex h-5 relative text-[9px] font-bold text-[var(--text-muted)]">
-                  {Array.from({ length: daysBetween }).map((_, i) => {
-                    const tickDate = new Date(timelineStart);
-                    tickDate.setDate(tickDate.getDate() + i);
-                    
-                    let text = '';
-                    if (zoomLevel === 'Day') {
-                      text = tickDate.getDate();
-                    } else if (zoomLevel === 'Week' && tickDate.getDay() === 1) {
-                      text = `${tickDate.toLocaleDateString('en-US', { month: 'short' })} ${tickDate.getDate()}`;
-                    } else if (zoomLevel === 'Month' && tickDate.getDate() === 1) {
-                      text = tickDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-                    }
-
-                    return (
-                      <div 
-                        key={i} 
-                        style={{ left: i * pxPerDay, width: pxPerDay }}
-                        className="absolute bottom-0 h-full border-l border-[var(--border-subtle)]/40 pl-0.5 truncate flex items-center leading-none"
-                      >
-                        {text}
-                      </div>
-                    );
-                  })}
+                {/* Bottom Tier Header (Days, Weeks commencing, or Months) */}
+                <div className="flex h-5 relative text-[9px] font-bold text-[var(--text-secondary)]">
+                  {timelineHeaders.bottomHeaders.map(bh => (
+                    <div
+                      key={bh.key}
+                      style={{ left: bh.left, width: bh.width }}
+                      title={bh.title}
+                      className={`absolute bottom-0 h-full flex items-center leading-none ${bh.className || ''}`}
+                    >
+                      {bh.label}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1481,13 +2023,35 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   const tickDate = new Date(timelineStart);
                   tickDate.setDate(tickDate.getDate() + i);
                   const isWeekend = tickDate.getDay() === 0 || tickDate.getDay() === 6;
-                  const isWeekStart = tickDate.getDay() === 1;
+                  
+                  let showLine = true;
+                  let isMajorLine = false;
+
+                  if (zoomLevel === 'Day') {
+                    isMajorLine = tickDate.getDay() === 1; // Monday is major
+                  } else if (zoomLevel === 'Week') {
+                    showLine = tickDate.getDay() === 1; // Only show week starts
+                    isMajorLine = tickDate.getDate() <= 7; // First week of month is major
+                  } else if (zoomLevel === 'Month') {
+                    showLine = tickDate.getDate() === 1; // Only show month starts
+                    isMajorLine = tickDate.getMonth() === 0; // January is major
+                  }
+
+                  if (!showLine) return null;
 
                   return (
                     <div 
                       key={i} 
                       style={{ left: i * pxPerDay, width: pxPerDay }} 
-                      className={`absolute top-0 h-full border-l ${isWeekStart ? 'border-[var(--border-strong)]/30 border-dashed' : 'border-[var(--border-subtle)]/10'} ${isWeekend && showNonWorkingDayShading ? 'bg-[var(--elevated-card)]/40 dark:bg-[var(--border-subtle)]/5' : ''}`}
+                      className={`absolute top-0 h-full border-l ${
+                        isMajorLine 
+                          ? 'border-[var(--border-strong)]/40 border-dashed' 
+                          : 'border-[var(--border-subtle)]/10'
+                      } ${
+                        zoomLevel === 'Day' && isWeekend && showNonWorkingDayShading 
+                          ? 'bg-[var(--elevated-card)]/40 dark:bg-[var(--border-subtle)]/5' 
+                          : ''
+                      }`}
                     />
                   );
                 })}
@@ -1547,14 +2111,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     <div 
                       key={bar.id}
                       style={{ height: rowHeight }}
-                      className={`flex items-center relative group w-full ${isSelected ? 'bg-indigo-500/5' : ''}`}
+                      className={`flex flex-col justify-center relative group w-full ${isSelected ? 'bg-indigo-500/5' : ''}`}
                     >
                       {/* Pin Icons */}
                       {bar.pinType && (
                         <div 
                           className="absolute z-20 flex items-center justify-center pointer-events-none"
                           style={{ 
-                            left: bar.left - 24, 
+                            left: bar.plannedLeft - 24, 
                             width: '16px',
                             height: '16px',
                           }}
@@ -1567,76 +2131,147 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       
                       {isMilestone ? (
                         <>
+                          {/* Planned Milestone Diamond */}
                           <div 
-                            className="absolute size-3.5 rotate-45 shadow-md flex items-center justify-center z-10"
+                            className="absolute size-3 shadow-md flex items-center justify-center z-10"
                             style={{ 
-                              left: bar.left - 6,
-                              width: '12px',
-                              height: '12px',
+                              left: bar.plannedLeft - 6,
+                              width: '10px',
+                              height: '10px',
                               transform: 'rotate(45deg)',
                               backgroundColor: color,
                               border: `1.5px solid ${isCritical ? '#f43f5e' : '#fff'}`
                             }}
-                            title={bar.activityName}
+                            title={`Planned Milestone: ${bar.activityName}`}
                           />
+                          {/* Actual Milestone Diamond (if actual start exists) */}
+                          {bar.isActualActive && (
+                            <div 
+                              className="absolute size-3 shadow-md flex items-center justify-center z-10"
+                              style={{ 
+                                left: bar.actualLeft - 6,
+                                top: '22px',
+                                width: '10px',
+                                height: '10px',
+                                transform: 'rotate(45deg)',
+                                backgroundColor: bar.status === 'Completed' ? '#10b981' : '#f59e0b',
+                                border: '1.5px solid #fff'
+                              }}
+                              title={`Actual Milestone: ${bar.activityName}`}
+                            />
+                          )}
                           <span 
-                            style={{ left: bar.left - 50, width: '40px' }}
-                            className="absolute text-[9px] font-mono text-[var(--text-muted)] text-right pr-1 select-none pointer-events-none z-10"
+                            style={{ left: bar.plannedLeft - 50, width: '40px' }}
+                            className="absolute text-[8px] font-mono text-[var(--text-muted)] text-right pr-1 select-none pointer-events-none z-10"
                           >
                             {bar.startDateStr}
                           </span>
                         </>
                       ) : isParent ? (
-                        <svg 
-                          className="absolute h-4 overflow-visible pointer-events-none" 
-                          style={{ left: bar.left - 2, width: Math.max(8, bar.width) + 4 }}
-                        >
-                          {/* MS Project style bracketed summary task bar */}
-                          <path 
-                            d={`M 2 4 H ${bar.width + 2} V 8 H 2 Z`} 
-                            fill={color} 
-                          />
-                          <path 
-                            d="M 2 4 L 7 9 L 7 4 Z" 
-                            fill={color} 
-                          />
-                          <path 
-                            d={`M ${bar.width + 2} 4 L ${bar.width - 3} 9 L ${bar.width - 3} 4 Z`} 
-                            fill={color} 
-                          />
-                        </svg>
+                        <>
+                          {/* Planned Parent Summary Bar */}
+                          <svg 
+                            className="absolute h-3 overflow-visible pointer-events-none" 
+                            style={{ left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: '8px' }}
+                          >
+                            <path d={`M 2 2 H ${bar.plannedWidth + 2} V 6 H 2 Z`} fill={color} />
+                            <path d="M 2 2 L 6 6 L 6 2 Z" fill={color} />
+                            <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 6 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
+                          </svg>
+
+                          {/* Actual Parent Summary Bar */}
+                          {bar.isActualActive && (
+                            <svg 
+                              className="absolute h-2.5 overflow-visible pointer-events-none" 
+                              style={{ left: bar.actualLeft - 2, width: Math.max(8, bar.actualWidth) + 4, top: '22px' }}
+                            >
+                              <path d={`M 2 1 H ${bar.actualWidth + 2} V 5 H 2 Z`} fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
+                              <path d="M 2 1 L 5 4 L 5 1 Z" fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
+                              <path d={`M ${bar.actualWidth + 2} 1 L ${bar.actualWidth - 1} 4 L ${bar.actualWidth - 1} 1 Z`} fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
+                            </svg>
+                          )}
+                        </>
                       ) : (
-                        <div 
-                          style={{ left: bar.left, width: Math.max(6, bar.width) }}
-                          className={`absolute h-5 rounded border border-black/10 overflow-hidden shadow-sm flex items-center ${
-                            showOverdueTaskShading && bar.isOverdue 
-                              ? 'bg-rose-100 dark:bg-rose-950/40 border-rose-500' 
-                              : 'bg-slate-400 dark:bg-slate-700'
-                          }`}
-                        >
+                        <>
+                          {/* Planned Bar */}
                           <div 
-                            style={{ 
-                              width: `${bar.completePercent}%`,
-                              backgroundColor: showOverdueTaskShading && bar.isOverdue ? '#ef4444' : color
-                            }} 
-                            className="h-full"
-                          />
-                        </div>
+                            style={{ left: bar.plannedLeft, width: bar.plannedWidth, top: '8px' }}
+                            className={`absolute h-2.5 rounded shadow-sm flex items-center overflow-hidden bg-slate-300 dark:bg-slate-700/50`}
+                            title={`Planned: ${bar.activityName} (${Math.round(bar.plannedWidth / pxPerDay)} Days)`}
+                          >
+                            <div 
+                              style={{ 
+                                width: `${bar.completePercent}%`,
+                                backgroundColor: isCritical ? '#ef4444' : color
+                              }} 
+                              className="h-full rounded-l"
+                            />
+                          </div>
+
+                          {/* Actual Bar (drawn if actual start is set) */}
+                          {bar.isActualActive && (
+                            <div 
+                              style={{ 
+                                left: bar.actualLeft, 
+                                width: bar.actualWidth,
+                                top: '22px'
+                              }}
+                              className={`absolute h-2 rounded shadow-sm flex items-center overflow-hidden ${
+                                bar.status === 'Completed' 
+                                  ? 'bg-emerald-500/20 border border-emerald-500' 
+                                  : bar.status === 'Delayed'
+                                  ? 'bg-rose-500/20 border border-rose-500'
+                                  : 'bg-amber-500/20 border border-amber-500'
+                              }`}
+                              title={`Actual: ${bar.activityName} (${bar.status})`}
+                            >
+                              <div 
+                                style={{ 
+                                  width: '100%',
+                                  backgroundColor: bar.status === 'Completed' 
+                                    ? '#10b981' 
+                                    : bar.status === 'Delayed'
+                                    ? '#f43f5e'
+                                    : '#f59e0b'
+                                }} 
+                                className="h-full opacity-60"
+                              />
+                            </div>
+                          )}
+
+                          {/* Delay / Variance Indicator */}
+                          {bar.varianceDays > 0 && (
+                            <span 
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              className="absolute text-[8px] font-mono text-rose-500 font-bold bg-rose-500/10 px-1 py-0.2 rounded pointer-events-none"
+                            >
+                              +{bar.varianceDays}d Delay
+                            </span>
+                          )}
+                          {bar.varianceDays < 0 && (
+                            <span 
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              className="absolute text-[8px] font-mono text-emerald-500 font-bold bg-emerald-500/10 px-1 py-0.2 rounded pointer-events-none"
+                            >
+                              {bar.varianceDays}d Advance
+                            </span>
+                          )}
+                        </>
                       )}
 
                       {/* BASELINE SNAPSHOT UNDERLAY */}
                       {showBaselineOverlay && bar.baselineLeft !== null && bar.baselineWidth !== null && (
                         <div 
-                          style={{ left: bar.baselineLeft, width: bar.baselineWidth }}
-                          className="absolute h-1 bg-slate-400/50 dark:bg-slate-600/40 rounded bottom-0"
-                          title="Baseline"
+                          style={{ left: bar.baselineLeft, width: bar.baselineWidth, top: '32px' }}
+                          className="absolute h-0.5 bg-yellow-500/60 dark:bg-yellow-500/40 rounded-sm"
+                          title="Baseline Snapshot"
                         />
                       )}
 
                       {/* Labels next to Gantt Bars */}
                       <span 
-                        style={{ left: (isMilestone ? bar.left + 12 : bar.left + bar.width + 10) }}
-                        className="absolute text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap opacity-75 group-hover:opacity-100 pointer-events-none"
+                        style={{ left: (bar.plannedLeft + bar.plannedWidth + (bar.varianceDays !== 0 ? 54 : 12)), top: '6px' }}
+                        className="absolute text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap opacity-75 group-hover:opacity-100 pointer-events-none"
                       >
                         {ganttShowTaskName && bar.activityName}
                         {ganttShowPercent && bar.completePercent > 0 && ` (${bar.completePercent}%)`} 
@@ -1672,7 +2307,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
           {[
             { id: 'workload', label: 'Resource Loads', icon: Users },
             { id: 'releases', label: 'Versions & Milestones', icon: Layers },
-            { id: 'followups', label: 'Reminders & Follow-ups', icon: Calendar }
+            { id: 'followups', label: 'Reminders & Follow-ups', icon: Calendar },
+            { id: 'progress_logs', label: 'Progress Logs', icon: Sparkles }
           ].map(tab => (
             <button
               key={tab.id}
@@ -1761,6 +2397,136 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* PROGRESS LOGS PANEL */}
+          {activeSubTab === 'progress_logs' && (
+            <div className="flex flex-col h-full gap-2 min-h-0">
+              {selectedTaskId === null ? (
+                <div className="flex items-center justify-center h-full text-[var(--text-muted)] italic">
+                  Select a task in the spreadsheet grid to view and record progress logs.
+                </div>
+              ) : (() => {
+                const activeLogTask = tasks.find(t => t.id === selectedTaskId);
+                if (!activeLogTask) return null;
+                const history = activeLogTask.custom_values?.progress_history || [];
+                return (
+                  <div className="flex gap-4 h-full min-h-0">
+                    {/* Left Panel: Log list */}
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <h4 className="font-bold text-[var(--text-muted)] uppercase text-[10px] tracking-wider">
+                          Progress History: <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{activeLogTask.activity_name}</span>
+                        </h4>
+                        <span className="text-[10px] bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded font-mono font-bold">WBS: {activeLogTask.wbs_code}</span>
+                      </div>
+                      <div className="flex-1 overflow-y-auto border border-[var(--border-subtle)]/40 rounded custom-scrollbar">
+                        <table className="w-full text-left text-[11px] border-collapse text-[var(--text-primary)]">
+                          <thead className="bg-[var(--surface)] sticky top-0 border-b border-[var(--border-subtle)]/40 text-[var(--text-muted)]">
+                            <tr>
+                              <th className="px-2 py-1 font-bold">Date</th>
+                              <th className="px-2 py-1 font-bold text-center">Progress %</th>
+                              <th className="px-2 py-1 font-bold">Notes</th>
+                              <th className="px-2 py-1 font-bold text-center">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {history.map((entry, entryIdx) => (
+                              <tr key={entryIdx} className="border-b border-[var(--border-subtle)]/20 hover:bg-[var(--table-hover)]/20">
+                                <td className="px-2 py-1 font-mono text-[var(--text-secondary)]">{entry.date}</td>
+                                <td className="px-2 py-1 text-center font-bold text-indigo-600 dark:text-indigo-400">{entry.complete_percent}%</td>
+                                <td className="px-2 py-1 text-[var(--text-muted)] truncate max-w-[200px]" title={entry.notes}>{entry.notes || '—'}</td>
+                                <td className="px-2 py-1 text-center">
+                                  <button
+                                    onClick={() => {
+                                      setAndRollupTasks(prev => prev.map(t => {
+                                        if (t.id === activeLogTask.id) {
+                                          const nextHistory = (t.custom_values?.progress_history || []).filter((_, idx) => idx !== entryIdx);
+                                          return {
+                                            ...t,
+                                            custom_values: {
+                                              ...(t.custom_values || {}),
+                                              progress_history: nextHistory
+                                            }
+                                          };
+                                        }
+                                        return t;
+                                      }));
+                                      toast.success("Log entry deleted.");
+                                    }}
+                                    className="text-slate-400 hover:text-rose-500 transition-colors"
+                                    title="Delete Entry"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {history.length === 0 && (
+                              <tr>
+                                <td colSpan="4" className="py-4 text-center text-slate-500 italic">No progress logs recorded.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Right Panel: Record Form */}
+                    <div className="w-80 bg-[var(--surface)] p-2.5 border border-[var(--border-subtle)]/40 rounded-lg flex flex-col gap-2 shrink-0 justify-between">
+                      <h4 className="font-bold text-[var(--text-muted)] uppercase text-[9px] tracking-wider">Record Progress Log</h4>
+                      
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-[var(--text-muted)] font-semibold">Log Date</span>
+                          <input
+                            type="date"
+                            value={logDate}
+                            onChange={e => setLogDate(e.target.value)}
+                            className="px-2 py-1 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-mono text-[10px]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] text-[var(--text-muted)] font-semibold">Progress %</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={logPercent}
+                            onChange={e => setLogPercent(Math.min(100, Math.max(0, parseInt(e.target.value) || 0)))}
+                            className="px-2 py-1 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-mono text-[10px] text-center"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] text-[var(--text-muted)] font-semibold">Comments / Notes</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. Completed foundations check..."
+                          value={logNotes}
+                          onChange={e => setLogNotes(e.target.value)}
+                          className="px-2 py-1 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded text-[10px] outline-none"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (!logDate) {
+                            toast.error("Log date is required.");
+                            return;
+                          }
+                          handleAddProgressLog(activeLogTask.id, logDate, logPercent, logNotes);
+                        }}
+                        className="w-full flex items-center justify-center gap-1 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded font-bold shadow transition-colors text-[10px]"
+                      >
+                        <Sparkles size={11} /> Add Log Entry
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -2194,75 +2960,163 @@ const MilestoneManagement = ({ project, showNotification }) => {
       )}
 
       {/* ASSIGNED TO CHECKLIST MODAL */}
-      {activeAssignTask && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
-          <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-sm flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)]">
-            <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-2">
-              <h3 className="font-bold text-[var(--text-primary)] text-sm truncate">
-                Assign Team: <span className="text-indigo-500 font-extrabold">{activeAssignTask.activity_name}</span>
-              </h3>
-              <button 
-                onClick={() => setActiveAssignTask(null)} 
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-              >
-                <X size={16} />
-              </button>
-            </div>
+      {activeAssignTask && (() => {
+        const liveTask = tasks.find(t => t.id === activeAssignTask.id) || activeAssignTask;
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+            <div className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-xl p-5 w-full max-w-sm flex flex-col gap-4 shadow-2xl text-xs text-[var(--text-primary)]">
+              <div className="flex justify-between items-center border-b border-[var(--border-subtle)] pb-2">
+                <h3 className="font-bold text-[var(--text-primary)] text-sm truncate">
+                  Assign Team: <span className="text-indigo-500 font-extrabold">{activeAssignTask.activity_name}</span>
+                </h3>
+                <button 
+                  onClick={() => setActiveAssignTask(null)} 
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
-            <div className="overflow-y-auto max-h-[40vh] pr-1 flex flex-col gap-1.5 custom-scrollbar">
-              {projectTeam.map(member => {
-                const isAssigned = (activeAssignTask.assigned_to || []).includes(String(member.employee_id));
-                return (
-                  <label 
-                    key={member.employee_id} 
-                    className="flex items-center gap-2.5 p-2 rounded hover:bg-[var(--table-hover)] cursor-pointer select-none transition-colors border border-transparent hover:border-[var(--border-subtle)]/30"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isAssigned}
-                      onChange={e => {
-                        const currentAssigned = activeAssignTask.assigned_to || [];
-                        let nextAssigned;
-                        if (e.target.checked) {
-                          nextAssigned = [...currentAssigned, String(member.employee_id)];
-                        } else {
-                          nextAssigned = currentAssigned.filter(id => String(id) !== String(member.employee_id));
-                        }
-                        
-                        // Update local task state directly
-                        handleCellChange(activeAssignTask.id, 'assigned_to', nextAssigned);
-                        // Update activeAssignTask to trigger re-render in modal
-                        setActiveAssignTask(prev => ({ ...prev, assigned_to: nextAssigned }));
-                      }}
-                      className="rounded border-[var(--border-subtle)] text-indigo-600 focus:ring-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold truncate text-[var(--text-primary)]">{member.employee_name}</div>
-                      <div className="text-[9px] text-[var(--text-muted)] flex items-center gap-1.5">
-                        <span className="font-semibold text-indigo-400">{member.role}</span>
-                        <span>•</span>
-                        <span>{member.employee_department}</span>
+              {/* Manual Override Checkbox */}
+              <div className="flex items-center justify-between p-2.5 bg-slate-500/5 border border-[var(--border-subtle)]/30 rounded-lg">
+                <span className="font-semibold text-xs text-[var(--text-secondary)]">Manual Progress Override</span>
+                <input
+                  type="checkbox"
+                  checked={activeAssignTask.custom_values?.manual_completion_override || false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    handleCellChange(activeAssignTask.id, 'custom:manual_completion_override', val);
+                    setActiveAssignTask(prev => ({
+                      ...prev,
+                      custom_values: {
+                        ...(prev.custom_values || {}),
+                        manual_completion_override: val
+                      }
+                    }));
+                  }}
+                  className="rounded border-[var(--border-subtle)] text-indigo-600 focus:ring-0 size-3.5"
+                />
+              </div>
+
+              <div className="overflow-y-auto max-h-[40vh] pr-1 flex flex-col gap-2.5 custom-scrollbar">
+                {projectTeam.map(member => {
+                  const isAssigned = (activeAssignTask.assigned_to || []).includes(String(member.employee_id));
+                  return (
+                    <div 
+                      key={member.employee_id} 
+                      className="flex flex-col gap-2.5 p-2 rounded hover:bg-[var(--table-hover)]/30 border border-[var(--border-subtle)]/10"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isAssigned}
+                          onChange={e => {
+                            const currentAssigned = activeAssignTask.assigned_to || [];
+                            let nextAssigned;
+                            if (e.target.checked) {
+                              nextAssigned = [...currentAssigned, String(member.employee_id)];
+                            } else {
+                              nextAssigned = currentAssigned.filter(id => String(id) !== String(member.employee_id));
+                            }
+                            
+                            handleCellChange(activeAssignTask.id, 'assigned_to', nextAssigned);
+                            setActiveAssignTask(prev => ({ ...prev, assigned_to: nextAssigned }));
+                          }}
+                          className="rounded border-[var(--border-subtle)] text-indigo-600 focus:ring-0 size-3.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold truncate text-[var(--text-primary)]">{member.employee_name}</div>
+                          <div className="text-[9px] text-[var(--text-muted)] flex items-center gap-1.5">
+                            <span className="font-semibold text-indigo-400">{member.role}</span>
+                            <span>•</span>
+                            <span>{member.employee_department}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </label>
-                );
-              })}
-              {projectTeam.length === 0 && (
-                <p className="text-center text-[var(--text-muted)] italic py-4">No project team members configured.</p>
-              )}
-            </div>
 
-            <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
-              <button
-                onClick={() => setActiveAssignTask(null)}
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow"
-              >
-                Confirm
-              </button>
+                      {isAssigned && !activeAssignTask.custom_values?.manual_completion_override && (
+                        <div className="flex items-center gap-4 pl-6 border-t border-[var(--border-subtle)]/15 pt-2">
+                          <div className="flex items-center gap-1 flex-1">
+                            <span className="text-[9px] text-[var(--text-muted)] font-semibold">Weight:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={activeAssignTask.custom_values?.resource_weights?.[member.employee_id] !== undefined ? activeAssignTask.custom_values.resource_weights[member.employee_id] : 1}
+                              onChange={e => {
+                                const weightVal = parseFloat(e.target.value) || 0;
+                                const currentWeights = activeAssignTask.custom_values?.resource_weights || {};
+                                const newWeights = { ...currentWeights, [member.employee_id]: weightVal };
+                                handleCellChange(activeAssignTask.id, 'custom:resource_weights', newWeights);
+                                setActiveAssignTask(prev => ({
+                                  ...prev,
+                                  custom_values: {
+                                    ...(prev.custom_values || {}),
+                                    resource_weights: newWeights
+                                  }
+                                }));
+                              }}
+                              className="w-14 px-1 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-semibold text-center focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1 flex-1">
+                            <span className="text-[9px] text-[var(--text-muted)] font-semibold">Prog %:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={activeAssignTask.custom_values?.resource_progress?.[member.employee_id] !== undefined ? activeAssignTask.custom_values.resource_progress[member.employee_id] : 0}
+                              onChange={e => {
+                                const progVal = parseFloat(e.target.value) || 0;
+                                const currentProg = activeAssignTask.custom_values?.resource_progress || {};
+                                const newProg = { ...currentProg, [member.employee_id]: progVal };
+                                handleCellChange(activeAssignTask.id, 'custom:resource_progress', newProg);
+                                setActiveAssignTask(prev => ({
+                                  ...prev,
+                                  custom_values: {
+                                    ...(prev.custom_values || {}),
+                                    resource_progress: newProg
+                                  }
+                                }));
+                              }}
+                              className="w-14 px-1 py-0.5 border border-[var(--border-subtle)] bg-[var(--bg)] text-[var(--text-primary)] rounded font-semibold text-center focus:ring-1 focus:ring-indigo-500 outline-none font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {projectTeam.length === 0 && (
+                  <p className="text-center text-[var(--text-muted)] italic py-4">No project team members configured.</p>
+                )}
+              </div>
+
+              {/* Live Status and Percent Complete summary */}
+              <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2.5 text-[10px] font-bold">
+                <div className="flex items-center gap-1">
+                  <span className="text-[var(--text-muted)] uppercase">Progress:</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-mono text-xs">{liveTask.complete_percent || 0}%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[var(--text-muted)] uppercase">Status:</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 text-xs tracking-wide">{liveTask.status || 'Not Started'}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-[var(--border-subtle)] pt-3">
+                <button
+                  onClick={() => setActiveAssignTask(null)}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow transition-colors"
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* DEPARTMENT SUGGESTIONS DATALIST */}
       <datalist id="departments-list">
