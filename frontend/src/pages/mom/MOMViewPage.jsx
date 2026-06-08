@@ -78,6 +78,9 @@ const MOMViewPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [localTranscript, setLocalTranscript] = useState([]);
+  const [meetingDate, setMeetingDate] = useState(null);
+  const [meetingDuration, setMeetingDuration] = useState('—');
+  const [meetingAttendees, setMeetingAttendees] = useState([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [pickerProjectId, setPickerProjectId] = useState('');
 
@@ -137,7 +140,37 @@ const MOMViewPage = () => {
         });
 
         const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
-        setLocalTranscript(m?.transcript || []);
+        if (m?.date) setMeetingDate(m.date);
+        else if (m?.created_at) setMeetingDate(m.created_at);
+        
+        if (m?.actual_duration_minutes) setMeetingDuration(String(m.actual_duration_minutes));
+        else if (m?.duration_minutes) setMeetingDuration(String(m.duration_minutes));
+        
+        if (m?.attendees) {
+          try {
+            const parsedAtt = typeof m.attendees === 'string' ? JSON.parse(m.attendees) : m.attendees;
+            if (Array.isArray(parsedAtt)) setMeetingAttendees(parsedAtt);
+          } catch(e) {}
+        }
+        
+        let parsedTranscript = [];
+        if (m?.transcript) {
+          if (typeof m.transcript === 'string') {
+            try { 
+              const parsed = JSON.parse(m.transcript); 
+              if (Array.isArray(parsed)) parsedTranscript = parsed;
+              else parsedTranscript = [parsed];
+            } catch (e) { 
+              parsedTranscript = [{ type: 'dialogue', speaker: 'System', text: m.transcript }]; 
+            }
+          } else if (Array.isArray(m.transcript)) {
+            parsedTranscript = m.transcript;
+          } else if (typeof m.transcript === 'object') {
+            if (Array.isArray(m.transcript.dialogue)) parsedTranscript = m.transcript.dialogue;
+            else parsedTranscript = [m.transcript];
+          }
+        }
+        setLocalTranscript(parsedTranscript);
 
         let finalRows = [];
 
@@ -250,13 +283,42 @@ const MOMViewPage = () => {
 
   // Discussion entries from raw transcript stored per row or local state
   const transcriptEntries = useMemo(() => {
-    if (localTranscript && localTranscript.length > 0) return localTranscript;
-    for (const row of rows) {
-      if (Array.isArray(row._rawEntries) && row._rawEntries.length > 0) {
-        return row._rawEntries;
+    let entries = [];
+    if (localTranscript && localTranscript.length > 0) {
+      entries = localTranscript;
+    } else {
+      for (const row of rows) {
+        if (typeof row._rawEntries === 'string') {
+          try { 
+            const parsed = JSON.parse(row._rawEntries); 
+            entries = Array.isArray(parsed) ? parsed : [parsed];
+            break; 
+          } catch(e) { 
+            entries = [{ type: 'dialogue', speaker: 'System', text: row._rawEntries }]; 
+            break; 
+          }
+        } else if (Array.isArray(row._rawEntries)) {
+          entries = row._rawEntries;
+          break;
+        } else if (typeof row._rawEntries === 'object' && row._rawEntries !== null) {
+          entries = Array.isArray(row._rawEntries.dialogue) ? row._rawEntries.dialogue : [row._rawEntries];
+          break;
+        }
       }
     }
-    return [];
+    return entries.map(e => {
+      if (typeof e === 'string') return { type: 'dialogue', speaker: 'Unknown', text: e };
+      if (!e) return { type: 'dialogue', speaker: 'Unknown', text: '' };
+      
+      const speaker = e.speaker || e.role || e.name || 'Unknown';
+      let text = e.text || e.content || e.message || '';
+      if (!text && typeof e === 'object') {
+         text = JSON.stringify(e);
+      }
+      const type = e.type || 'dialogue';
+      
+      return { ...e, speaker, text, type };
+    });
   }, [rows, localTranscript]);
 
   // Participation Metrics
@@ -275,21 +337,35 @@ const MOMViewPage = () => {
   }, [transcriptEntries]);
 
   const metaDisplay = useMemo(() => {
-    let durText = '—';
-    const durEntry = transcriptEntries.find(e => e.type === 'metadata' && (e.field === 'DURATION' || e.label === 'Duration'));
-    if (durEntry && durEntry.value) {
-      durText = durEntry.value.replace(/minutes?|min/gi, '').trim();
+    let durText = meetingDuration !== '—' ? meetingDuration : '—';
+    if (durText === '—') {
+      const durEntry = transcriptEntries.find(e => e.type === 'metadata' && (e.field === 'DURATION' || e.label === 'Duration'));
+      if (durEntry && durEntry.value) {
+        durText = durEntry.value.replace(/minutes?|min/gi, '').trim();
+      }
     }
 
-    const participantNames = Array.from(new Set(transcriptEntries.filter(e => e.type === 'dialogue' && e.speaker).map(e => e.speaker)));
-    return { duration: durText, participants: participantNames };
-  }, [transcriptEntries]);
+    const transcriptParticipants = transcriptEntries
+      .filter(e => e.type === 'dialogue' && e.speaker && e.speaker !== 'Unknown' && e.speaker !== 'System')
+      .map(e => e.speaker);
 
-  const session = useMemo(() => ({
-    name: meetingName || 'Untitled Session',
-    metadata: metaDisplay,
-    lastSavedTime: lastSaved ? new Date(lastSaved).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'
-  }), [meetingName, metaDisplay, lastSaved]);
+    const participantNames = Array.from(new Set([...meetingAttendees, ...transcriptParticipants]));
+    return { duration: durText, participants: participantNames };
+  }, [transcriptEntries, meetingDuration, meetingAttendees]);
+
+  const session = useMemo(() => {
+    let formattedTime = '—';
+    if (lastSaved) {
+      // Append 'Z' to treat as UTC if missing, preventing local time offset double-shifting
+      const safeIso = lastSaved.endsWith('Z') ? lastSaved : `${lastSaved}Z`;
+      formattedTime = new Date(safeIso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    }
+    return {
+      name: meetingName || 'Untitled Session',
+      metadata: metaDisplay,
+      lastSavedTime: formattedTime
+    };
+  }, [meetingName, metaDisplay, lastSaved]);
 
   const chartOption = useMemo(() => ({
     tooltip: { trigger: 'item', formatter: '{b}: {c} words ({d}%)' },
@@ -590,7 +666,9 @@ const MOMViewPage = () => {
                       </h1>
                     </div>
                     <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>
-                      {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      {meetingDate 
+                        ? new Date(meetingDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+                        : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
                     </div>
                     {/* Slim meta row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>

@@ -155,7 +155,9 @@ const TargetDateCell = ({ value, onChange }) => {
           onChange(e.target.value);
           setIsEditing(false);
         }}
-        onBlur={() => setIsEditing(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' || e.key === 'Enter') setIsEditing(false);
+        }}
       />
     );
   }
@@ -996,8 +998,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                     transition: 'all 0.2s ease', height: '32px'
                   }}
                 >
-                  {syncFlowState === 'syncing' ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                  {syncFlowState === 'syncing' ? 'Syncing...' : 'Sync Issues'}
+                  <RefreshCw size={14} className={syncFlowState === 'syncing' ? "animate-spin" : ""} />
+                  {syncFlowState === 'syncing' ? 'Saving...' : 'Save'}
                   {syncedBadgeCount > 0 && <span className="ml-2 bg-white text-[#0D9488] px-1.5 rounded text-[10px]">✓ {syncedBadgeCount}</span>}
                 </button>
                 {unsyncedCount > 0 && (
@@ -1033,7 +1035,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                 )}
               </div>
 
-              {showLinkWarning && <span className="text-[11px] text-amber-600 font-bold animate-pulse">Link a project to sync issues.</span>}
+              {showLinkWarning && <span className="text-[11px] text-amber-600 font-bold animate-pulse">Link a project to save.</span>}
            </div>
 
            {/* Right side: Exports */}
