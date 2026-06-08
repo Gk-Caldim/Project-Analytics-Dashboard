@@ -266,10 +266,11 @@ const CriticalityCell = ({ value, onSave }) => {
 
 // ─── Mirror Table (The Action Items View) ────────────────────────────────────
 
-const ActionItemsTable = ({ syncId }) => {
+const ActionItemsTable = ({ syncId, onItemDeleted }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // ── Per-row edit state ──
@@ -357,6 +358,7 @@ const ActionItemsTable = ({ syncId }) => {
     try {
       await API.delete(`/mom/action-items/${itemId}`);
       setItems(prev => prev.filter(item => item.id !== itemId));
+      if (onItemDeleted) onItemDeleted();
       toast.success('Item deleted', { icon: '🗑️', duration: 1500 });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
@@ -371,7 +373,7 @@ const ActionItemsTable = ({ syncId }) => {
 
   const paginatedItems = useMemo(() => {
     return items.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
-  }, [items, activePage]);
+  }, [items, activePage, itemsPerPage]);
 
   if (loading) {
     return (
@@ -789,8 +791,12 @@ const SavedMOMsPage = () => {
     const localFilterId = syncId && syncId !== 'null' ? syncId : null;
 
     try {
+      const params = new URLSearchParams();
+      if (historyId) params.append('history_id', historyId);
+      if (meetingId) params.append('meeting_id', meetingId);
+      
       // Pass all resolved identifiers to guarantee thorough hard deletion
-      await API.delete(`/mom/syncs/${syncId || 'null'}?history_id=${historyId || ''}&meeting_id=${meetingId || ''}`);
+      await API.delete(`/mom/syncs/${syncId || 'null'}?${params.toString()}`);
       
       setRecords(prev => prev.filter(r => {
         if (localFilterId && r.sync_id === localFilterId) return false;
@@ -804,6 +810,10 @@ const SavedMOMsPage = () => {
       toast.error('Failed to hard delete MOM');
     }
   };
+
+  const handleItemDeleted = useCallback((syncId) => {
+    setRecords(prev => prev.map(r => r.sync_id === syncId ? { ...r, row_count: Math.max(0, (r.row_count || 0) - 1) } : r));
+  }, []);
 
   const filtered = useMemo(() => {
     return records.filter(r => {
@@ -824,7 +834,7 @@ const SavedMOMsPage = () => {
 
   const paginatedRecords = useMemo(() => {
     return filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
-  }, [filtered, activePage]);
+  }, [filtered, activePage, itemsPerPage]);
 
   if (loading) {
     return (
@@ -991,7 +1001,7 @@ const SavedMOMsPage = () => {
                             exit={{ height: 0, opacity: 0 }}
                             transition={{ duration: 0.2, ease: 'easeInOut' }}
                           >
-                            <ActionItemsTable syncId={rec.sync_id} />
+                            <ActionItemsTable syncId={rec.sync_id} onItemDeleted={() => handleItemDeleted(rec.sync_id)} />
                           </motion.div>
                         )}
                       </AnimatePresence>
