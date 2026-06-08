@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Plus, Trash2, ChevronRight, ChevronDown, AlignLeft, 
+  Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, AlignLeft,
   ZoomIn, ZoomOut, AlertTriangle, Calendar, Users, 
-  CheckCircle, RefreshCw, Save, FolderPlus, Layers,
+  CheckCircle, RefreshCw, Save, FolderPlus, Layers, Edit,
   ChevronUp, User, LayoutGrid, CheckSquare, Square, Eye, Sparkles, X,
   Settings, Columns, Table, BarChart3
 } from 'lucide-react';
@@ -356,6 +356,15 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [hoveredTask, setHoveredTask] = useState(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
+  // Edit popup modal (replaces inline cell editing)
+  const [editModalTaskId, setEditModalTaskId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+
+  // Footer analytics shelf resize / collapse
+  const [footerHeight, setFooterHeight] = useState(176);
+  const [footerCollapsed, setFooterCollapsed] = useState(false);
+  const isFooterResizing = useRef(false);
+
   useEffect(() => {
     if (selectedTaskId !== null) {
       const task = tasks.find(t => t.id === selectedTaskId);
@@ -475,14 +484,26 @@ const MilestoneManagement = ({ project, showNotification }) => {
     setShowSettingsModal(false);
 
     if (tempSetBaselineChecked) {
-      await handleCreateBaseline();
+      await handleCreateBaseline(tempBaselineVersion);
     }
   };
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const mRes = await API.get(`/projects/${project.project_id}/milestones`);
+      
+      // Fetch all required project details in parallel
+      const [mRes, cRes, rRes, empRes, teamResResult] = await Promise.all([
+        API.get(`/projects/${project.project_id}/milestones`),
+        API.get(`/projects/${project.project_id}/milestones/columns`),
+        API.get(`/projects/${project.project_id}/releases`),
+        getEmployees(),
+        API.get(`/projects/${project.project_id}/team`).catch(teamError => {
+          console.error("Failed to load project team:", teamError);
+          return { data: [] };
+        })
+      ]);
+
       const fetchedTasks = mRes.data || [];
       
       const deps = [];
@@ -505,21 +526,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
       const rolled = rollupParentTasks(scheduled);
       setTasks(rolled);
 
-      const cRes = await API.get(`/projects/${project.project_id}/milestones/columns`);
       setCustomColumns(cRes.data || []);
-
-      const rRes = await API.get(`/projects/${project.project_id}/releases`);
       setReleases(rRes.data || []);
-
-      const empRes = await getEmployees();
       setEmployees(empRes.data || []);
-
-      try {
-        const teamRes = await API.get(`/projects/${project.project_id}/team`);
-        setProjectTeam(teamRes.data || []);
-      } catch (teamError) {
-        console.error("Failed to load project team:", teamError);
-      }
+      setProjectTeam(teamResResult.data || []);
 
       calculateTimelineRange(rolled);
     } catch (e) {
@@ -997,6 +1007,143 @@ const MilestoneManagement = ({ project, showNotification }) => {
     setSelectedTaskId(null);
   };
 
+  const handleDeleteSpecificTask = (task) => {
+    const hasChildren = tasks.some(t => t.parent_id === task.id);
+    if (hasChildren) {
+      alert("Cannot delete task because it has child tasks. Please delete or reassign child tasks first.");
+      return;
+    }
+
+    if (task.item_type === 'Phase' && showSummaryDeleteMessage) {
+      if (!window.confirm("Summary task has nested sub-tasks. Are you sure you want to delete this summary task?")) {
+        return;
+      }
+    }
+
+    setAndRollupTasks(prev => {
+      const filtered = prev.filter(t => t.id !== task.id);
+      return filtered.map((t, idx) => ({ ...t, row_order: idx }));
+    });
+    setDependencies(prev => prev.filter(d => d.predecessor_task_id !== task.id && d.successor_task_id !== task.id));
+    if (selectedTaskId === task.id) {
+      setSelectedTaskId(null);
+    }
+  };
+
+  // Open the edit popup for a specific task (replaces inline cell editing)
+  const handleEditSpecificTask = (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const toInput = (d) => (d ? d.split('T')[0] : '');
+    const predStr = task.dependencies_as_successor
+      ? task.dependencies_as_successor.map(d => {
+          const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
+          const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
+          return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
+        }).filter(Boolean).join(', ')
+      : '';
+    setEditDraft({
+      id: task.id,
+      activity_name: task.activity_name || '',
+      item_type: task.item_type || 'Task',
+      department: task.department || '',
+      status: task.status || 'Not Started',
+      complete_percent: task.complete_percent || 0,
+      start_date: toInput(task.start_date),
+      end_date: toInput(task.end_date),
+      actual_start: toInput(task.actual_start),
+      actual_end: toInput(task.actual_end),
+      pin_type: task.custom_values?.pin_type || '',
+      custom_values: { ...(task.custom_values || {}) },
+      _predStr: predStr,
+      _isParent: task.item_type === 'Phase' || tasks.some(t => t.parent_id === task.id),
+      _hasResources: task.assigned_to && task.assigned_to.length > 0,
+      _manualOverride: !!task.custom_values?.manual_completion_override,
+    });
+    setSelectedTaskId(taskId);
+    setEditModalTaskId(taskId);
+  };
+
+  const closeEditModal = () => {
+    setEditModalTaskId(null);
+    setEditDraft(null);
+  };
+
+  const updateDraft = (field, value) => {
+    setEditDraft(prev => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const updateDraftCustom = (colName, value) => {
+    setEditDraft(prev => (prev ? { ...prev, custom_values: { ...(prev.custom_values || {}), [colName]: value } } : prev));
+  };
+
+  // Apply all popup edits in a single batched recalculation (hang-free)
+  const saveEditModal = () => {
+    if (!editDraft) return;
+    const draft = editDraft;
+    setAndRollupTasks(prev => prev.map(t => {
+      if (t.id !== draft.id) return t;
+      const updated = { ...t };
+      updated.activity_name = draft.activity_name;
+      updated.item_type = draft.item_type;
+      updated.department = draft.department;
+      updated.status = draft.status;
+      updated.complete_percent = parseFloat(draft.complete_percent) || 0;
+      ['start_date', 'end_date', 'actual_start', 'actual_end'].forEach(f => {
+        updated[f] = draft[f] ? new Date(draft[f]).toISOString() : null;
+      });
+      updated.custom_values = {
+        ...(t.custom_values || {}),
+        ...(draft.custom_values || {}),
+        pin_type: draft.pin_type || '',
+      };
+      return updated;
+    }));
+
+    // Re-parse predecessors string into dependency edges
+    const parts = (draft._predStr || '').split(',').map(s => s.trim()).filter(Boolean);
+    const parsedDeps = [];
+    parts.forEach(part => {
+      const match = part.match(/^(\d+)(FS|SS|FF|SF)?(?:([\+\-]\d+)d)?$/i);
+      if (match) {
+        const predRowIdx = parseInt(match[1]) - 1;
+        const depType = (match[2] || 'FS').toUpperCase();
+        const lagVal = match[3] ? parseInt(match[3]) : 0;
+        const predTask = filteredTasks[predRowIdx];
+        if (predTask && predTask.id !== draft.id) {
+          parsedDeps.push({ predecessor_task_id: predTask.id, successor_task_id: draft.id, type: depType, lag_days: lagVal });
+        }
+      }
+    });
+    setDependencies(prev => {
+      const filtered = prev.filter(d => d.successor_task_id !== draft.id);
+      return [...filtered, ...parsedDeps];
+    });
+
+    closeEditModal();
+  };
+
+  // Footer analytics shelf vertical resize handlers
+  const startFooterResize = (e) => {
+    e.preventDefault();
+    isFooterResizing.current = true;
+    document.addEventListener('mousemove', handleFooterResize);
+    document.addEventListener('mouseup', endFooterResize);
+  };
+
+  const handleFooterResize = (e) => {
+    if (!isFooterResizing.current) return;
+    const h = window.innerHeight - e.clientY;
+    setFooterHeight(Math.max(44, Math.min(h, window.innerHeight - 200)));
+    setFooterCollapsed(false);
+  };
+
+  const endFooterResize = () => {
+    isFooterResizing.current = false;
+    document.removeEventListener('mousemove', handleFooterResize);
+    document.removeEventListener('mouseup', endFooterResize);
+  };
+
   const handleMoveRow = (direction) => {
     if (selectedTaskId === null) return;
     const idx = tasks.findIndex(t => t.id === selectedTaskId);
@@ -1103,14 +1250,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
     }
   };
 
-  const handleCreateBaseline = async () => {
+  const handleCreateBaseline = async (versionToUse = baselineVersion) => {
     try {
       setSaving(true);
       await API.post(`/projects/${project.project_id}/baselines/create`, {
-        version_name: baselineVersion
+        version_name: versionToUse
       });
       fetchInitialData();
-      toast.success(`Baseline snapshot [${baselineVersion}] generated.`);
+      toast.success(`Baseline snapshot [${versionToUse}] generated.`);
     } catch (e) {
       console.error(e);
       toast.error('Failed to generate baseline snapshot');
@@ -1570,8 +1717,26 @@ const MilestoneManagement = ({ project, showNotification }) => {
     };
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px] w-full bg-[var(--bg)] font-sans">
+        <div className="page-transition-loader">
+          <div className="page-transition-spinner">
+            <div className="spinner-ring"></div>
+            <div className="spinner-ring-2"></div>
+            <div className="spinner-ring-3"></div>
+          </div>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Loading schedule...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full bg-[var(--bg)] text-[var(--text-primary)] select-none font-sans antialiased text-xs transition-colors duration-200">
+    <div 
+      style={{ fontFamily: 'var(--font-inter), sans-serif' }}
+      className="flex flex-col h-full bg-[var(--bg)] text-[var(--text-primary)] select-none antialiased text-xs transition-colors duration-200"
+    >
       
       {/* PROFESSIONAL SCHEDULING CONTROL PANEL */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-[var(--surface)] border-b border-[var(--border-subtle)] shrink-0 sticky top-0 z-30">
@@ -1840,66 +2005,62 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 onScroll={handleScroll}
               >
                 <table 
-                  style={{ width: '100%', minWidth: `${2414 + customColumns.length * 128}px` }}
+                  style={{ width: '100%', minWidth: `${2514 + customColumns.length * 128}px` }}
                   className="master-table table-fixed select-text"
                 >
                   <thead className="sticky top-0 z-20">
                     {/* ── GROUP HEADER ROW ── */}
-                    <tr className="h-7 text-[9px] font-extrabold uppercase tracking-widest bg-slate-200 dark:bg-slate-900 text-slate-500 dark:text-slate-500 border-b border-slate-300/60 dark:border-slate-700/60">
+                    <tr className="h-7 text-[9px] font-extrabold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                       {/* WBS / Identity group */}
-                      <th colSpan={1} className="sticky left-0 top-0 z-30 bg-slate-200 dark:bg-slate-900 border-r border-slate-300/60 dark:border-slate-700/60 w-10" />
-                      <th colSpan={4} className="sticky left-10 top-0 z-30 bg-slate-200 dark:bg-slate-900 border-r-2 border-indigo-400/40 dark:border-indigo-500/30 px-3 text-left">
+                      <th colSpan={1} className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-10" />
+                      <th colSpan={4} className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 text-left">
                         <span className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" />
                           WBS / Activity
                         </span>
                       </th>
                       {/* Planned Schedule group */}
-                      <th colSpan={3} className="border-r-2 border-blue-400/40 dark:border-blue-500/30 px-3 text-left bg-blue-50/60 dark:bg-blue-950/20">
-                        <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                      <th colSpan={3} className="px-3 text-left">
+                        <span className="flex items-center gap-1.5">
                           Planned Schedule
                         </span>
                       </th>
                       {/* Actual Schedule group */}
-                      <th colSpan={3} className="border-r-2 border-emerald-400/40 dark:border-emerald-500/30 px-3 text-left bg-emerald-50/60 dark:bg-emerald-950/20">
-                        <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                      <th colSpan={3} className="px-3 text-left">
+                        <span className="flex items-center gap-1.5">
                           Actual Schedule
                         </span>
                       </th>
                       {/* Control group */}
-                      <th colSpan={4 + customColumns.length} className="border-r-2 border-amber-400/40 dark:border-amber-500/30 px-3 text-left bg-amber-50/40 dark:bg-amber-950/10">
-                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                      <th colSpan={4 + customColumns.length} className="px-3 text-left">
+                        <span className="flex items-center gap-1.5">
                           Control & Assignment
                         </span>
                       </th>
-                      <th colSpan={1} className="px-3 text-left bg-slate-200 dark:bg-slate-900" />
+                      <th colSpan={1} className="sticky right-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 text-right w-24" />
                     </tr>
                     {/* ── COLUMN HEADER ROW ── */}
-                    <tr className="h-9 text-[10px] tracking-widest uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-b-2 border-slate-200/80 dark:border-slate-700">
-                      <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 border-r border-slate-200/80 dark:border-slate-700/80 w-10 px-2 text-center">#</th>
-                      <th className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 border-r-2 border-indigo-300/50 dark:border-indigo-700/40 w-96 px-3 text-left">Activity Name</th>
-                      <th className="w-12 px-2 text-center border-r border-slate-200/80 dark:border-slate-700/60">Info</th>
-                      <th className="w-16 px-2 border-r border-slate-200/80 dark:border-slate-700/60">Pin</th>
-                      <th className="w-36 px-2 border-r-2 border-indigo-300/50 dark:border-indigo-700/40">Dept.</th>
-                      {/* Planned – blue tint */}
-                      <th className="w-32 px-2 border-r border-blue-200/60 dark:border-blue-800/30 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">Start Date</th>
-                      <th className="w-32 px-2 border-r border-blue-200/60 dark:border-blue-800/30 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400">End Date</th>
-                      <th className="w-24 px-2 border-r-2 border-blue-300/50 dark:border-blue-700/40 bg-blue-50/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400 text-center">Duration</th>
-                      {/* Actual – emerald tint */}
-                      <th className="w-32 px-2 border-r border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400">Act. Start</th>
-                      <th className="w-32 px-2 border-r border-emerald-200/60 dark:border-emerald-800/30 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400">Act. End</th>
-                      <th className="w-28 px-2 border-r-2 border-emerald-300/50 dark:border-emerald-700/40 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 text-center">Variance</th>
-                      {/* Control – amber tint */}
-                      <th className="w-20 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 text-center">% Done</th>
-                      <th className="w-28 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 text-center">Sub-Acts</th>
-                      <th className="w-48 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Assigned To</th>
-                      <th className="w-28 px-2 border-r border-amber-200/60 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Status</th>
-                      <th className="w-40 px-2 border-r-2 border-amber-300/50 dark:border-amber-700/40 bg-amber-50/30 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400">Predecessors</th>
+                    <tr className="h-9 text-[10px] tracking-widest uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-b border-slate-200/20 dark:border-slate-700/30">
+                      <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-10 px-2 text-center">#</th>
+                      <th className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-96 px-3 text-left">Activity Name</th>
+                      <th className="w-12 px-2 text-center">Info</th>
+                      <th className="w-16 px-2">Pin</th>
+                      <th className="w-36 px-2">Dept.</th>
+                      {/* Planned */}
+                      <th className="w-32 px-2">Start Date</th>
+                      <th className="w-32 px-2">End Date</th>
+                      <th className="w-24 px-2 text-center">Duration</th>
+                      {/* Actual */}
+                      <th className="w-32 px-2">Act. Start</th>
+                      <th className="w-32 px-2">Act. End</th>
+                      <th className="w-28 px-2 text-center">Variance</th>
+                      {/* Control */}
+                      <th className="w-20 px-2 text-center">% Done</th>
+                      <th className="w-28 px-2 text-center">Sub-Acts</th>
+                      <th className="w-48 px-2">Assigned To</th>
+                      <th className="w-28 px-2 font-extrabold text-slate-650 dark:text-slate-350">Status</th>
+                      <th className="w-40 px-2">Predecessors</th>
                       {customColumns.map(col => (
-                        <th key={col.id} className="w-32 px-2 border-r border-slate-200/80 dark:border-slate-700/60 relative group">
+                        <th key={col.id} className="w-32 px-2 relative group">
                           <span className="truncate pr-4 block">{col.column_label}</span>
                           <button
                             onClick={() => handleDeleteCustomColumn(col.id)}
@@ -1910,6 +2071,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         </th>
                       ))}
                       <th className="w-32 px-2">Follow-up</th>
+                      <th className="sticky right-0 bg-slate-100 dark:bg-slate-800 z-30 px-4 py-3 text-right font-medium w-24">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1991,28 +2153,18 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
                       const isOverdue = showOverdueTaskShading && (task.status === 'Delayed' || varianceText.includes('Delay'));
 
-                      // Row background: selected > overdue > critical > parent > even/odd stripe
+                      // Clean and simple row background matching Employee Master
                       const rowBg = isSelected
-                        ? 'bg-blue-50/60 dark:bg-blue-900/15'
-                        : isOverdue
-                          ? 'bg-rose-50/60 dark:bg-rose-950/15 border-l-4 border-l-rose-500'
-                          : task.is_critical
-                            ? 'bg-rose-50/30 dark:bg-rose-950/10'
-                            : isParent
-                              ? 'bg-slate-100/80 dark:bg-slate-800/60'
-                              : rowIsEven
-                                ? 'bg-white dark:bg-slate-900'
-                                : 'bg-slate-50/50 dark:bg-slate-800/20';
+                        ? 'bg-blue-50/40 dark:bg-blue-900/10'
+                        : isParent
+                          ? 'bg-slate-50 dark:bg-slate-800/60'
+                          : 'bg-white dark:bg-slate-900';
 
                       const stickyBg = isSelected 
                         ? 'bg-blue-50/95 dark:bg-blue-950/60' 
                         : isParent 
-                          ? 'bg-slate-100 dark:bg-slate-800' 
-                          : isOverdue 
-                            ? 'bg-red-50/95 dark:bg-red-950/20'
-                            : task.is_critical 
-                              ? 'bg-rose-500/10 dark:bg-rose-950/10' 
-                              : rowIsEven ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-800/20';
+                          ? 'bg-slate-50 dark:bg-slate-800' 
+                          : 'bg-white dark:bg-slate-900';
 
                       const hasOverAllocation = showOverAllocationMessage && task.assigned_to?.some(uid => 
                         resourceOverallocations.some(warn => String(warn.employeeId) === String(uid))
@@ -2021,81 +2173,62 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       return (
                         <tr 
                           key={task.id}
+                          data-task-id={task.id}
                           onClick={() => setSelectedTaskId(task.id)}
                           style={{ height: rowHeight }}
-                          className={`group border-b border-slate-200/60 dark:border-slate-700/50 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors duration-100 cursor-pointer ${rowBg} ${
-                            isSelected ? 'ring-1 ring-inset ring-blue-400/30' : ''
-                          } ${isParent ? 'font-semibold' : ''}`}
+                          className={`group border-b border-slate-200/15 dark:border-slate-800/30 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors duration-100 cursor-pointer ${rowBg} ${isSelected ? 'ring-1 ring-inset ring-blue-400/30' : ''} ${isParent ? 'font-semibold' : ''}`}
                         >
                           {/* Index */}
-                          <td className={`sticky left-0 z-10 border-r border-slate-200/80 dark:border-slate-700/60 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
+                          <td className={`sticky left-0 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
                           
                           {/* Activity Name */}
                           <td 
-                            className={`sticky left-10 z-10 border-r-2 border-indigo-200/40 dark:border-indigo-700/30 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
+                            className={`sticky left-10 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
                             style={{ paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
                           >
                             <div className="w-full h-full flex items-center relative truncate gap-1.5">
-                              {task.indent_level > 0 && (
-                                <div 
-                                  className={`absolute left-0 top-0 bottom-0 border-l-2 ${phase.border} opacity-50`} 
-                                  style={{ left: `${(task.indent_level) * 16}px` }} 
-                                />
-                              )}
-
-                              <input
-                                type="text"
-                                value={task.activity_name || ''}
-                                onChange={e => handleCellChange(task.id, 'activity_name', e.target.value)}
-                                className={`w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}
-                              />
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider border flex-shrink-0 ${typeBadge.bg} ${typeBadge.text}`}>
+                                {typeBadge.label}
+                              </span>
+                              <span
+                                onDoubleClick={(e) => { e.stopPropagation(); handleEditSpecificTask(task.id); }}
+                                title="Double-click or use the Actions ✎ button to edit"
+                                className={`w-full truncate px-1.5 py-0.5 ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}
+                              >
+                                {task.activity_name || <span className="text-slate-400 italic">Untitled</span>}
+                              </span>
                             </div>
                           </td>
 
                           {/* Info Column */}
-                          <td className="px-2 text-center border-r border-slate-200/80 dark:border-slate-800/80 select-none">
+                          <td className="px-2 text-center select-none">
                             <div className="flex items-center justify-center gap-1">
-                              {task.is_critical && (
-                                <span className="size-2 rounded-full bg-rose-500" title="Critical Path Activity" />
-                              )}
-                              {task.item_type === 'Approval Gate' && (
-                                <span className="size-2 rotate-45 bg-yellow-500 border border-yellow-600 block" title="Approval / Stage Gate" />
-                              )}
+                              {task.is_critical && <span className="size-2 rounded-full bg-rose-500" title="Critical Path Activity" />}
+                              {task.item_type === 'Approval Gate' && <span className="size-2 rotate-45 bg-yellow-500 border border-yellow-600 block" title="Approval / Stage Gate" />}
                             </div>
                           </td>
 
                           {/* Pin Column */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center select-none">
-                            <select
-                              value={task.custom_values?.pin_type || ''}
-                              onChange={e => handleCellChange(task.id, 'custom:pin_type', e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1 py-0.5 transition-all text-xs text-slate-700 dark:text-slate-200 font-medium"
-                            >
-                              <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">--</option>
-                              <option value="star" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">⭐ Star</option>
-                              <option value="flag" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">🚩 Flag</option>
-                              <option value="arrow" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">➡️ Arrow</option>
-                            </select>
+                          <td className="px-2 text-center select-none">
+                            <span className="text-sm">
+                              {task.custom_values?.pin_type === 'star' && <span title="Starred">⭐</span>}
+                              {task.custom_values?.pin_type === 'flag' && <span title="Flagged">🚩</span>}
+                              {task.custom_values?.pin_type === 'arrow' && <span title="Arrow">➡️</span>}
+                              {!task.custom_values?.pin_type && <span className="text-slate-300 dark:text-slate-600">–</span>}
+                            </span>
                           </td>
 
                           {/* Department */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            <input
-                              type="text"
-                              list="departments-list"
-                              value={task.department || ''}
-                              onChange={e => handleCellChange(task.id, 'department', e.target.value)}
-                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-xs text-slate-700 dark:text-slate-200 font-medium"
-                            />
+                          <td className="px-2">
+                            <span className="block truncate px-1.5 py-0.5 text-xs text-slate-700 dark:text-slate-200 font-medium">
+                              {task.department || <span className="text-slate-400 italic">—</span>}
+                            </span>
                           </td>
 
                           {/* Sub Activity */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center select-none">
+                          <td className="px-2 text-center select-none">
                             <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveParentTask(task);
-                              }}
+                              onClick={(e) => { e.stopPropagation(); setActiveParentTask(task); }}
                               className="px-2 py-1 text-[10px] font-bold bg-indigo-600/90 hover:bg-indigo-600 text-white rounded-md shadow-sm transition-all active:scale-95 flex items-center gap-1 mx-auto"
                             >
                               <span>Manage</span>
@@ -2104,214 +2237,81 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           </td>
 
                           {/* Start Date */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            {isParent ? (
-                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.start_date)}</span>
-                            ) : (
-                              <input
-                                type="date"
-                                value={task.start_date ? task.start_date.split('T')[0] : ''}
-                                onChange={e => handleCellChange(task.id, 'start_date', e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
-                              />
-                            )}
+                          <td className="px-2">
+                            <span className={`text-xs px-1.5 font-mono ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200'}`}>{formatDate(task.start_date) || '—'}</span>
                           </td>
 
                           {/* End Date */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            {isParent ? (
-                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.end_date)}</span>
-                            ) : (
-                              <input
-                                type="date"
-                                value={task.end_date ? task.end_date.split('T')[0] : ''}
-                                onChange={e => handleCellChange(task.id, 'end_date', e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
-                              />
-                            )}
+                          <td className="px-2">
+                            <span className={`text-xs px-1.5 font-mono ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200'}`}>{formatDate(task.end_date) || '—'}</span>
                           </td>
 
                           {/* Duration */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-xs text-slate-700 dark:text-slate-200 font-semibold select-none">
+                          <td className="px-2 text-center font-mono text-xs text-slate-700 dark:text-slate-200 font-semibold select-none">
                             {durationDays}
                           </td>
 
                           {/* Actual Start */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            {isParent ? (
-                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.actual_start)}</span>
-                            ) : (
-                              <input
-                                type="date"
-                                value={task.actual_start ? task.actual_start.split('T')[0] : ''}
-                                onChange={e => handleCellChange(task.id, 'actual_start', e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
-                              />
-                            )}
+                          <td className="px-2">
+                            <span className={`text-xs px-1.5 font-mono ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200'}`}>{formatDate(task.actual_start) || '—'}</span>
                           </td>
 
                           {/* Actual End */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            {isParent ? (
-                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs px-1.5">{formatDate(task.actual_end)}</span>
-                            ) : (
-                              <input
-                                type="date"
-                                value={task.actual_end ? task.actual_end.split('T')[0] : ''}
-                                onChange={e => handleCellChange(task.id, 'actual_end', e.target.value)}
-                                className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-[11px] text-slate-700 dark:text-slate-200 font-mono"
-                              />
-                            )}
+                          <td className="px-2">
+                            <span className={`text-xs px-1.5 font-mono ${isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200'}`}>{formatDate(task.actual_end) || '—'}</span>
                           </td>
 
                           {/* Variance */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-[10px]">
-                            <span className={varianceColor}>
-                              {varianceText}
-                            </span>
+                          <td className="px-2 text-center font-mono text-[10px]">
+                            <span className={varianceColor}>{varianceText}</span>
                           </td>
 
                           {/* Complete % */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 text-center font-mono text-xs">
-                            {isParent ? (
-                              <span className="font-bold text-slate-800 dark:text-slate-100">{task.complete_percent || 0}%</span>
-                            ) : (
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                value={task.complete_percent || 0}
-                                readOnly={!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0}
-                                onChange={e => handleCellChange(task.id, 'complete_percent', parseFloat(e.target.value) || 0)}
-                                className={`w-full bg-transparent border-0 outline-none text-center font-semibold focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all ${
-                                  (!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0)
-                                    ? 'text-slate-400 cursor-not-allowed'
-                                    : 'text-slate-700 dark:text-slate-200'
-                                }`}
-                                title={(!task.custom_values?.manual_completion_override && task.assigned_to && task.assigned_to.length > 0) ? "Calculated from Resource weights/progress" : "Manual Completion %"}
-                              />
-                            )}
+                          <td className="px-2 text-center font-mono text-xs">
+                            <span className={isParent ? 'font-bold text-slate-800 dark:text-slate-100' : 'font-semibold text-slate-700 dark:text-slate-200'}>{task.complete_percent || 0}%</span>
                           </td>
 
                           {/* Assigned To */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 truncate">
+                          <td className="px-2 truncate">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveAssignTask(task);
-                              }}
-                              className={`w-full text-left truncate hover:text-indigo-500 font-medium py-1 flex items-center gap-1 text-xs ${
-                                hasOverAllocation ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-200'
-                              }`}
+                              onClick={(e) => { e.stopPropagation(); setActiveAssignTask(task); }}
+                              className={`w-full text-left truncate hover:text-indigo-500 font-medium py-1 flex items-center gap-1 text-xs ${hasOverAllocation ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-200'}`}
                               title={hasOverAllocation ? "Warning: Overallocated resource assigned!" : "Assign resources"}
                             >
                               {hasOverAllocation && <span className="text-rose-500 font-bold text-xs" title="Overallocated resource">⚠️</span>}
-                              <span>
-                                {task.assigned_to && task.assigned_to.length > 0 ? (
-                                  task.assigned_to.map(uid => {
-                                    const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
-                                    return emp ? emp.employee_name : uid;
-                                  }).join(', ')
-                                ) : (
-                                  <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Unassigned</span>
-                                )}
-                              </span>
+                              <span>{task.assigned_to && task.assigned_to.length > 0 ? task.assigned_to.map(uid => { const emp = projectTeam.find(e => String(e.employee_id) === String(uid)); return emp ? emp.employee_name : uid; }).join(', ') : <span className="text-slate-400 dark:text-slate-500 italic text-[11px]">Unassigned</span>}</span>
                             </button>
                           </td>
 
                           {/* Status */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                            {isParent ? (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider ${statusBadge.pill}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
-                                {task.status || 'Not Started'}
-                              </span>
-                            ) : (
-                              <div className="relative group/status">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider cursor-pointer ${statusBadge.pill} group-hover/status:ring-1 group-hover/status:ring-current/30 transition-all`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
-                                  {task.status || 'Not Started'}
-                                </span>
-                                <select
-                                  value={task.status || 'Not Started'}
-                                  onChange={e => handleCellChange(task.id, 'status', e.target.value)}
-                                  onClick={e => e.stopPropagation()}
-                                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
-                                >
-                                  {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
-                                    <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
+                          <td className="px-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider ${statusBadge.pill}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
+                              {task.status || 'Not Started'}
+                            </span>
                           </td>
 
                           {/* Predecessors */}
-                          <td className="px-2 border-r border-slate-200/80 dark:border-slate-800/80 font-mono text-xs text-slate-500 dark:text-slate-400">
-                            <input
-                              type="text"
-                              placeholder="e.g. 1FS+3d"
-                              disabled={isParent}
-                              value={task.dependencies_as_successor ? task.dependencies_as_successor.map(d => {
-                                const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
-                                const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
-                                return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
-                              }).join(', ') : ''}
-                              onChange={e => {
-                                const inputStr = e.target.value;
-                                const parts = inputStr.split(',').map(s => s.trim()).filter(Boolean);
-                                const parsedDeps = [];
-                                parts.forEach(part => {
-                                  const match = part.match(/^(\d+)(FS|SS|FF|SF)?(?:([\+\-]\d+)d)?$/i);
-                                  if (match) {
-                                    const predRowIdx = parseInt(match[1]) - 1;
-                                    const depType = (match[2] || 'FS').toUpperCase();
-                                    const lagVal = match[3] ? parseInt(match[3]) : 0;
-                                    
-                                    const predTask = filteredTasks[predRowIdx];
-                                    if (predTask && predTask.id !== task.id) {
-                                        parsedDeps.push({
-                                          predecessor_task_id: predTask.id,
-                                          successor_task_id: task.id,
-                                          type: depType,
-                                          lag_days: lagVal
-                                        });
-                                    }
-                                  }
-                                });
-                                setDependencies(prev => {
-                                  const filtered = prev.filter(d => d.successor_task_id !== task.id);
-                                  return [...filtered, ...parsedDeps];
-                                });
-                              }}
-                              className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-slate-600 dark:text-slate-300 font-semibold"
-                            />
+                          <td className="px-2 font-mono text-xs text-slate-500 dark:text-slate-400">
+                            <span className="block truncate px-1.5 py-0.5 text-slate-600 dark:text-slate-300 font-semibold">
+                              {task.dependencies_as_successor && task.dependencies_as_successor.length > 0
+                                ? task.dependencies_as_successor.map(d => {
+                                    const predTaskIdx = filteredTasks.findIndex(pt => pt.id === d.predecessor_task_id);
+                                    const lagText = d.lag_days !== 0 ? `${d.lag_days > 0 ? '+' : ''}${d.lag_days}d` : '';
+                                    return predTaskIdx !== -1 ? `${predTaskIdx + 1}${d.type}${lagText}` : '';
+                                  }).filter(Boolean).join(', ')
+                                : <span className="text-slate-400">—</span>}
+                            </span>
                           </td>
 
                           {/* Custom fields */}
                           {customColumns.map(col => {
                             const val = task.custom_values?.[col.column_name] || '';
                             return (
-                              <td key={col.id} className="px-2 border-r border-slate-200/80 dark:border-slate-800/80">
-                                {col.data_type === 'select' ? (
-                                  <select
-                                    value={val}
-                                    onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
-                                    className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1 py-0.5 transition-all text-slate-700 dark:text-slate-200"
-                                  >
-                                    <option value="">--</option>
-                                    {col.options?.map(o => (
-                                      <option key={o} value={o} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{o}</option>
-                                    ))}
-                                  </select>
-                                ) : (
-                                  <input
-                                    type={col.data_type === 'number' ? 'number' : col.data_type === 'date' ? 'date' : 'text'}
-                                    value={val}
-                                    onChange={e => handleCellChange(task.id, `custom:${col.column_name}`, e.target.value)}
-                                    className="w-full bg-transparent border-0 outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 transition-all text-slate-700 dark:text-slate-200"
-                                  />
-                                )}
+                              <td key={col.id} className="px-2">
+                                <span className="block truncate px-1.5 py-0.5 text-slate-700 dark:text-slate-200">
+                                  {val || <span className="text-slate-400">—</span>}
+                                </span>
                               </td>
                             );
                           })}
@@ -2319,15 +2319,35 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           {/* Follow-up */}
                           <td className="px-2">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openFollowupEditor(task);
-                              }}
+                              onClick={(e) => { e.stopPropagation(); openFollowupEditor(task); }}
                               className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-white bg-slate-100 hover:bg-indigo-600 dark:bg-slate-800 dark:hover:bg-indigo-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 transition-colors"
                             >
                               <Calendar size={11} />
                               {task.followups && task.followups.length > 0 ? 'Logged' : 'Set'}
                             </button>
+                          </td>
+
+                          {/* Actions Cell - Sticky Right */}
+                          <td 
+                            onClick={(e) => e.stopPropagation()}
+                            className={`sticky right-0 z-10 py-2 px-3 text-right whitespace-nowrap w-[100px] border-l border-slate-200/10 dark:border-slate-800/25 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${stickyBg}`}
+                          >
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditSpecificTask(task.id); }}
+                                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteSpecificTask(task); }}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded transition-colors"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2341,16 +2361,57 @@ const MilestoneManagement = ({ project, showNotification }) => {
           </div>
         )}
 
-        {/* RESIZER DRAG THUMB */}
+        {/* RESIZER DRAG THUMB + COLLAPSE CONTROLS */}
         {showDataGrid && showGantt && (
-          <div 
-            onMouseDown={startResize}
-            onDoubleClick={() => setTableWidth(650)}
-            title="Drag to resize split view, double-click to reset"
-            className="w-1.5 h-full cursor-col-resize shrink-0 bg-[var(--surface)] border-x border-[var(--border-subtle)] hover:bg-indigo-500/20 hover:border-indigo-500/30 active:bg-indigo-600 transition-all z-10 flex items-center justify-center group"
-          >
-            <div className="w-[2px] h-10 bg-slate-500/30 group-hover:bg-indigo-500 rounded-full transition-colors" />
+          <div className="relative h-full shrink-0 flex items-center z-20">
+            <div
+              onMouseDown={startResize}
+              onDoubleClick={() => setTableWidth(650)}
+              title="Drag to resize split view, double-click to reset"
+              className="w-1.5 h-full cursor-col-resize bg-[var(--surface)] border-x border-[var(--border-subtle)] hover:bg-indigo-500/20 hover:border-indigo-500/30 active:bg-indigo-600 transition-all flex items-center justify-center group"
+            >
+              <div className="w-[2px] h-10 bg-slate-500/30 group-hover:bg-indigo-500 rounded-full transition-colors" />
+            </div>
+            {/* Collapse / expand toggle buttons */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-1">
+              <button
+                onClick={() => setShowGantt(false)}
+                title="Expand table (hide chart) for full column visibility"
+                className="p-0.5 rounded bg-[var(--elevated-card)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-indigo-600 hover:border-indigo-400 shadow-sm transition-colors"
+              >
+                <ChevronRight size={12} />
+              </button>
+              <button
+                onClick={() => setShowDataGrid(false)}
+                title="Expand chart (hide table)"
+                className="p-0.5 rounded bg-[var(--elevated-card)] border border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-indigo-600 hover:border-indigo-400 shadow-sm transition-colors"
+              >
+                <ChevronLeft size={12} />
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* RESTORE STRIP — chart hidden, click to bring it back */}
+        {showDataGrid && !showGantt && (
+          <button
+            onClick={() => setShowGantt(true)}
+            title="Show timeline chart"
+            className="w-5 h-full shrink-0 bg-[var(--surface)] border-l border-[var(--border-subtle)] hover:bg-indigo-500/10 flex items-center justify-center text-[var(--text-muted)] hover:text-indigo-600 transition-colors z-20"
+          >
+            <ChevronLeft size={14} />
+          </button>
+        )}
+
+        {/* RESTORE STRIP — table hidden, click to bring it back */}
+        {!showDataGrid && showGantt && (
+          <button
+            onClick={() => setShowDataGrid(true)}
+            title="Show data table"
+            className="w-5 h-full shrink-0 bg-[var(--surface)] border-r border-[var(--border-subtle)] hover:bg-indigo-500/10 flex items-center justify-center text-[var(--text-muted)] hover:text-indigo-600 transition-colors z-20 order-first"
+          >
+            <ChevronRight size={14} />
+          </button>
         )}
 
         {/* GANTT VIEW TIMELINE */}
@@ -2703,16 +2764,18 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         />
                       )}
 
-                      {/* Labels next to Gantt Bars */}
-                      <span 
-                        style={{ 
-                          left: labelLeft, 
-                          top: '19px' 
+                      {/* Labels for Gantt Bars — placed ABOVE the bar to avoid collisions
+                          with the bar fill, milestone diamonds and dependency links */}
+                      <span
+                        style={{
+                          left: isMilestone ? bar.plannedLeft + 10 : bar.plannedLeft,
+                          top: '2px',
+                          maxWidth: '420px'
                         }}
-                        className="absolute text-[10px] font-bold text-[var(--text-primary)] dark:text-slate-200 whitespace-nowrap opacity-90 group-hover:opacity-100 pointer-events-none"
+                        className="absolute text-[10px] font-bold text-[var(--text-primary)] dark:text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis opacity-90 group-hover:opacity-100 pointer-events-none leading-none"
                       >
                         {ganttShowTaskName && bar.activityName}
-                        {ganttShowPercent && bar.completePercent > 0 && ` (${bar.completePercent}%)`} 
+                        {ganttShowPercent && bar.completePercent > 0 && ` (${bar.completePercent}%)`}
                         {ganttShowAssignee && bar.assignedToNames && ` [${bar.assignedToNames}]`}
                       </span>
 
@@ -2739,10 +2802,26 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
       </div>
 
-      {/* FOOTER TABBED ANALYTICS SHELF */}
-      <div className="h-44 border-t border-[var(--border-subtle)] bg-[var(--surface)] flex flex-col shrink-0">
-        <div className="flex border-b border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-[11px] font-bold uppercase tracking-wider">
-          {[
+      {/* FOOTER TABBED ANALYTICS SHELF (resizable + collapsible) */}
+      <div
+        style={{ height: footerCollapsed ? 34 : footerHeight }}
+        className="border-t border-[var(--border-subtle)] bg-[var(--surface)] flex flex-col shrink-0 relative"
+      >
+        {/* Drag handle to resize the shelf vertically */}
+        {!footerCollapsed && (
+          <div
+            onMouseDown={startFooterResize}
+            onDoubleClick={() => setFooterHeight(176)}
+            title="Drag to resize, double-click to reset"
+            className="absolute -top-1 left-0 w-full h-2 cursor-row-resize z-20 group flex items-center justify-center"
+          >
+            <div className="w-12 h-[3px] rounded-full bg-slate-400/40 group-hover:bg-indigo-500 transition-colors" />
+          </div>
+        )}
+
+        <div className="flex items-center border-b border-[var(--border-subtle)] bg-[var(--surface)] px-4 text-[11px] font-bold uppercase tracking-wider">
+          <div className="flex flex-1 overflow-x-auto">
+            {[
             { id: 'workload', label: 'Resource Loads', icon: Users },
             { id: 'releases', label: 'Versions & Milestones', icon: Layers },
             { id: 'followups', label: 'Reminders & Follow-ups', icon: Calendar },
@@ -2750,16 +2829,25 @@ const MilestoneManagement = ({ project, showNotification }) => {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 border-b-2 -mb-[1px] transition-all ${activeSubTab === tab.id ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-[var(--bg)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+              onClick={() => { setActiveSubTab(tab.id); if (footerCollapsed) setFooterCollapsed(false); }}
+              className={`flex items-center gap-1.5 px-4 py-2 border-b-2 -mb-[1px] whitespace-nowrap transition-all ${activeSubTab === tab.id ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-[var(--bg)]' : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
             >
               <tab.icon size={12} />
               {tab.label}
             </button>
           ))}
+          </div>
+          {/* Minimize / restore toggle */}
+          <button
+            onClick={() => setFooterCollapsed(c => !c)}
+            title={footerCollapsed ? 'Expand panel' : 'Minimize panel'}
+            className="ml-2 p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg)] transition-colors"
+          >
+            {footerCollapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
         </div>
 
-        <div className="flex-1 p-3 overflow-y-auto text-xs bg-[var(--bg)]">
+        <div className={`flex-1 p-3 overflow-y-auto text-xs bg-[var(--bg)] ${footerCollapsed ? 'hidden' : ''}`}>
           
           {/* RESOURCE LOAD PANEL */}
           {activeSubTab === 'workload' && (
@@ -3733,6 +3821,213 @@ const MilestoneManagement = ({ project, showNotification }) => {
           <option key={d} value={d} />
         ))}
       </datalist>
+
+      {/* TASK EDIT POPUP MODAL */}
+      {editModalTaskId !== null && editDraft && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+          onMouseDown={closeEditModal}
+        >
+          <div
+            className="bg-[var(--surface)] text-[var(--text-primary)] w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl border border-[var(--border-subtle)] custom-scrollbar"
+            onMouseDown={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)] sticky top-0 bg-[var(--surface)] z-10">
+              <div className="flex items-center gap-2">
+                <Edit size={16} className="text-indigo-500" />
+                <h3 className="font-bold text-sm">Edit Activity</h3>
+              </div>
+              <button onClick={closeEditModal} className="p-1.5 rounded hover:bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors" title="Close">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 flex flex-col gap-4 text-xs">
+              {/* Activity name */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Activity Name</label>
+                <input
+                  type="text"
+                  value={editDraft.activity_name}
+                  onChange={e => updateDraft('activity_name', e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Item type */}
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Item Type</label>
+                  <select
+                    value={editDraft.item_type}
+                    onChange={e => updateDraft('item_type', e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    {['Phase', 'Task', 'Sub Task', 'Milestone', 'Approval Gate'].map(t => (
+                      <option key={t} value={t} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Department dropdown (fixed) */}
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Department</label>
+                  <select
+                    value={editDraft.department}
+                    onChange={e => updateDraft('department', e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">— Select —</option>
+                    {suggestedDepartments.map(d => (
+                      <option key={d} value={d} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{d}</option>
+                    ))}
+                    {editDraft.department && !suggestedDepartments.includes(editDraft.department) && (
+                      <option value={editDraft.department} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{editDraft.department}</option>
+                    )}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Status</label>
+                  <select
+                    value={editDraft.status}
+                    onChange={e => updateDraft('status', e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
+                      <option key={s} value={s} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Pin */}
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Pin / Marker</label>
+                  <select
+                    value={editDraft.pin_type}
+                    onChange={e => updateDraft('pin_type', e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">None</option>
+                    <option value="star" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">⭐ Star</option>
+                    <option value="flag" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">🚩 Flag</option>
+                    <option value="arrow" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">➡️ Arrow</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Schedule dates */}
+              {editDraft._isParent ? (
+                <p className="text-[10px] italic text-[var(--text-muted)] bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5">
+                  Dates for summary/phase rows are rolled up automatically from their sub-activities.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Planned Start</label>
+                    <input type="date" value={editDraft.start_date} onChange={e => updateDraft('start_date', e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Planned End</label>
+                    <input type="date" value={editDraft.end_date} onChange={e => updateDraft('end_date', e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Actual Start</label>
+                    <input type="date" value={editDraft.actual_start} onChange={e => updateDraft('actual_start', e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono" />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Actual End</label>
+                    <input type="date" value={editDraft.actual_end} onChange={e => updateDraft('actual_end', e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono" />
+                  </div>
+                </div>
+              )}
+
+              {/* % complete + predecessors */}
+              {!editDraft._isParent && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">% Complete</label>
+                    <input
+                      type="number" min="0" max="100"
+                      value={editDraft.complete_percent}
+                      disabled={editDraft._hasResources && !editDraft._manualOverride}
+                      onChange={e => updateDraft('complete_percent', e.target.value)}
+                      className={`w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono ${editDraft._hasResources && !editDraft._manualOverride ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={editDraft._hasResources && !editDraft._manualOverride ? 'Calculated from resource weights/progress' : 'Manual completion %'}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">Predecessors</label>
+                    <input
+                      type="text" placeholder="e.g. 1FS+3d, 2SS"
+                      value={editDraft._predStr}
+                      onChange={e => updateDraft('_predStr', e.target.value)}
+                      className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Custom columns */}
+              {customColumns.length > 0 && (
+                <div className="grid grid-cols-2 gap-4 border-t border-[var(--border-subtle)] pt-3">
+                  {customColumns.map(col => {
+                    const val = editDraft.custom_values?.[col.column_name] || '';
+                    return (
+                      <div key={col.id} className="flex flex-col gap-1">
+                        <label className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-muted)]">{col.column_label}</label>
+                        {col.data_type === 'select' ? (
+                          <select value={val} onChange={e => updateDraftCustom(col.column_name, e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500">
+                            <option value="" className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">—</option>
+                            {col.options?.map(o => <option key={o} value={o} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{o}</option>)}
+                          </select>
+                        ) : (
+                          <input type={col.data_type === 'number' ? 'number' : col.data_type === 'date' ? 'date' : 'text'} value={val} onChange={e => updateDraftCustom(col.column_name, e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Quick links to dedicated editors */}
+              <div className="flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3">
+                <button
+                  onClick={() => { const t = tasks.find(x => x.id === editDraft.id); if (t) setActiveAssignTask(t); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--bg)] border border-[var(--border-subtle)] hover:border-indigo-400 hover:text-indigo-600 font-semibold transition-colors"
+                >
+                  <Users size={12} /> Assign Resources
+                </button>
+                <button
+                  onClick={() => { const t = tasks.find(x => x.id === editDraft.id); if (t) openFollowupEditor(t); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--bg)] border border-[var(--border-subtle)] hover:border-indigo-400 hover:text-indigo-600 font-semibold transition-colors"
+                >
+                  <Calendar size={12} /> Follow-ups
+                </button>
+                <button
+                  onClick={() => { const t = tasks.find(x => x.id === editDraft.id); if (t) setActiveParentTask(t); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--bg)] border border-[var(--border-subtle)] hover:border-indigo-400 hover:text-indigo-600 font-semibold transition-colors"
+                >
+                  <Layers size={12} /> Sub-Activities
+                </button>
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[var(--border-subtle)] sticky bottom-0 bg-[var(--surface)]">
+              <button onClick={closeEditModal} className="px-4 py-1.5 rounded font-semibold text-[var(--text-muted)] hover:bg-[var(--bg)] transition-colors">
+                Cancel
+              </button>
+              <button onClick={saveEditModal} className="flex items-center gap-1.5 px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm transition-colors">
+                <Save size={13} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* GANTT INTERACTIVE HOVER TOOLTIP */}
       {hoveredTask && (
