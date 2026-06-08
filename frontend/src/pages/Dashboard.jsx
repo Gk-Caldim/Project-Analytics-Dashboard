@@ -62,6 +62,7 @@ const Dashboard = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { themeSettings, toggleTheme } = useTheme();
+  const isDark = themeSettings?.displayMode === 'dark';
 
   // Get state from Redux
   const user = useSelector(state => state.auth.user);
@@ -739,6 +740,46 @@ const Dashboard = () => {
       ];
     }
 
+    const isSubmoduleMatch = (s, urlSubId) => {
+      if (!s || !urlSubId) return false;
+      
+      const subIdStr = String(urlSubId);
+      const trackerIdStr = s.trackerId ? String(s.trackerId) : '';
+      const sIdStr = s.id ? String(s.id) : '';
+      
+      // 1. Direct matches
+      if (sIdStr && sIdStr === subIdStr) return true;
+      if (trackerIdStr && trackerIdStr === subIdStr) return true;
+      
+      // 2. Encoded prefix matches
+      if (trackerIdStr) {
+        if (subIdStr === `tracker-file-${trackerIdStr}`) return true;
+        if (subIdStr === `project-file-${trackerIdStr}`) return true;
+      }
+      
+      // 3. Name-based / Module ID matches
+      const normalize = (str) => {
+        if (!str) return '';
+        return str.toLowerCase()
+          .replace(/[-_]/g, ' ')
+          .replace(/\.(xlsx|xls|csv|json|txt)$/i, '')
+          .trim();
+      };
+      
+      const normSubId = normalize(subIdStr);
+      const normName = normalize(s.name);
+      const normDisplayName = normalize(s.displayName);
+      
+      if (normName && (normSubId === normName || normSubId.endsWith(' ' + normName))) {
+        return true;
+      }
+      if (normDisplayName && (normSubId === normDisplayName || normSubId.endsWith(' ' + normDisplayName))) {
+        return true;
+      }
+      
+      return false;
+    };
+
     const formatNavLabel = (string) => {
       if (!string) return '';
       let clean = string.replace(/[-_]/g, ' ');
@@ -776,7 +817,7 @@ const Dashboard = () => {
             addCrumb(projectLabel, `/dashboard/projects?projectId=${encodeURIComponent(urlProjectId)}`);
             let fileLabel = 'File';
             for (const proj of projectDashboardModules) {
-              const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+              const file = proj.submodules?.find(s => isSubmoduleMatch(s, urlSubmoduleId));
               if (file) {
                 fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
                 break;
@@ -789,7 +830,7 @@ const Dashboard = () => {
         } else if (urlSubmoduleId) {
           let fileLabel = 'File';
           for (const proj of projectDashboardModules) {
-            const file = proj.submodules?.find(s => String(s.trackerId) === String(urlSubmoduleId));
+            const file = proj.submodules?.find(s => isSubmoduleMatch(s, urlSubmoduleId));
             if (file) {
               fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
               break;
@@ -804,7 +845,7 @@ const Dashboard = () => {
       if (urlFileId) {
         let fileLabel = 'File';
         for (const proj of uploadTrackerModules) {
-          const file = proj.submodules?.find(s => String(s.trackerId) === String(urlFileId));
+          const file = proj.submodules?.find(s => isSubmoduleMatch(s, urlFileId));
           if (file) {
             fileLabel = file.displayName || formatNavLabel((file.name || '').replace(/\.(xlsx|xls|csv|json|txt)$/i, ''));
             break;
@@ -886,10 +927,10 @@ const Dashboard = () => {
         )}
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? 'bg-[#0B0F19]' : 'bg-app-bg'}`}>
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${activeView === 'agent' ? (isDark ? 'bg-[#0B0F19]' : 'bg-slate-50') : 'bg-app-bg'}`}>
           {/* Header */}
           <header className={`h-14 flex-shrink-0 flex items-center px-6 transition-colors duration-300 ${activeView === 'agent'
-            ? 'bg-black border-b border-white/5'
+            ? (isDark ? 'bg-black border-b border-white/5' : 'bg-slate-50 border-b border-slate-200')
             : 'bg-app-bg border-b border-border'}`}>
             {/* Left - Title & Back Button */}
             <div className="flex items-center gap-4">
@@ -936,28 +977,28 @@ const Dashboard = () => {
                 className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
                 title={activeView === 'agent' ? "Back to Dashboard" : "Go Back"}
               >
-                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
+                <ChevronLeft className={`w-5 h-5 ${activeView === 'agent' ? (isDark ? 'text-white/70 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900') : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
               </button>
               <button
                 onClick={() => navigate(1)}
                 className={`p-2 rounded-lg transition-all duration-200 hover:bg-black/5 dark:hover:bg-white/5 group`}
                 title="Go Forward"
               >
-                <ChevronRight className={`w-5 h-5 ${activeView === 'agent' ? 'text-white/70 group-hover:text-white' : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
+                <ChevronRight className={`w-5 h-5 ${activeView === 'agent' ? (isDark ? 'text-white/70 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900') : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-white'}`} />
               </button>
-              <nav className={`flex items-center flex-wrap gap-1 text-sm font-sans tracking-tight ${activeView === 'agent' ? 'text-white/90' : 'text-slate-900 dark:text-white'}`}>
+              <nav className={`flex items-center flex-wrap gap-1 text-sm font-sans tracking-tight ${activeView === 'agent' ? (isDark ? 'text-white/90' : 'text-slate-800') : 'text-slate-900 dark:text-white'}`}>
                 {activeView === 'agent' ? (
                   <span className="font-semibold text-base">KIA</span>
                 ) : (
                   getBreadcrumbs().map((crumb, idx) => (
                     <React.Fragment key={idx}>
                       {idx > 0 && (
-                        <span className={`font-normal mx-1 text-xs select-none ${activeView === 'agent' ? 'text-white/30' : 'text-slate-400 dark:text-slate-500'}`}>&gt;</span>
+                        <span className={`font-normal mx-1 text-xs select-none ${activeView === 'agent' ? (isDark ? 'text-white/30' : 'text-slate-450') : 'text-slate-400 dark:text-slate-500'}`}>&gt;</span>
                       )}
                       {crumb.active || !crumb.path ? (
                         <span className={crumb.active
-                          ? (activeView === 'agent' ? 'text-white font-semibold' : 'text-slate-900 dark:text-white font-semibold')
-                          : (activeView === 'agent' ? 'text-white/60 font-medium' : 'text-slate-500 dark:text-slate-400 font-medium')}>
+                          ? (activeView === 'agent' ? (isDark ? 'text-white font-semibold' : 'text-slate-850 font-semibold') : 'text-slate-900 dark:text-white font-semibold')
+                          : (activeView === 'agent' ? (isDark ? 'text-white/60 font-medium' : 'text-slate-500 font-medium') : 'text-slate-500 dark:text-slate-400 font-medium')}>
                           {crumb.label}
                         </span>
                       ) : (
@@ -974,7 +1015,7 @@ const Dashboard = () => {
                           }}
                           className={`hover:text-slate-900 dark:hover:text-white hover:underline transition-colors text-left font-medium bg-transparent border-0 p-0 cursor-pointer ${
                             activeView === 'agent'
-                              ? 'text-white/60 hover:text-white'
+                              ? (isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-slate-800')
                               : 'text-slate-500 dark:text-slate-400'
                           }`}
                         >
@@ -991,19 +1032,21 @@ const Dashboard = () => {
             <div className="flex items-center gap-4 ml-auto">
               {/* Date and Time */}
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-colors duration-300 ${activeView === 'agent'
-                ? 'bg-[#212121] border border-white/5'
+                ? (isDark ? 'bg-[#212121] border border-white/5' : 'bg-slate-100 border border-slate-200 shadow-sm')
                 : 'bg-app-surface border border-border/40 shadow-sm'}`}>
-                <Clock className={`h-4 w-4 ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`} />
-                <span className={`text-body-sm font-medium tabular-nums ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentTime}</span>
-                <span className={activeView === 'agent' ? 'text-white/10' : 'text-border-strong'}>|</span>
-                <span className={`text-body-sm ${activeView === 'agent' ? 'text-white/60' : 'text-text-secondary'}`}>{currentDate}</span>
+                <Clock className={`h-4 w-4 ${activeView === 'agent' ? (isDark ? 'text-white/40' : 'text-slate-500') : 'text-text-muted'}`} />
+                <span className={`text-body-sm font-medium tabular-nums ${activeView === 'agent' ? (isDark ? 'text-white/60' : 'text-slate-700') : 'text-text-secondary'}`}>{currentTime}</span>
+                <span className={activeView === 'agent' ? (isDark ? 'text-white/10' : 'text-slate-300') : 'text-border-strong'}>|</span>
+                <span className={`text-body-sm ${activeView === 'agent' ? (isDark ? 'text-white/60' : 'text-slate-700') : 'text-text-secondary'}`}>{currentDate}</span>
               </div>
 
               {/* Quick Access AI Copilot Button */}
               <button
                 onClick={() => dispatch(setActiveView(activeView === 'agent' ? 'dashboard' : 'agent'))}
                 className={`p-2 rounded-full transition-all duration-300 relative group active:scale-95 ${activeView === 'agent'
-                  ? 'text-indigo-400 bg-white/5 hover:bg-white/10 border border-white/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                  ? (isDark
+                    ? 'text-indigo-400 bg-white/5 hover:bg-white/10 border border-white/10 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                    : 'text-indigo-600 bg-indigo-50/75 hover:bg-indigo-100/80 border border-indigo-100/50 shadow-sm')
                   : 'text-text-secondary hover:text-text-primary hover:bg-app-surface border border-transparent hover:border-border shadow-sm bg-app-surface'}`}
                 title={activeView === 'agent' ? "Back to Dashboard" : "Chat with KIA"}
               >
@@ -1019,7 +1062,9 @@ const Dashboard = () => {
                 onClick={toggleTheme}
                 className={`flex items-center justify-between p-1 rounded-full w-14 h-8 transition-all duration-300 relative border ${
                   activeView === 'agent'
-                    ? 'bg-[#212121] border-white/5 hover:border-white/10'
+                    ? (isDark
+                      ? 'bg-[#212121] border-white/5 hover:border-white/10'
+                      : 'bg-slate-100 border-slate-200 hover:border-slate-350')
                     : themeSettings.displayMode === 'dark'
                       ? 'bg-slate-800 border-slate-700 hover:border-slate-600'
                       : 'bg-slate-100 border-slate-200 hover:border-slate-350'
@@ -1046,7 +1091,9 @@ const Dashboard = () => {
                     setNotificationMenuOpen(!notificationMenuOpen);
                   }}
                   className={`p-2 rounded-full transition-colors duration-fast relative ${activeView === 'agent'
-                    ? (notificationMenuOpen ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10')
+                    ? (isDark
+                      ? (notificationMenuOpen ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10')
+                      : (notificationMenuOpen ? 'text-slate-850 bg-slate-100' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'))
                     : (notificationMenuOpen ? 'text-text-primary bg-app-surface' : 'text-text-secondary hover:text-text-primary hover:bg-app-surface')}`}
                   title="Notifications"
                 >
@@ -1063,14 +1110,14 @@ const Dashboard = () => {
                 {notificationMenuOpen && (
                   <div
                     className={`fixed z-[9999] w-80 rounded-lg shadow-lg border overflow-hidden ${activeView === 'agent'
-                      ? 'bg-[#212121] border-white/10 text-white'
+                      ? (isDark ? 'bg-[#212121] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800 shadow-xl')
                       : 'bg-app-bg border-border text-text-primary'}`}
                     style={{
                       top: `${notificationMenuPosition.top}px`,
                       right: `${notificationMenuPosition.right}px`
                     }}
                   >
-                    <div className={`px-4 py-3 border-b flex items-center justify-between ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
+                    <div className={`px-4 py-3 border-b flex items-center justify-between ${activeView === 'agent' ? (isDark ? 'border-white/5' : 'border-slate-100') : 'border-border'}`}>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-body">Notifications</h3>
                         {unreadNotifications > 0 && (
@@ -1084,7 +1131,7 @@ const Dashboard = () => {
                           e.stopPropagation();
                           dispatch(markAllNotificationsRead());
                         }}
-                        className={`text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity ${activeView === 'agent' ? 'text-white/40' : 'text-brand-primary'}`}
+                        className={`text-[10px] font-bold uppercase tracking-widest hover:opacity-100 transition-opacity ${activeView === 'agent' ? (isDark ? 'text-white/40' : 'text-brand-primary') : 'text-brand-primary'}`}
                       >
                         Mark All as Read
                       </button>
@@ -1100,10 +1147,10 @@ const Dashboard = () => {
                               }
                             }}
                             className={`px-4 py-4 border-b flex gap-3 cursor-pointer transition-colors duration-fast ${notif.is_read ? 'opacity-60' : 'opacity-100'} ${activeView === 'agent'
-                              ? 'border-white/5 hover:bg-white/5'
+                              ? (isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50')
                               : 'border-border hover:bg-app-surface'}`}
                           >
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary/10'}`}>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeView === 'agent' ? (isDark ? 'bg-white/10' : 'bg-brand-primary/10 text-brand-primary') : 'bg-brand-primary/10'}`}>
                               {notif.type === 'project' ? <FolderKanban className="h-4 w-4" /> : 
                                notif.type === 'meeting' ? <Calendar className="h-4 w-4" /> :
                                notif.type === 'issue' ? <Shield className="h-4 w-4" /> :
@@ -1131,7 +1178,7 @@ const Dashboard = () => {
                     </div>
                     <div className="p-2">
                       <button className={`w-full py-2 text-center text-body-xs font-bold uppercase tracking-widest transition-colors duration-fast rounded-md ${activeView === 'agent'
-                        ? 'text-white/40 hover:text-white hover:bg-white/5'
+                        ? (isDark ? 'text-white/40 hover:text-white hover:bg-white/5' : 'text-text-muted hover:text-text-primary hover:bg-app-surface')
                         : 'text-text-muted hover:text-text-primary hover:bg-app-surface'}`}>
                         View All Activity
                       </button>
@@ -1145,7 +1192,7 @@ const Dashboard = () => {
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                   className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-body-sm transition-colors duration-fast ${activeView === 'agent'
-                    ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                    ? (isDark ? 'bg-white/10 text-white hover:bg-white/20 border border-white/5' : 'bg-brand-primary text-white hover:bg-brand-accent')
                     : 'bg-brand-primary text-white hover:bg-brand-accent'}`}
                 >
                   {getUserInitial()}
@@ -1154,23 +1201,23 @@ const Dashboard = () => {
                 {profileMenuOpen && (
                   <div
                     className={`fixed z-[9999] w-64 rounded-lg shadow-lg border py-2 ${activeView === 'agent'
-                      ? 'bg-[#212121] border-white/10 text-white'
+                      ? (isDark ? 'bg-[#212121] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800 shadow-xl')
                       : 'bg-app-bg border-border text-text-primary'}`}
                     style={{
                       top: `${profileMenuPosition.top}px`,
                       right: `${profileMenuPosition.right}px`
                     }}
                   >
-                    <div className={`px-4 py-3 border-b ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
+                    <div className={`px-4 py-3 border-b ${activeView === 'agent' ? (isDark ? 'border-white/5' : 'border-slate-100') : 'border-border'}`}>
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${activeView === 'agent' ? 'bg-white/10' : 'bg-brand-primary'}`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold ${activeView === 'agent' ? (isDark ? 'bg-white/10' : 'bg-brand-primary') : 'bg-brand-primary'}`}>
                           {getUserInitial()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-body font-semibold truncate ${activeView === 'agent' ? 'text-white' : 'text-text-primary'}`}>{user?.full_name || 'User'}</p>
-                          <p className={`text-caption truncate ${activeView === 'agent' ? 'text-white/40' : 'text-text-muted'}`}>{user?.email || 'user@example.com'}</p>
+                          <p className={`text-body font-semibold truncate ${activeView === 'agent' ? (isDark ? 'text-white' : 'text-slate-800') : 'text-text-primary'}`}>{user?.full_name || 'User'}</p>
+                          <p className={`text-caption truncate ${activeView === 'agent' ? (isDark ? 'text-white/40' : 'text-slate-500') : 'text-text-muted'}`}>{user?.email || 'user@example.com'}</p>
                           {user?.employee_id && (
-                            <p className={`text-[10px] font-mono mt-1 ${activeView === 'agent' ? 'text-white/30' : 'text-text-muted'}`}>ID: {user.employee_id}</p>
+                            <p className={`text-[10px] font-mono mt-1 ${activeView === 'agent' ? (isDark ? 'text-white/30' : 'text-slate-450') : 'text-text-muted'}`}>ID: {user.employee_id}</p>
                           )}
                         </div>
                       </div>
@@ -1178,14 +1225,14 @@ const Dashboard = () => {
 
 
 
-                    <div className={`border-t py-1 ${activeView === 'agent' ? 'border-white/5' : 'border-border'}`}>
+                    <div className={`border-t py-1 ${activeView === 'agent' ? (isDark ? 'border-white/5' : 'border-slate-100') : 'border-border'}`}>
                       <button
                         onClick={() => {
                           handleLogout();
                           setProfileMenuOpen(false);
                         }}
                         className={`w-full px-4 py-2 text-left text-body-sm flex items-center gap-3 transition-colors duration-fast ${activeView === 'agent'
-                          ? 'text-red-400 hover:bg-white/5'
+                          ? (isDark ? 'text-red-400 hover:bg-white/5' : 'text-red-600 hover:bg-slate-50')
                           : 'text-status-error hover:bg-app-surface'}`}
                       >
                         <LogOut className="h-4 w-4" />

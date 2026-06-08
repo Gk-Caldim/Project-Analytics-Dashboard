@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, FolderTree, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Users, FolderTree, CheckCircle, AlertCircle, CheckSquare } from 'lucide-react';
 import API from '../utils/api';
 import ProjectTrackerManagement from '../components/project/ProjectTrackerManagement';
+import MilestoneManagement from '../components/project/MilestoneManagement';
 
 const ProjectDetail = () => {
   const { id } = useParams();
@@ -57,11 +58,12 @@ const ProjectDetail = () => {
 
   const tabs = [
     { id: 'team', label: 'Team Members', icon: Users },
-    { id: 'trackers', label: 'Trackers management', icon: FolderTree }
+    { id: 'trackers', label: 'Trackers management', icon: FolderTree },
+    { id: 'milestones', label: 'Milestone Management', icon: CheckSquare }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pb-10">
+    <div className={`min-h-screen bg-slate-50 dark:bg-slate-900 ${activeTab === 'milestones' ? 'pb-0' : 'pb-10'}`}>
       {/* Header Banner */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -111,7 +113,7 @@ const ProjectDetail = () => {
       </div>
 
       {/* Content wrapper */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className={activeTab === 'milestones' ? "w-full px-0 mt-0" : "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8"}>
 
         {/* Notifications */}
         {notification && (
@@ -175,6 +177,16 @@ const ProjectDetail = () => {
         {activeTab === 'trackers' && (
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
             <ProjectTrackerManagement
+              project={project}
+              showNotification={showNotif}
+            />
+          </div>
+        )}
+
+        {/* MILESTONE MANAGEMENT TAB */}
+        {activeTab === 'milestones' && (
+          <div className="bg-white dark:bg-slate-800 w-full h-[calc(100vh-130px)]">
+            <MilestoneManagement
               project={project}
               showNotification={showNotif}
             />

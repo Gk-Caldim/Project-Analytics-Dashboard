@@ -30,8 +30,11 @@ import { getEmployees } from '../utils/employeeApi';
 import { getCurrentUser } from '../utils/userUtils';
 import useCurrency from '../hooks/useCurrency';
 import toast from 'react-hot-toast';
+import { useTheme } from '../contexts/ThemeContext';
 
 const AgentView = () => {
+  const { themeSettings } = useTheme();
+  const isDark = themeSettings?.displayMode === 'dark';
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
@@ -1008,10 +1011,10 @@ const AgentView = () => {
     const parts = content.split(/(\*\*.*?\*\*|\*.*?\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+        return <strong key={i} className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{part.slice(2, -2)}</strong>;
       }
       if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={i} className="italic text-white/80">{part.slice(1, -1)}</em>;
+        return <em key={i} className={`italic ${isDark ? 'text-white/85' : 'text-slate-600'}`}>{part.slice(1, -1)}</em>;
       }
       return part;
     });
@@ -1020,7 +1023,7 @@ const AgentView = () => {
   const renderHistoryItem = (item, type, index, total = 0) => (
     <div key={item.id} className="relative group/item">
       {editingId === item.id ? (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 mx-1">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border mx-1`}>
           <input
             ref={editInputRef}
             type="text"
@@ -1030,13 +1033,13 @@ const AgentView = () => {
               if (e.key === 'Enter') handleRename(item.id, type);
               if (e.key === 'Escape') setEditingId(null);
             }}
-            className="bg-transparent border-none focus:ring-0 text-sm p-0 w-full text-white"
+            className={`bg-transparent border-none focus:ring-0 text-sm p-0 w-full ${isDark ? 'text-white' : 'text-slate-800'}`}
           />
           <div className="flex items-center gap-1">
             <button onClick={() => handleRename(item.id, type)} className="text-emerald-400 hover:text-emerald-300 p-0.5">
               <Check size={14} />
             </button>
-            <button onClick={() => setEditingId(null)} className="text-white/40 hover:text-white p-0.5">
+            <button onClick={() => setEditingId(null)} className={`${isDark ? 'text-white/40' : 'text-slate-400'} hover:text-white p-0.5`}>
               <X size={14} />
             </button>
           </div>
@@ -1048,7 +1051,9 @@ const AgentView = () => {
               if (type === 'nav') handleModuleClick(item);
               else dispatch(setCurrentChatId(item.id));
             }}
-            className={`w-full text-left pl-3 pr-10 py-2 rounded-lg transition-colors text-sm truncate flex items-center gap-2 group ${currentChatId === item.id ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10'
+            className={`w-full text-left pl-3 pr-10 py-2 rounded-lg transition-colors text-sm truncate flex items-center gap-2 group ${currentChatId === item.id 
+                ? (isDark ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-900 font-medium') 
+                : (isDark ? 'text-white/80 hover:bg-white/10' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
               }`}
           >
             {item.pinned && <Pin size={12} className="text-emerald-400 fill-emerald-400 shrink-0" />}
@@ -1061,7 +1066,7 @@ const AgentView = () => {
                 e.stopPropagation();
                 setActiveMenu(type + index);
               }}
-              className="p-1 hover:bg-white/10 rounded text-white/40 hover:text-white transition-colors"
+              className={`p-1 ${isDark ? 'hover:bg-white/10 text-white/40 hover:text-white' : 'hover:bg-slate-200 text-slate-400 hover:text-slate-700'} rounded transition-colors`}
             >
               <MoreHorizontal size={14} />
             </button>
@@ -1070,7 +1075,7 @@ const AgentView = () => {
           {activeMenu === (type + index) && (
             <div
               ref={menuRef}
-              className={`absolute right-2 z-[100] w-36 bg-[#2f2f2f] border border-white/10 rounded-lg shadow-xl py-1 ${total > 5 && index > total - 4 ? 'bottom-8' : 'top-8'
+              className={`absolute right-2 z-[100] w-36 ${isDark ? 'bg-[#2f2f2f] border-white/10' : 'bg-white border-slate-200 shadow-lg'} border rounded-lg py-1 ${total > 5 && index > total - 4 ? 'bottom-8' : 'top-8'
                 }`}
             >
               <button
@@ -1088,7 +1093,7 @@ const AgentView = () => {
                   }
                   setActiveMenu(null);
                 }}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-white/5 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+                className={`w-full px-3 py-1.5 text-left text-xs ${isDark ? 'hover:bg-white/5 text-white/80 hover:text-white' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'} flex items-center gap-2 transition-colors`}
               >
                 <Pin size={12} className={item.pinned ? 'text-emerald-400 fill-emerald-400' : ''} />
                 <span>{item.pinned ? 'Unpin' : 'Pin'}</span>
@@ -1100,12 +1105,12 @@ const AgentView = () => {
                   setEditValue(type === 'nav' ? item.name : item.title);
                   setActiveMenu(null);
                 }}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-white/5 flex items-center gap-2 text-white/80 hover:text-white transition-colors"
+                className={`w-full px-3 py-1.5 text-left text-xs ${isDark ? 'hover:bg-white/5 text-white/80 hover:text-white' : 'hover:bg-slate-50 text-slate-600 hover:text-slate-900'} flex items-center gap-2 transition-colors`}
               >
                 <Edit2 size={12} />
                 <span>Rename</span>
               </button>
-              <div className="h-px bg-white/5 my-1"></div>
+              <div className={`h-px ${isDark ? 'bg-white/5' : 'bg-slate-100'} my-1`}></div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1116,7 +1121,7 @@ const AgentView = () => {
                   });
                   setActiveMenu(null);
                 }}
-                className="w-full px-3 py-1.5 text-left text-xs hover:bg-white/5 flex items-center gap-2 text-red-400 hover:text-red-300 transition-colors"
+                className={`w-full px-3 py-1.5 text-left text-xs ${isDark ? 'hover:bg-white/5 text-red-400 hover:text-red-300' : 'hover:bg-slate-50 text-red-500 hover:text-red-600'} flex items-center gap-2 transition-colors`}
               >
                 <Trash2 size={12} />
                 <span>Delete</span>
@@ -1129,40 +1134,40 @@ const AgentView = () => {
   );
 
   return (
-    <div className="flex h-full w-full bg-black text-white font-sans overflow-hidden">
+    <div className={`flex h-full w-full ${isDark ? 'bg-black text-white' : 'bg-slate-50 text-slate-800'} font-sans overflow-hidden`}>
       <style>{`
         .kia-agent-table tr {
           background-color: transparent !important;
           border-left: none !important;
         }
         .kia-agent-table tr:hover {
-          background-color: rgba(255, 255, 255, 0.03) !important;
+          background-color: ${isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'} !important;
         }
         .kia-agent-table td {
           background-color: transparent !important;
-          color: rgba(255, 255, 255, 0.7) !important;
+          color: ${isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(15, 23, 42, 0.8)'} !important;
         }
         .kia-agent-table th {
-          background-color: rgba(255, 255, 255, 0.05) !important;
-          color: rgba(255, 255, 255, 0.4) !important;
+          background-color: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)'} !important;
+          color: ${isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(15, 23, 42, 0.5)'} !important;
         }
       `}</style>
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? 'w-64' : 'w-[60px]'} flex-shrink-0 transition-all duration-300 bg-black flex flex-col overflow-hidden border-r border-white/5 relative`}
+        className={`${sidebarOpen ? 'w-64' : 'w-[60px]'} flex-shrink-0 transition-all duration-300 ${isDark ? 'bg-black border-white/5' : 'bg-white border-slate-200'} flex flex-col overflow-hidden border-r relative`}
       >
         {/* Collapsed State Icons */}
-        <div className={`absolute top-0 left-0 w-full h-full flex flex-col items-center gap-2 mt-4 transition-all duration-300 z-20 bg-black ${sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Expand Sidebar">
+        <div className={`absolute top-0 left-0 w-full h-full flex flex-col items-center gap-2 mt-4 transition-all duration-300 z-20 ${isDark ? 'bg-black' : 'bg-white'} ${sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <button onClick={() => setSidebarOpen(true)} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors`} title="Expand Sidebar">
             <PanelLeft size={20} />
           </button>
-          <button onClick={startNewChat} className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="New Chat">
+          <button onClick={startNewChat} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors`} title="New Chat">
             <Edit2 size={20} />
           </button>
-          <button onClick={() => { setSidebarOpen(true); setIsSearching(true); }} className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Search Chats">
+          <button onClick={() => { setSidebarOpen(true); setIsSearching(true); }} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors`} title="Search Chats">
             <Search size={20} />
           </button>
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Recents">
+          <button onClick={() => setSidebarOpen(true)} className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors`} title="Recents">
             <MessageSquare size={20} />
           </button>
         </div>
@@ -1172,9 +1177,9 @@ const AgentView = () => {
           <div className="p-4 flex flex-col gap-2">
             <button
               onClick={startNewChat}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/80 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'} transition-colors text-sm font-medium`}
             >
-              <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+              <div className={`w-6 h-6 rounded-full ${isDark ? 'bg-white/10' : 'bg-slate-200'} flex items-center justify-center`}>
                 <Plus size={16} />
               </div>
               <span>New chat</span>
@@ -1182,8 +1187,8 @@ const AgentView = () => {
 
             <div className="relative group/search">
               {isSearching ? (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 mx-0">
-                  <Search size={16} className="text-white/40" />
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border mx-0`}>
+                  <Search size={16} className={isDark ? 'text-white/40' : 'text-slate-400'} />
                   <input
                     autoFocus
                     type="text"
@@ -1199,10 +1204,10 @@ const AgentView = () => {
                         setIsSearching(false);
                       }
                     }}
-                    className="bg-transparent border-none focus:ring-0 text-sm p-0 w-full text-white placeholder-white/20"
+                    className={`bg-transparent border-none focus:ring-0 text-sm p-0 w-full ${isDark ? 'text-white placeholder-white/20' : 'text-slate-800 placeholder-slate-400'}`}
                   />
                   {searchQuery && (
-                    <button onClick={() => setSearchQuery('')} className="text-white/40 hover:text-white">
+                    <button onClick={() => setSearchQuery('')} className={`${isDark ? 'text-white/40 hover:text-white' : 'text-slate-400 hover:text-slate-600'}`}>
                       <X size={14} />
                     </button>
                   )}
@@ -1210,7 +1215,7 @@ const AgentView = () => {
               ) : (
                 <button
                   onClick={() => setIsSearching(true)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium"
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/80 hover:text-white' : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900'} transition-colors text-sm font-medium`}
                 >
                   <Search size={18} />
                   <span>Search chats</span>
@@ -1222,14 +1227,14 @@ const AgentView = () => {
           <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col gap-1 scrollbar-hide">
             {searchQuery && combinedHistory.length === 0 && (
               <div className="px-3 py-4 text-center">
-                <p className="text-xs text-white/40 italic">No results found for "{searchQuery}"</p>
+                <p className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-400'} italic`}>No results found for "{searchQuery}"</p>
               </div>
             )}
             {combinedHistory.length > 0 && (
               <>
                 <button
                   onClick={() => setRecentsExpanded(!recentsExpanded)}
-                  className="w-full text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mb-2 mt-4 flex items-center justify-between group hover:text-white/60 transition-colors"
+                  className={`w-full text-[10px] font-bold ${isDark ? 'text-white/40 hover:text-white/60' : 'text-slate-400 hover:text-slate-600'} uppercase tracking-widest px-3 mb-2 mt-4 flex items-center justify-between group transition-colors`}
                 >
                   <div className="flex items-center gap-2">
                     <Clock size={12} />
@@ -1247,11 +1252,11 @@ const AgentView = () => {
       {/* Main Content */}
       <div className="flex-1 min-w-0 flex flex-col relative min-h-0">
         {/* Top Header Controls */}
-        <div className="flex items-center justify-between p-4 bg-black z-10 shrink-0">
+        <div className={`flex items-center justify-between p-4 ${isDark ? 'bg-black' : 'bg-slate-50'} z-10 shrink-0`}>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-2 rounded-lg hover:bg-white/10 transition-colors text-white/60 hover:text-white ${!sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+              className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'} transition-colors ${!sidebarOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             >
               <PanelLeftClose size={20} />
             </button>
@@ -1262,7 +1267,7 @@ const AgentView = () => {
         <div className={`flex-1 flex flex-col items-center px-4 max-w-5xl mx-auto w-full min-h-0 ${chatMessages.length === 0 ? 'justify-center' : 'pt-6'}`}>
           {chatMessages.length === 0 ? (
             <div className="pb-8 flex flex-col items-center gap-4">
-              <h2 className="text-3xl font-semibold text-white/90 text-center">What's on your mind today?</h2>
+              <h2 className={`text-3xl font-semibold ${isDark ? 'text-white/90' : 'text-slate-800'} text-center`}>What's on your mind today?</h2>
 
               {unreadNotifications > 0 && (
                 <div
@@ -1283,21 +1288,21 @@ const AgentView = () => {
               {chatMessages.map((msg, idx) => (
                 <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} group`}>
                   <div className={`max-w-[85%] text-sm ${msg.role === 'user'
-                      ? 'bg-[#2f2f2f] text-white border border-white/10 rounded-2xl px-4 py-3 shadow-lg'
-                      : 'bg-transparent text-white/90 border-none shadow-none px-0 py-1'
+                      ? (isDark ? 'bg-[#2f2f2f] text-white border-white/10' : 'bg-white text-slate-800 border-slate-200 border shadow-md') + ' rounded-2xl px-4 py-3'
+                      : (isDark ? 'text-white/90' : 'text-slate-800') + ' bg-transparent border-none shadow-none px-0 py-1'
                     }`}>
                     {editingMessageIndex === idx ? (
                       <div className="flex flex-col gap-3 w-full min-w-[300px]">
                         <textarea
                           value={editingMessageText}
                           onChange={(e) => setEditingMessageText(e.target.value)}
-                          className="w-full bg-[#1e1e1e] border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-1 focus:ring-white/40 resize-none min-h-[80px]"
+                          className={`w-full ${isDark ? 'bg-[#1e1e1e] border-white/20 text-white focus:ring-white/40' : 'bg-white border-slate-300 text-slate-800 focus:ring-slate-400'} rounded-xl p-3 focus:outline-none focus:ring-1 resize-none min-h-[80px]`}
                           autoFocus
                         />
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => { setEditingMessageIndex(null); setEditingMessageText(""); }}
-                            className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors"
+                            className={`px-4 py-1.5 rounded-full ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-slate-150 hover:bg-slate-200 text-slate-700'} text-xs font-medium transition-colors`}
                           >
                             Cancel
                           </button>
@@ -1308,7 +1313,7 @@ const AgentView = () => {
                               setEditingMessageIndex(null);
                               setEditingMessageText("");
                             }}
-                            className="px-4 py-1.5 rounded-full bg-white text-black hover:bg-white/90 text-xs font-semibold transition-colors"
+                            className={`px-4 py-1.5 rounded-full ${isDark ? 'bg-white text-black hover:bg-white/90' : 'bg-slate-900 hover:bg-slate-800 text-white'} text-xs font-semibold transition-colors`}
                           >
                             Send
                           </button>
@@ -1319,9 +1324,9 @@ const AgentView = () => {
                     )}
 
                     {msg.data && msg.data.length > 0 && (
-                      <div className="mt-4 overflow-x-auto border border-white/10 rounded-xl bg-black/20 custom-scrollbar">
+                      <div className={`mt-4 overflow-x-auto border ${isDark ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-100/50'} rounded-xl custom-scrollbar`}>
                         <table className="kia-agent-table w-full text-xs text-left">
-                          <thead className="bg-white/5 text-white/40 uppercase tracking-wider">
+                          <thead className={`${isDark ? 'bg-white/5 text-white/40' : 'bg-slate-200 text-slate-650'} uppercase tracking-wider`}>
                             <tr>
                               {msg.dataType === 'project' ? (
                                 <>
@@ -1362,46 +1367,46 @@ const AgentView = () => {
                               )}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-white/5">
+                          <tbody className={`divide-y ${isDark ? 'divide-white/5' : 'divide-slate-200'}`}>
                             {msg.data.map((item, i) => (
-                              <tr key={i} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors bg-transparent">
+                              <tr key={i} className={`border-b ${isDark ? 'border-white/5 hover:bg-white/[0.02]' : 'border-slate-150 hover:bg-slate-200/50'} transition-colors bg-transparent`}>
                                 {msg.dataType === 'project' ? (
                                   <>
-                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] whitespace-nowrap">{item.project_id || '-'}</td>
-                                    <td className="px-3 py-2 text-white/90 font-medium whitespace-nowrap">{item.name}</td>
-                                    <td className="px-3 py-2 text-white/70 font-mono text-[10px] text-right whitespace-nowrap">
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} font-mono text-[10px] whitespace-nowrap`}>{item.project_id || '-'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/90' : 'text-slate-800'} font-medium whitespace-nowrap`}>{item.name}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/70' : 'text-slate-650'} font-mono text-[10px] text-right whitespace-nowrap`}>
                                       {item.budget ? `${symbol}${parseFloat(item.budget).toLocaleString()}` : '-'}
                                     </td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.department || '-'}</td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.project_manager || '-'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} text-[10px] whitespace-nowrap`}>{item.department || '-'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} text-[10px] whitespace-nowrap`}>{item.project_manager || '-'}</td>
                                     <td className="px-3 py-2 text-right whitespace-nowrap">
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(item.status === 'Active' || item.status === 'Completed' || item.status === 'Healthy')
-                                          ? 'bg-emerald-500/10 text-emerald-400'
+                                          ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600')
                                           : (item.status === 'Delayed' || item.status === 'At Risk' || item.status === 'On Hold')
-                                            ? 'bg-red-500/10 text-red-400'
-                                            : 'bg-white/10 text-white/40'
+                                            ? (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-500/10 text-red-600')
+                                            : (isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-500')
                                         }`}>
                                         {item.status || 'Active'}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] text-right whitespace-nowrap">
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-550'} font-mono text-[10px] text-right whitespace-nowrap`}>
                                       {item.utilized_budget ? `${symbol}${parseFloat(item.utilized_budget).toLocaleString()}` : '-'}
                                     </td>
-                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] text-right whitespace-nowrap">
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-550'} font-mono text-[10px] text-right whitespace-nowrap`}>
                                       {item.balance_budget ? `${symbol}${parseFloat(item.balance_budget).toLocaleString()}` : '-'}
                                     </td>
                                   </>
                                 ) : msg.dataType === 'employee' ? (
                                   <>
-                                    <td className="px-3 py-2 text-white/60 font-mono text-[10px] whitespace-nowrap">{item.employee_id || '-'}</td>
-                                    <td className="px-3 py-2 text-white/90 font-medium whitespace-nowrap">{item.name}</td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.email}</td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.department || '-'}</td>
-                                    <td className="px-3 py-2 text-white/60 text-[10px] whitespace-nowrap">{item.role || 'User'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} font-mono text-[10px] whitespace-nowrap`}>{item.employee_id || '-'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/90' : 'text-slate-800'} font-medium whitespace-nowrap`}>{item.name}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} text-[10px] whitespace-nowrap`}>{item.email}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} text-[10px] whitespace-nowrap`}>{item.department || '-'}</td>
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-500'} text-[10px] whitespace-nowrap`}>{item.role || 'User'}</td>
                                     <td className="px-3 py-2 text-right whitespace-nowrap">
                                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(item.status === 'Active' || item.role === 'Admin')
-                                          ? 'bg-emerald-500/10 text-emerald-400'
-                                          : 'bg-white/10 text-white/40'
+                                          ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600')
+                                          : (isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-500')
                                         }`}>
                                         {item.status || 'Active'}
                                       </span>
@@ -1409,33 +1414,33 @@ const AgentView = () => {
                                   </>
                                 ) : (
                                   <>
-                                    <td className="px-3 py-2 text-white/80 font-medium">
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/80' : 'text-slate-800'} font-medium`}>
                                       {item.name}
                                       {(msg.dataType === 'issue' || msg.dataType === 'milestone') && item.project_name && (
-                                        <div className="text-[9px] text-white/30 mt-0.5 font-normal">
+                                        <div className={`text-[9px] ${isDark ? 'text-white/30' : 'text-slate-400'} mt-0.5 font-normal`}>
                                           Project: {item.project_name}
                                         </div>
                                       )}
                                       {msg.dataType === 'transcript_result' && (
-                                        <div className="text-[10px] text-white/40 mt-1 font-normal line-clamp-2 italic">
+                                        <div className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} mt-1 font-normal line-clamp-2 italic`}>
                                           "{item.text}"
                                         </div>
                                       )}
                                     </td>
-                                    <td className="px-3 py-2 text-white/60">
+                                    <td className={`px-3 py-2 ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
                                       {msg.dataType === 'milestone' ? (item.module || item.type || '-') :
                                         msg.dataType === 'issue' ? (item.priority || 'High') :
                                           msg.dataType === 'transcript_result' ? item.speaker : '-'}
                                     </td>
                                     <td className="px-3 py-2 text-right">
                                       {msg.dataType === 'transcript_result' ? (
-                                        <span className="text-[10px] text-white/40 font-mono">{item.timestamp}</span>
+                                        <span className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} font-mono`}>{item.timestamp}</span>
                                       ) : (
                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(item.status === 'Active' || item.status === 'Completed' || item.status === 'On Track' || item.status === 'Healthy')
-                                            ? 'bg-emerald-500/10 text-emerald-400'
+                                            ? (isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-500/10 text-emerald-600')
                                             : (item.status === 'Delayed' || item.priority === 'High' || item.priority === 'Critical' || item.status === 'At Risk')
-                                              ? 'bg-red-500/10 text-red-400'
-                                              : 'bg-white/10 text-white/40'
+                                              ? (isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-500/10 text-red-600')
+                                              : (isDark ? 'bg-white/10 text-white/40' : 'bg-slate-100 text-slate-500')
                                           }`}>
                                           {item.status || item.priority || 'Active'}
                                         </span>
@@ -1457,7 +1462,7 @@ const AgentView = () => {
                           setEditingMessageIndex(idx);
                           setEditingMessageText(msg.content);
                         }}
-                        className="p-1.5 rounded-md text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                        className={`p-1.5 rounded-md ${isDark ? 'text-white/40 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200'} transition-all`}
                         title="Edit message"
                       >
                         <Edit2 size={16} />
@@ -1467,7 +1472,7 @@ const AgentView = () => {
                       onClick={() => copyMessageToClipboard(msg.content, idx)}
                       className={`p-1.5 rounded-md transition-all ${copiedMessageIndex === idx
                           ? 'text-emerald-400 bg-emerald-400/10'
-                          : 'text-white/40 hover:text-white hover:bg-white/10'
+                          : isDark ? 'text-white/40 hover:text-white hover:bg-white/10' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200'
                         }`}
                       title="Copy message"
                     >
@@ -1482,7 +1487,7 @@ const AgentView = () => {
               ))}
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-transparent text-white/40 px-0 py-3 text-sm animate-pulse">
+                  <div className={`bg-transparent ${isDark ? 'text-white/40' : 'text-slate-400'} px-0 py-3 text-sm animate-pulse`}>
                     KIA is thinking...
                   </div>
                 </div>
@@ -1493,25 +1498,25 @@ const AgentView = () => {
 
           {/* Chat Box */}
           <form onSubmit={handleSendMessage} className="w-full relative mb-8">
-            <div className="relative bg-[#2f2f2f] rounded-2xl border border-white/10 p-1.5 flex items-end gap-2 shadow-2xl">
+            <div className={`relative ${isDark ? 'bg-[#2f2f2f] border-white/10 shadow-2xl' : 'bg-white border-slate-200 shadow-md'} rounded-2xl border p-1.5 flex items-end gap-2`}>
               <div className="relative flex items-end">
                 <button
                   type="button"
                   onClick={() => setPlusMenuOpen(!plusMenuOpen)}
-                  className={`p-2 transition-colors mb-1 ${plusMenuOpen ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                  className={`p-2 transition-colors mb-1 ${plusMenuOpen ? (isDark ? 'text-white' : 'text-slate-800') : (isDark ? 'text-white/40' : 'text-slate-400 hover:text-slate-700')}`}
                 >
                   <Plus size={20} className={`transition-transform duration-200 ${plusMenuOpen ? 'rotate-45' : ''}`} />
                 </button>
 
                 {plusMenuOpen && (
-                  <div className="absolute bottom-full left-0 mb-4 w-56 bg-[#1e1e1e] border border-white/10 rounded-2xl p-2 shadow-2xl animate-in slide-in-from-bottom-2 duration-200 z-50">
+                  <div className={`absolute bottom-full left-0 mb-4 w-56 ${isDark ? 'bg-[#1e1e1e] border-white/10 shadow-2xl' : 'bg-white border-slate-200 shadow-xl'} border rounded-2xl p-2 animate-in slide-in-from-bottom-2 duration-200 z-50`}>
                     <button
                       type="button"
                       onClick={() => {
                         setPlusMenuOpen(false);
                         openTrackerUpload();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-white/70 hover:text-white transition-all text-sm group"
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? 'hover:bg-white/5 text-white/70 hover:text-white' : 'hover:bg-slate-50 text-slate-655 hover:text-slate-900'} transition-all text-sm group`}
                     >
                       <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20">
                         <FileSpreadsheet size={16} />
@@ -1524,7 +1529,7 @@ const AgentView = () => {
                         setPlusMenuOpen(false);
                         openBudgetUpload();
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-white/70 hover:text-white transition-all text-sm group"
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl ${isDark ? 'hover:bg-white/5 text-white/70 hover:text-white' : 'hover:bg-slate-50 text-slate-655 hover:text-slate-900'} transition-all text-sm group`}
                     >
                       <div className="p-2 rounded-lg bg-orange-500/10 text-orange-400 group-hover:bg-orange-500/20">
                         <FileUp size={16} />
@@ -1552,7 +1557,7 @@ const AgentView = () => {
               <textarea
                 rows="1"
                 placeholder="Ask anything"
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none focus:outline-none caret-white text-white placeholder-white/40 py-2 resize-none max-h-[200px]"
+                className={`flex-1 bg-transparent border-none focus:ring-0 outline-none focus:outline-none ${isDark ? 'caret-white text-white placeholder-white/40' : 'caret-slate-800 text-slate-800 placeholder-slate-450'} py-2 resize-none max-h-[200px]`}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={(e) => {
@@ -1567,7 +1572,7 @@ const AgentView = () => {
                 }}
               />
               <div className="flex items-center gap-1 mb-1 pr-1">
-                <button type="submit" className={`p-2 rounded-full transition-all ${message.trim() ? 'bg-white text-black' : 'bg-white/10 text-white/20'}`}>
+                <button type="submit" className={`p-2 rounded-full transition-all ${message.trim() ? (isDark ? 'bg-white text-black' : 'bg-slate-900 text-white hover:bg-slate-800') : (isDark ? 'bg-white/10 text-white/20' : 'bg-slate-100 text-slate-350')}`}>
                   <Send size={20} />
                 </button>
               </div>
@@ -1580,7 +1585,7 @@ const AgentView = () => {
               <div className="flex flex-col items-center">
                 <button
                   onClick={() => setShowModules(!showModules)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all text-sm font-medium"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-white/5 border-white/10 text-white/60 hover:text-white hover:bg-white/10' : 'bg-white border-slate-200 text-slate-650 hover:text-slate-800 hover:bg-slate-50'} border transition-all text-sm font-medium`}
                 >
                   <Navigation size={16} />
                   <span>Module Navigations</span>
@@ -1593,12 +1598,12 @@ const AgentView = () => {
                       <button
                         key={module.id}
                         onClick={() => handleModuleClick(module)}
-                        className="flex items-center gap-3 p-3 rounded-xl bg-[#2f2f2f] border border-white/5 hover:border-white/20 hover:bg-[#383838] transition-all group w-full"
+                        className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-[#2f2f2f] border-white/5 hover:border-white/20 hover:bg-[#383838]' : 'bg-white border-slate-200 hover:border-slate-350 hover:bg-slate-50'} border transition-all group w-full`}
                       >
                         <div className={`p-2 rounded-lg transition-transform group-hover:scale-110 shrink-0 ${module.color}`}>
                           {React.cloneElement(module.icon, { size: 16 })}
                         </div>
-                        <span className="text-xs font-medium text-white/70 group-hover:text-white truncate">
+                        <span className={`text-xs font-medium ${isDark ? 'text-white/70 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'} truncate`}>
                           {module.name}
                         </span>
                       </button>
@@ -1612,12 +1617,12 @@ const AgentView = () => {
                   <button
                     key={module.id}
                     onClick={() => handleModuleClick(module)}
-                    className="flex flex-col items-center justify-center p-6 rounded-2xl bg-[#2f2f2f] border border-white/5 hover:border-white/20 hover:bg-[#383838] transition-all group"
+                    className={`flex flex-col items-center justify-center p-6 rounded-2xl ${isDark ? 'bg-[#2f2f2f] border-white/5 hover:border-white/20 hover:bg-[#383838]' : 'bg-white border-slate-200 hover:border-slate-350 hover:bg-slate-50'} border transition-all group`}
                   >
                     <div className={`p-3 rounded-xl mb-3 transition-transform group-hover:scale-110 ${module.color}`}>
                       {module.icon}
                     </div>
-                    <span className="text-sm font-medium text-white/70 group-hover:text-white">
+                    <span className={`text-sm font-medium ${isDark ? 'text-white/70 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>
                       {module.name}
                     </span>
                   </button>
@@ -1632,18 +1637,18 @@ const AgentView = () => {
       {deleteConfirmItem && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div
-            className="bg-[#1e1e1e] border border-white/10 rounded-2xl w-[400px] p-6 shadow-2xl animate-in zoom-in-95 duration-200"
+            className={`border rounded-2xl w-[400px] p-6 shadow-2xl animate-in zoom-in-95 duration-200 ${isDark ? 'bg-[#1e1e1e] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-xl font-semibold text-white mb-4">Delete {deleteConfirmItem.type === 'nav' ? 'navigation' : 'chat'}?</h3>
-            <p className="text-white/80 text-sm mb-8 leading-relaxed">
-              This will delete <span className="font-bold text-white">{deleteConfirmItem.title}</span>.
+            <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-slate-800'} mb-4`}>Delete {deleteConfirmItem.type === 'nav' ? 'navigation' : 'chat'}?</h3>
+            <p className={`text-sm ${isDark ? 'text-white/80' : 'text-slate-600'} mb-8 leading-relaxed`}>
+              This will delete <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{deleteConfirmItem.title}</span>.
             </p>
 
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteConfirmItem(null)}
-                className="px-6 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-colors"
+                className={`px-6 py-2 rounded-full ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'} text-sm font-medium transition-colors`}
               >
                 Cancel
               </button>
@@ -1661,26 +1666,26 @@ const AgentView = () => {
       {/* Tracker Upload Modal */}
       {showTrackerModal && (
         <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-          <div className="bg-[#1e1e1e] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <div className={`rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 ${isDark ? 'bg-[#1e1e1e] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+            <div className={`p-6 border-b ${isDark ? 'border-white/5' : 'border-slate-100'} flex items-center justify-between`}>
               <div>
-                <h3 className="text-xl font-semibold text-white">Upload Tracker Details</h3>
-                <p className="text-sm text-white/40 mt-1">Configure metadata for your tracker upload</p>
+                <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-slate-800'}`}>Upload Tracker Details</h3>
+                <p className={`text-sm ${isDark ? 'text-white/40' : 'text-slate-500'} mt-1`}>Configure metadata for your tracker upload</p>
               </div>
-              <button onClick={() => setShowTrackerModal(false)} className="p-2 text-white/40 hover:text-white transition-colors">
+              <button onClick={() => setShowTrackerModal(false)} className={`p-2 ${isDark ? 'text-white/40 hover:text-white' : 'text-slate-450 hover:text-slate-700'} transition-colors`}>
                 <X size={20} />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
               {/* File Info */}
-              <div className="bg-white/5 rounded-xl p-3 flex items-center gap-3 border border-white/5">
+              <div className={`rounded-xl p-3 flex items-center gap-3 border ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                 <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400">
                   <FileSpreadsheet size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{trackerForm.file?.name}</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider">
+                  <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-800'} truncate`}>{trackerForm.file?.name}</p>
+                  <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-wider`}>
                     {trackerForm.file?.size ? (trackerForm.file.size / 1024).toFixed(1) + ' KB' : ''} • Excel Tracker
                   </p>
                 </div>
@@ -1688,7 +1693,7 @@ const AgentView = () => {
 
               {/* Project Selection */}
               <div>
-                <label className="block text-xs font-medium text-white/40 uppercase tracking-widest mb-2 ml-1">Target Project</label>
+                <label className={`block text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-widest mb-2 ml-1`}>Target Project</label>
                 <div className="relative">
                   <select
                     value={trackerForm.project}
@@ -1696,14 +1701,14 @@ const AgentView = () => {
                       setTrackerForm(prev => ({ ...prev, project: e.target.value }));
                       if (trackerFormErrors.project) setTrackerFormErrors(prev => ({ ...prev, project: null }));
                     }}
-                    className={`w-full bg-[#2a2a2a] border ${trackerFormErrors.project ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full ${isDark ? 'bg-[#2a2a2a] border-white/10 text-white focus:ring-white/20' : 'bg-slate-50 border-slate-200 text-slate-850 focus:ring-slate-350'} border ${trackerFormErrors.project ? 'border-red-500/50' : ''} rounded-xl px-4 py-3 text-sm focus:ring-1 transition-all appearance-none cursor-pointer`}
                   >
                     <option value="">Select a project</option>
                     {projectList.map(p => (
                       <option key={p.id} value={p.name}>{p.name}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/20' : 'text-slate-400'}`}>
                     <ChevronDown size={16} />
                   </div>
                 </div>
@@ -1712,11 +1717,11 @@ const AgentView = () => {
 
               {/* Department */}
               <div>
-                <label className="block text-xs font-medium text-white/40 uppercase tracking-widest mb-2 ml-1">Department</label>
+                <label className={`block text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-widest mb-2 ml-1`}>Department</label>
                 <select
                   value={trackerForm.department}
                   onChange={(e) => setTrackerForm(prev => ({ ...prev, department: e.target.value }))}
-                  className="w-full bg-[#2a2a2a] border border-white/10 rounded-xl px-4 py-3 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all cursor-pointer"
+                  className={`w-full ${isDark ? 'bg-[#2a2a2a] border-white/10 text-white focus:ring-white/20' : 'bg-slate-50 border-slate-200 text-slate-850 focus:ring-slate-350'} border rounded-xl px-4 py-3 text-sm focus:ring-1 transition-all cursor-pointer`}
                 >
                   <option value="Design Release">Design Release</option>
                   <option value="Supplier Development">Supplier Development</option>
@@ -1728,7 +1733,7 @@ const AgentView = () => {
 
               {/* Employee */}
               <div>
-                <label className="block text-xs font-medium text-white/40 uppercase tracking-widest mb-2 ml-1">Employee Name</label>
+                <label className={`block text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-widest mb-2 ml-1`}>Employee Name</label>
                 <div className="relative">
                   <select
                     value={trackerForm.employeeName}
@@ -1736,14 +1741,14 @@ const AgentView = () => {
                       setTrackerForm(prev => ({ ...prev, employeeName: e.target.value }));
                       if (trackerFormErrors.employeeName) setTrackerFormErrors(prev => ({ ...prev, employeeName: null }));
                     }}
-                    className={`w-full bg-[#2a2a2a] border ${trackerFormErrors.employeeName ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full ${isDark ? 'bg-[#2a2a2a] border-white/10 text-white focus:ring-white/20' : 'bg-slate-50 border-slate-200 text-slate-850 focus:ring-slate-350'} border ${trackerFormErrors.employeeName ? 'border-red-500/50' : ''} rounded-xl px-4 py-3 text-sm focus:ring-1 transition-all appearance-none cursor-pointer`}
                   >
                     <option value="">Select internal personnel</option>
                     {employeeList.map(e => (
                       <option key={e.id} value={e.name}>{e.name}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/20' : 'text-slate-400'}`}>
                     <ChevronDown size={16} />
                   </div>
                 </div>
@@ -1751,10 +1756,10 @@ const AgentView = () => {
               </div>
             </div>
 
-            <div className="p-6 bg-white/[0.02] border-t border-white/5 flex gap-3">
+            <div className={`p-6 ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-100'} border-t flex gap-3`}>
               <button
                 onClick={() => setShowTrackerModal(false)}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-all"
+                className={`flex-1 px-4 py-3 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-slate-200/50 hover:bg-slate-200 text-slate-700'} text-sm font-medium transition-all`}
               >
                 Cancel
               </button>
@@ -1786,21 +1791,21 @@ const AgentView = () => {
       {/* Agent Budget Modal */}
       {showBudgetModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#1a1a1a] border border-white/10 w-full max-w-lg rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-300 shadow-2xl">
+          <div className={`w-full max-w-lg rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-300 shadow-2xl ${isDark ? 'bg-[#1a1a1a] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-850'}`}>
             {/* Header */}
-            <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <div className={`px-8 py-6 border-b ${isDark ? 'border-white/5 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/50'} flex items-center justify-between`}>
               <div>
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-850'} flex items-center gap-2`}>
                   <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center">
                     <FileUp size={18} />
                   </div>
                   Budget Details
                 </h3>
-                <p className="text-xs text-white/40 mt-1 max-w-[240px]">Map your budget file to a project and department</p>
+                <p className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-500'} mt-1 max-w-[240px]`}>Map your budget file to a project and department</p>
               </div>
               <button
                 onClick={() => setShowBudgetModal(false)}
-                className="p-2 hover:bg-white/5 rounded-full text-white/40 hover:text-white transition-colors"
+                className={`p-2 ${isDark ? 'hover:bg-white/5 text-white/40 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-650'} rounded-full transition-colors`}
               >
                 <X size={20} />
               </button>
@@ -1810,7 +1815,7 @@ const AgentView = () => {
             <div className="p-8 space-y-6">
               {/* Project */}
               <div>
-                <label className="block text-xs font-medium text-white/40 uppercase tracking-widest mb-2 ml-1">Project Name</label>
+                <label className={`block text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-widest mb-2 ml-1`}>Project Name</label>
                 <div className="relative">
                   <select
                     value={budgetForm.project}
@@ -1818,14 +1823,14 @@ const AgentView = () => {
                       setBudgetForm(prev => ({ ...prev, project: e.target.value }));
                       if (budgetErrors.project) setBudgetErrors(prev => ({ ...prev, project: null }));
                     }}
-                    className={`w-full bg-[#2a2a2a] border ${budgetErrors.project ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full ${isDark ? 'bg-[#2a2a2a] border-white/10 text-white focus:ring-white/20' : 'bg-slate-50 border-slate-200 text-slate-850 focus:ring-slate-350'} border ${budgetErrors.project ? 'border-red-500/50' : ''} rounded-xl px-4 py-3 text-sm focus:ring-1 transition-all appearance-none cursor-pointer`}
                   >
                     <option value="">Select Target Project</option>
                     {projectList.map(p => (
                       <option key={p.id} value={p.name}>{p.name}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/20' : 'text-slate-400'}`}>
                     <ChevronDown size={16} />
                   </div>
                 </div>
@@ -1834,7 +1839,7 @@ const AgentView = () => {
 
               {/* Department */}
               <div>
-                <label className="block text-xs font-medium text-white/40 uppercase tracking-widest mb-2 ml-1">Department</label>
+                <label className={`block text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-500'} uppercase tracking-widest mb-2 ml-1`}>Department</label>
                 <div className="relative">
                   <select
                     value={budgetForm.department}
@@ -1842,14 +1847,14 @@ const AgentView = () => {
                       setBudgetForm(prev => ({ ...prev, department: e.target.value }));
                       if (budgetErrors.department) setBudgetErrors(prev => ({ ...prev, department: null }));
                     }}
-                    className={`w-full bg-[#2a2a2a] border ${budgetErrors.department ? 'border-red-500/50' : 'border-white/10'} rounded-xl px-4 py-3 text-white text-sm focus:ring-1 focus:ring-white/20 transition-all appearance-none cursor-pointer`}
+                    className={`w-full ${isDark ? 'bg-[#2a2a2a] border-white/10 text-white focus:ring-white/20' : 'bg-slate-50 border-slate-200 text-slate-850 focus:ring-slate-350'} border ${budgetErrors.department ? 'border-red-500/50' : ''} rounded-xl px-4 py-3 text-sm focus:ring-1 transition-all appearance-none cursor-pointer`}
                   >
                     <option value="">Select Department</option>
                     {departments.map((d, idx) => (
                       <option key={idx} value={d.name || d.department_id}>{d.name || d.department_id}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                  <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-white/20' : 'text-slate-400'}`}>
                     <ChevronDown size={16} />
                   </div>
                 </div>
@@ -1859,14 +1864,14 @@ const AgentView = () => {
               {/* Meta Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-medium text-white/20 uppercase tracking-widest mb-1.5 ml-1">Uploaded By</label>
-                  <div className="bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-white/60 text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                  <label className={`block text-[10px] font-medium ${isDark ? 'text-white/20' : 'text-slate-400'} uppercase tracking-widest mb-1.5 ml-1`}>Uploaded By</label>
+                  <div className={`border rounded-xl px-4 py-3 text-xs overflow-hidden text-ellipsis whitespace-nowrap ${isDark ? 'bg-white/5 border-white/5 text-white/60' : 'bg-slate-50 border-slate-100 text-slate-600'}`}>
                     {budgetForm.uploaded_by}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-white/20 uppercase tracking-widest mb-1.5 ml-1">File Source</label>
-                  <div className="bg-white/5 border border-white/5 rounded-xl px-4 py-3 text-orange-400/60 text-xs overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-2">
+                  <label className={`block text-[10px] font-medium ${isDark ? 'text-white/20' : 'text-slate-400'} uppercase tracking-widest mb-1.5 ml-1`}>File Source</label>
+                  <div className={`border rounded-xl px-4 py-3 text-xs overflow-hidden text-ellipsis whitespace-nowrap flex items-center gap-2 ${isDark ? 'bg-white/5 border-white/5 text-orange-400/60' : 'bg-slate-50 border-slate-100 text-orange-600/70'}`}>
                     <FileSpreadsheet size={14} />
                     {budgetForm.file?.name}
                   </div>
@@ -1875,10 +1880,10 @@ const AgentView = () => {
             </div>
 
             {/* Footer */}
-            <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 flex gap-3">
+            <div className={`px-8 py-6 border-t ${isDark ? 'bg-white/[0.02] border-white/5' : 'bg-slate-50 border-slate-100'} flex gap-3`}>
               <button
                 onClick={() => setShowBudgetModal(false)}
-                className="flex-1 bg-white/5 text-white/70 font-semibold py-3 rounded-xl hover:bg-white/10 transition-colors"
+                className={`flex-1 ${isDark ? 'bg-white/5 text-white/70 hover:bg-white/10' : 'bg-slate-200/50 text-slate-700 hover:bg-slate-200'} font-semibold py-3 rounded-xl transition-colors`}
               >
                 Cancel
               </button>

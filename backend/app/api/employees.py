@@ -110,15 +110,35 @@ def bulk_create_employees(
     created_employees = []
     errors = []
     
+    # 1. Pre-fetch dynamic custom columns once
+    from app.models.employee_column import EmployeeColumn
+    custom_columns = db.query(EmployeeColumn).all()
+    
+    # 2. Pre-fetch existing emails and employee IDs to execute O(1) loop lookups
+    existing_emails = {e[0] for e in db.query(Employee.email).all() if e[0]}
+    existing_emp_ids = {e[0] for e in db.query(Employee.employee_id).all() if e[0]}
+    
     for emp in employees:
-        existing = employee_crud.get_employee_by_email(db, emp.email)
-        if existing:
+        # Check email duplicate using pre-fetched cache
+        if emp.email in existing_emails:
             errors.append(f"Email {emp.email} already exists")
             continue
             
         try:
-            new_emp = employee_crud.create_employee(db, emp)
+            # Pass custom columns schema and existing employee IDs to create_employee
+            new_emp = employee_crud.create_employee(
+                db, 
+                emp, 
+                custom_columns=custom_columns,
+                existing_emp_ids=existing_emp_ids
+            )
             created_employees.append(new_emp)
+            
+            # Dynamically update transient validation sets
+            existing_emails.add(emp.email)
+            if emp.employee_id:
+                existing_emp_ids.add(emp.employee_id)
+                
         except Exception as e:
             errors.append(f"Error creating {emp.email}: {str(e)}")
             

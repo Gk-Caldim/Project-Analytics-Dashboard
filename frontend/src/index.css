@@ -75,6 +75,11 @@
   --dropdown-option-hover: #f9fafb;
   --dropdown-selected-bg: #eff6ff;
   --dropdown-selected-text: #1d4ed8;
+
+  /* Scrollbar theme variables */
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
 }
 
 [data-theme='dark'] {
@@ -128,10 +133,28 @@
   --dropdown-option-hover: #1e293b;
   --dropdown-selected-bg: rgba(30, 58, 138, 0.3);
   --dropdown-selected-text: #60a5fa;
+
+  /* Scrollbar theme variables */
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
 }
 
 [data-theme='dark'] body {
   color: var(--text-primary);
+}
+
+/* Primary Theme Overrides for Dark Mode */
+[data-theme='dark'] .master-table th.frozen-column {
+  background: linear-gradient(135deg, #082f49, #0c4a6e) !important;
+}
+
+[data-theme='dark'] .page-transition-overlay {
+  background: rgba(30, 36, 43, 0.65);
+}
+
+[data-theme='dark'] .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
 }
 
 /* Utils */
@@ -149,17 +172,17 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--scrollbar-track);
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-thumb);
     border-radius: 10px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--scrollbar-thumb-hover);
   }
 }
 
@@ -244,7 +267,7 @@
     overflow-y: auto;
     /* Custom scrollbar — always visible, styled to match design */
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
   /* Webkit scrollbar (Chrome, Edge, Safari) */
@@ -254,18 +277,18 @@
   }
 
   .master-table-scroll-inner::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: var(--scrollbar-track);
     border-radius: 4px;
   }
 
   .master-table-scroll-inner::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
-    border: 1px solid #f1f5f9;
+    border: 1px solid var(--scrollbar-track);
   }
 
   .master-table-scroll-inner::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--scrollbar-thumb-hover);
   }
 
   .master-table {
@@ -579,17 +602,17 @@
   }
 
   .app-modal-body::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--scrollbar-track);
     border-radius: 10px;
   }
 
   .app-modal-body::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-thumb);
     border-radius: 10px;
   }
 
   .app-modal-body::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--scrollbar-thumb-hover);
   }
 
   .app-modal-footer {
