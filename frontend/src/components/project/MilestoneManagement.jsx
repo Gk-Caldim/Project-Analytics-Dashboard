@@ -350,6 +350,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [logPercent, setLogPercent] = useState(0);
   const [logNotes, setLogNotes] = useState('');
 
+  // Floating Gantt Tooltip States
+  const [hoveredTask, setHoveredTask] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
   useEffect(() => {
     if (selectedTaskId !== null) {
       const task = tasks.find(t => t.id === selectedTaskId);
@@ -394,7 +398,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [tempSetBaselineChecked, setTempSetBaselineChecked] = useState(false);
 
   // Row height matching dense MS Project layout
-  const rowHeight = 38;
+  const rowHeight = 48;
 
   useEffect(() => {
     fetchInitialData();
@@ -1167,17 +1171,17 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
     const name = phaseName.toLowerCase();
     if (name.includes('contracts') || name.includes('proposal')) {
-      return { border: 'border-[#00bcd4]', text: 'text-[#00bcd4]', fill: '#00bcd4', light: 'bg-[#00bcd4]/10' };
+      return { border: 'border-[#0ea5e9]', text: 'text-[#0ea5e9]', fill: '#0ea5e9', light: 'bg-[#0ea5e9]/10' };
     } else if (name.includes('design') || name.includes('engineering')) {
-      return { border: 'border-[#4caf50]', text: 'text-[#4caf50]', fill: '#4caf50', light: 'bg-[#4caf50]/10' };
+      return { border: 'border-[#3b82f6]', text: 'text-[#3b82f6]', fill: '#3b82f6', light: 'bg-[#3b82f6]/10' };
     } else if (name.includes('procurement')) {
-      return { border: 'border-[#9e9e9e]', text: 'text-[var(--text-primary)]', fill: '#9e9e9e', light: 'bg-slate-700/20' };
+      return { border: 'border-[#8b5cf6]', text: 'text-[#8b5cf6]', fill: '#8b5cf6', light: 'bg-[#8b5cf6]/10' };
     } else if (name.includes('construction') || name.includes('manufacturing')) {
-      return { border: 'border-[#ff9800]', text: 'text-[#ff9800]', fill: '#ff9800', light: 'bg-[#ff9800]/10' };
-    } else if (name.includes('closing') || name.includes('post')) {
-      return { border: 'border-[#8bc34a]', text: 'text-[#8bc34a]', fill: '#8bc34a', light: 'bg-[#8bc34a]/10' };
+      return { border: 'border-[#f97316]', text: 'text-[#f97316]', fill: '#f97316', light: 'bg-[#f97316]/10' };
+    } else if (name.includes('closing') || name.includes('post') || name.includes('handover')) {
+      return { border: 'border-[#10b981]', text: 'text-[#10b981]', fill: '#10b981', light: 'bg-[#10b981]/10' };
     }
-    return { border: 'border-[#03a9f4]', text: 'text-[#03a9f4]', fill: '#03a9f4', light: 'bg-[#03a9f4]/10' };
+    return { border: 'border-[#14b8a6]', text: 'text-[#14b8a6]', fill: '#14b8a6', light: 'bg-[#14b8a6]/10' };
   };
 
   const resourceOverallocations = useMemo(() => {
@@ -1342,36 +1346,43 @@ const MilestoneManagement = ({ project, showNotification }) => {
         return;
       }
 
-      const y1 = predIdx * rowHeight + rowHeight / 2;
-      const y2 = succIdx * rowHeight + rowHeight / 2;
+      const yOffset = 14;
+      const y1 = predIdx * rowHeight + yOffset;
+      const y2 = succIdx * rowHeight + yOffset;
 
       let x1 = pred.plannedLeft + pred.plannedWidth;
-      let x2 = succ.plannedLeft;
+      let x2 = succ.plannedLeft - 2;
 
       if (d.type === 'SS') {
         x1 = pred.plannedLeft;
-        x2 = succ.plannedLeft;
+        x2 = succ.plannedLeft - 2;
       } else if (d.type === 'FF') {
         x1 = pred.plannedLeft + pred.plannedWidth;
-        x2 = succ.plannedLeft + succ.plannedWidth;
+        x2 = succ.plannedLeft + succ.plannedWidth + 2;
       } else if (d.type === 'SF') {
         x1 = pred.plannedLeft;
-        x2 = succ.plannedLeft + succ.plannedWidth;
+        x2 = succ.plannedLeft + succ.plannedWidth + 2;
       }
 
       const isCriticalLink = pred.isCritical && succ.isCritical;
-      const color = isCriticalLink ? '#ef4444' : 'var(--border-strong)';
+      const color = isCriticalLink ? '#ef4444' : '#94a3b8';
 
       let path = '';
+      const midwayY = y1 + (y2 - y1) / 2;
       if (d.type === 'FS') {
-        if (x2 >= x1 + 12) {
-          path = `M ${x1} ${y1} L ${x1 + 6} ${y1} L ${x1 + 6} ${y2} L ${x2} ${y2}`;
+        if (x2 >= x1 + 16) {
+          path = `M ${x1} ${y1} L ${x1 + 8} ${y1} L ${x1 + 8} ${y2} L ${x2} ${y2}`;
         } else {
-          const midwayY = y1 + (y2 - y1) / 2;
-          path = `M ${x1} ${y1} L ${x1 + 6} ${y1} L ${x1 + 6} ${midwayY} L ${x2 - 6} ${midwayY} L ${x2 - 6} ${y2} L ${x2} ${y2}`;
+          path = `M ${x1} ${y1} L ${x1 + 8} ${y1} L ${x1 + 8} ${midwayY} L ${x2 - 8} ${midwayY} L ${x2 - 8} ${y2} L ${x2} ${y2}`;
         }
-      } else {
-        path = `M ${x1} ${y1} L ${Math.min(x1, x2) - 8} ${y1} L ${Math.min(x1, x2) - 8} ${y2} L ${x2} ${y2}`;
+      } else if (d.type === 'SS') {
+        const minX = Math.min(x1, x2) - 8;
+        path = `M ${x1} ${y1} L ${minX} ${y1} L ${minX} ${y2} L ${x2} ${y2}`;
+      } else if (d.type === 'FF') {
+        const maxX = Math.max(x1, x2) + 8;
+        path = `M ${x1} ${y1} L ${maxX} ${y1} L ${maxX} ${y2} L ${x2} ${y2}`;
+      } else if (d.type === 'SF') {
+        path = `M ${x1} ${y1} L ${x1 - 8} ${y1} L ${x1 - 8} ${midwayY} L ${x2 + 8} ${midwayY} L ${x2 + 8} ${y2} L ${x2} ${y2}`;
       }
 
       lines.push({
@@ -1383,7 +1394,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
     });
 
     return lines;
-  }, [ganttBars, dependencies, visibleIndices]);
+  }, [ganttBars, dependencies, visibleIndices, rowHeight]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg)] text-[var(--text-primary)] select-none font-sans antialiased text-xs transition-colors duration-200">
@@ -2063,11 +2074,11 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 style={{ width: timelineWidth, height: filteredTasks.length * rowHeight }}
               >
                 <defs>
-                  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <polygon points="0 0, 6 3, 0 6" fill="var(--border-strong)" />
+                  <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                    <path d="M0,1 L7,4 L0,7 Z" fill="#94a3b8" />
                   </marker>
-                  <marker id="arrowhead-critical" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-                    <polygon points="0 0, 6 3, 0 6" fill="#ef4444" />
+                  <marker id="arrowhead-critical" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                    <path d="M0,1 L7,4 L0,7 Z" fill="#ef4444" />
                   </marker>
                 </defs>
 
@@ -2111,6 +2122,9 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     <div 
                       key={bar.id}
                       style={{ height: rowHeight }}
+                      onMouseEnter={(e) => setHoveredTask(bar)}
+                      onMouseMove={(e) => setTooltipPos({ x: e.clientX + 16, y: e.clientY + 16 })}
+                      onMouseLeave={() => setHoveredTask(null)}
                       className={`flex flex-col justify-center relative group w-full ${isSelected ? 'bg-indigo-500/5' : ''}`}
                     >
                       {/* Pin Icons */}
@@ -2136,6 +2150,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             className="absolute size-3 shadow-md flex items-center justify-center z-10"
                             style={{ 
                               left: bar.plannedLeft - 6,
+                              top: '10px',
                               width: '10px',
                               height: '10px',
                               transform: 'rotate(45deg)',
@@ -2150,7 +2165,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                               className="absolute size-3 shadow-md flex items-center justify-center z-10"
                               style={{ 
                                 left: bar.actualLeft - 6,
-                                top: '22px',
+                                top: '24px',
                                 width: '10px',
                                 height: '10px',
                                 transform: 'rotate(45deg)',
@@ -2161,7 +2176,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             />
                           )}
                           <span 
-                            style={{ left: bar.plannedLeft - 50, width: '40px' }}
+                            style={{ left: bar.plannedLeft - 50, width: '40px', top: '10px' }}
                             className="absolute text-[8px] font-mono text-[var(--text-muted)] text-right pr-1 select-none pointer-events-none z-10"
                           >
                             {bar.startDateStr}
@@ -2172,18 +2187,18 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           {/* Planned Parent Summary Bar */}
                           <svg 
                             className="absolute h-3 overflow-visible pointer-events-none" 
-                            style={{ left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: '8px' }}
+                            style={{ left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: '10px' }}
                           >
-                            <path d={`M 2 2 H ${bar.plannedWidth + 2} V 6 H 2 Z`} fill={color} />
-                            <path d="M 2 2 L 6 6 L 6 2 Z" fill={color} />
-                            <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 6 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
+                            <path d={`M 2 2 H ${bar.plannedWidth + 2} V 8 H 2 Z`} fill={color} />
+                            <path d="M 2 2 L 6 8 L 6 2 Z" fill={color} />
+                            <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 8 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
                           </svg>
 
                           {/* Actual Parent Summary Bar */}
                           {bar.isActualActive && (
                             <svg 
                               className="absolute h-2.5 overflow-visible pointer-events-none" 
-                              style={{ left: bar.actualLeft - 2, width: Math.max(8, bar.actualWidth) + 4, top: '22px' }}
+                              style={{ left: bar.actualLeft - 2, width: Math.max(8, bar.actualWidth) + 4, top: '26px' }}
                             >
                               <path d={`M 2 1 H ${bar.actualWidth + 2} V 5 H 2 Z`} fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
                               <path d="M 2 1 L 5 4 L 5 1 Z" fill={bar.status === 'Completed' ? '#10b981' : bar.status === 'Delayed' ? '#f43f5e' : '#f59e0b'} className="opacity-60" />
@@ -2195,9 +2210,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         <>
                           {/* Planned Bar */}
                           <div 
-                            style={{ left: bar.plannedLeft, width: bar.plannedWidth, top: '8px' }}
-                            className={`absolute h-2.5 rounded shadow-sm flex items-center overflow-hidden bg-slate-300 dark:bg-slate-700/50`}
-                            title={`Planned: ${bar.activityName} (${Math.round(bar.plannedWidth / pxPerDay)} Days)`}
+                            style={{ left: bar.plannedLeft, width: bar.plannedWidth, top: '10px', height: '8px' }}
+                            className={`absolute rounded shadow-sm flex items-center overflow-hidden bg-slate-300 dark:bg-slate-700/50`}
                           >
                             <div 
                               style={{ 
@@ -2214,16 +2228,16 @@ const MilestoneManagement = ({ project, showNotification }) => {
                               style={{ 
                                 left: bar.actualLeft, 
                                 width: bar.actualWidth,
-                                top: '22px'
+                                top: '24px',
+                                height: '8px'
                               }}
-                              className={`absolute h-2 rounded shadow-sm flex items-center overflow-hidden ${
+                              className={`absolute rounded shadow-sm flex items-center overflow-hidden ${
                                 bar.status === 'Completed' 
                                   ? 'bg-emerald-500/20 border border-emerald-500' 
                                   : bar.status === 'Delayed'
                                   ? 'bg-rose-500/20 border border-rose-500'
                                   : 'bg-amber-500/20 border border-amber-500'
                               }`}
-                              title={`Actual: ${bar.activityName} (${bar.status})`}
                             >
                               <div 
                                 style={{ 
@@ -2242,7 +2256,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           {/* Delay / Variance Indicator */}
                           {bar.varianceDays > 0 && (
                             <span 
-                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '9px' }}
                               className="absolute text-[8px] font-mono text-rose-500 font-bold bg-rose-500/10 px-1 py-0.2 rounded pointer-events-none"
                             >
                               +{bar.varianceDays}d Delay
@@ -2250,7 +2264,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           )}
                           {bar.varianceDays < 0 && (
                             <span 
-                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '7px' }}
+                              style={{ left: bar.plannedLeft + bar.plannedWidth + 6, top: '9px' }}
                               className="absolute text-[8px] font-mono text-emerald-500 font-bold bg-emerald-500/10 px-1 py-0.2 rounded pointer-events-none"
                             >
                               {bar.varianceDays}d Advance
@@ -2262,15 +2276,15 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       {/* BASELINE SNAPSHOT UNDERLAY */}
                       {showBaselineOverlay && bar.baselineLeft !== null && bar.baselineWidth !== null && (
                         <div 
-                          style={{ left: bar.baselineLeft, width: bar.baselineWidth, top: '32px' }}
-                          className="absolute h-0.5 bg-yellow-500/60 dark:bg-yellow-500/40 rounded-sm"
+                          style={{ left: bar.baselineLeft, width: bar.baselineWidth, top: '36px', height: '3px' }}
+                          className="absolute bg-yellow-500/60 dark:bg-yellow-500/40 rounded-sm"
                           title="Baseline Snapshot"
                         />
                       )}
 
                       {/* Labels next to Gantt Bars */}
                       <span 
-                        style={{ left: (bar.plannedLeft + bar.plannedWidth + (bar.varianceDays !== 0 ? 54 : 12)), top: '6px' }}
+                        style={{ left: (bar.plannedLeft + bar.plannedWidth + (bar.varianceDays !== 0 ? 54 : 12)), top: '9px' }}
                         className="absolute text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap opacity-75 group-hover:opacity-100 pointer-events-none"
                       >
                         {ganttShowTaskName && bar.activityName}
@@ -3124,6 +3138,60 @@ const MilestoneManagement = ({ project, showNotification }) => {
           <option key={d} value={d} />
         ))}
       </datalist>
+
+      {/* GANTT INTERACTIVE HOVER TOOLTIP */}
+      {hoveredTask && (
+        <div 
+          className="fixed z-[10000] pointer-events-none bg-slate-900/95 dark:bg-slate-950/95 border border-slate-700/50 shadow-2xl rounded-xl p-3.5 text-[11px] text-slate-100 flex flex-col gap-1.5 backdrop-blur-md max-w-xs transition-all duration-75 animate-fadeIn min-w-[200px]"
+          style={{ 
+            left: Math.min(window.innerWidth - 220, tooltipPos.x), 
+            top: Math.min(window.innerHeight - 200, tooltipPos.y) 
+          }}
+        >
+          <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-1.5">
+            <span className="font-mono text-indigo-400 font-extrabold">WBS {hoveredTask.wbsCode}</span>
+            <span className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase ${
+              hoveredTask.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400' :
+              hoveredTask.status === 'Delayed' ? 'bg-rose-500/20 text-rose-400' :
+              hoveredTask.status === 'In Progress' ? 'bg-blue-500/20 text-blue-400' :
+              'bg-slate-700/30 text-slate-400'
+            }`}>
+              {hoveredTask.status}
+            </span>
+          </div>
+
+          <div className="font-bold text-xs text-white leading-tight">{hoveredTask.activityName}</div>
+
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-1 pt-1.5 border-t border-slate-800/60 text-slate-300">
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 font-semibold uppercase">Planned Start</span>
+              <span className="font-mono">{hoveredTask.startDateStr}</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 font-semibold uppercase">Variance</span>
+              <span className={`font-semibold ${hoveredTask.varianceDays > 0 ? 'text-rose-400' : hoveredTask.varianceDays < 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {hoveredTask.varianceDays > 0 ? `+${hoveredTask.varianceDays}d Delay` :
+                 hoveredTask.varianceDays < 0 ? `${hoveredTask.varianceDays}d Advance` : 'On Track'}
+              </span>
+            </div>
+            <div className="flex flex-col col-span-2">
+              <span className="text-[9px] text-slate-500 font-semibold uppercase">Progress</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                  <div className="h-full bg-indigo-500" style={{ width: `${hoveredTask.completePercent}%` }} />
+                </div>
+                <span className="font-bold text-white font-mono">{hoveredTask.completePercent}%</span>
+              </div>
+            </div>
+            {hoveredTask.assignedToNames && (
+              <div className="flex flex-col col-span-2">
+                <span className="text-[9px] text-slate-500 font-semibold uppercase">Assigned Team</span>
+                <span className="truncate text-slate-200 font-medium">{hoveredTask.assignedToNames}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
