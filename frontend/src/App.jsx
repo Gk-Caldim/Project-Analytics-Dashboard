@@ -50,6 +50,7 @@ import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import ServerOfflineView from './components/ServerOfflineView';
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -232,7 +233,7 @@ function AppContent() {
       wasOffline.current = true;
     } else if (isServerOnline === true && wasOffline.current) {
       wasOffline.current = false;
-      toast.success("Backend server connected! Syncing data...");
+      toast.success("Server connected! Syncing data...");
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -366,13 +367,43 @@ function AppContent() {
   const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname === '/workspace-dashboard';
   const showBanner = isServerOnline === false && (location.pathname.startsWith('/dashboard') || location.pathname === '/login');
 
+  const isPublicRoute = location.pathname === '/' || 
+                        location.pathname === '/pricing' || 
+                        location.pathname === '/enterprise' || 
+                        location.pathname === '/customers';
+  const showOfflineScreen = isServerOnline === false && !isPublicRoute;
+
+  if (showOfflineScreen) {
+    return (
+      <ServerOfflineView 
+        title="Server Offline"
+        description="We're having trouble connecting to the server. Please try again in few minutes."
+        onRetry={async () => {
+          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+          const healthUrl = apiBase.replace(/\/api\/?$/, '/healthz');
+          try {
+            const res = await axios.get(healthUrl, { timeout: 3000 });
+            if (res.data && res.data.status === 'ok') {
+              dispatch(setServerOnline(true));
+              toast.success("Server connected!");
+            } else {
+              toast.error("Server is still offline.");
+            }
+          } catch (err) {
+            toast.error("Server is still offline.");
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <div className={isDashboardRoute ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
       {showBanner && (
         <div className="h-10 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 dark:border-amber-500/10 px-6 flex items-center justify-between text-amber-800 dark:text-amber-300 text-xs font-semibold z-[99999] backdrop-blur-md shrink-0 select-none animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
-            <span>Backend server is offline or starting up. Retrying connection...</span>
+            <span>Server is offline or starting up. Retrying connection...</span>
           </div>
           <button
             onClick={() => {
