@@ -434,7 +434,9 @@ const MeetingCapturePage = () => {
           promises.push(
             API.get('/projects/')
               .then(r => setProjects(r.data?.projects || r.data || []))
-              .catch(() => { })
+              .catch(err => {
+                toast.error('Failed to load projects', { description: 'Could not fetch project list from server.' });
+              })
           );
         } else {
           setProjects(reduxProjects);
@@ -469,7 +471,9 @@ const MeetingCapturePage = () => {
                   setActiveTranscriptId(doc.id);
                 }
               })
-              .catch(() => { })
+              .catch(err => {
+                toast.error('Failed to load transcript', { description: 'Could not load existing meeting transcript data.' });
+              })
           );
         }
 
@@ -816,6 +820,12 @@ const MeetingCapturePage = () => {
       }
     } catch (err) {
       if (err.name === 'CanceledError' || err.message === 'canceled') return;
+      
+      toast.warning('AI model generation failed', {
+        description: 'MOM compiled locally using standard rule-based parsing.',
+        duration: 5000
+      });
+
       const rows = makeRowsFromEntries(mergedEntries, { meetingTitle, projectId, projectName, currentUserName: currentUser.name });
       if (rows.length > 0) rows[0]._rawEntries = mergedEntries;
       dispatch(setMeetingContext({ meetingId, meetingName: meetingTitle, projectId, projectName }));

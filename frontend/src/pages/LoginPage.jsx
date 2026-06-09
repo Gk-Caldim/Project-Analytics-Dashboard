@@ -81,6 +81,11 @@ const LoginPage = () => {
     e.preventDefault();
     setForgotError('');
     setForgotSuccess('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail)) {
+      setForgotError('Invalid email address format');
+      return;
+    }
     setForgotLoading(true);
     try {
       const response = await API.post('/auth/forgot-password', { email: forgotEmail });
@@ -91,23 +96,7 @@ const LoginPage = () => {
       const errMsg = err.response?.data?.detail || 'Failed to request password reset';
       setForgotError(errMsg);
       if (errMsg.includes('temporarily locked')) {
-        toast.error('Security alert sent to your email', {
-          style: {
-            border: '2px solid #C8341A',
-            padding: '12px 16px',
-            color: '#C8341A',
-            background: '#ffffff',
-            fontWeight: '600',
-            fontSize: '14px',
-            borderRadius: '10px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          },
-          iconTheme: {
-            primary: '#C8341A',
-            secondary: '#ffffff',
-          },
-          duration: 6000,
-        });
+        toast.error('Account locked', { description: 'Security alert sent to your email.' });
       }
     } finally {
       setForgotLoading(false);
@@ -128,23 +117,7 @@ const LoginPage = () => {
       const errMsg = err.response?.data?.detail || 'OTP verification failed';
       setForgotError(errMsg);
       if (errMsg.includes('temporarily locked')) {
-        toast.error('Security alert sent to your email', {
-          style: {
-            border: '2px solid #C8341A',
-            padding: '12px 16px',
-            color: '#C8341A',
-            background: '#ffffff',
-            fontWeight: '600',
-            fontSize: '14px',
-            borderRadius: '10px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          },
-          iconTheme: {
-            primary: '#C8341A',
-            secondary: '#ffffff',
-          },
-          duration: 6000,
-        });
+        toast.error('Account locked', { description: 'Security alert sent to your email.' });
       }
     } finally {
       setForgotLoading(false);
@@ -161,6 +134,10 @@ const LoginPage = () => {
     }
     if (newPassword.length < 8) {
       setForgotError('Password must be at least 8 characters long');
+      return;
+    }
+    if (newPasswordStrength.label === 'Weak') {
+      setForgotError('Password is too weak. Please use a medium or strong password.');
       return;
     }
     setForgotLoading(true);
@@ -206,6 +183,12 @@ const LoginPage = () => {
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Invalid email address format');
+      dispatch(loginFailure('Invalid email address format'));
+      return;
+    }
     dispatch(loginStart());
     try {
       const response = await API.post('/auth/login', { email, password });
@@ -227,8 +210,18 @@ const LoginPage = () => {
     e.preventDefault();
     setReqError('');
     setReqSuccess('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(reqFormData.email)) {
+      setReqError('Invalid email address format');
+      return;
+    }
     if (reqFormData.password !== reqFormData.confirm_password) {
       setReqError('Passwords do not match');
+      return;
+    }
+    const strength = getPasswordStrength(reqFormData.password);
+    if (strength.label === 'Weak') {
+      setReqError('Password is too weak. Please use a medium or strong password.');
       return;
     }
     setReqLoading(true);
