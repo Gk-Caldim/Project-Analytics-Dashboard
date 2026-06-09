@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
 import API from '../../utils/api';
@@ -299,7 +299,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   
   const paginatedMeetings = React.useMemo(() => {
     return meetings.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
-  }, [meetings, activePage]);
+  }, [meetings, activePage, itemsPerPage]);
 
   // ── Inline row preview state (multi-expand via Set) ──
   const [expandedRows, setExpandedRows] = React.useState(new Set());
@@ -1147,7 +1147,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             <thead>
               <tr className="bg-[#F8FAFC] sticky top-0 z-10" style={{ borderBottom: '1px solid #E2E8F0' }}>
                 <th
-                  className="px-3 py-3 text-center font-medium sticky top-0 z-10 bg-[#F8FAFC] print:hidden"
+                  className="px-1.5 py-3 text-center font-medium sticky top-0 z-10 bg-[#F8FAFC] print:hidden"
                   style={{
                     width: '40px',
                     borderRight: '1px solid #F1F5F9',
@@ -1162,15 +1162,15 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                   />
                 </th>
                 {[
-                  { label: 'S.No', cls: 'px-3 py-3 text-left' },
-                  { label: 'Function', cls: 'px-4 py-3 text-left' },
-                  { label: 'Project Name', cls: 'px-4 py-3 text-left' },
-                  { label: 'Criticality', cls: 'px-3 py-3 text-left' },
-                  { label: 'Action Points Discussed', cls: 'px-6 py-3 text-left' },
-                  { label: 'Responsibility', cls: 'px-4 py-3 text-left' },
-                  { label: 'Target', cls: 'px-4 py-3 text-center' },
-                  { label: 'Status', cls: 'px-4 py-3 text-center' },
-                  { label: 'Action Taken', cls: 'px-4 py-3 text-left' },
+                  { label: 'S.No', cls: 'px-1.5 py-3 text-center' },
+                  { label: 'Function', cls: 'px-2 py-3 text-left' },
+                  { label: 'Project Name', cls: 'px-2 py-3 text-left' },
+                  { label: 'Criticality', cls: 'px-1.5 py-3 text-center' },
+                  { label: 'Action Points Discussed', cls: 'px-4 py-3 text-left' },
+                  { label: 'Responsibility', cls: 'px-2 py-3 text-left' },
+                  { label: 'Target', cls: 'px-2 py-3 text-center' },
+                  { label: 'Status', cls: 'px-2 py-3 text-center' },
+                  { label: 'Action Taken', cls: 'px-2 py-3 text-left' },
                 ].map((col, i, arr) => (
                   <th
                     key={col.label}
@@ -1184,7 +1184,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                   >{col.label}</th>
                 ))}
                 <th
-                  className="px-3 py-3 text-left font-medium uppercase print:hidden sticky top-0 z-10 bg-[#F8FAFC]"
+                  className="px-1.5 py-3 text-left font-medium uppercase print:hidden sticky top-0 z-10 bg-[#F8FAFC]"
                   style={{ fontSize: '11px', letterSpacing: '0.05em', color: 'var(--text-muted)', borderBottom: '1px solid #E2E8F0' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1210,7 +1210,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                       borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
                     }}
                   >
-                    <td className="px-3 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
+                    <td className="px-1.5 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
                       <input
                         type="checkbox"
                         checked={selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))}
@@ -1219,18 +1219,18 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         className={`w-4 h-4 rounded border-slate-300 cursor-pointer accent-[#0D9488] transition-opacity duration-100 ${
                           selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))
                             ? 'opacity-100'
-                            : 'opacity-0 group-hover:opacity-100'
+                            : 'opacity-100'
                         }`}
                       />
                     </td>
-                    <td className="px-3 py-2 text-center" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
-                    <td className="px-4 py-2 text-center" style={cellBorder}>
+                    <td className="px-1.5 py-2 text-center" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
+                    <td className="px-2 py-2 text-center" style={cellBorder}>
                        <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
                     </td>
-                    <td className="px-4 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
+                    <td className="px-2 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
                       <ProjectCell projectName={m.project_name} defaultProjectName={reduxProjectName} />
                     </td>
-                    <td className="px-3 py-2 text-center" style={cellBorder}>
+                    <td className="px-2 py-2 text-center" style={cellBorder}>
                       {(() => {
                         const crit = m.criticality || 'Normal';
                         return (
@@ -1243,13 +1243,13 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         );
                       })()}
                     </td>
-                    <td className="px-6 py-2 leading-relaxed min-w-[300px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
+                    <td className="px-4 py-2 leading-relaxed min-w-[260px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
                       <div className="relative group/heuristic flex gap-2 w-full">
                         <textarea defaultValue={m.discussion_point || '—'} className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]" onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })} />
                         <div className="flex-shrink-0 cursor-help text-gray-300 hover:text-teal-600 mt-1" title={m.isHeuristic ? 'Fallback heuristic used' : 'AI extracted'}><Info className="w-4 h-4" /></div>
                       </div>
                     </td>
-                    <td className="px-4 py-2 min-w-[180px]" style={cellBorder}>
+                    <td className="px-2 py-2 min-w-[140px]" style={cellBorder}>
                       <Select
                         options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
                         defaultValue={m.responsibility ? { value: m.responsibility, label: m.responsibility } : null}
@@ -1305,10 +1305,10 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                         }}
                       />
                     </td>
-                    <td className="px-4 py-2 text-center text-gray-500" style={cellBorder}>
+                    <td className="px-2 py-2 text-center text-gray-500" style={cellBorder}>
                       <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
                     </td>
-                     <td className="px-4 py-2 text-center" style={cellBorder}>
+                     <td className="px-2 py-2 text-center" style={cellBorder}>
                         <PillDropdown
                           value={m.status || 'Pending'}
                           options={['Open', 'Pending', 'In Progress', 'Needs Review', 'Done', 'Closed']}
@@ -1323,15 +1323,15 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                           }}
                         />
                      </td>
-                     <td className="px-4 py-2 min-w-[150px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
+                     <td className="px-2 py-2 min-w-[130px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
                        <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
                       </td>
-                      <td className="px-3 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
+                      <td className="px-1.5 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
                         <div className="flex items-center justify-center gap-1">
                           {/* Row expand toggle */}
                           <button
                             onClick={() => toggleRowExpand(m.id || ((activePage - 1) * itemsPerPage + idx))}
-                            className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-teal-600 transition-colors"
                             title={expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'Collapse preview' : 'Expand preview'}
                           >
                             <ChevronDown
@@ -1339,8 +1339,8 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
                               style={{ transform: expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'rotate(180deg)' : 'none' }}
                             />
                           </button>
-                          <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-gray-300 hover:text-teal-600 transition-colors opacity-0 group-hover:opacity-100" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
-                          <button onClick={() => handleDeleteClick(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
+                          <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
+                          <button onClick={() => handleDeleteClick(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
                         </div>
                       </td>
                     </tr>

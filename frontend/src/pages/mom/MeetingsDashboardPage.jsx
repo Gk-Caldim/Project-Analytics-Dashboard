@@ -141,7 +141,7 @@ const MeetingsDashboardPage = () => {
   const activePageMoms = Math.min(currentPageMoms, totalPagesMoms);
   const paginatedMoms = React.useMemo(() => {
     return momHistory.slice((activePageMoms - 1) * itemsPerPageMoms, activePageMoms * itemsPerPageMoms);
-  }, [momHistory, activePageMoms]);
+  }, [momHistory, activePageMoms, itemsPerPageMoms]);
 
   useEffect(() => {
     setCurrentPageHistory(1);
@@ -151,7 +151,7 @@ const MeetingsDashboardPage = () => {
   const activePageHistory = Math.min(currentPageHistory, totalPagesHistory);
   const paginatedHistory = React.useMemo(() => {
     return filteredHistory.slice((activePageHistory - 1) * itemsPerPageHistory, activePageHistory * itemsPerPageHistory);
-  }, [filteredHistory, activePageHistory]);
+  }, [filteredHistory, activePageHistory, itemsPerPageHistory]);
 
   // Insights
   const today = new Date(); today.setHours(0, 0, 0, 0);

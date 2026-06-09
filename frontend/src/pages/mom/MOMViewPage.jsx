@@ -131,12 +131,14 @@ const MOMViewPage = () => {
       API.get(`/meetings/${effectiveMeetingId}`).catch(() => null),
       API.get(`/mom/${effectiveMeetingId}`).catch(() => null),
       API.get(`/mom/issues/${effectiveMeetingId}`).catch(() => null),
+      API.get(`/transcript/${effectiveMeetingId}`).catch(() => null),
     ])
-      .then(([meetingRes, momRes, issuesRes]) => {
+      .then(([meetingRes, momRes, issuesRes, transcriptRes]) => {
         console.log('[MOMViewPage] Hydration responses:', {
           meeting:      meetingRes?.data?.success,
           momDataRows:  momRes?.data?.mom_data?.length ?? 0,
           syncedIssues: issuesRes?.data?.total ?? 0,
+          hasTranscript: !!transcriptRes?.data?.transcript_data,
         });
 
         const m = meetingRes?.data?.success ? meetingRes.data.meeting : null;
@@ -154,7 +156,19 @@ const MOMViewPage = () => {
         }
         
         let parsedTranscript = [];
-        if (m?.transcript) {
+        if (transcriptRes?.data?.transcript_data) {
+          const tData = transcriptRes.data.transcript_data;
+          if (Array.isArray(tData)) {
+            parsedTranscript = tData;
+          } else if (typeof tData === 'string') {
+            try {
+              const parsed = JSON.parse(tData);
+              if (Array.isArray(parsed)) parsedTranscript = parsed;
+            } catch (e) {}
+          }
+        }
+
+        if (parsedTranscript.length === 0 && m?.transcript) {
           if (typeof m.transcript === 'string') {
             try { 
               const parsed = JSON.parse(m.transcript); 
@@ -214,7 +228,7 @@ const MOMViewPage = () => {
         }
 
         if (finalRows.length > 0) {
-          finalRows[0]._rawEntries = m?.transcript || [];
+          finalRows[0]._rawEntries = parsedTranscript.length > 0 ? parsedTranscript : (m?.transcript || []);
         }
 
         dispatch(setMomDataRedux(finalRows));
