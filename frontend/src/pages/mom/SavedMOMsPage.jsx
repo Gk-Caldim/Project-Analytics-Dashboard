@@ -12,7 +12,7 @@ import {
   Check, Edit3, Target, Plus, MessageSquare, AlertTriangle, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import API from '../../utils/api';
 import { getProjectAccent } from '../../utils/projectColors';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -38,6 +38,8 @@ import {
   PaginationNext,
 } from '../../components/ui/pagination';
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
+import { Switch } from '../../components/ui/switch';
+import { Label } from '../../components/ui/label';
 import './SavedMOMsPage.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -924,14 +926,22 @@ const SavedMOMsPage = () => {
             </ComboboxList>
           </ComboboxContent>
         </Combobox>
-        <button
-          onClick={() => setMultiExpand(!multiExpand)}
-          className={`smp-pill flex items-center gap-2 outline-none cursor-pointer select-none transition-all duration-150 ${multiExpand ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
-          style={{ border: '1px solid' }}
+        <div 
+          className="flex items-center gap-2 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-[20px] px-3.5 h-[36px] select-none"
+          title="When enabled, expanding a meeting card keeps previously opened cards open."
         >
-          <span className={`w-2 h-2 rounded-full ${multiExpand ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`} />
-          <span className="font-semibold text-xs uppercase tracking-wider">Multi-Expand</span>
-        </button>
+          <Switch 
+            id="multi-expand-toggle" 
+            checked={multiExpand} 
+            onCheckedChange={setMultiExpand} 
+          />
+          <Label 
+            htmlFor="multi-expand-toggle" 
+            className="text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer"
+          >
+            Multiple VIEW
+          </Label>
+        </div>
       </div>
 
       {/* Content */}

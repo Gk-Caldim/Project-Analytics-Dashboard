@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Upload, Mic, Edit3, ChevronRight,
   Play, Square, Pause, X, Plus, Edit2, Check,

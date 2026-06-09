@@ -7,7 +7,7 @@ import {
   User, UserCheck, ShieldCheck, Briefcase, Users, UserCircle
 } from 'lucide-react';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import Skeleton from '../../../components/ui/skeleton';
 
 const ROLE_ORDER = {

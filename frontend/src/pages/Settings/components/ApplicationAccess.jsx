@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import Skeleton from '../../../components/ui/skeleton';
 
 const ApplicationAccess = () => {

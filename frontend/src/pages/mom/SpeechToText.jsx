@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Mic, Upload, X, Play, Pause, Square, FileText, FileUp, CornerDownLeft, Plus,
   CheckCircle, Edit2, Sparkles, Download, Clipboard, Target, AlertCircle

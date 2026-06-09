@@ -6,7 +6,7 @@ import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlic
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '../components/ui/alert';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import './LoginPage.css';
 
 const LoginPage = () => {

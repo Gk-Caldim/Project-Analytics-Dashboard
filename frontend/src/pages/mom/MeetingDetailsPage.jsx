@@ -10,7 +10,7 @@ import {
   Mic, Square, Pause, Play, Sparkles, Pencil as PencilIcon, Search, ChevronDown,
   ChevronUp, GripHorizontal, Globe, Crown, Mail, UserPlus, MoreVertical
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import './MeetingDetailsPage.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '../../hooks/use-confirm';

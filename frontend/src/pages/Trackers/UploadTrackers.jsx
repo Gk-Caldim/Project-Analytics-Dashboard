@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import API from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import FileContentViewer from './FileContentViewer';
 import { getEmployees } from '../../utils/employeeApi';
 import SearchableDropdown from '../../components/SearchableDropdown';
