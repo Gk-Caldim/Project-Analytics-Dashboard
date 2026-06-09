@@ -337,6 +337,12 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
 
+  // Gantt-specific filters (separate from table filters)
+  const [ganttDeptFilter, setGanttDeptFilter] = useState('All');
+  const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
+  const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
+  const [showGanttFilter, setShowGanttFilter] = useState(false);
+
   // Dynamic Column Creator Modal
   const [showAddColModal, setShowAddColModal] = useState(false);
   const [newColName, setNewColName] = useState('');
@@ -934,15 +940,34 @@ const MilestoneManagement = ({ project, showNotification }) => {
       });
   }, [tasks, departmentFilter, statusFilter, showCriticalOnly]);
 
+  // Gantt-filtered tasks (may differ from table filter)
+  const ganttFilteredTasks = useMemo(() => {
+    return filteredTasks.filter(t => {
+      if (ganttDeptFilter !== 'All' && t.department !== ganttDeptFilter) return false;
+      if (ganttTypeFilter !== 'All' && t.item_type !== ganttTypeFilter) return false;
+      if (ganttStatusFilter !== 'All' && t.status !== ganttStatusFilter) return false;
+      return true;
+    });
+  }, [filteredTasks, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
+
+  const isGanttFiltered = ganttDeptFilter !== 'All' || ganttTypeFilter !== 'All' || ganttStatusFilter !== 'All';
+
   // Auto-show analytics when any non-default filter is active
   const isFiltered = departmentFilter !== 'All' || statusFilter !== 'All' || showCriticalOnly;
 
-  // Virtualization boundaries
+  // Virtualization boundaries (table)
   const visibleIndices = useMemo(() => {
     const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 5);
     const endIndex = Math.min(filteredTasks.length, Math.ceil((scrollTop + clientHeight) / rowHeight) + 5);
     return { start: startIndex, end: endIndex };
   }, [scrollTop, clientHeight, filteredTasks.length]);
+
+  // Virtualization boundaries (gantt — uses ganttFilteredTasks row count)
+  const ganttVisibleIndices = useMemo(() => {
+    const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 5);
+    const endIndex = Math.min(ganttFilteredTasks.length, Math.ceil((scrollTop + clientHeight) / rowHeight) + 5);
+    return { start: startIndex, end: endIndex };
+  }, [scrollTop, clientHeight, ganttFilteredTasks.length]);
 
   const setAndRollupTasks = (updater) => {
     setTasks(prev => {
@@ -1488,9 +1513,9 @@ const MilestoneManagement = ({ project, showNotification }) => {
     return Array.from(combined);
   }, [teamDepartments]);
 
-  // Gantt Bars Mapping
+  // Gantt Bars Mapping (uses ganttFilteredTasks so Gantt filter is independent)
   const ganttBars = useMemo(() => {
-    return filteredTasks.map((t, idx) => {
+    return ganttFilteredTasks.map((t, idx) => {
       if (!t.start_date || !t.end_date) return null;
 
       const plannedStart = new Date(t.start_date);
@@ -1569,7 +1594,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
         duration: Math.ceil((plannedEnd - plannedStart) / 86400000) || 1
       };
     });
-  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks, showOverdueTaskShading]);
+  }, [ganttFilteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks, showOverdueTaskShading]);
 
   // SVG Connector Lines
   const dependencyLines = useMemo(() => {
@@ -1592,8 +1617,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
       const predIdx = predObj.index;
       const succIdx = succObj.index;
 
-      const startVisible = visibleIndices.start;
-      const endVisible = visibleIndices.end;
+      const startVisible = ganttVisibleIndices.start;
+      const endVisible = ganttVisibleIndices.end;
       if ((predIdx < startVisible && succIdx < startVisible) || (predIdx > endVisible && succIdx > endVisible)) {
         return;
       }
@@ -1657,7 +1682,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
     });
 
     return lines;
-  }, [ganttBars, dependencies, visibleIndices, rowHeight, showDataType]);
+  }, [ganttBars, dependencies, ganttVisibleIndices, rowHeight, showDataType]);
 
   const getSCurveOption = () => {
     const validTasks = tasks.filter(t => t.start_date && t.end_date);
@@ -2480,12 +2505,12 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           className={`group border-b border-slate-200/15 dark:border-slate-800/30 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors duration-100 cursor-pointer ${rowBg} ${isSelected ? 'ring-1 ring-inset ring-blue-400/30' : ''} ${isParent ? 'font-semibold' : ''}`}
                         >
                           {/* Index */}
-                          <td className={`sticky left-0 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
+                          <td style={{ width: colWidths.idx }} className={`sticky left-0 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
                           
                           {/* Activity Name */}
                           <td 
-                            className={`sticky left-10 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
-                            style={{ paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
+                            className={`sticky z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
+                            style={{ left: colWidths.idx, width: colWidths.activity, paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
                           >
                             <div className="w-full h-full flex items-center relative truncate gap-1.5">
                               <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider border flex-shrink-0 ${typeBadge.bg} ${typeBadge.text}`}>
@@ -2741,40 +2766,132 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
         {/* GANTT VIEW TIMELINE */}
         {showGantt && (
+          <div className="h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+
+          {/* ── GANTT-SPECIFIC FILTER BAR ── */}
+          <div className={`flex flex-wrap items-center gap-2 px-3 py-1.5 border-b shrink-0 ${
+            isGanttFiltered
+              ? 'bg-violet-500/5 border-violet-500/20'
+              : 'bg-[var(--surface)] border-[var(--border-subtle)]'
+          }`}>
+            <button
+              onClick={() => setShowGanttFilter(v => !v)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-bold transition-all ${
+                isGanttFiltered || showGanttFilter
+                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
+                  : 'bg-[var(--bg)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Toggle Gantt-specific filter panel"
+            >
+              <Filter size={10} />
+              Gantt Filter
+              {isGanttFiltered && (
+                <span className="px-1 py-0.5 bg-violet-500/20 rounded text-[8px] font-extrabold">ACTIVE</span>
+              )}
+            </button>
+
+            {(showGanttFilter || isGanttFiltered) && (
+              <>
+                {/* Department */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <Building2 size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Dept:</span>
+                  <select
+                    value={ganttDeptFilter}
+                    onChange={e => setGanttDeptFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Departments</option>
+                    {['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning', ...suggestedDepartments.filter(d => !['Engineering','Design','Procurement','Manufacturing','Quality','Installation','Commissioning'].includes(d))].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Activity Type */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <ListTodo size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Type:</span>
+                  <select
+                    value={ganttTypeFilter}
+                    onChange={e => setGanttTypeFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Types</option>
+                    {['Phase', 'Task', 'Sub Task', 'Milestone', 'Approval Gate'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <Activity size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Status:</span>
+                  <select
+                    value={ganttStatusFilter}
+                    onChange={e => setGanttStatusFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Statuses</option>
+                    {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {isGanttFiltered && (
+                  <button
+                    onClick={() => { setGanttDeptFilter('All'); setGanttTypeFilter('All'); setGanttStatusFilter('All'); }}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-violet-400 hover:bg-violet-500/10 border border-violet-500/30 transition-colors"
+                    title="Clear Gantt filters"
+                  >
+                    <X size={9} /> Clear
+                  </button>
+                )}
+
+                <span className="text-[9px] text-[var(--text-muted)] ml-auto">
+                  Showing <strong className="text-[var(--text-primary)]">{ganttFilteredTasks.length}</strong> of {filteredTasks.length} tasks
+                </span>
+              </>
+            )}
+          </div>
+
           <div
             ref={ganttRef}
-            className={`h-full flex-1 overflow-x-auto overflow-y-auto relative custom-scrollbar ${pinMode ? 'cursor-crosshair' : ''}`}
+            className={`flex-1 overflow-x-auto overflow-y-auto relative custom-scrollbar ${pinMode ? 'cursor-crosshair' : ''}`}
             onScroll={handleScroll}
           >
             <div
-              style={{ width: timelineWidth, height: filteredTasks.length * rowHeight + 40 }}
+              style={{ width: timelineWidth, height: ganttFilteredTasks.length * rowHeight + 40 }}
               className="relative bg-[var(--surface)]"
               onClick={handleGanttCanvasClick}
             >
-                    {/* TIMELINE MONTH / WEEK HEADERS */}
-              <div className="h-10 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] sticky top-0 z-20 flex flex-col justify-end select-none">
+                    {/* TIMELINE MONTH / WEEK HEADERS — improved clarity */}
+              <div className="h-[52px] bg-[var(--elevated-card)] border-b-2 border-[var(--border-subtle)] sticky top-0 z-20 flex flex-col justify-end select-none shadow-sm">
                 
                 {/* Top Tier Header (Month & Year or Year) */}
-                <div className="absolute top-0 left-0 w-full h-5 bg-[var(--bg)] border-b border-[var(--border-subtle)] flex text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[26px] bg-[var(--bg)] border-b border-[var(--border-subtle)]/60 flex text-[11px] font-extrabold text-[var(--text-primary)] uppercase tracking-wider relative overflow-hidden">
                   {timelineHeaders.topHeaders.map(th => (
                     <div
                       key={th.key}
                       style={{ left: th.left, width: th.width }}
-                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/30 px-2 flex items-center justify-start truncate font-extrabold"
+                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/50 px-3 flex items-center justify-start truncate gap-1"
                     >
-                      {th.label}
+                      <span className="text-indigo-500 dark:text-indigo-400 text-[10px]">▶</span>
+                      <span>{th.label}</span>
                     </div>
                   ))}
                 </div>
                 
                 {/* Bottom Tier Header (Days, Weeks commencing, or Months) */}
-                <div className="flex h-5 relative text-[9px] font-bold text-[var(--text-secondary)]">
+                <div className="flex h-[26px] relative text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--surface)]/50">
                   {timelineHeaders.bottomHeaders.map(bh => (
                     <div
                       key={bh.key}
                       style={{ left: bh.left, width: bh.width }}
                       title={bh.title}
-                      className={`absolute bottom-0 h-full flex items-center leading-none ${bh.className || ''}`}
+                      className={`absolute bottom-0 h-full flex items-center leading-none text-[var(--text-primary)] ${bh.className || ''}`}
                     >
                       {bh.label}
                     </div>
@@ -2782,8 +2899,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 </div>
               </div>
 
-              {/* DASHED VERTICAL COLUMNS */}
-              <div className="absolute top-10 left-0 w-full h-full pointer-events-none">
+              {/* DASHED VERTICAL COLUMNS — improved clarity */}
+              <div className="absolute top-[52px] left-0 w-full h-full pointer-events-none">
                 {Array.from({ length: daysBetween }).map((_, i) => {
                   const tickDate = new Date(timelineStart);
                   tickDate.setDate(tickDate.getDate() + i);
@@ -2791,15 +2908,19 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   
                   let showLine = true;
                   let isMajorLine = false;
+                  let isMonthStart = false;
 
                   if (zoomLevel === 'Day') {
                     isMajorLine = tickDate.getDay() === 1; // Monday is major
+                    isMonthStart = tickDate.getDate() === 1;
                   } else if (zoomLevel === 'Week') {
                     showLine = tickDate.getDay() === 1; // Only show week starts
                     isMajorLine = tickDate.getDate() <= 7; // First week of month is major
+                    isMonthStart = tickDate.getDate() <= 7;
                   } else if (zoomLevel === 'Month') {
                     showLine = tickDate.getDate() === 1; // Only show month starts
                     isMajorLine = tickDate.getMonth() === 0; // January is major
+                    isMonthStart = true;
                   }
 
                   if (!showLine) return null;
@@ -2809,12 +2930,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       key={i} 
                       style={{ left: i * pxPerDay, width: pxPerDay }} 
                       className={`absolute top-0 h-full border-l ${
-                        isMajorLine 
-                          ? 'border-[var(--border-strong)]/40 border-dashed' 
-                          : 'border-[var(--border-subtle)]/10'
+                        isMonthStart
+                          ? 'border-indigo-400/30 dark:border-indigo-500/25'
+                          : isMajorLine 
+                          ? 'border-[var(--border-subtle)]/30' 
+                          : 'border-[var(--border-subtle)]/12'
                       } ${
                         zoomLevel === 'Day' && isWeekend && showNonWorkingDayShading 
-                          ? 'bg-[var(--elevated-card)]/40 dark:bg-[var(--border-subtle)]/5' 
+                          ? 'bg-slate-100/60 dark:bg-slate-800/30' 
                           : ''
                       }`}
                     />
@@ -2824,8 +2947,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
               {/* DEPENDENCY ARROW RENDER LAYER */}
               <svg 
-                className="absolute top-10 left-0 w-full h-full pointer-events-none z-10 mix-blend-multiply dark:mix-blend-screen opacity-70"
-                style={{ width: timelineWidth, height: filteredTasks.length * rowHeight }}
+                className="absolute top-[52px] left-0 w-full h-full pointer-events-none z-10 mix-blend-multiply dark:mix-blend-screen opacity-70"
+                style={{ width: timelineWidth, height: ganttFilteredTasks.length * rowHeight }}
               >
                 <defs>
                   <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -2850,21 +2973,21 @@ const MilestoneManagement = ({ project, showNotification }) => {
               </svg>
 
               {/* ALTERNATING ROW STRIPES BACKDROP */}
-              <div className="absolute top-10 left-0 w-full h-full pointer-events-none z-0">
-                {filteredTasks.map((t, i) => (
+              <div className="absolute top-[52px] left-0 w-full h-full pointer-events-none z-0">
+                {ganttFilteredTasks.map((t, i) => (
                   <div 
                     key={t.id}
                     style={{ top: i * rowHeight, height: rowHeight }}
-                    className={`absolute left-0 w-full border-b border-[var(--border-subtle)]/10 ${i % 2 === 0 ? 'bg-transparent' : 'bg-slate-50/5 dark:bg-slate-900/5'}`}
+                    className={`absolute left-0 w-full border-b border-[var(--border-subtle)]/10 ${i % 2 === 0 ? 'bg-transparent' : 'bg-slate-100/30 dark:bg-slate-900/20'}`}
                   />
                 ))}
               </div>
 
               {/* ACTIVE GANTT ROW BARS */}
-              <div className="absolute top-10 left-0 w-full h-full select-none z-10">
-                <div style={{ height: visibleIndices.start * rowHeight }} />
+              <div className="absolute top-[52px] left-0 w-full h-full select-none z-10">
+                <div style={{ height: ganttVisibleIndices.start * rowHeight }} />
 
-                {ganttBars.slice(visibleIndices.start, visibleIndices.end).map((bar, sliceIdx) => {
+                {ganttBars.slice(ganttVisibleIndices.start, ganttVisibleIndices.end).map((bar, sliceIdx) => {
                   if (!bar) return <div key={`empty-${sliceIdx}`} style={{ height: rowHeight }} />;
                   
                   const isSelected = selectedTaskId === bar.id;
@@ -3107,35 +3230,41 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   );
                 })}
 
-                <div style={{ height: (filteredTasks.length - visibleIndices.end) * rowHeight }} />
+                <div style={{ height: (ganttFilteredTasks.length - ganttVisibleIndices.end) * rowHeight }} />
               </div>
 
               {/* TODAY LINE */}
               {showTodayLine && todayLeft !== null && (
                 <div
                   style={{ left: todayLeft }}
-                  className="absolute top-10 bottom-0 w-[1.5px] bg-red-500 dark:bg-red-400 z-30 pointer-events-none"
+                  className="absolute top-[52px] bottom-0 w-[2px] bg-red-500 dark:bg-red-400 z-30 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.4)]"
                 >
-                  <div className="absolute top-0 -left-1 w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-red-400" title={`Today: ${new Date().toLocaleDateString()}`} />
+                  <div className="absolute -top-1 -left-[5px] w-3 h-3 rounded-full bg-red-500 dark:bg-red-400 shadow-md" title={`Today: ${new Date().toLocaleDateString()}`} />
+                  <span className="absolute -top-4 -left-5 text-[8px] font-extrabold text-red-500 dark:text-red-400 whitespace-nowrap bg-[var(--bg)]/80 px-1 rounded">Today</span>
                 </div>
               )}
 
-              {/* DEPT COLOUR BANDS (Gantt grouping overlay) */}
+              {/* DEPT COLOUR BANDS (Gantt grouping overlay) — theme-aware */}
               {groupByDept && (() => {
+                // Use RGBA so colors work properly in both light and dark modes
                 const deptPalette = {
-                  'Engineering':    '#3b82f6', 'Design':        '#8b5cf6',
-                  'Procurement':    '#f59e0b', 'Manufacturing':  '#10b981',
-                  'Quality':        '#ef4444', 'Installation':  '#6366f1',
-                  'Commissioning':  '#ec4899', 'Unassigned':    '#64748b',
+                  'Engineering':    { hex: '#3b82f6', rgba: 'rgba(59,130,246,0.09)',  border: 'rgba(59,130,246,0.25)',  label: 'rgba(59,130,246,0.85)' },
+                  'Design':         { hex: '#8b5cf6', rgba: 'rgba(139,92,246,0.09)', border: 'rgba(139,92,246,0.25)', label: 'rgba(139,92,246,0.85)' },
+                  'Procurement':    { hex: '#f59e0b', rgba: 'rgba(245,158,11,0.09)', border: 'rgba(245,158,11,0.25)', label: 'rgba(245,158,11,0.85)' },
+                  'Manufacturing':  { hex: '#10b981', rgba: 'rgba(16,185,129,0.09)', border: 'rgba(16,185,129,0.25)', label: 'rgba(16,185,129,0.85)' },
+                  'Quality':        { hex: '#ef4444', rgba: 'rgba(239,68,68,0.09)',  border: 'rgba(239,68,68,0.25)',  label: 'rgba(239,68,68,0.85)' },
+                  'Installation':   { hex: '#6366f1', rgba: 'rgba(99,102,241,0.09)', border: 'rgba(99,102,241,0.25)', label: 'rgba(99,102,241,0.85)' },
+                  'Commissioning':  { hex: '#ec4899', rgba: 'rgba(236,72,153,0.09)', border: 'rgba(236,72,153,0.25)', label: 'rgba(236,72,153,0.85)' },
+                  'Unassigned':     { hex: '#64748b', rgba: 'rgba(100,116,139,0.07)',border: 'rgba(100,116,139,0.2)', label: 'rgba(100,116,139,0.6)' },
                 };
                 const bands = [];
                 let cur = null;
-                filteredTasks.forEach((t, i) => {
+                ganttFilteredTasks.forEach((t, i) => {
                   const dept = t.department || 'Unassigned';
-                  const color = deptPalette[dept] || '#64748b';
+                  const pal = deptPalette[dept] || deptPalette['Unassigned'];
                   if (!cur || cur.dept !== dept) {
                     if (cur) bands.push(cur);
-                    cur = { dept, color, start: i, count: 1 };
+                    cur = { dept, pal, start: i, count: 1 };
                   } else { cur.count++; }
                 });
                 if (cur) bands.push(cur);
@@ -3144,15 +3273,21 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     key={`deptband-${band.dept}-${band.start}`}
                     className="absolute left-0 w-full pointer-events-none"
                     style={{
-                      top: 40 + band.start * rowHeight,
+                      top: 52 + band.start * rowHeight,
                       height: band.count * rowHeight,
-                      backgroundColor: band.color + '12',
-                      borderTop: `1px solid ${band.color}35`,
+                      backgroundColor: band.pal.rgba,
+                      borderTop: `1.5px solid ${band.pal.border}`,
+                      borderBottom: `1px solid ${band.pal.border}`,
                     }}
                   >
+                    {/* Left color stripe indicator */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1 opacity-70"
+                      style={{ backgroundColor: band.pal.hex }}
+                    />
                     <span
-                      className="absolute right-3 top-1 text-[8px] font-extrabold uppercase tracking-widest"
-                      style={{ color: band.color + 'aa' }}
+                      className="absolute right-3 top-1 text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded"
+                      style={{ color: band.pal.label, backgroundColor: band.pal.rgba }}
                     >
                       {band.dept}
                     </span>
@@ -3168,7 +3303,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   <div
                     key={pin.id}
                     data-pin="true"
-                    className="absolute top-10 bottom-0 z-40 group/pin flex flex-col items-center"
+                    className="absolute top-[52px] bottom-0 z-40 group/pin flex flex-col items-center"
                     style={{ left: left - 1 }}
                   >
                     {/* Vertical line */}
@@ -3194,6 +3329,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
               })}
 
             </div>
+          </div>
           </div>
         )}
 
