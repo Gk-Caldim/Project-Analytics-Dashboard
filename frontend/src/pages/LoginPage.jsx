@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -26,7 +27,14 @@ const LoginPage = () => {
   const [reqLoading, setReqLoading] = useState(false);
   const [showReqPassword, setShowReqPassword] = useState(false);
   const [showReqConfirmPassword, setShowReqConfirmPassword] = useState(false);
-  const [roles, setRoles] = useState([]);
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await API.get('/roles/');
+      return res.data;
+    },
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
 
   // ── FORGOT PASSWORD STATE ──
   const [showForgotPasswordForm, setShowForgotPasswordForm] = useState(false);
@@ -34,6 +42,7 @@ const LoginPage = () => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const newPasswordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword]);
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -183,9 +192,7 @@ const LoginPage = () => {
     return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
   };
 
-  useEffect(() => {
-    API.get('/roles/').then(res => setRoles(res.data)).catch(err => console.error(err));
-  }, []);
+
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
@@ -470,16 +477,16 @@ const LoginPage = () => {
                     <div className="ws-strength-meter-container">
                       <div className="ws-strength-labels">
                         <span className="ws-strength-title">Password Strength:</span>
-                        <span className="ws-strength-badge" style={{ color: getPasswordStrength(newPassword).color }}>
-                          {getPasswordStrength(newPassword).label}
+                        <span className="ws-strength-badge" style={{ color: newPasswordStrength.color }}>
+                          {newPasswordStrength.label}
                         </span>
                       </div>
                       <div className="ws-strength-bar-bg">
                         <div 
                           className="ws-strength-bar-fill" 
                           style={{ 
-                            width: `${getPasswordStrength(newPassword).score}%`, 
-                            backgroundColor: getPasswordStrength(newPassword).color 
+                            width: `${newPasswordStrength.score}%`, 
+                            backgroundColor: newPasswordStrength.color 
                           }}
                         ></div>
                       </div>

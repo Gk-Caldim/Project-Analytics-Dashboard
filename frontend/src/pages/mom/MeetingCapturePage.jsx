@@ -368,7 +368,7 @@ const MeetingCapturePage = () => {
   const [recordState, setRecordState] = useState('IDLE');
   const [timerVal, setTimerVal] = useState(0);
   const [micError, setMicError] = useState('');
-  const [waveHeights, setWaveHeights] = useState(Array(28).fill(4));
+  const canvasRef = useRef(null);
   const [interimEntry, setInterimEntry] = useState(null);
   const recognitionRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -525,8 +525,32 @@ const MeetingCapturePage = () => {
       audioCtx.createMediaStreamSource(stream).connect(analyser);
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       const update = () => {
+        if (!analyserRef.current) return;
         analyser.getByteFrequencyData(dataArray);
-        setWaveHeights(Array.from({ length: 28 }, (_, i) => 4 + (dataArray[i * 4] / 255) * 44));
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0D9488';
+            ctx.globalAlpha = 0.8;
+            const barWidth = 4;
+            const gap = 4;
+            for (let i = 0; i < 28; i++) {
+              const val = dataArray[i * 4] || 0;
+              const barHeight = 4 + (val / 255) * 44;
+              const x = i * (barWidth + gap);
+              const y = (canvas.height - barHeight) / 2;
+              ctx.beginPath();
+              if (ctx.roundRect) {
+                ctx.roundRect(x, y, barWidth, barHeight, 2);
+              } else {
+                ctx.rect(x, y, barWidth, barHeight);
+              }
+              ctx.fill();
+            }
+          }
+        }
         animationFrameRef.current = requestAnimationFrame(update);
       };
       update();
@@ -1045,7 +1069,9 @@ const MeetingCapturePage = () => {
                       {recordState === 'IDLE' ? <Mic size={24} color="#fff" /> : <Square size={18} color="#fff" />}
                     </button>
                     <div className="mcp-record-timer-display">{formatTime(timerVal)}</div>
-                    <div className="mcp-waveform">{waveHeights.map((h, i) => <div key={i} className="mcp-wave-bar" style={{ height: h }} />)}</div>
+                    <div className="mcp-waveform">
+                      <canvas ref={canvasRef} width={220} height={48} style={{ display: 'block' }} />
+                    </div>
                     {micError && <div className="mcp-mic-error">{micError}</div>}
                   </div>
                 </div>

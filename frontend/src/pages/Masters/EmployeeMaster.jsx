@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
 import API from '../../utils/api';
 import FilterDrawer from './components/FilterDrawer';
 import Skeleton from '../../components/ui/skeleton';
@@ -104,7 +105,14 @@ const EmployeeMaster = () => {
   const [validationErrors, setValidationErrors] = useState({});
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showDeleteColumnPrompt, setShowDeleteColumnPrompt] = useState(null);
-  const [dynamicRoles, setDynamicRoles] = useState([]);
+  const { data: dynamicRoles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await API.get('/roles/');
+      return res.data;
+    },
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
 
   // Filter Dropdown state
   const [filterDraft, setFilterDraft] = useState({});
@@ -159,7 +167,6 @@ const EmployeeMaster = () => {
       await API.post('/employees/migrate-user-role').catch(() => { });
       await fetchColumns();
       await fetchEmployees();
-      await fetchDynamicRoles();
     } catch (err) {
       console.error("Error loading data:", err);
       setError("Failed to load data. Please try again.");
@@ -209,16 +216,6 @@ const EmployeeMaster = () => {
     }
   };
 
-  const fetchDynamicRoles = async () => {
-    try {
-      const res = await API.get('/roles/');
-      if (Array.isArray(res.data)) {
-        setDynamicRoles(res.data);
-      }
-    } catch (err) {
-      console.error("Error fetching roles", err);
-    }
-  };
 
   // Refresh function - resets selections and freezes
   const handleRefresh = async () => {
