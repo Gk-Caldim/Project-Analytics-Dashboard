@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Server, Key, Database, Wifi, ShieldCheck, Eye, EyeOff, RefreshCcw, Check, AlertCircle, Loader2 } from 'lucide-react';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 const Connections = ({ settings, onSaveSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);

@@ -10,7 +10,7 @@ import {
   Mic, Square, Pause, Play, Sparkles, Pencil as PencilIcon, Search, ChevronDown,
   ChevronUp, GripHorizontal, Globe, Crown, Mail, UserPlus, MoreVertical
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import './MeetingDetailsPage.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '../../hooks/use-confirm';
@@ -307,8 +307,166 @@ const MeetingDetailsPage = () => {
 
   const agendaPanelRef = useRef(null);
 
-  const showToast = (message) => {
-    toast.success(message);
+  const showToast = (message, type = 'success', description = '') => {
+    const toastPresets = {
+      'Switching type...': {
+        title: 'Switching meeting type',
+        desc: 'Loading configuration details...'
+      },
+      'Break added to agenda': {
+        title: 'Break added',
+        desc: 'A rest break has been successfully added to your agenda.'
+      },
+      'Failed to load meeting': {
+        title: 'Failed to load meeting',
+        desc: 'Could not fetch details. Please check your network connection.'
+      },
+      'Copied to clipboard': {
+        title: 'Copied to clipboard',
+        desc: 'Meeting summary copied to clipboard successfully.'
+      },
+      'Link updated': {
+        title: 'Link updated',
+        desc: 'The meeting platform URL has been updated.'
+      },
+      "Meeting name can't be empty": {
+        title: 'Validation failed',
+        desc: 'Meeting name cannot be empty. Please enter a valid name.'
+      },
+      'Failed to sync agenda': {
+        title: 'Sync failed',
+        desc: 'Could not sync agenda changes to server.'
+      },
+      'Restored': {
+        title: 'Action undone',
+        desc: 'The item has been successfully restored.'
+      },
+      'Sending follow-up...': {
+        title: 'Sending follow-up',
+        desc: 'Sharing meeting notes and action items with attendees...'
+      },
+      'Follow-up sent ': {
+        title: 'Follow-up sent',
+        desc: 'Follow-up emails have been delivered successfully.'
+      },
+      'Failed to send follow-up': {
+        title: 'Send failed',
+        desc: 'Could not deliver follow-up emails.'
+      },
+      'Item duplicated': {
+        title: 'Item duplicated',
+        desc: 'The selected item was successfully cloned.'
+      },
+      'Failed to sync attendee list': {
+        title: 'Sync failed',
+        desc: 'Could not synchronize attendee changes to server.'
+      },
+      'Invitation sent': {
+        title: 'Invitation sent',
+        desc: 'Invite email delivered to the participant.'
+      },
+      'Emails copied to clipboard': {
+        title: 'Emails copied',
+        desc: 'Attendee email addresses copied successfully.'
+      },
+      'Meeting duplicated successfully': {
+        title: 'Meeting duplicated',
+        desc: 'A new draft copy of this meeting has been created.'
+      },
+      'Failed to duplicate meeting': {
+        title: 'Duplication failed',
+        desc: 'Unable to clone this meeting. Please try again.'
+      },
+      'Action reversed successfully': {
+        title: 'Action undone',
+        desc: 'Changes successfully reversed.'
+      },
+      'Failed to undo action': {
+        title: 'Undo failed',
+        desc: 'Could not reverse the previous action.'
+      },
+      'Meeting rescheduled': {
+        title: 'Meeting rescheduled',
+        desc: 'The new date and time has been successfully saved.'
+      },
+      'Failed to reschedule': {
+        title: 'Reschedule failed',
+        desc: 'Could not update meeting time.'
+      },
+      'Meeting link regenerated': {
+        title: 'Link updated',
+        desc: 'A new platform link has been successfully generated.'
+      },
+      'All invites sent': {
+        title: 'Invites sent',
+        desc: 'Invitations dispatched to all invited attendees.'
+      },
+      'Action failed': {
+        title: 'Action failed',
+        desc: 'Something went wrong. Please try again later.'
+      },
+      'Failed to cancel meeting': {
+        title: 'Cancellation failed',
+        desc: 'Could not cancel the meeting at this time.'
+      },
+      'Meeting archived': {
+        title: 'Meeting archived',
+        desc: 'Meeting record successfully moved to archive.'
+      },
+      'Failed to archive meeting': {
+        title: 'Archive failed',
+        desc: 'Could not archive the meeting at this time.'
+      },
+      'MOM generated': {
+        title: 'MOM generated',
+        desc: 'Minutes of Meeting have been successfully drafted.'
+      },
+      'Failed to generate MOM': {
+        title: 'Drafting failed',
+        desc: 'Unable to compile minutes at this time.'
+      },
+      'Saving transcript to backend...': {
+        title: 'Saving transcript',
+        desc: 'Uploading audio transcript details to server...'
+      },
+      'Transcript saved successfully!': {
+        title: 'Transcript saved',
+        desc: 'Audio transcript successfully saved.'
+      },
+      'Failed to save transcript': {
+        title: 'Save failed',
+        desc: 'Unable to upload transcript. Please check your connection.'
+      }
+    };
+
+    const isError = type === 'error' || 
+                    message.toLowerCase().includes('failed') || 
+                    message.toLowerCase().includes('empty') || 
+                    message.toLowerCase().includes("can't");
+                    
+    const preset = toastPresets[message];
+    const finalTitle = preset ? preset.title : message;
+    const finalDesc = description || (preset ? preset.desc : '');
+
+    if (isError) {
+      toast.error(finalTitle, finalDesc ? { description: finalDesc } : undefined);
+    } else {
+      let matchedDesc = finalDesc;
+      let matchedTitle = finalTitle;
+      if (!preset) {
+        if (message.startsWith('Host role transferred to ')) {
+          matchedTitle = 'Role transferred';
+          matchedDesc = message;
+        } else if (message.startsWith('Removed ') && message.endsWith(' attendees')) {
+          matchedTitle = 'Attendees removed';
+          matchedDesc = message;
+        } else if (message.includes('already invited')) {
+          matchedTitle = 'Already invited';
+          matchedDesc = message;
+        }
+      }
+      toast.success(matchedTitle, matchedDesc ? { description: matchedDesc } : undefined);
+    }
   };
 
   const getHealthChecks = () => {
@@ -680,16 +838,17 @@ const MeetingDetailsPage = () => {
     
     setUndoTimeout(timeout);
     
-    toast.success(`Removed: ${itemToDelete.title}`, {
+    toast.success('Agenda item removed', {
+      description: `Removed "${itemToDelete.title}"`,
       action: {
         label: 'Undo',
         onClick: () => {
           clearTimeout(timeout);
           setDeletingIndex(null);
-          showToast('Restored');
+          showToast('Restored', 'success', 'Agenda item restored.');
         }
       },
-      duration: 3000
+      duration: 4000
     });
   };
 
@@ -719,6 +878,7 @@ const MeetingDetailsPage = () => {
     setUndoActionItem(item);
     saveActionItems(actionItems.filter(i => i.id !== id));
     toast.success('Action item removed', {
+      description: `Removed "${item.text.slice(0, 30)}${item.text.length > 30 ? '...' : ''}"`,
       action: { label: 'Undo', onClick: () => saveActionItems([...actionItems, item]) }
     });
   };
@@ -833,16 +993,17 @@ const MeetingDetailsPage = () => {
 
     setAttendeeUndoTimer(timer);
 
-    toast.success(`Removed ${attToRemove.name || attToRemove.email}`, {
+    toast.success('Attendee removed', {
+      description: `Removed ${attToRemove.name || attToRemove.email}`,
       action: {
         label: 'Undo',
         onClick: () => {
           clearTimeout(timer);
           setRemovingAttendeeId(null);
-          showToast('Restored');
+          showToast('Restored', 'success', 'Attendee list restored.');
         }
       },
-      duration: 3000
+      duration: 4000
     });
   };
 
@@ -878,7 +1039,7 @@ const MeetingDetailsPage = () => {
       await API.post(`/meetings/${id}/resend-invite`, { email });
       // Mark as sent — show ✓ badge for 3 s then clear
       setResentEmails(prev => new Set([...prev, email]));
-      toast.success(`Invite resent to ${email}`);
+      toast.success('Invitation resent', { description: `Resent meeting invite to ${email}.` });
       setTimeout(() => {
         setResentEmails(prev => {
           const next = new Set(prev);
@@ -888,7 +1049,7 @@ const MeetingDetailsPage = () => {
       }, 3000);
     } catch (err) {
       const msg = err?.response?.data?.detail || err?.message || 'Failed to resend invite';
-      toast.error(msg);
+      toast.error('Failed to send invite', { description: msg });
     } finally {
       setResendingEmail(null);
     }

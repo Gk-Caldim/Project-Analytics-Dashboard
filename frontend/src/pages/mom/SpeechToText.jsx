@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Mic, Upload, X, Play, Pause, Square, FileText, FileUp, CornerDownLeft, Plus,
   CheckCircle, Edit2, Sparkles, Download, Clipboard, Target, AlertCircle
@@ -713,7 +713,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
         setTimerVal(0);
         setUseMediaFallback(false);
         setRecordingState('IDLE');
-        toast.success('Recording stopped — ready to generate.');
+        toast.success('Recording stopped', { description: 'Transcript is ready for MOM generation.' });
       }
       return;
     }
@@ -743,7 +743,7 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
       setTimerVal(0);
       setUseMediaFallback(false);
       setRecordingState('IDLE');
-      toast.success('Recording stopped — ready to generate.');
+      toast.success('Recording stopped', { description: 'Transcript is ready for MOM generation.' });
     }
   };
 
@@ -912,12 +912,12 @@ const SpeechToText = ({ onProcessSpeech, meetings, switchToTable, lockedProjectI
   const handleFileUpload = (e) => {
     // ── Validation ──
     if (!meetingTitle.trim()) {
-      toast.error('Please enter a Meeting Name first');
+      toast.error('Meeting title required', { description: 'Please enter a meeting title before uploading a file.' });
       e.target.value = '';
       return;
     }
     if (!lockedProjectId && !projectId) {
-      toast.error('Please select a Project first');
+      toast.error('Project selection required', { description: 'Please associate a project with this meeting.' });
       e.target.value = '';
       return;
     }

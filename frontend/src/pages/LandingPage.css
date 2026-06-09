@@ -1056,3 +1056,30 @@
   
 
 }
+
+/* ── LATENCY & RENDER OPTIMIZATIONS ── */
+.zoho-apps-section,
+.stats-section,
+.bottom-cta-section,
+.zoho-footer {
+  content-visibility: auto;
+}
+
+.zoho-apps-section {
+  contain-intrinsic-size: 800px;
+}
+.stats-section {
+  contain-intrinsic-size: 400px;
+}
+.bottom-cta-section {
+  contain-intrinsic-size: 500px;
+}
+.zoho-footer {
+  contain-intrinsic-size: 100px;
+}
+
+.zoho-app-icon svg {
+  width: 100%;
+  height: 100%;
+}
+

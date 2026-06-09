@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "../../components/ui/alert-dialog";
 import API from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { EVENT_COLORS } from '../constants';
@@ -379,7 +379,7 @@ const ScheduleMeetingPremiumPage = () => {
             }
           }
         } catch (error) {
-          toast.error("Failed to fetch meeting for edit");
+          toast.error('Failed to load meeting', { description: 'Please check your connection and try again.' });
         }
       };
       fetchMeeting();
@@ -499,14 +499,14 @@ const ScheduleMeetingPremiumPage = () => {
   const handleConnectPlatform = (e, platformId) => {
     e.stopPropagation();
     const name = PLATFORM_NAMES[platformId] || platformId;
-    const toastId = toast.loading(`Connecting to ${name}...`);
+    const toastId = toast.loading(`Connecting to ${name}`, { description: 'Establishing connection with integration platform...' });
     setTimeout(() => {
       setConnectedPlatforms(prev => {
         const next = { ...prev, [platformId]: true };
         localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
         return next;
       });
-      toast.success(`${name} connected!`, { id: toastId });
+      toast.success('Platform connected', { id: toastId, description: `Successfully connected to ${name}.` });
     }, 1200);
   };
 
@@ -518,12 +518,12 @@ const ScheduleMeetingPremiumPage = () => {
       localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
       return next;
     });
-    toast.success(`${name} disconnected.`);
+    toast.success('Platform disconnected', { description: `Successfully disconnected from ${name}.` });
   };
 
   const handleCheckAvailability = () => {
     if (attendees.length === 0) {
-      toast.error('Add participants to check availability');
+      toast.error('Participants required', { description: 'Please add at least one participant to check schedule availability.' });
       return;
     }
     setIsCheckingAvailability(true);
@@ -551,8 +551,8 @@ const ScheduleMeetingPremiumPage = () => {
       setAvailabilityResults(results);
       setIsCheckingAvailability(false);
       
-      if (hasConflict) toast.error('Conflicts found on schedule');
-      else toast.success('Everyone is available!');
+      if (hasConflict) toast.error('Conflicts detected', { description: 'One or more participants are busy during this time.' });
+      else toast.success('Schedule clear', { description: 'All participants are available during this time.' });
     }, 600);
   };
 
@@ -574,7 +574,7 @@ const ScheduleMeetingPremiumPage = () => {
     if (!isFormValid || isPublishing) return;
 
     setIsPublishing(true);
-    const loadingToast = toast.loading(isEditMode ? 'Saving Changes...' : 'Sending Invites...');
+    const loadingToast = toast.loading(isEditMode ? 'Saving changes' : 'Sending invites', { description: isEditMode ? 'Updating meeting details...' : 'Sending invitations to attendees...' });
     try {
       const payload = {
         title, date, time: startTime,
@@ -595,7 +595,7 @@ const ScheduleMeetingPremiumPage = () => {
       }
       
       if (response.data?.success) {
-        toast.success(isEditMode ? 'Event edited successfully' : 'Meeting scheduled successfully', { id: loadingToast });
+        toast.success(isEditMode ? 'Meeting updated' : 'Meeting scheduled', { id: loadingToast, description: isEditMode ? 'Changes have been saved successfully.' : 'Invitations have been sent to all attendees.' });
         setTimeout(() => {
           if (isEditMode) {
              navigate('/dashboard/calendar');
@@ -607,7 +607,7 @@ const ScheduleMeetingPremiumPage = () => {
         throw new Error(response.data?.error || 'Failed to publish');
       }
     } catch (err) {
-      toast.error('Failed to schedule meeting: ' + err.message, { id: loadingToast });
+      toast.error(isEditMode ? 'Failed to update' : 'Failed to schedule', { id: loadingToast, description: err.message || 'An unexpected error occurred.' });
       setIsPublishing(false);
     }
   };
@@ -1085,14 +1085,14 @@ const ScheduleMeetingPremiumPage = () => {
                         });
                         
                         if (ok) {
-                          const toastId = toast.loading(`Connecting to ${p.name}...`);
+                          const toastId = toast.loading(`Connecting to ${p.name}`, { description: 'Establishing connection with integration platform...' });
                           setTimeout(() => {
                             setConnectedPlatforms(prev => {
                               const next = { ...prev, [p.id]: true };
                               localStorage.setItem('caldim_connected_platforms', JSON.stringify(next));
                               return next;
                             });
-                            toast.success(`${p.name} connected!`, { id: toastId });
+                            toast.success('Platform connected', { id: toastId, description: `Successfully connected to ${p.name}.` });
                             setPlatform(p.id);
                           }, 1200);
                         }

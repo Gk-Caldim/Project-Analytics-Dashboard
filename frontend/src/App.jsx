@@ -16,8 +16,6 @@ const MOMModule = React.lazy(() => import('./pages/mom/MOMModule'));
 const TranscriptViewer = React.lazy(() => import('./pages/mom/TranscriptViewer'));
 const MeetingCapturePage = React.lazy(() => import('./pages/mom/MeetingCapturePage'));
 const MOMViewPage = React.lazy(() => import('./pages/mom/MOMViewPage'));
-const MeetingsDashboardPage = React.lazy(() => import('./pages/mom/MeetingsDashboardPage'));
-const ScheduleMeetingPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPage'));
 const ScheduleMeetingPremiumPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPremiumPage'));
 const MeetingDetailsPage = React.lazy(() => import('./pages/mom/MeetingDetailsPage'));
 const SavedMOMsPage = React.lazy(() => import('./pages/mom/SavedMOMsPage'));
@@ -40,9 +38,10 @@ const WorkspaceDashboard = React.lazy(() => import('./pages/WorkspaceDashboard')
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 const CalendarPage = React.lazy(() => import('./pages/calendar/CalendarPage'));
 
-import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ConfirmProvider } from './hooks/use-confirm';
 import { Toaster, toast } from 'react-hot-toast';
+import { Toaster as SonnerToaster } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
 import { Sparkles, X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react';
 import { setBranding, setExchangeRates, setServerOnline } from './store/slices/navSlice';
@@ -50,6 +49,7 @@ import API from './utils/api';
 import useInactivityTimeout from './hooks/useInactivityTimeout';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
+import ServerOfflineView from './components/ServerOfflineView';
 
 const CustomToast = ({ t, toast }) => {
   const isError = t.type === 'error';
@@ -162,6 +162,7 @@ function AppContent() {
   const reconnectTimerRef = React.useRef(null);
   const wasOffline = React.useRef(false);
   const failureCountRef = React.useRef(0);
+  const { themeSettings } = useTheme();
 
   // Selector to read if server is online
   const isServerOnline = useSelector(state => state.nav.isServerOnline);
@@ -232,7 +233,7 @@ function AppContent() {
       wasOffline.current = true;
     } else if (isServerOnline === true && wasOffline.current) {
       wasOffline.current = false;
-      toast.success("Backend server connected! Syncing data...");
+      toast.success("Server connected! Syncing data...");
       setTimeout(() => {
         window.location.reload();
       }, 1500);
@@ -242,8 +243,12 @@ function AppContent() {
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
-      const response = await API.get('/settings/');
-      return response.data || [];
+      try {
+        const response = await API.get('/settings/');
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        return [];
+      }
     },
     staleTime: 5 * 60 * 1000,
     enabled: isServerOnline === true,
@@ -260,7 +265,7 @@ function AppContent() {
   });
 
   React.useEffect(() => {
-    if (settings) {
+    if (settings && Array.isArray(settings)) {
       const companyName = settings.find(s => s.key === 'company_name')?.value;
       const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
       const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;
@@ -366,13 +371,44 @@ function AppContent() {
   const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname === '/workspace-dashboard';
   const showBanner = isServerOnline === false && (location.pathname.startsWith('/dashboard') || location.pathname === '/login');
 
+  const isPublicRoute = location.pathname === '/' || 
+                        location.pathname === '/pricing' || 
+                        location.pathname === '/enterprise' || 
+                        location.pathname === '/customers';
+  const showOfflineScreen = isServerOnline === false && !isPublicRoute;
+
+  if (showOfflineScreen) {
+    return (
+      <ServerOfflineView 
+        title="Server Offline"
+        description="We're having trouble connecting to the server. Please try again in few minutes."
+        onRetry={async () => {
+          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+          const healthUrl = apiBase.replace(/\/api\/?$/, '/healthz');
+          try {
+            const res = await axios.get(healthUrl, { timeout: 3000 });
+            if (res.data && res.data.status === 'ok') {
+              dispatch(setServerOnline(true));
+              toast.success("Server connected!");
+            } else {
+              toast.error("Server is still offline.");
+            }
+          } catch (err) {
+            toast.error("Server is still offline.");
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <div className={isDashboardRoute ? "flex flex-col h-screen overflow-hidden" : "flex flex-col min-h-screen"}>
+      <SonnerToaster theme={themeSettings?.displayMode || 'light'} closeButton richColors position="top-center" />
       {showBanner && (
         <div className="h-10 bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 dark:border-amber-500/10 px-6 flex items-center justify-between text-amber-800 dark:text-amber-300 text-xs font-semibold z-[99999] backdrop-blur-md shrink-0 select-none animate-in fade-in duration-300">
           <div className="flex items-center gap-2">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
-            <span>Backend server is offline or starting up. Retrying connection...</span>
+            <span>Server is offline or starting up. Retrying connection...</span>
           </div>
           <button
             onClick={() => {

@@ -12,7 +12,7 @@ import {
   Check, Edit3, Target, Plus, MessageSquare, AlertTriangle, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import API from '../../utils/api';
 import { getProjectAccent } from '../../utils/projectColors';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -38,6 +38,8 @@ import {
   PaginationNext,
 } from '../../components/ui/pagination';
 import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem } from '../../components/ui/combobox';
+import { Switch } from '../../components/ui/switch';
+import { Label } from '../../components/ui/label';
 import './SavedMOMsPage.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -285,7 +287,7 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       const res = await API.get(`/mom/syncs/${syncId}/items`);
       setItems(res.data.rows || []);
     } catch {
-      toast.error('Failed to load items');
+      toast.error('Failed to load items', { description: 'Could not fetch action items. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -300,9 +302,9 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       ));
-      toast.success('Field updated', { icon: '✨', duration: 1500 });
+      toast.success('Field updated', { description: 'The changes have been saved.', duration: 2000 });
     } catch {
-      toast.error('Update failed');
+      toast.error('Update failed', { description: 'Failed to update field value.' });
     }
   };
 
@@ -321,9 +323,9 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, ...editingRowData } : item
       ));
-      toast.success('Row saved', { icon: '✅', duration: 1500 });
+      toast.success('Row saved', { description: 'All changes for the row have been successfully saved.', duration: 2000 });
     } catch {
-      toast.error('Save failed');
+      toast.error('Save failed', { description: 'Failed to save row changes.' });
     } finally {
       setEditingRowId(null);
       setEditingRowData({});
@@ -359,10 +361,10 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       await API.delete(`/mom/action-items/${itemId}`);
       setItems(prev => prev.filter(item => item.id !== itemId));
       if (onItemDeleted) onItemDeleted();
-      toast.success('Item deleted', { icon: '🗑️', duration: 1500 });
+      toast.success('Item deleted', { description: 'The action item was removed.', duration: 2000 });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      toast.error(`Delete failed: ${detail}`);
+      toast.error('Delete failed', { description: detail });
     } finally {
       setDeletingRowId(null);
     }
@@ -732,7 +734,7 @@ const SavedMOMsPage = () => {
       setRecords(recs);
       return recs;
     } catch {
-      toast.error('Failed to load history');
+      toast.error('Failed to load history', { description: 'Could not fetch MOM sync logs.' });
       return [];
     } finally {
       setLoading(false);
@@ -804,10 +806,10 @@ const SavedMOMsPage = () => {
         if (meetingId && r.meeting_id === meetingId) return false;
         return true;
       }));
-      toast.success('MOM completely and permanently deleted', { icon: '🗑️' });
+      toast.success('Record deleted', { description: 'MOM sync log and action items permanently deleted.' });
     } catch (err) {
       console.error('[DELETE SYNC ERROR]', err);
-      toast.error('Failed to hard delete MOM');
+      toast.error('Delete failed', { description: 'Could not permanently delete this record.' });
     }
   };
 
@@ -924,14 +926,22 @@ const SavedMOMsPage = () => {
             </ComboboxList>
           </ComboboxContent>
         </Combobox>
-        <button
-          onClick={() => setMultiExpand(!multiExpand)}
-          className={`smp-pill flex items-center gap-2 outline-none cursor-pointer select-none transition-all duration-150 ${multiExpand ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}
-          style={{ border: '1px solid' }}
+        <div 
+          className="flex items-center gap-2 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-[20px] px-3.5 h-[36px] select-none"
+          title="When enabled, expanding a meeting card keeps previously opened cards open."
         >
-          <span className={`w-2 h-2 rounded-full ${multiExpand ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`} />
-          <span className="font-semibold text-xs uppercase tracking-wider">Multi-Expand</span>
-        </button>
+          <Switch 
+            id="multi-expand-toggle" 
+            checked={multiExpand} 
+            onCheckedChange={setMultiExpand} 
+          />
+          <Label 
+            htmlFor="multi-expand-toggle" 
+            className="text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer"
+          >
+            Multiple VIEW
+          </Label>
+        </div>
       </div>
 
       {/* Content */}

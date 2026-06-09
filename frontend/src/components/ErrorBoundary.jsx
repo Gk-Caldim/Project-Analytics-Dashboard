@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { AlertOctagon, RefreshCcw, Home } from 'lucide-react';
+import ServerOfflineView from './ServerOfflineView';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -19,6 +20,20 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const errorMsg = this.state.error?.message || '';
+      const isOffline = errorMsg.includes("Failed to fetch dynamically imported module") ||
+                        errorMsg.includes("dynamically imported module") ||
+                        errorMsg.includes("Failed to fetch");
+
+      if (isOffline) {
+        return (
+          <ServerOfflineView 
+            title="Server Connection Lost"
+            description="We're having trouble connecting to the server. Please try again in few minutes."
+          />
+        );
+      }
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-6 selection:bg-rose-100">
           <div className="bg-white dark:bg-slate-900 border-2 border-rose-100 dark:border-rose-900/30 p-10 rounded-3xl shadow-2xl max-w-2xl w-full relative overflow-hidden">

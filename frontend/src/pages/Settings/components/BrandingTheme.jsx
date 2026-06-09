@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sun, Moon, CheckCircle2, Loader2 } from 'lucide-react';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 const BrandingTheme = ({ settings, onSaveSuccess, onLocalUpdate }) => {
   const [localEdits, setLocalEdits] = useState({});

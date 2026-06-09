@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { 
+import {
   Plus, Trash2, ChevronRight, ChevronLeft, ChevronDown, AlignLeft,
-  ZoomIn, ZoomOut, AlertTriangle, Calendar, Users, 
+  ZoomIn, ZoomOut, AlertTriangle, Calendar, Users,
   CheckCircle, RefreshCw, Save, FolderPlus, Layers, Edit,
   ChevronUp, User, LayoutGrid, CheckSquare, Square, Eye, Sparkles, X,
-  Settings, Columns, Table, BarChart3
+  Settings, Columns, Table, BarChart3,
+  Star, Flag, ArrowRight, Bell, Filter, CircleDot, CirclePlay,
+  CircleCheck, CirclePause, CircleX, Clock, Diamond, FolderOpen,
+  ListTodo, GitBranch, Milestone, Activity, UserCheck, StickyNote,
+  Building2, Cpu, Package, Cog, HardHat, Wrench, Zap,
+  Pin, GripVertical, TrendingUp, PanelLeft, PanelRight, Maximize2, MinusSquare, PlusSquare
 } from 'lucide-react';
 import API from '../../utils/api';
 import { getEmployees } from '../../utils/employeeApi';
@@ -329,7 +334,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
   // Active view tabs
   const [activeSubTab, setActiveSubTab] = useState('gantt'); 
   const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [showCriticalOnly, setShowCriticalOnly] = useState(false);
+
+  // Gantt-specific filters (separate from table filters)
+  const [ganttDeptFilter, setGanttDeptFilter] = useState('All');
+  const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
+  const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
+  const [showGanttFilter, setShowGanttFilter] = useState(false);
 
   // Dynamic Column Creator Modal
   const [showAddColModal, setShowAddColModal] = useState(false);
@@ -411,6 +423,20 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const [tempSetBaselineChecked, setTempSetBaselineChecked] = useState(false);
   const [tempShowBaselineOverlay, setTempShowBaselineOverlay] = useState(true);
   const [tempBaselineVersion, setTempBaselineVersion] = useState('Baseline_V1');
+
+  // Column resize state
+  const [colWidths, setColWidths] = useState({
+    idx: 40, activity: 384, pin: 64, dept: 144, subActs: 112,
+    startDate: 128, endDate: 128, duration: 96,
+    actStart: 128, actEnd: 128, variance: 112,
+    pctDone: 80, assignedTo: 192, status: 112, predecessors: 160, followup: 128, actions: 144,
+  });
+  const resizingCol = useRef(null);
+
+  // Gantt grouping and pin markers
+  const [groupByDept, setGroupByDept] = useState(false);
+  const [ganttPins, setGanttPins] = useState([]);
+  const [pinMode, setPinMode] = useState(null); // null | 'star' | 'flag' | 'arrow'
 
   // Row height matching dense MS Project layout
   const rowHeight = 56;
@@ -603,6 +629,55 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
     setTimelineStart(startPadding);
     setTimelineEnd(endPadding);
+  };
+
+  // ── Column resize handler ──────────────────────────────────────────────────
+  const startColResize = (e, colKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colWidths[colKey];
+    const onMove = (ev) => {
+      const delta = ev.clientX - startX;
+      setColWidths(prev => ({ ...prev, [colKey]: Math.max(48, startWidth + delta) }));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  // ── Gantt pin handlers ─────────────────────────────────────────────────────
+  const handleGanttCanvasClick = (e) => {
+    if (!pinMode) return;
+    if (e.target.closest('[data-pin]')) return; // don't place on existing pin
+    const rect = ganttRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const scrollLeft = ganttRef.current.scrollLeft;
+    const x = e.clientX - rect.left + scrollLeft;
+    const dayOffset = Math.max(0, x / pxPerDay);
+    setGanttPins(prev => [...prev, { id: Date.now(), dayOffset, type: pinMode }]);
+  };
+
+  const handlePinDragStart = (e, pinId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const pin = ganttPins.find(p => p.id === pinId);
+    if (!pin) return;
+    const startOffset = pin.dayOffset;
+    const onMove = (ev) => {
+      const delta = (ev.clientX - startX) / pxPerDay;
+      setGanttPins(prev => prev.map(p => p.id === pinId ? { ...p, dayOffset: Math.max(0, startOffset + delta) } : p));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   };
 
   const pxPerDay = useMemo(() => {
@@ -859,17 +934,40 @@ const MilestoneManagement = ({ project, showNotification }) => {
       .map((t, idx) => ({ ...t, originalIndex: idx }))
       .filter(t => {
         if (departmentFilter !== 'All' && t.department !== departmentFilter) return false;
+        if (statusFilter !== 'All' && t.status !== statusFilter) return false;
         if (showCriticalOnly && !t.is_critical) return false;
         return true;
       });
-  }, [tasks, departmentFilter, showCriticalOnly]);
+  }, [tasks, departmentFilter, statusFilter, showCriticalOnly]);
 
-  // Virtualization boundaries
+  // Gantt-filtered tasks (may differ from table filter)
+  const ganttFilteredTasks = useMemo(() => {
+    return filteredTasks.filter(t => {
+      if (ganttDeptFilter !== 'All' && t.department !== ganttDeptFilter) return false;
+      if (ganttTypeFilter !== 'All' && t.item_type !== ganttTypeFilter) return false;
+      if (ganttStatusFilter !== 'All' && t.status !== ganttStatusFilter) return false;
+      return true;
+    });
+  }, [filteredTasks, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
+
+  const isGanttFiltered = ganttDeptFilter !== 'All' || ganttTypeFilter !== 'All' || ganttStatusFilter !== 'All';
+
+  // Auto-show analytics when any non-default filter is active
+  const isFiltered = departmentFilter !== 'All' || statusFilter !== 'All' || showCriticalOnly;
+
+  // Virtualization boundaries (table)
   const visibleIndices = useMemo(() => {
     const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 5);
     const endIndex = Math.min(filteredTasks.length, Math.ceil((scrollTop + clientHeight) / rowHeight) + 5);
     return { start: startIndex, end: endIndex };
   }, [scrollTop, clientHeight, filteredTasks.length]);
+
+  // Virtualization boundaries (gantt — uses ganttFilteredTasks row count)
+  const ganttVisibleIndices = useMemo(() => {
+    const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 5);
+    const endIndex = Math.min(ganttFilteredTasks.length, Math.ceil((scrollTop + clientHeight) / rowHeight) + 5);
+    return { start: startIndex, end: endIndex };
+  }, [scrollTop, clientHeight, ganttFilteredTasks.length]);
 
   const setAndRollupTasks = (updater) => {
     setTasks(prev => {
@@ -1415,9 +1513,9 @@ const MilestoneManagement = ({ project, showNotification }) => {
     return Array.from(combined);
   }, [teamDepartments]);
 
-  // Gantt Bars Mapping
+  // Gantt Bars Mapping (uses ganttFilteredTasks so Gantt filter is independent)
   const ganttBars = useMemo(() => {
-    return filteredTasks.map((t, idx) => {
+    return ganttFilteredTasks.map((t, idx) => {
       if (!t.start_date || !t.end_date) return null;
 
       const plannedStart = new Date(t.start_date);
@@ -1496,7 +1594,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
         duration: Math.ceil((plannedEnd - plannedStart) / 86400000) || 1
       };
     });
-  }, [filteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks, showOverdueTaskShading]);
+  }, [ganttFilteredTasks, timelineStart, pxPerDay, baselineVersion, projectTeam, tasks, showOverdueTaskShading]);
 
   // SVG Connector Lines
   const dependencyLines = useMemo(() => {
@@ -1519,8 +1617,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
       const predIdx = predObj.index;
       const succIdx = succObj.index;
 
-      const startVisible = visibleIndices.start;
-      const endVisible = visibleIndices.end;
+      const startVisible = ganttVisibleIndices.start;
+      const endVisible = ganttVisibleIndices.end;
       if ((predIdx < startVisible && succIdx < startVisible) || (predIdx > endVisible && succIdx > endVisible)) {
         return;
       }
@@ -1584,7 +1682,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
     });
 
     return lines;
-  }, [ganttBars, dependencies, visibleIndices, rowHeight, showDataType]);
+  }, [ganttBars, dependencies, ganttVisibleIndices, rowHeight, showDataType]);
 
   const getSCurveOption = () => {
     const validTasks = tasks.filter(t => t.start_date && t.end_date);
@@ -1717,6 +1815,61 @@ const MilestoneManagement = ({ project, showNotification }) => {
     };
   };
 
+  const getStatusDistributionOption = () => {
+    const statusCounts = {};
+    const statusColors = {
+      'Completed': '#10b981',
+      'In Progress': '#3b82f6',
+      'Delayed': '#ef4444',
+      'Upcoming': '#6366f1',
+      'On Hold': '#f59e0b',
+      'Not Started': '#64748b',
+      'Cancelled': '#94a3b8',
+    };
+    filteredTasks.forEach(t => {
+      const s = t.status || 'Not Started';
+      statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+    const data = Object.entries(statusCounts).map(([name, value]) => ({
+      name, value, itemStyle: { color: statusColors[name] || '#94a3b8' }
+    }));
+    return {
+      tooltip: { trigger: 'item', backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
+      legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: '#94a3b8', fontSize: 9 } },
+      series: [{
+        type: 'pie',
+        radius: ['42%', '68%'],
+        center: ['38%', '50%'],
+        data,
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 10, fontWeight: 'bold', color: '#f8fafc' } }
+      }]
+    };
+  };
+
+  const getDepartmentBreakdownOption = () => {
+    const deptCounts = {};
+    filteredTasks.forEach(t => {
+      const d = t.department || 'Unassigned';
+      if (!deptCounts[d]) deptCounts[d] = { total: 0, done: 0 };
+      deptCounts[d].total++;
+      if (t.status === 'Completed') deptCounts[d].done++;
+    });
+    const depts = Object.keys(deptCounts);
+    if (depts.length === 0) return { title: { text: 'No data', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } } };
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
+      legend: { data: ['Total Tasks', 'Completed'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '18%' },
+      xAxis: { type: 'category', data: depts, axisLabel: { color: '#94a3b8', fontSize: 8, rotate: 20 }, axisLine: { lineStyle: { color: '#334155' } } },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: [
+        { name: 'Total Tasks', type: 'bar', data: depts.map(d => deptCounts[d].total), itemStyle: { color: '#6366f1', borderRadius: [4,4,0,0] }, barWidth: '35%' },
+        { name: 'Completed', type: 'bar', data: depts.map(d => deptCounts[d].done), itemStyle: { color: '#10b981', borderRadius: [4,4,0,0] }, barWidth: '35%', barGap: '10%' }
+      ]
+    };
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px] w-full bg-[var(--bg)] font-sans">
@@ -1813,65 +1966,67 @@ const MilestoneManagement = ({ project, showNotification }) => {
         </div>
 
         {/* View and calculation operators */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Settings */}
           <button
             onClick={openSettingsModal}
-            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg font-bold transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg transition-all"
             title="Gantt Settings"
           >
-            <Settings size={13} /> Settings
+            <Settings size={14} className="text-slate-400" />
+            <span className="text-[11px] font-bold">Settings</span>
           </button>
 
+          {/* Analytics toggle */}
           <button
             onClick={() => setShowMetricsDashboard(prev => !prev)}
-            className={`flex items-center gap-1 px-3 py-1.5 border border-[var(--border-subtle)] rounded-lg font-bold transition-all ${
-              showMetricsDashboard 
-                ? 'bg-indigo-600/15 border-indigo-500 text-indigo-400 shadow' 
-                : 'bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)]'
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg transition-all ${
+              showMetricsDashboard
+                ? 'bg-indigo-600/15 border-indigo-500/60 text-indigo-400 shadow-sm'
+                : 'bg-[var(--surface)] border-[var(--border-subtle)] hover:bg-[var(--table-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
-            title="Toggle Schedule Analytics"
+            title="Toggle Schedule Analytics Dashboard"
           >
-            <Sparkles size={13} /> Analytics
+            <TrendingUp size={14} />
+            <span className="text-[11px] font-bold">Analytics</span>
           </button>
 
-          <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg font-bold">
-            {['Day', 'Week', 'Month'].map(lvl => (
+          {/* Zoom level */}
+          <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg">
+            {[
+              { lvl: 'Day',   icon: <ZoomIn size={11} />,    label: 'D' },
+              { lvl: 'Week',  icon: <Calendar size={11} />,  label: 'W' },
+              { lvl: 'Month', icon: <ZoomOut size={11} />,   label: 'M' },
+            ].map(({ lvl, icon, label }) => (
               <button
                 key={lvl}
                 onClick={() => setZoomLevel(lvl)}
-                className={`px-3 py-1 rounded transition-all ${zoomLevel === lvl ? 'bg-indigo-600 text-white shadow' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                title={`${lvl} view`}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold transition-all ${zoomLevel === lvl ? 'bg-indigo-600 text-white shadow' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
               >
-                {lvl}
+                {icon} {label}
               </button>
             ))}
           </div>
 
           <span className="h-4 w-[1px] bg-[var(--border-subtle)]" />
 
-          {/* Layout Mode Control */}
-          <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg font-bold text-xs" title="Select layout view">
+          {/* Layout Mode */}
+          <div className="flex items-center bg-[var(--bg)] border border-[var(--border-subtle)] p-0.5 rounded-lg" title="Layout view">
             {[
-              { id: 'split', label: 'Split View', icon: <Columns size={13} />, grid: true, gantt: true },
-              { id: 'table', label: 'Max Table', icon: <Table size={13} />, grid: true, gantt: false },
-              { id: 'chart', label: 'Max Chart', icon: <BarChart3 size={13} />, grid: false, gantt: true }
+              { id: 'split', title: 'Split View',  icon: <Columns size={14} />,   grid: true,  gantt: true  },
+              { id: 'table', title: 'Table Only',   icon: <PanelLeft size={14} />, grid: true,  gantt: false },
+              { id: 'chart', title: 'Gantt Only',   icon: <PanelRight size={14} />,grid: false, gantt: true  },
             ].map(mode => {
               const active = (mode.grid === showDataGrid && mode.gantt === showGantt);
               return (
                 <button
                   key={mode.id}
-                  onClick={() => {
-                    setShowDataGrid(mode.grid);
-                    setShowGantt(mode.gantt);
-                    setHoveredTask(null);
-                  }}
-                  className={`px-3 py-1 rounded transition-all flex items-center gap-1.5 ${
-                    active 
-                      ? 'bg-indigo-600 text-white shadow' 
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
+                  onClick={() => { setShowDataGrid(mode.grid); setShowGantt(mode.gantt); setHoveredTask(null); }}
+                  title={mode.title}
+                  className={`p-1.5 rounded transition-all ${active ? 'bg-indigo-600 text-white shadow' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                 >
                   {mode.icon}
-                  <span>{mode.label}</span>
                 </button>
               );
             })}
@@ -1879,32 +2034,48 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
           <span className="h-4 w-[1px] bg-[var(--border-subtle)]" />
 
+          {/* Add Column */}
           <button
             onClick={() => setShowAddColModal(true)}
-            className="px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg font-bold transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[var(--surface)] hover:bg-[var(--table-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-lg transition-all"
+            title="Add Custom Column"
           >
-            Add Column
+            <PlusSquare size={14} className="text-slate-400" />
+            <span className="text-[11px] font-bold">Add Col</span>
           </button>
 
+          {/* Save WBS */}
           <button
             onClick={handleRecalculate}
             disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-md disabled:opacity-50 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-md disabled:opacity-50 transition-all"
+            title="Recalculate CPM & Save"
           >
-            {saving ? <RefreshCw className="animate-spin" size={13} /> : <Save size={13} />} Save WBS
+            {saving ? <RefreshCw className="animate-spin" size={13} /> : <Save size={13} />}
+            <span className="text-[11px]">Save WBS</span>
           </button>
         </div>
       </div>
 
       {/* FILTER & BASELINE DOCK */}
       <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-2 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] sticky top-[52px] z-[25]">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span>Department:</span>
+        <div className="flex flex-wrap items-center gap-3">
+
+          {/* Active filter indicator */}
+          {isFiltered && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 font-bold text-[9px] uppercase tracking-wider">
+              <Filter size={9} /> Filtered · {filteredTasks.length} tasks
+            </span>
+          )}
+
+          {/* Department filter */}
+          <div className="flex items-center gap-1.5">
+            <Building2 size={11} className="text-[var(--text-muted)]" />
+            <span className="text-[var(--text-muted)] font-semibold">Dept:</span>
             <select
               value={departmentFilter}
               onChange={e => setDepartmentFilter(e.target.value)}
-              className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
             >
               <option value="All">All Departments</option>
               {['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning'].map(d => (
@@ -1913,6 +2084,37 @@ const MilestoneManagement = ({ project, showNotification }) => {
             </select>
           </div>
 
+          {/* Status filter */}
+          <div className="flex items-center gap-1.5">
+            <Activity size={11} className="text-[var(--text-muted)]" />
+            <span className="text-[var(--text-muted)] font-semibold">Status:</span>
+            <div className="flex items-center gap-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+              {[
+                { val: 'All',         label: 'All',          icon: null,              color: '' },
+                { val: 'Not Started', label: 'Not Started',  icon: <Clock size={9} />,       color: 'text-slate-400' },
+                { val: 'In Progress', label: 'In Progress',  icon: <CirclePlay size={9} />,  color: 'text-blue-400' },
+                { val: 'Completed',   label: 'Completed',    icon: <CircleCheck size={9} />, color: 'text-emerald-400' },
+                { val: 'Delayed',     label: 'Delayed',      icon: <AlertTriangle size={9} />, color: 'text-rose-400' },
+                { val: 'On Hold',     label: 'On Hold',      icon: <CirclePause size={9} />, color: 'text-amber-400' },
+              ].map(s => (
+                <button
+                  key={s.val}
+                  onClick={() => setStatusFilter(s.val)}
+                  title={s.val}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold transition-all whitespace-nowrap ${
+                    statusFilter === s.val
+                      ? 'bg-indigo-600 text-white shadow'
+                      : `${s.color} hover:bg-[var(--table-hover)] hover:text-[var(--text-primary)]`
+                  }`}
+                >
+                  {s.icon && <span className={statusFilter === s.val ? 'text-white' : ''}>{s.icon}</span>}
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Critical path toggle */}
           <label className="flex items-center gap-1.5 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium select-none">
             <input
               type="checkbox"
@@ -1920,8 +2122,60 @@ const MilestoneManagement = ({ project, showNotification }) => {
               onChange={e => setShowCriticalOnly(e.target.checked)}
               className="rounded bg-[var(--bg)] border-[var(--border-subtle)] text-indigo-600 focus:ring-0"
             />
-            Show Critical Path
+            <GitBranch size={10} className="text-rose-400" /> Critical Path
           </label>
+
+          {/* Show Charts toggle */}
+          <button
+            onClick={() => setShowMetricsDashboard(v => !v)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider border transition-all ${
+              showMetricsDashboard || isFiltered
+                ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400'
+                : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            <BarChart3 size={9} /> Charts
+          </button>
+
+          {/* Group by Department (Gantt visual bands) */}
+          <button
+            onClick={() => setGroupByDept(v => !v)}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded font-bold text-[9px] uppercase tracking-wider border transition-all ${
+              groupByDept
+                ? 'bg-violet-500/15 border-violet-500/30 text-violet-400'
+                : 'border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Toggle Gantt department colour bands"
+          >
+            <Building2 size={9} /> Dept Bands
+          </button>
+
+          {/* Gantt Pin Mode Palette */}
+          <div className="flex items-center gap-1">
+            <Pin size={10} className="text-[var(--text-muted)]" />
+            <span className="text-[var(--text-muted)] font-semibold text-[9px] uppercase tracking-wider">Pin:</span>
+            <div className="flex items-center gap-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+              {[
+                { type: null,    label: 'Off',  icon: <X size={9} />,         cls: '' },
+                { type: 'star',  label: 'Star', icon: <Star size={9} className="fill-amber-400 text-amber-400" />, cls: 'text-amber-400' },
+                { type: 'flag',  label: 'Flag', icon: <Flag size={9} className="fill-rose-500 text-rose-500" />,   cls: 'text-rose-500' },
+                { type: 'arrow', label: 'Pin',  icon: <Pin size={9} className="text-indigo-400" />,                cls: 'text-indigo-400' },
+              ].map(p => (
+                <button
+                  key={String(p.type)}
+                  onClick={() => setPinMode(p.type)}
+                  title={p.type ? `Click Gantt to place ${p.label}` : 'Pin mode off'}
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    pinMode === p.type
+                      ? 'bg-indigo-600 text-white shadow'
+                      : `${p.cls} hover:bg-[var(--table-hover)] text-[var(--text-muted)]`
+                  }`}
+                >
+                  {p.icon} {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -1954,32 +2208,63 @@ const MilestoneManagement = ({ project, showNotification }) => {
       </div>
 
       {/* COLLAPSIBLE ECHARTS SUMMARY DASHBOARD */}
-      {showMetricsDashboard && (
+      {(showMetricsDashboard || isFiltered) && (
         <div className="bg-[var(--surface)] border-b border-[var(--border-subtle)] p-4 flex flex-col gap-3 shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 uppercase tracking-wider">
-              <Sparkles size={13} className="text-indigo-500" /> Project Schedule Analytics
+              <Sparkles size={13} className="text-indigo-500" />
+              {isFiltered ? (
+                <span>
+                  Filtered Analytics
+                  {departmentFilter !== 'All' && <span className="ml-1 px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 text-[9px] normal-case font-extrabold">{departmentFilter}</span>}
+                  {statusFilter !== 'All' && <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 text-[9px] normal-case font-extrabold">{statusFilter}</span>}
+                </span>
+              ) : 'Project Schedule Analytics'}
             </h3>
-            <button 
+            <button
               onClick={() => setShowMetricsDashboard(false)}
               className="text-[10px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] uppercase bg-[var(--bg)] border border-[var(--border-subtle)] px-2 py-0.5 rounded transition-all"
             >
-              Hide Dashboard
+              Hide
             </button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Chart 1: S-Curve */}
-            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-60 flex flex-col">
-              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Schedule S-Curve (Planned vs Actual Completion)</span>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Chart 1: Status Distribution (donut) — shows on filter */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Activity size={10} className="text-indigo-400" /> Status Breakdown
+              </span>
+              <div className="flex-1 min-h-0">
+                <ReactECharts option={getStatusDistributionOption()} style={{ height: '100%', width: '100%' }} />
+              </div>
+            </div>
+
+            {/* Chart 2: Department Breakdown */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Building2 size={10} className="text-blue-400" /> By Department
+              </span>
+              <div className="flex-1 min-h-0">
+                <ReactECharts option={getDepartmentBreakdownOption()} style={{ height: '100%', width: '100%' }} />
+              </div>
+            </div>
+
+            {/* Chart 3: S-Curve */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
+                <BarChart3 size={10} className="text-emerald-400" /> S-Curve Progress
+              </span>
               <div className="flex-1 min-h-0">
                 <ReactECharts option={getSCurveOption()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
 
-            {/* Chart 2: Resource Workload */}
-            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-60 flex flex-col">
-              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">Resource Workload (Total Assigned vs Completed Tasks)</span>
+            {/* Chart 4: Resource Workload */}
+            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Users size={10} className="text-violet-400" /> Resource Loads
+              </span>
               <div className="flex-1 min-h-0">
                 <ReactECharts option={getResourceWorkloadOption()} style={{ height: '100%', width: '100%' }} />
               </div>
@@ -2004,74 +2289,115 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 style={{ overflowY: showGantt ? 'hidden' : 'auto' }}
                 onScroll={handleScroll}
               >
-                <table 
-                  style={{ width: '100%', minWidth: `${2514 + customColumns.length * 128}px` }}
+                <table
+                  style={{ width: '100%', minWidth: `${Object.values(colWidths).reduce((a,b)=>a+b,0) + customColumns.length * 128}px` }}
                   className="master-table table-fixed select-text"
                 >
-                  <thead className="sticky top-0 z-20">
-                    {/* ── GROUP HEADER ROW ── */}
+                  <thead>
+                    {/* ── GROUP HEADER ROW (row 1, sticky at top-0) ── */}
                     <tr className="h-7 text-[9px] font-extrabold uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
-                      {/* WBS / Identity group */}
-                      <th colSpan={1} className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-10" />
-                      <th colSpan={4} className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 text-left">
-                        <span className="flex items-center gap-1.5">
-                          WBS / Activity
-                        </span>
+                      <th colSpan={1} className="sticky left-0 top-0 z-[45] bg-slate-100 dark:bg-slate-800" style={{ width: colWidths.idx }} />
+                      <th colSpan={4} className="sticky top-0 z-[40] bg-slate-100 dark:bg-slate-800 px-3 text-left" style={{ left: colWidths.idx }}>
+                        <span className="flex items-center gap-1.5">WBS / Activity</span>
                       </th>
-                      {/* Planned Schedule group */}
-                      <th colSpan={3} className="px-3 text-left">
-                        <span className="flex items-center gap-1.5">
-                          Planned Schedule
-                        </span>
+                      <th colSpan={3} className="sticky top-0 z-[35] bg-slate-100 dark:bg-slate-800 px-3 text-left">
+                        <span className="flex items-center gap-1.5">Planned Schedule</span>
                       </th>
-                      {/* Actual Schedule group */}
-                      <th colSpan={3} className="px-3 text-left">
-                        <span className="flex items-center gap-1.5">
-                          Actual Schedule
-                        </span>
+                      <th colSpan={3} className="sticky top-0 z-[35] bg-slate-100 dark:bg-slate-800 px-3 text-left">
+                        <span className="flex items-center gap-1.5">Actual Schedule</span>
                       </th>
-                      {/* Control group */}
-                      <th colSpan={4 + customColumns.length} className="px-3 text-left">
-                        <span className="flex items-center gap-1.5">
-                          Control & Assignment
-                        </span>
+                      <th colSpan={5 + customColumns.length} className="sticky top-0 z-[35] bg-slate-100 dark:bg-slate-800 px-3 text-left">
+                        <span className="flex items-center gap-1.5">Control & Assignment</span>
                       </th>
-                      <th colSpan={1} className="sticky right-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 text-right w-24" />
+                      <th colSpan={1} className="sticky right-0 top-0 z-[45] bg-slate-100 dark:bg-slate-800" style={{ width: colWidths.actions }} />
                     </tr>
-                    {/* ── COLUMN HEADER ROW ── */}
-                    <tr className="h-9 text-[10px] tracking-widest uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-b border-slate-200/20 dark:border-slate-700/30">
-                      <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-10 px-2 text-center">#</th>
-                      <th className="sticky left-10 top-0 z-30 bg-slate-100 dark:bg-slate-800 w-96 px-3 text-left">Activity Name</th>
-                      <th className="w-12 px-2 text-center">Info</th>
-                      <th className="w-16 px-2">Pin</th>
-                      <th className="w-36 px-2">Dept.</th>
+                    {/* ── COLUMN HEADER ROW (row 2, sticky at top-7 = 28px below row 1) ── */}
+                    <tr className="h-9 text-[10px] tracking-widest uppercase font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-b-2 border-slate-200 dark:border-slate-700">
+                      {/* # */}
+                      <th className="sticky left-0 top-7 z-[45] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.idx }}>
+                        #
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'idx')} />
+                      </th>
+                      {/* Activity Name */}
+                      <th className="sticky top-7 z-[45] bg-slate-100 dark:bg-slate-800 px-3 text-left relative select-none" style={{ left: colWidths.idx, width: colWidths.activity }}>
+                        Activity Name
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'activity')} />
+                      </th>
+                      {/* Pin */}
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.pin }}>
+                        Pin
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'pin')} />
+                      </th>
+                      {/* Dept */}
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.dept }}>
+                        Dept.
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'dept')} />
+                      </th>
+                      {/* Sub-Acts */}
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.subActs }}>
+                        Sub-Acts
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'subActs')} />
+                      </th>
                       {/* Planned */}
-                      <th className="w-32 px-2">Start Date</th>
-                      <th className="w-32 px-2">End Date</th>
-                      <th className="w-24 px-2 text-center">Duration</th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.startDate }}>
+                        Start Date
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'startDate')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.endDate }}>
+                        End Date
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'endDate')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.duration }}>
+                        Dur.
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'duration')} />
+                      </th>
                       {/* Actual */}
-                      <th className="w-32 px-2">Act. Start</th>
-                      <th className="w-32 px-2">Act. End</th>
-                      <th className="w-28 px-2 text-center">Variance</th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.actStart }}>
+                        Act. Start
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'actStart')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.actEnd }}>
+                        Act. End
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'actEnd')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.variance }}>
+                        Variance
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'variance')} />
+                      </th>
                       {/* Control */}
-                      <th className="w-20 px-2 text-center">% Done</th>
-                      <th className="w-28 px-2 text-center">Sub-Acts</th>
-                      <th className="w-48 px-2">Assigned To</th>
-                      <th className="w-28 px-2 font-extrabold text-slate-650 dark:text-slate-350">Status</th>
-                      <th className="w-40 px-2">Predecessors</th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 text-center relative select-none" style={{ width: colWidths.pctDone }}>
+                        % Done
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'pctDone')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.assignedTo }}>
+                        Assigned To
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'assignedTo')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 font-extrabold relative select-none" style={{ width: colWidths.status }}>
+                        Status
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'status')} />
+                      </th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.predecessors }}>
+                        Predecessors
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'predecessors')} />
+                      </th>
                       {customColumns.map(col => (
-                        <th key={col.id} className="w-32 px-2 relative group">
+                        <th key={col.id} className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative group/colhdr select-none" style={{ width: colWidths[col.id] || 128 }}>
                           <span className="truncate pr-4 block">{col.column_label}</span>
-                          <button
-                            onClick={() => handleDeleteCustomColumn(col.id)}
-                            className="absolute right-1 top-2 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
+                          <button onClick={() => handleDeleteCustomColumn(col.id)} className="absolute right-4 top-2 text-slate-400 hover:text-red-500 opacity-0 group-hover/colhdr:opacity-100 transition-opacity">
                             <Trash2 size={11} />
                           </button>
+                          <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,col.id)} />
                         </th>
                       ))}
-                      <th className="w-32 px-2">Follow-up</th>
-                      <th className="sticky right-0 bg-slate-100 dark:bg-slate-800 z-30 px-4 py-3 text-right font-medium w-24">Actions</th>
+                      <th className="sticky top-7 z-[35] bg-slate-100 dark:bg-slate-800 px-2 relative select-none" style={{ width: colWidths.followup }}>
+                        Follow-up
+                        <div className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-indigo-500 z-50 opacity-0 hover:opacity-100 transition-opacity" onMouseDown={(e)=>startColResize(e,'followup')} />
+                      </th>
+                      {/* Actions — sticky right, no resize */}
+                      <th className="sticky right-0 top-7 z-[45] bg-slate-100 dark:bg-slate-800 px-2 py-3 text-right font-medium text-[9px] uppercase tracking-widest select-none" style={{ width: colWidths.actions }}>
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2086,25 +2412,25 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       const isMilestoneRow = task.item_type === 'Milestone' || task.item_type === 'Approval Gate';
                       const rowIsEven = (visibleIndices.start + visibleIndex) % 2 === 0;
 
-                      // Item type badge config
+                      // Item type badge config with industrial icons
                       const typeBadge = {
-                        'Phase':        { bg: 'bg-orange-500/15 border-orange-400/40', text: 'text-orange-500 dark:text-orange-400', label: 'Phase' },
-                        'Milestone':    { bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: '◆ MS' },
-                        'Approval Gate':{ bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: '◆ Gate' },
-                        'Task':         { bg: 'bg-indigo-500/10 border-indigo-400/30', text: 'text-indigo-600 dark:text-indigo-400', label: 'Task' },
-                        'Sub Task':     { bg: 'bg-slate-200/80 border-slate-300/40 dark:bg-slate-700/30 dark:border-slate-600/30', text: 'text-slate-500 dark:text-slate-400', label: 'Sub' },
-                      }[task.item_type] || { bg: 'bg-slate-200/60 border-slate-300/30', text: 'text-slate-400', label: task.item_type || 'Task' };
+                        'Phase':        { bg: 'bg-orange-500/15 border-orange-400/40', text: 'text-orange-500 dark:text-orange-400', label: 'Phase',    icon: <FolderOpen size={9} /> },
+                        'Milestone':    { bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: 'MS',        icon: <Diamond size={9} /> },
+                        'Approval Gate':{ bg: 'bg-yellow-400/15 border-yellow-400/40', text: 'text-yellow-600 dark:text-yellow-400', label: 'Gate',      icon: <CheckSquare size={9} /> },
+                        'Task':         { bg: 'bg-indigo-500/10 border-indigo-400/30', text: 'text-indigo-600 dark:text-indigo-400', label: 'Task',      icon: <ListTodo size={9} /> },
+                        'Sub Task':     { bg: 'bg-slate-200/80 border-slate-300/40 dark:bg-slate-700/30 dark:border-slate-600/30', text: 'text-slate-500 dark:text-slate-400', label: 'Sub', icon: <GitBranch size={9} /> },
+                      }[task.item_type] || { bg: 'bg-slate-200/60 border-slate-300/30', text: 'text-slate-400', label: task.item_type || 'Task', icon: <ListTodo size={9} /> };
 
-                      // Status badge config
+                      // Status badge config with production icons
                       const statusBadge = {
-                        'Completed':   { pill: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30', dot: 'bg-emerald-500' },
-                        'In Progress': { pill: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30', dot: 'bg-blue-500' },
-                        'Delayed':     { pill: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30', dot: 'bg-rose-500' },
-                        'Upcoming':    { pill: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-400 dark:border-indigo-500/30', dot: 'bg-indigo-400' },
-                        'On Hold':     { pill: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30', dot: 'bg-amber-500' },
-                        'Cancelled':   { pill: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700/40 dark:text-slate-400 dark:border-slate-600/30', dot: 'bg-slate-400' },
-                        'Not Started': { pill: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/30 dark:text-slate-400 dark:border-slate-600/30', dot: 'bg-slate-300 dark:bg-slate-600' },
-                      }[task.status] || { pill: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-300' };
+                        'Completed':   { pill: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30', icon: <CircleCheck size={9} /> },
+                        'In Progress': { pill: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30', icon: <CirclePlay size={9} /> },
+                        'Delayed':     { pill: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30', icon: <AlertTriangle size={9} /> },
+                        'Upcoming':    { pill: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-400 dark:border-indigo-500/30', icon: <Clock size={9} /> },
+                        'On Hold':     { pill: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30', icon: <CirclePause size={9} /> },
+                        'Cancelled':   { pill: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700/40 dark:text-slate-400 dark:border-slate-600/30', icon: <CircleX size={9} /> },
+                        'Not Started': { pill: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700/30 dark:text-slate-400 dark:border-slate-600/30', icon: <CircleDot size={9} /> },
+                      }[task.status] || { pill: 'bg-slate-100 text-slate-500 border-slate-200', icon: <CircleDot size={9} /> };
 
                       // Format Duration display
                       let durationDays = '—';
@@ -2179,16 +2505,16 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           className={`group border-b border-slate-200/15 dark:border-slate-800/30 hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors duration-100 cursor-pointer ${rowBg} ${isSelected ? 'ring-1 ring-inset ring-blue-400/30' : ''} ${isParent ? 'font-semibold' : ''}`}
                         >
                           {/* Index */}
-                          <td className={`sticky left-0 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
+                          <td style={{ width: colWidths.idx }} className={`sticky left-0 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-2 text-center font-mono text-[10px] text-slate-500 dark:text-slate-400 font-bold select-none`}>{taskIdx + 1}</td>
                           
                           {/* Activity Name */}
                           <td 
-                            className={`sticky left-10 z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
-                            style={{ paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
+                            className={`sticky z-10 group-hover:bg-slate-100/30 dark:group-hover:bg-slate-700/20 transition-colors ${stickyBg} px-3 relative select-none`}
+                            style={{ left: colWidths.idx, width: colWidths.activity, paddingLeft: `${Math.max(12, indentPadding + 12)}px` }}
                           >
                             <div className="w-full h-full flex items-center relative truncate gap-1.5">
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider border flex-shrink-0 ${typeBadge.bg} ${typeBadge.text}`}>
-                                {typeBadge.label}
+                              <span className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider border flex-shrink-0 ${typeBadge.bg} ${typeBadge.text}`}>
+                                {typeBadge.icon}{typeBadge.label}
                               </span>
                               <span
                                 onDoubleClick={(e) => { e.stopPropagation(); handleEditSpecificTask(task.id); }}
@@ -2200,22 +2526,20 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             </div>
                           </td>
 
-                          {/* Info Column */}
-                          <td className="px-2 text-center select-none">
-                            <div className="flex items-center justify-center gap-1">
-                              {task.is_critical && <span className="size-2 rounded-full bg-rose-500" title="Critical Path Activity" />}
-                              {task.item_type === 'Approval Gate' && <span className="size-2 rotate-45 bg-yellow-500 border border-yellow-600 block" title="Approval / Stage Gate" />}
-                            </div>
-                          </td>
-
                           {/* Pin Column */}
                           <td className="px-2 text-center select-none">
-                            <span className="text-sm">
-                              {task.custom_values?.pin_type === 'star' && <span title="Starred">⭐</span>}
-                              {task.custom_values?.pin_type === 'flag' && <span title="Flagged">🚩</span>}
-                              {task.custom_values?.pin_type === 'arrow' && <span title="Arrow">➡️</span>}
-                              {!task.custom_values?.pin_type && <span className="text-slate-300 dark:text-slate-600">–</span>}
-                            </span>
+                            {task.custom_values?.pin_type === 'star' && (
+                              <Star size={13} className="mx-auto text-amber-400 fill-amber-400" title="Starred" />
+                            )}
+                            {task.custom_values?.pin_type === 'flag' && (
+                              <Flag size={13} className="mx-auto text-rose-500 fill-rose-500" title="Flagged" />
+                            )}
+                            {task.custom_values?.pin_type === 'arrow' && (
+                              <ArrowRight size={13} className="mx-auto text-indigo-400" title="Arrow Indicator" />
+                            )}
+                            {!task.custom_values?.pin_type && (
+                              <span className="text-slate-300 dark:text-slate-700">–</span>
+                            )}
                           </td>
 
                           {/* Department */}
@@ -2286,7 +2610,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                           {/* Status */}
                           <td className="px-2">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[9px] font-extrabold uppercase tracking-wider ${statusBadge.pill}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot} flex-shrink-0`} />
+                              <span className="flex-shrink-0">{statusBadge.icon}</span>
                               {task.status || 'Not Started'}
                             </span>
                           </td>
@@ -2327,25 +2651,51 @@ const MilestoneManagement = ({ project, showNotification }) => {
                             </button>
                           </td>
 
-                          {/* Actions Cell - Sticky Right */}
-                          <td 
+                          {/* Actions Cell - Sticky Right — Production Icon Set */}
+                          <td
                             onClick={(e) => e.stopPropagation()}
-                            className={`sticky right-0 z-10 py-2 px-3 text-right whitespace-nowrap w-[100px] border-l border-slate-200/10 dark:border-slate-800/25 shadow-[-4px_0_6px_-1px_rgba(0,0,0,0.05)] ${stickyBg}`}
+                            className={`sticky right-0 z-10 py-1 px-2 whitespace-nowrap w-[140px] border-l border-slate-200/10 dark:border-slate-800/25 shadow-[-4px_0_8px_-1px_rgba(0,0,0,0.08)] ${stickyBg}`}
                           >
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-0.5">
+                              {/* Edit */}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleEditSpecificTask(task.id); }}
-                                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded transition-colors"
-                                title="Edit"
+                                className="p-1.5 rounded-md text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                title="Edit Activity"
                               >
-                                <Edit className="h-3.5 w-3.5" />
+                                <Edit size={12} />
                               </button>
+                              {/* Assign Resources */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActiveAssignTask(task); }}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                                title="Assign Resources"
+                              >
+                                <UserCheck size={12} />
+                              </button>
+                              {/* Sub-Activities */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setActiveParentTask(task); }}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                title="Manage Sub-Activities"
+                              >
+                                <Layers size={12} />
+                              </button>
+                              {/* Follow-up */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openFollowupEditor(task); }}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                                title="Schedule Follow-up"
+                              >
+                                <Bell size={12} />
+                              </button>
+                              {/* Delete */}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleDeleteSpecificTask(task); }}
-                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded transition-colors"
-                                title="Delete"
+                                className="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                                title="Delete Activity"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2 size={12} />
                               </button>
                             </div>
                           </td>
@@ -2416,36 +2766,132 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
         {/* GANTT VIEW TIMELINE */}
         {showGantt && (
-          <div 
+          <div className="h-full flex-1 flex flex-col min-h-0 overflow-hidden">
+
+          {/* ── GANTT-SPECIFIC FILTER BAR ── */}
+          <div className={`flex flex-wrap items-center gap-2 px-3 py-1.5 border-b shrink-0 ${
+            isGanttFiltered
+              ? 'bg-violet-500/5 border-violet-500/20'
+              : 'bg-[var(--surface)] border-[var(--border-subtle)]'
+          }`}>
+            <button
+              onClick={() => setShowGanttFilter(v => !v)}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-bold transition-all ${
+                isGanttFiltered || showGanttFilter
+                  ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
+                  : 'bg-[var(--bg)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Toggle Gantt-specific filter panel"
+            >
+              <Filter size={10} />
+              Gantt Filter
+              {isGanttFiltered && (
+                <span className="px-1 py-0.5 bg-violet-500/20 rounded text-[8px] font-extrabold">ACTIVE</span>
+              )}
+            </button>
+
+            {(showGanttFilter || isGanttFiltered) && (
+              <>
+                {/* Department */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <Building2 size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Dept:</span>
+                  <select
+                    value={ganttDeptFilter}
+                    onChange={e => setGanttDeptFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Departments</option>
+                    {['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning', ...suggestedDepartments.filter(d => !['Engineering','Design','Procurement','Manufacturing','Quality','Installation','Commissioning'].includes(d))].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Activity Type */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <ListTodo size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Type:</span>
+                  <select
+                    value={ganttTypeFilter}
+                    onChange={e => setGanttTypeFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Types</option>
+                    {['Phase', 'Task', 'Sub Task', 'Milestone', 'Approval Gate'].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center gap-1 text-[10px]">
+                  <Activity size={10} className="text-[var(--text-muted)]" />
+                  <span className="text-[var(--text-muted)] font-bold">Status:</span>
+                  <select
+                    value={ganttStatusFilter}
+                    onChange={e => setGanttStatusFilter(e.target.value)}
+                    className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded text-[10px] font-semibold focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="All">All Statuses</option>
+                    {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {isGanttFiltered && (
+                  <button
+                    onClick={() => { setGanttDeptFilter('All'); setGanttTypeFilter('All'); setGanttStatusFilter('All'); }}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold text-violet-400 hover:bg-violet-500/10 border border-violet-500/30 transition-colors"
+                    title="Clear Gantt filters"
+                  >
+                    <X size={9} /> Clear
+                  </button>
+                )}
+
+                <span className="text-[9px] text-[var(--text-muted)] ml-auto">
+                  Showing <strong className="text-[var(--text-primary)]">{ganttFilteredTasks.length}</strong> of {filteredTasks.length} tasks
+                </span>
+              </>
+            )}
+          </div>
+
+          <div
             ref={ganttRef}
-            className="h-full flex-1 overflow-x-auto overflow-y-auto relative custom-scrollbar"
+            className={`flex-1 overflow-x-auto overflow-y-auto relative custom-scrollbar ${pinMode ? 'cursor-crosshair' : ''}`}
             onScroll={handleScroll}
           >
-            <div style={{ width: timelineWidth, height: filteredTasks.length * rowHeight + 40 }} className="relative bg-[var(--surface)]">
-                    {/* TIMELINE MONTH / WEEK HEADERS */}
-              <div className="h-10 bg-[var(--elevated-card)] border-b border-[var(--border-subtle)] sticky top-0 z-20 flex flex-col justify-end select-none">
+            <div
+              style={{ width: timelineWidth, height: ganttFilteredTasks.length * rowHeight + 40 }}
+              className="relative bg-[var(--surface)]"
+              onClick={handleGanttCanvasClick}
+            >
+                    {/* TIMELINE MONTH / WEEK HEADERS — improved clarity */}
+              <div className="h-[52px] bg-[var(--elevated-card)] border-b-2 border-[var(--border-subtle)] sticky top-0 z-20 flex flex-col justify-end select-none shadow-sm">
                 
                 {/* Top Tier Header (Month & Year or Year) */}
-                <div className="absolute top-0 left-0 w-full h-5 bg-[var(--bg)] border-b border-[var(--border-subtle)] flex text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[26px] bg-[var(--bg)] border-b border-[var(--border-subtle)]/60 flex text-[11px] font-extrabold text-[var(--text-primary)] uppercase tracking-wider relative overflow-hidden">
                   {timelineHeaders.topHeaders.map(th => (
                     <div
                       key={th.key}
                       style={{ left: th.left, width: th.width }}
-                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/30 px-2 flex items-center justify-start truncate font-extrabold"
+                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/50 px-3 flex items-center justify-start truncate gap-1"
                     >
-                      {th.label}
+                      <span className="text-indigo-500 dark:text-indigo-400 text-[10px]">▶</span>
+                      <span>{th.label}</span>
                     </div>
                   ))}
                 </div>
                 
                 {/* Bottom Tier Header (Days, Weeks commencing, or Months) */}
-                <div className="flex h-5 relative text-[9px] font-bold text-[var(--text-secondary)]">
+                <div className="flex h-[26px] relative text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--surface)]/50">
                   {timelineHeaders.bottomHeaders.map(bh => (
                     <div
                       key={bh.key}
                       style={{ left: bh.left, width: bh.width }}
                       title={bh.title}
-                      className={`absolute bottom-0 h-full flex items-center leading-none ${bh.className || ''}`}
+                      className={`absolute bottom-0 h-full flex items-center leading-none text-[var(--text-primary)] ${bh.className || ''}`}
                     >
                       {bh.label}
                     </div>
@@ -2453,8 +2899,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
                 </div>
               </div>
 
-              {/* DASHED VERTICAL COLUMNS */}
-              <div className="absolute top-10 left-0 w-full h-full pointer-events-none">
+              {/* DASHED VERTICAL COLUMNS — improved clarity */}
+              <div className="absolute top-[52px] left-0 w-full h-full pointer-events-none">
                 {Array.from({ length: daysBetween }).map((_, i) => {
                   const tickDate = new Date(timelineStart);
                   tickDate.setDate(tickDate.getDate() + i);
@@ -2462,15 +2908,19 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   
                   let showLine = true;
                   let isMajorLine = false;
+                  let isMonthStart = false;
 
                   if (zoomLevel === 'Day') {
                     isMajorLine = tickDate.getDay() === 1; // Monday is major
+                    isMonthStart = tickDate.getDate() === 1;
                   } else if (zoomLevel === 'Week') {
                     showLine = tickDate.getDay() === 1; // Only show week starts
                     isMajorLine = tickDate.getDate() <= 7; // First week of month is major
+                    isMonthStart = tickDate.getDate() <= 7;
                   } else if (zoomLevel === 'Month') {
                     showLine = tickDate.getDate() === 1; // Only show month starts
                     isMajorLine = tickDate.getMonth() === 0; // January is major
+                    isMonthStart = true;
                   }
 
                   if (!showLine) return null;
@@ -2480,12 +2930,14 @@ const MilestoneManagement = ({ project, showNotification }) => {
                       key={i} 
                       style={{ left: i * pxPerDay, width: pxPerDay }} 
                       className={`absolute top-0 h-full border-l ${
-                        isMajorLine 
-                          ? 'border-[var(--border-strong)]/40 border-dashed' 
-                          : 'border-[var(--border-subtle)]/10'
+                        isMonthStart
+                          ? 'border-indigo-400/30 dark:border-indigo-500/25'
+                          : isMajorLine 
+                          ? 'border-[var(--border-subtle)]/30' 
+                          : 'border-[var(--border-subtle)]/12'
                       } ${
                         zoomLevel === 'Day' && isWeekend && showNonWorkingDayShading 
-                          ? 'bg-[var(--elevated-card)]/40 dark:bg-[var(--border-subtle)]/5' 
+                          ? 'bg-slate-100/60 dark:bg-slate-800/30' 
                           : ''
                       }`}
                     />
@@ -2495,8 +2947,8 @@ const MilestoneManagement = ({ project, showNotification }) => {
 
               {/* DEPENDENCY ARROW RENDER LAYER */}
               <svg 
-                className="absolute top-10 left-0 w-full h-full pointer-events-none z-10 mix-blend-multiply dark:mix-blend-screen opacity-70"
-                style={{ width: timelineWidth, height: filteredTasks.length * rowHeight }}
+                className="absolute top-[52px] left-0 w-full h-full pointer-events-none z-10 mix-blend-multiply dark:mix-blend-screen opacity-70"
+                style={{ width: timelineWidth, height: ganttFilteredTasks.length * rowHeight }}
               >
                 <defs>
                   <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -2521,21 +2973,21 @@ const MilestoneManagement = ({ project, showNotification }) => {
               </svg>
 
               {/* ALTERNATING ROW STRIPES BACKDROP */}
-              <div className="absolute top-10 left-0 w-full h-full pointer-events-none z-0">
-                {filteredTasks.map((t, i) => (
+              <div className="absolute top-[52px] left-0 w-full h-full pointer-events-none z-0">
+                {ganttFilteredTasks.map((t, i) => (
                   <div 
                     key={t.id}
                     style={{ top: i * rowHeight, height: rowHeight }}
-                    className={`absolute left-0 w-full border-b border-[var(--border-subtle)]/10 ${i % 2 === 0 ? 'bg-transparent' : 'bg-slate-50/5 dark:bg-slate-900/5'}`}
+                    className={`absolute left-0 w-full border-b border-[var(--border-subtle)]/10 ${i % 2 === 0 ? 'bg-transparent' : 'bg-slate-100/30 dark:bg-slate-900/20'}`}
                   />
                 ))}
               </div>
 
               {/* ACTIVE GANTT ROW BARS */}
-              <div className="absolute top-10 left-0 w-full h-full select-none z-10">
-                <div style={{ height: visibleIndices.start * rowHeight }} />
+              <div className="absolute top-[52px] left-0 w-full h-full select-none z-10">
+                <div style={{ height: ganttVisibleIndices.start * rowHeight }} />
 
-                {ganttBars.slice(visibleIndices.start, visibleIndices.end).map((bar, sliceIdx) => {
+                {ganttBars.slice(ganttVisibleIndices.start, ganttVisibleIndices.end).map((bar, sliceIdx) => {
                   if (!bar) return <div key={`empty-${sliceIdx}`} style={{ height: rowHeight }} />;
                   
                   const isSelected = selectedTaskId === bar.id;
@@ -2599,20 +3051,15 @@ const MilestoneManagement = ({ project, showNotification }) => {
                         onMouseLeave={() => setHoveredTask(null)}
                         className="cursor-pointer"
                       />
-                      {/* Pin Icons */}
+                      {/* Pin Icons — Lucide production icons */}
                       {bar.pinType && (
-                        <div 
+                        <div
                           className="absolute z-20 flex items-center justify-center pointer-events-none"
-                          style={{ 
-                            left: bar.plannedLeft - 24, 
-                            width: '16px',
-                            height: '16px',
-                            top: '20px'
-                          }}
+                          style={{ left: bar.plannedLeft - 22, width: '16px', height: '16px', top: '20px' }}
                         >
-                          {bar.pinType === 'star' && <span className="text-[14px]" title="Starred Task">⭐</span>}
-                          {bar.pinType === 'flag' && <span className="text-[14px]" title="Flagged Task">🚩</span>}
-                          {bar.pinType === 'arrow' && <span className="text-[14px]" title="Arrow Indicator">➡️</span>}
+                          {bar.pinType === 'star'  && <Star  size={13} className="text-amber-400 fill-amber-400 drop-shadow" title="Starred Task" />}
+                          {bar.pinType === 'flag'  && <Flag  size={13} className="text-rose-500 fill-rose-500 drop-shadow"   title="Flagged Task" />}
+                          {bar.pinType === 'arrow' && <ArrowRight size={13} className="text-indigo-400 drop-shadow"          title="Arrow Indicator" />}
                         </div>
                       )}
                       
@@ -2783,20 +3230,106 @@ const MilestoneManagement = ({ project, showNotification }) => {
                   );
                 })}
 
-                <div style={{ height: (filteredTasks.length - visibleIndices.end) * rowHeight }} />
+                <div style={{ height: (ganttFilteredTasks.length - ganttVisibleIndices.end) * rowHeight }} />
               </div>
 
               {/* TODAY LINE */}
               {showTodayLine && todayLeft !== null && (
-                <div 
-                  style={{ left: todayLeft }} 
-                  className="absolute top-10 bottom-0 w-[1.5px] bg-red-500 dark:bg-red-400 z-30 pointer-events-none"
+                <div
+                  style={{ left: todayLeft }}
+                  className="absolute top-[52px] bottom-0 w-[2px] bg-red-500 dark:bg-red-400 z-30 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.4)]"
                 >
-                  <div className="absolute top-0 -left-1 w-2.5 h-2.5 rounded-full bg-red-500 dark:bg-red-400" title={`Today: ${new Date().toLocaleDateString()}`} />
+                  <div className="absolute -top-1 -left-[5px] w-3 h-3 rounded-full bg-red-500 dark:bg-red-400 shadow-md" title={`Today: ${new Date().toLocaleDateString()}`} />
+                  <span className="absolute -top-4 -left-5 text-[8px] font-extrabold text-red-500 dark:text-red-400 whitespace-nowrap bg-[var(--bg)]/80 px-1 rounded">Today</span>
                 </div>
               )}
 
+              {/* DEPT COLOUR BANDS (Gantt grouping overlay) — theme-aware */}
+              {groupByDept && (() => {
+                // Use RGBA so colors work properly in both light and dark modes
+                const deptPalette = {
+                  'Engineering':    { hex: '#3b82f6', rgba: 'rgba(59,130,246,0.09)',  border: 'rgba(59,130,246,0.25)',  label: 'rgba(59,130,246,0.85)' },
+                  'Design':         { hex: '#8b5cf6', rgba: 'rgba(139,92,246,0.09)', border: 'rgba(139,92,246,0.25)', label: 'rgba(139,92,246,0.85)' },
+                  'Procurement':    { hex: '#f59e0b', rgba: 'rgba(245,158,11,0.09)', border: 'rgba(245,158,11,0.25)', label: 'rgba(245,158,11,0.85)' },
+                  'Manufacturing':  { hex: '#10b981', rgba: 'rgba(16,185,129,0.09)', border: 'rgba(16,185,129,0.25)', label: 'rgba(16,185,129,0.85)' },
+                  'Quality':        { hex: '#ef4444', rgba: 'rgba(239,68,68,0.09)',  border: 'rgba(239,68,68,0.25)',  label: 'rgba(239,68,68,0.85)' },
+                  'Installation':   { hex: '#6366f1', rgba: 'rgba(99,102,241,0.09)', border: 'rgba(99,102,241,0.25)', label: 'rgba(99,102,241,0.85)' },
+                  'Commissioning':  { hex: '#ec4899', rgba: 'rgba(236,72,153,0.09)', border: 'rgba(236,72,153,0.25)', label: 'rgba(236,72,153,0.85)' },
+                  'Unassigned':     { hex: '#64748b', rgba: 'rgba(100,116,139,0.07)',border: 'rgba(100,116,139,0.2)', label: 'rgba(100,116,139,0.6)' },
+                };
+                const bands = [];
+                let cur = null;
+                ganttFilteredTasks.forEach((t, i) => {
+                  const dept = t.department || 'Unassigned';
+                  const pal = deptPalette[dept] || deptPalette['Unassigned'];
+                  if (!cur || cur.dept !== dept) {
+                    if (cur) bands.push(cur);
+                    cur = { dept, pal, start: i, count: 1 };
+                  } else { cur.count++; }
+                });
+                if (cur) bands.push(cur);
+                return bands.map((band) => (
+                  <div
+                    key={`deptband-${band.dept}-${band.start}`}
+                    className="absolute left-0 w-full pointer-events-none"
+                    style={{
+                      top: 52 + band.start * rowHeight,
+                      height: band.count * rowHeight,
+                      backgroundColor: band.pal.rgba,
+                      borderTop: `1.5px solid ${band.pal.border}`,
+                      borderBottom: `1px solid ${band.pal.border}`,
+                    }}
+                  >
+                    {/* Left color stripe indicator */}
+                    <div
+                      className="absolute left-0 top-0 bottom-0 w-1 opacity-70"
+                      style={{ backgroundColor: band.pal.hex }}
+                    />
+                    <span
+                      className="absolute right-3 top-1 text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded"
+                      style={{ color: band.pal.label, backgroundColor: band.pal.rgba }}
+                    >
+                      {band.dept}
+                    </span>
+                  </div>
+                ));
+              })()}
+
+              {/* DRAGGABLE GANTT PIN MARKERS */}
+              {ganttPins.map(pin => {
+                const left = pin.dayOffset * pxPerDay;
+                const pinColor = pin.type === 'star' ? '#f59e0b' : pin.type === 'flag' ? '#ef4444' : '#6366f1';
+                return (
+                  <div
+                    key={pin.id}
+                    data-pin="true"
+                    className="absolute top-[52px] bottom-0 z-40 group/pin flex flex-col items-center"
+                    style={{ left: left - 1 }}
+                  >
+                    {/* Vertical line */}
+                    <div className="w-[1.5px] h-full pointer-events-none" style={{ backgroundColor: pinColor + '55' }} />
+                    {/* Handle (icon + remove) */}
+                    <div
+                      className="absolute top-1 flex items-center gap-0.5 cursor-grab active:cursor-grabbing"
+                      onMouseDown={(e) => handlePinDragStart(e, pin.id)}
+                    >
+                      {pin.type === 'star'  && <Star  size={15} className="text-amber-400 fill-amber-400 drop-shadow-md" />}
+                      {pin.type === 'flag'  && <Flag  size={15} className="text-rose-500 fill-rose-500 drop-shadow-md" />}
+                      {pin.type === 'arrow' && <Pin   size={15} className="text-indigo-400 fill-indigo-400/30 drop-shadow-md" />}
+                      <button
+                        className="opacity-0 group-hover/pin:opacity-100 transition-opacity ml-0.5 rounded-full bg-white/80 dark:bg-slate-800/80"
+                        onClick={(e) => { e.stopPropagation(); setGanttPins(prev => prev.filter(p => p.id !== pin.id)); }}
+                        title="Remove pin"
+                      >
+                        <X size={9} className="text-slate-500 hover:text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
             </div>
+          </div>
           </div>
         )}
 

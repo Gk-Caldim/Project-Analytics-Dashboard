@@ -1,12 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
+import { useQuery } from '@tanstack/react-query';
+import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
-import { toast } from 'react-hot-toast';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { toast } from 'sonner';
 import './LoginPage.css';
+
+const getPasswordStrength = (pwd) => {
+  if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
+  let score = 0;
+  if (pwd.length >= 8) score += 1;
+  if (/[0-9]/.test(pwd)) score += 1;
+  if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+  if (/[A-Z]/.test(pwd)) score += 1;
+
+  if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
+  if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
+  return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
+};
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -26,7 +40,14 @@ const LoginPage = () => {
   const [reqLoading, setReqLoading] = useState(false);
   const [showReqPassword, setShowReqPassword] = useState(false);
   const [showReqConfirmPassword, setShowReqConfirmPassword] = useState(false);
-  const [roles, setRoles] = useState([]);
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await API.get('/roles/');
+      return res.data;
+    },
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
 
   // ── FORGOT PASSWORD STATE ──
   const [showForgotPasswordForm, setShowForgotPasswordForm] = useState(false);
@@ -34,6 +55,7 @@ const LoginPage = () => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const newPasswordStrength = useMemo(() => getPasswordStrength(newPassword), [newPassword]);
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -59,6 +81,11 @@ const LoginPage = () => {
     e.preventDefault();
     setForgotError('');
     setForgotSuccess('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotEmail)) {
+      setForgotError('Invalid email address format');
+      return;
+    }
     setForgotLoading(true);
     try {
       const response = await API.post('/auth/forgot-password', { email: forgotEmail });
@@ -69,23 +96,7 @@ const LoginPage = () => {
       const errMsg = err.response?.data?.detail || 'Failed to request password reset';
       setForgotError(errMsg);
       if (errMsg.includes('temporarily locked')) {
-        toast.error('Security alert sent to your email', {
-          style: {
-            border: '2px solid #C8341A',
-            padding: '12px 16px',
-            color: '#C8341A',
-            background: '#ffffff',
-            fontWeight: '600',
-            fontSize: '14px',
-            borderRadius: '10px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          },
-          iconTheme: {
-            primary: '#C8341A',
-            secondary: '#ffffff',
-          },
-          duration: 6000,
-        });
+        toast.error('Account locked', { description: 'Security alert sent to your email.' });
       }
     } finally {
       setForgotLoading(false);
@@ -106,23 +117,7 @@ const LoginPage = () => {
       const errMsg = err.response?.data?.detail || 'OTP verification failed';
       setForgotError(errMsg);
       if (errMsg.includes('temporarily locked')) {
-        toast.error('Security alert sent to your email', {
-          style: {
-            border: '2px solid #C8341A',
-            padding: '12px 16px',
-            color: '#C8341A',
-            background: '#ffffff',
-            fontWeight: '600',
-            fontSize: '14px',
-            borderRadius: '10px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-          },
-          iconTheme: {
-            primary: '#C8341A',
-            secondary: '#ffffff',
-          },
-          duration: 6000,
-        });
+        toast.error('Account locked', { description: 'Security alert sent to your email.' });
       }
     } finally {
       setForgotLoading(false);
@@ -139,6 +134,10 @@ const LoginPage = () => {
     }
     if (newPassword.length < 8) {
       setForgotError('Password must be at least 8 characters long');
+      return;
+    }
+    if (newPasswordStrength.label === 'Weak') {
+      setForgotError('Password is too weak. Please use a medium or strong password.');
       return;
     }
     setForgotLoading(true);
@@ -170,22 +169,9 @@ const LoginPage = () => {
     }
   };
 
-  const getPasswordStrength = (pwd) => {
-    if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
-    let score = 0;
-    if (pwd.length >= 8) score += 1;
-    if (/[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-    if (/[A-Z]/.test(pwd)) score += 1;
 
-    if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
-    if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
-    return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
-  };
 
-  useEffect(() => {
-    API.get('/roles/').then(res => setRoles(res.data)).catch(err => console.error(err));
-  }, []);
+
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
@@ -197,6 +183,12 @@ const LoginPage = () => {
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Invalid email address format');
+      dispatch(loginFailure('Invalid email address format'));
+      return;
+    }
     dispatch(loginStart());
     try {
       const response = await API.post('/auth/login', { email, password });
@@ -218,8 +210,18 @@ const LoginPage = () => {
     e.preventDefault();
     setReqError('');
     setReqSuccess('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(reqFormData.email)) {
+      setReqError('Invalid email address format');
+      return;
+    }
     if (reqFormData.password !== reqFormData.confirm_password) {
       setReqError('Passwords do not match');
+      return;
+    }
+    const strength = getPasswordStrength(reqFormData.password);
+    if (strength.label === 'Weak') {
+      setReqError('Password is too weak. Please use a medium or strong password.');
       return;
     }
     setReqLoading(true);
@@ -470,16 +472,16 @@ const LoginPage = () => {
                     <div className="ws-strength-meter-container">
                       <div className="ws-strength-labels">
                         <span className="ws-strength-title">Password Strength:</span>
-                        <span className="ws-strength-badge" style={{ color: getPasswordStrength(newPassword).color }}>
-                          {getPasswordStrength(newPassword).label}
+                        <span className="ws-strength-badge" style={{ color: newPasswordStrength.color }}>
+                          {newPasswordStrength.label}
                         </span>
                       </div>
                       <div className="ws-strength-bar-bg">
                         <div 
                           className="ws-strength-bar-fill" 
                           style={{ 
-                            width: `${getPasswordStrength(newPassword).score}%`, 
-                            backgroundColor: getPasswordStrength(newPassword).color 
+                            width: `${newPasswordStrength.score}%`, 
+                            backgroundColor: newPasswordStrength.color 
                           }}
                         ></div>
                       </div>

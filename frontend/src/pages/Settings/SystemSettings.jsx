@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-
 import { setBranding } from '../../store/slices/navSlice';
 import API from '../../utils/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Spinner } from '../../components/ui/spinner';
 
 // Import all sub-components

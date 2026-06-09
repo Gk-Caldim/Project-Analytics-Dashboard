@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -358,7 +358,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         next.delete(rowId);
         return next;
       });
-      toast.success('Action item deleted', { duration: 1500 });
+      toast.success('Action item deleted', { description: 'The item has been removed.', duration: 2000 });
     }
   };
 
@@ -376,7 +376,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         onDeleteMeeting(id);
       });
       setSelectedIds(new Set());
-      toast.success('Selected action items deleted', { duration: 1500 });
+      toast.success('Items deleted', { description: 'The selected action items have been removed.', duration: 2500 });
     }
   };
 
@@ -492,7 +492,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
 
     const targetProjectId = Number(effectiveProjectId);
     if (isNaN(targetProjectId)) {
-      if (silent !== true) toast.error('Invalid Project ID. Please re-link the project.');
+      if (silent !== true) toast.error('Invalid Project ID', { description: 'Please re-link the project and try again.' });
       setSyncFlowState('error');
       return;
     }
@@ -525,7 +525,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
       
       // Store sync_id so the drawer's "View in Library" button can deep-link to it
       setSyncResultId(resp.data.sync_id || null);
-      toast.success('MOM synced to Saved Library!');
+      toast.success('MOM synced', { description: 'The minutes of meeting have been synced to the Saved Library.' });
 
       setTimeout(() => setSyncFlowState('idle'), 4000);
     } catch (err) {
@@ -544,12 +544,12 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   // ── Manual per-row sync: push ANY row to Issue Engine ──────────────
   const handleManualSyncRow = async (row) => {
     if (!effectiveProjectId) {
-      toast.error('No project linked — set the project during MOM creation.');
+      toast.error('No project linked', { description: 'Please select or set a project before syncing.' });
       return;
     }
     const owner = (row.responsibility || '').trim();
     if (!owner) {
-      toast.error('Row is missing Responsibility (owner). Fill it before syncing.');
+      toast.error('Owner missing', { description: 'Please assign an owner/responsibility before syncing.' });
       return;
     }
     const actionText = (row.discussion_point || '').trim();
@@ -571,10 +571,11 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         priority: row.criticality === 'High' || row.criticality === 'Critical' ? 'High' : 'Medium',
         due_date: parsedDate,
       });
-      toast.success(`Issue created for "${title50}"`);
+      const title50 = titleText.length > 50 ? titleText.slice(0, 47) + '...' : titleText;
+      toast.success('Issue created', { description: `Action item synced successfully: "${title50}"` });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      toast.error(`Sync failed: ${detail}`);
+      toast.error('Sync failed', { description: detail });
     }
   };
 
@@ -603,7 +604,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success('CSV downloaded successfully');
+    toast.success('Export completed', { description: 'CSV file downloaded successfully.' });
   };
 
   // Download as PDF via jsPDF
@@ -649,7 +650,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     const pdfBlob = doc.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
     window.open(pdfUrl, '_blank');
-    toast.success('PDF preview opened in new tab');
+    toast.success('Preview generated', { description: 'PDF preview opened in a new tab.' });
   };
 
   // ── Send Summary Modal ──
@@ -660,7 +661,7 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
   const [sending, setSending] = useState(false);
 
   const handleSendSummary = async () => {
-    if (!sendRecipients.trim()) { toast.error('Add at least one recipient email.'); return; }
+    if (!sendRecipients.trim()) { toast.error('Recipient email required', { description: 'Please enter at least one recipient email address.' }); return; }
     setSending(true);
     try {
       await API.post(`/mom/${meetingId || 'unknown'}/broadcast`, {
@@ -668,12 +669,12 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
         message: sendMessage,
         attach_pdf: sendAttachPDF,
       });
-      toast.success('MOM summary sent successfully!');
+      toast.success('Summary sent', { description: 'MOM summary has been successfully shared with all recipients.' });
       setShowSendModal(false);
       setSendRecipients('');
       setSendMessage('');
     } catch (err) {
-      toast.error('Failed to send summary. Please try again.');
+      toast.error('Failed to send summary', { description: 'Please check the network connection and try again.' });
     } finally {
       setSending(false);
     }
