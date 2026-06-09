@@ -16,8 +16,6 @@ const MOMModule = React.lazy(() => import('./pages/mom/MOMModule'));
 const TranscriptViewer = React.lazy(() => import('./pages/mom/TranscriptViewer'));
 const MeetingCapturePage = React.lazy(() => import('./pages/mom/MeetingCapturePage'));
 const MOMViewPage = React.lazy(() => import('./pages/mom/MOMViewPage'));
-const MeetingsDashboardPage = React.lazy(() => import('./pages/mom/MeetingsDashboardPage'));
-const ScheduleMeetingPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPage'));
 const ScheduleMeetingPremiumPage = React.lazy(() => import('./pages/mom/ScheduleMeetingPremiumPage'));
 const MeetingDetailsPage = React.lazy(() => import('./pages/mom/MeetingDetailsPage'));
 const SavedMOMsPage = React.lazy(() => import('./pages/mom/SavedMOMsPage'));
@@ -243,8 +241,12 @@ function AppContent() {
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
-      const response = await API.get('/settings/');
-      return response.data || [];
+      try {
+        const response = await API.get('/settings/');
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        return [];
+      }
     },
     staleTime: 5 * 60 * 1000,
     enabled: isServerOnline === true,
@@ -261,7 +263,7 @@ function AppContent() {
   });
 
   React.useEffect(() => {
-    if (settings) {
+    if (settings && Array.isArray(settings)) {
       const companyName = settings.find(s => s.key === 'company_name')?.value;
       const companyLogo = settings.find(s => s.key === 'company_logo')?.value;
       const baseCurrency = settings.find(s => s.key === 'base_currency')?.value;

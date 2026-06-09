@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout } from '../store/slices/authSlice';
+import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
 import API from '../utils/api';
 import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { toast } from 'react-hot-toast';
 import './LoginPage.css';
 

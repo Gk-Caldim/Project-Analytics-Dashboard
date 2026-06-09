@@ -8,13 +8,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import {
-  Upload, Mic, Edit3, ChevronRight, Home, Layout,
+  Upload, Mic, Edit3, ChevronRight,
   Play, Square, Pause, X, Plus, Edit2, Check,
   FileText, Loader, AlertCircle, CheckCircle, Clock,
   FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle,
   Info, Trash2
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import API from '../../utils/api';
 import {
   setMeetingContext, saveMOM, addMomRows, fetchMOM, setMomData

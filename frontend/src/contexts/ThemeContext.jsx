@@ -45,7 +45,7 @@ export const ThemeProvider = ({ children }) => {
     };
 
     useEffect(() => {
-        if (settings) {
+        if (settings && Array.isArray(settings)) {
             setThemeSettings(prev => {
                 const newTheme = { ...prev };
                 let changed = false;
