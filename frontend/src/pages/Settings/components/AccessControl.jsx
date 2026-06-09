@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { refreshUserProfile } from '../../../store/slices/authSlice';
 import {
   Shield, Edit, Trash2, X, Save, Plus, Loader2, Check, Layout, ChevronDown, ChevronUp, Settings2, Command,
   User, UserCheck, ShieldCheck, Briefcase, Users, UserCircle
 } from 'lucide-react';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import Skeleton from '../../../components/ui/skeleton';
 
 const ROLE_ORDER = {
@@ -20,10 +21,35 @@ const ROLE_ORDER = {
 const AccessControl = () => {
   const dispatch = useDispatch();
   const { user: currentUser } = useSelector((state) => state.auth);
+  const queryClient = useQueryClient();
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const { data: rolesData = [], isLoading: queryLoading } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await API.get('/roles/');
+      return sortRoles(res.data);
+    },
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
+
+  useEffect(() => {
+    if (!queryLoading) {
+      if (rolesData && rolesData.length > 0) {
+        setRoles(rolesData);
+        if (!selectedRole) {
+          setSelectedRole(rolesData[0]);
+        } else {
+          const updated = rolesData.find(r => r.id === selectedRole.id);
+          if (updated) setSelectedRole(updated);
+        }
+      }
+      setLoading(false);
+    }
+  }, [rolesData, queryLoading]);
   
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -134,7 +160,7 @@ const AccessControl = () => {
   ];
 
   useEffect(() => {
-    fetchRoles();
+    // Component loaded: React Query automatically fetches roles
   }, []);
 
   const sortRoles = (rolesList) => {
@@ -147,22 +173,7 @@ const AccessControl = () => {
   };
 
   const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      const response = await API.get('/roles/');
-      const sortedRoles = sortRoles(response.data);
-      setRoles(sortedRoles);
-      if (sortedRoles.length > 0 && !selectedRole) {
-        setSelectedRole(sortedRoles[0]);
-      } else if (selectedRole) {
-        const updated = sortedRoles.find(r => r.id === selectedRole.id);
-        if (updated) setSelectedRole(updated);
-      }
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-    } finally {
-      setLoading(false);
-    }
+    queryClient.invalidateQueries({ queryKey: ['roles'] });
   };
 
   const handleTogglePermission = (role, moduleName, subPermId = null) => {

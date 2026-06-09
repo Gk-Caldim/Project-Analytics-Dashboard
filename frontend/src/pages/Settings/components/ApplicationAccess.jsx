@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import {
   Shield, User, Mail, Plus, X, Trash2, Edit, Save, Loader2, Check, Lock, Eye, EyeOff
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import Skeleton from '../../../components/ui/skeleton';
 
 const ApplicationAccess = () => {
   const [users, setUsers] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [roles, setRoles] = useState([]);
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await API.get('/roles/');
+      return res.data;
+    },
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -32,13 +40,11 @@ const ApplicationAccess = () => {
   const fetchUsersAndRoles = async (isInitial = false) => {
     try {
       if (isInitial) setLoading(true);
-      const [usersRes, rolesRes, reqRes] = await Promise.all([
+      const [usersRes, reqRes] = await Promise.all([
         API.get('/application-access'),
-        API.get('/roles/'),
         API.get('/auth/access-requests')
       ]);
       setUsers(usersRes.data);
-      setRoles(rolesRes.data);
       setRequests(reqRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);

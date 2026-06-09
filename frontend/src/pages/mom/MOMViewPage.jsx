@@ -3,21 +3,18 @@
  * Enterprise MOM Display — Executive Summary · Action Items · Issues · Discussion
  * Backend frozen: uses existing momSlice + POST /mom/issues API
  */
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, useTransition } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
-  ChevronRight, Home, Layout, AlertTriangle, Bell,
-  CheckCircle, GitBranch, Trash2, Download, Clipboard,
-  ChevronDown, ChevronUp, Loader, Zap, Check, Edit3,
-  FileText, Plus, MessageSquare, Target, MoreHorizontal, Users,
-  FolderOpen, Mail, X, Settings, Clock, Edit2, Search
+  ChevronRight, AlertTriangle, CheckCircle,
+  ChevronDown, ChevronUp, Loader, Zap,
+  MessageSquare, Target, Users, X, Clock, Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import API from '../../utils/api';
 import { updateMomRow, deleteMomRow, setMomData as setMomDataRedux, setMeetingContext, saveMOM } from '../../store/slices/momSlice';
-import ReactECharts from 'echarts-for-react';
 import MeetingTable from './MeetingTable';
 import MOMSyncResultModal from '../../components/issues/MOMSyncResultModal';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -61,6 +58,8 @@ const MOMViewPage = () => {
 
   // ── Transcript Search & Highlight State ──
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [isPending, startTransition] = useTransition();
   const [activeHighlightIdx, setActiveHighlightIdx] = useState(0);
 
   const { meetingId: urlMeetingId } = useParams();
@@ -419,8 +418,12 @@ const MOMViewPage = () => {
   }, [transcriptEntries, searchTerm]);
 
   const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setActiveHighlightIdx(0);
+    const val = e.target.value;
+    setSearchInput(val);
+    startTransition(() => {
+      setSearchTerm(val);
+      setActiveHighlightIdx(0);
+    });
   };
 
   const handleSearchKeyDown = (e) => {
@@ -448,8 +451,11 @@ const MOMViewPage = () => {
   };
 
   const clearSearch = () => {
-    setSearchTerm('');
-    setActiveHighlightIdx(0);
+    setSearchInput('');
+    startTransition(() => {
+      setSearchTerm('');
+      setActiveHighlightIdx(0);
+    });
   };
 
   // Scroll active match into viewport
@@ -983,7 +989,7 @@ const MOMViewPage = () => {
                     <input
                       type="text"
                       placeholder="Search discussion dialogue..."
-                      value={searchTerm}
+                      value={searchInput}
                       onChange={handleSearchChange}
                       onKeyDown={handleSearchKeyDown}
                       style={{
@@ -995,10 +1001,11 @@ const MOMViewPage = () => {
                         outline: 'none',
                         fontFamily: 'inherit',
                         background: '#fff',
-                        transition: 'border-color 0.15s ease'
+                        transition: 'border-color 0.15s ease',
+                        opacity: isPending ? 0.7 : 1
                       }}
                     />
-                    {searchTerm && (
+                    {searchInput && (
                       <button
                         onClick={clearSearch}
                         style={{

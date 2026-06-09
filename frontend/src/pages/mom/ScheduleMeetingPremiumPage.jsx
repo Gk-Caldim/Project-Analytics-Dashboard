@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from "../../components/ui/alert-dialog";
 import API from '../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { EVENT_COLORS } from '../constants';

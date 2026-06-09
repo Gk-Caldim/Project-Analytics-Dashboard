@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setBranding } from '../../../store/slices/navSlice';
 import API from '../../../utils/api';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import ImageCropperModal from './ImageCropperModal';
 
