@@ -99,7 +99,7 @@ const MOMViewPage = () => {
           navigate(`/dashboard/mom/view/${storedId}`, { replace: true });
         } else {
           console.warn('[MOMViewPage] No active meeting ID found. Redirecting to MOM main page.');
-          toast.error('No active meeting selected. Returning to dashboard.');
+          toast.error('No meeting selected', { description: 'Redirecting you to the main MOM workspace.' });
           navigate('/dashboard/mom', { replace: true });
         }
       }
@@ -253,7 +253,7 @@ const MOMViewPage = () => {
       })
       .catch(err => {
         console.error('[MOMViewPage] Hydration failed:', err);
-        toast.error('Failed to load saved meeting data.');
+        toast.error('Load failed', { description: 'Unable to load saved meeting details.' });
       })
       .finally(() => setLoading(false));
 
@@ -506,7 +506,7 @@ const MOMViewPage = () => {
     const body = rows.map(r => `${r.criticality}\t${r.discussion_point}\t${r.responsibility}\t${r.target}\t${r.status}`).join('\n');
     navigator.clipboard.writeText(`${header}\n${body}`).then(() => {
       setCopied(true);
-      toast.success('Copied to clipboard');
+      toast.success('Copied to clipboard', { description: 'Action items copied in tab-separated format.' });
       setTimeout(() => setCopied(false), 2000);
     });
   }, [rows]);
@@ -764,7 +764,7 @@ const MOMViewPage = () => {
                                       onClick={() => {
                                         dispatch(setMeetingContext({ projectId: String(pid), projectName: pname }));
                                         setShowProjectPicker(false);
-                                        toast.success(`Linked to ${pname}`);
+                                        toast.success('Project linked', { description: `Meeting is now associated with "${pname}".` });
                                       }}
                                       style={{
                                         width: '100%', textAlign: 'left',

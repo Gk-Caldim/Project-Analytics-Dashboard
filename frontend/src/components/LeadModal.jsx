@@ -18,9 +18,22 @@ const ContactForm = ({ onSuccess, initialUseCase = 'General Inquiry', mode = 'sa
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
+    const personalEmailDomains = [
+      'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com',
+      'icloud.com', 'zoho.com', 'mail.com', 'gmx.com', 'yandex.com',
+      'proton.me', 'protonmail.com', 'live.com'
+    ];
+
+    const email = (formData.work_email || '').trim().toLowerCase();
+    const domain = email.split('@')[1];
+    if (personalEmailDomains.includes(domain)) {
+      setError('Please use a corporate/work email address (e.g. name@company.com).');
+      return;
+    }
+
+    setLoading(true);
     try {
       await API.post('/enterprise/lead', formData);
       onSuccess();

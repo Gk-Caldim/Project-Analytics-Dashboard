@@ -287,7 +287,7 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       const res = await API.get(`/mom/syncs/${syncId}/items`);
       setItems(res.data.rows || []);
     } catch {
-      toast.error('Failed to load items');
+      toast.error('Failed to load items', { description: 'Could not fetch action items. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -302,9 +302,9 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, [field]: value } : item
       ));
-      toast.success('Field updated', { icon: '✨', duration: 1500 });
+      toast.success('Field updated', { description: 'The changes have been saved.', duration: 2000 });
     } catch {
-      toast.error('Update failed');
+      toast.error('Update failed', { description: 'Failed to update field value.' });
     }
   };
 
@@ -323,9 +323,9 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, ...editingRowData } : item
       ));
-      toast.success('Row saved', { icon: '✅', duration: 1500 });
+      toast.success('Row saved', { description: 'All changes for the row have been successfully saved.', duration: 2000 });
     } catch {
-      toast.error('Save failed');
+      toast.error('Save failed', { description: 'Failed to save row changes.' });
     } finally {
       setEditingRowId(null);
       setEditingRowData({});
@@ -361,10 +361,10 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
       await API.delete(`/mom/action-items/${itemId}`);
       setItems(prev => prev.filter(item => item.id !== itemId));
       if (onItemDeleted) onItemDeleted();
-      toast.success('Item deleted', { icon: '🗑️', duration: 1500 });
+      toast.success('Item deleted', { description: 'The action item was removed.', duration: 2000 });
     } catch (err) {
       const detail = err?.response?.data?.detail || err.message || 'Unknown error';
-      toast.error(`Delete failed: ${detail}`);
+      toast.error('Delete failed', { description: detail });
     } finally {
       setDeletingRowId(null);
     }
@@ -734,7 +734,7 @@ const SavedMOMsPage = () => {
       setRecords(recs);
       return recs;
     } catch {
-      toast.error('Failed to load history');
+      toast.error('Failed to load history', { description: 'Could not fetch MOM sync logs.' });
       return [];
     } finally {
       setLoading(false);
@@ -806,10 +806,10 @@ const SavedMOMsPage = () => {
         if (meetingId && r.meeting_id === meetingId) return false;
         return true;
       }));
-      toast.success('MOM completely and permanently deleted', { icon: '🗑️' });
+      toast.success('Record deleted', { description: 'MOM sync log and action items permanently deleted.' });
     } catch (err) {
       console.error('[DELETE SYNC ERROR]', err);
-      toast.error('Failed to hard delete MOM');
+      toast.error('Delete failed', { description: 'Could not permanently delete this record.' });
     }
   };
 

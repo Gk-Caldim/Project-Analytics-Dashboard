@@ -101,46 +101,46 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
       case 'success':
         Icon = CheckCircle;
         iconColor = 'text-emerald-500 dark:text-emerald-400';
-        bgClass = isDark ? 'bg-slate-900/90 border-emerald-500/20 shadow-emerald-950/10' : 'bg-white/95 border-emerald-200 shadow-emerald-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-emerald-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'error':
         Icon = AlertTriangle;
         iconColor = 'text-rose-500 dark:text-rose-400';
-        bgClass = isDark ? 'bg-slate-900/90 border-rose-500/20 shadow-rose-950/10' : 'bg-white/95 border-rose-200 shadow-rose-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-rose-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'warning':
         Icon = AlertTriangle;
         iconColor = 'text-amber-500 dark:text-amber-400';
-        bgClass = isDark ? 'bg-slate-900/90 border-amber-500/20 shadow-amber-950/10' : 'bg-white/95 border-amber-200 shadow-amber-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-amber-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'info':
         Icon = Info;
         iconColor = 'text-blue-500 dark:text-blue-400';
-        bgClass = isDark ? 'bg-slate-900/90 border-blue-500/20 shadow-blue-950/10' : 'bg-white/95 border-blue-200 shadow-blue-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-blue-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'loading':
         Icon = Loader2;
         iconColor = 'text-blue-500 animate-spin';
-        bgClass = isDark ? 'bg-slate-900/90 border-slate-800 shadow-slate-950/10' : 'bg-white/95 border-slate-200 shadow-slate-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       default:
-        bgClass = isDark ? 'bg-slate-900/95 border-slate-800 shadow-slate-950/10' : 'bg-white/95 border-slate-200 shadow-slate-500/5';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-500';
         break;
     }
   } else {
-    bgClass = isDark ? 'bg-slate-900/95 border-slate-850 shadow-slate-950/10' : 'bg-white/95 border-slate-200 shadow-slate-500/5';
+    bgClass = isDark ? 'bg-slate-950/95 border-slate-850 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
     textClass = isDark ? 'text-slate-100' : 'text-slate-900';
     descClass = isDark ? 'text-slate-400' : 'text-slate-500';
   }
@@ -148,18 +148,18 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 20, scale: 0.92 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -10, scale: 0.95, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+      exit={{ opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.15 } }}
+      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
       style={t.style}
-      className={`flex items-start gap-3 p-4 rounded-xl border shadow-xl backdrop-blur-md pointer-events-auto min-w-[320px] max-w-sm ${bgClass}`}
+      className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg backdrop-blur-md pointer-events-auto min-w-[320px] max-w-sm ${bgClass}`}
     >
       {/* Icon wrapper */}
       {t.icon ? (
         <div className="flex-shrink-0 mt-0.5">{t.icon}</div>
       ) : Icon ? (
-        <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconColor}`} />
+        <Icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${iconColor}`} />
       ) : null}
 
       {/* Content wrapper */}
