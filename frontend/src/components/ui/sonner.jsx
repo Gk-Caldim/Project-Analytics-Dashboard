@@ -101,46 +101,46 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
       case 'success':
         Icon = CheckCircle;
         iconColor = 'text-emerald-500 dark:text-emerald-400';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 border-l-emerald-500 shadow-emerald-950/10' : 'bg-white border-slate-150 border-l-emerald-500 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-emerald-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'error':
         Icon = AlertTriangle;
         iconColor = 'text-rose-500 dark:text-rose-400';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 border-l-rose-500 shadow-rose-950/10' : 'bg-white border-slate-150 border-l-rose-500 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-rose-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'warning':
         Icon = AlertTriangle;
         iconColor = 'text-amber-500 dark:text-amber-400';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 border-l-amber-500 shadow-amber-950/10' : 'bg-white border-slate-150 border-l-amber-500 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-amber-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'info':
         Icon = Info;
         iconColor = 'text-blue-500 dark:text-blue-400';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 border-l-blue-500 shadow-blue-950/10' : 'bg-white border-slate-150 border-l-blue-500 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800/60 shadow-blue-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       case 'loading':
         Icon = Loader2;
         iconColor = 'text-blue-500 animate-spin';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-150 border-l-blue-500 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
       default:
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 border-l-slate-500 shadow-slate-950/10' : 'bg-white border-slate-150 border-l-slate-400 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-500';
         break;
     }
   } else {
-    bgClass = isDark ? 'bg-slate-950/95 border-slate-850 border-l-slate-500 shadow-slate-950/10' : 'bg-white border-slate-150 border-l-slate-400 shadow-slate-200/40';
+    bgClass = isDark ? 'bg-slate-950/95 border-slate-850 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
     textClass = isDark ? 'text-slate-100' : 'text-slate-900';
     descClass = isDark ? 'text-slate-400' : 'text-slate-500';
   }
@@ -153,7 +153,7 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
       exit={{ opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
       style={t.style}
-      className={`flex items-start gap-3 p-4 rounded-lg border border-l-4 shadow-lg backdrop-blur-md pointer-events-auto min-w-[320px] max-w-sm ${bgClass}`}
+      className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg backdrop-blur-md pointer-events-auto min-w-[320px] max-w-sm ${bgClass}`}
     >
       {/* Icon wrapper */}
       {t.icon ? (

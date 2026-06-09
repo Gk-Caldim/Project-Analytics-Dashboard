@@ -9,6 +9,19 @@ import { Alert, AlertDescription } from '../components/ui/alert';
 import { toast } from 'sonner';
 import './LoginPage.css';
 
+const getPasswordStrength = (pwd) => {
+  if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
+  let score = 0;
+  if (pwd.length >= 8) score += 1;
+  if (/[0-9]/.test(pwd)) score += 1;
+  if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+  if (/[A-Z]/.test(pwd)) score += 1;
+
+  if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
+  if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
+  return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
+};
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -179,18 +192,7 @@ const LoginPage = () => {
     }
   };
 
-  const getPasswordStrength = (pwd) => {
-    if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
-    let score = 0;
-    if (pwd.length >= 8) score += 1;
-    if (/[0-9]/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
-    if (/[A-Z]/.test(pwd)) score += 1;
 
-    if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
-    if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
-    return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
-  };
 
 
 
