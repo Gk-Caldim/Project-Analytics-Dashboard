@@ -24,7 +24,7 @@ const useCurrency = () => {
    * @param {number} amount - The amount in USD (internal reference) or relative to rates.
    * @param {boolean} convertFromUSD - If true, assumes 'amount' is in USD and converts it to baseCurrency.
    */
-  const format = (amount, convertFromUSD = true) => {
+  const format = (amount, convertFromUSD = true, options = {}) => {
     let value = amount || 0;
     
     if (convertFromUSD) {
@@ -35,8 +35,9 @@ const useCurrency = () => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currentCode,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: options.minimumFractionDigits !== undefined ? options.minimumFractionDigits : 2,
+      maximumFractionDigits: options.maximumFractionDigits !== undefined ? options.maximumFractionDigits : 2,
+      ...options
     }).format(value).replace(/[A-Z]{3}/, currentSymbol).trim();
   };
 

@@ -5115,19 +5115,19 @@ const ProjectTitleDashboard = () => {
                   ) : budgetViewMode === 'simplified' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                       <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{format(summaryData.budgetApproved, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--green-50)', borderRadius: '12px', border: '1px solid var(--green-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{symbol}{summaryData.budgetUtilized}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilised Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{format(summaryData.budgetUtilized, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--blue-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{symbol}{summaryData.budgetBalance}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{format(summaryData.budgetBalance, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--purple-50)', borderRadius: '12px', border: '1px solid var(--purple-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook Budget</p>
                         <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--purple-900)' }}>{summaryData.budgetOutlook}%</p>
                       </div>
                     </div>

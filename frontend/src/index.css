@@ -19,6 +19,7 @@
   /* Industrial Analytics Brand Colors - Redesign 2026 */
   --brand-navy: #1e293b;
   --brand-primary-bg: #F8FAFC;
+  --brand-red: #C8341A;
 
   /* Redesign Specs - Light Theme (Default) */
   --secondary: #0F172A;
@@ -86,6 +87,7 @@
   /* Industrial Analytics Brand Colors - Dark Theme */
   --brand-navy: #16313E;
   --brand-primary-bg: #1E242B;
+  --brand-red: #E24A3B;
 
   /* Redesign Specs - Dark Theme */
   --secondary: #FFFFFF;
