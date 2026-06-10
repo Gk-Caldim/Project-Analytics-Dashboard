@@ -705,6 +705,27 @@ const FileContentViewer = ({
   const handleNextColumns = useCallback(() => { if (nextColIndex !== null) setStartColumnIndex(nextColIndex); }, [nextColIndex]);
   const handlePrevColumns = useCallback(() => { if (prevColIndex !== null) setStartColumnIndex(prevColIndex); }, [prevColIndex]);
 
+  // Content-aware column width: sample header text + up to 20 data rows
+  const colWidths = useMemo(() => {
+    const CHAR_PX = 7.5;  // avg px per char at text-sm
+    const H_PAD   = 48;   // px: px-6 padding + sort chevron
+    const D_PAD   = 24;   // px: px-3 padding each side
+    const MIN_W   = 60;
+    const MAX_W   = 200;
+    return editedHeaders.map((header, colIdx) => {
+      let w = header.length * CHAR_PX + H_PAD;
+      const sample = editedRows.slice(0, 20);
+      for (const row of sample) {
+        const val = row[colIdx];
+        if (val !== null && val !== undefined) {
+          const dataW = String(val).length * CHAR_PX + D_PAD;
+          if (dataW > w) w = dataW;
+        }
+      }
+      return Math.max(MIN_W, Math.min(MAX_W, Math.round(w)));
+    });
+  }, [editedHeaders, editedRows]);
+
   if (isLoading) {
     return (
       <div className="h-full flex flex-col bg-app-bg dark:bg-slate-950 overflow-hidden">
@@ -911,7 +932,7 @@ const FileContentViewer = ({
 
       {/* Table Content */}
       <div className="flex-1 overflow-auto bg-app-bg dark:bg-slate-950 relative">
-        <table className="min-w-full text-sm border-separate border-spacing-0">
+        <table className="min-w-full text-sm border-separate border-spacing-0" style={{ tableLayout: 'auto' }}>
           <thead className="sticky top-0 z-30">
             <tr className="bg-slate-50 dark:bg-slate-900 border-b border-border dark:border-slate-800 shadow-sm">
               <th className="py-3 px-3 border-r border-border dark:border-slate-800 bg-slate-100 dark:bg-slate-800 sticky left-0 z-50 w-12 text-center text-[10px] font-bold text-text-secondary dark:text-slate-400 uppercase tracking-tighter">
@@ -954,7 +975,8 @@ const FileContentViewer = ({
               {paginatedVisibleHeaders.map(({ header, originalIndex }) => (
                 <th
                   key={originalIndex}
-                  className="text-left py-3 px-6 font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap border-b border-r border-border dark:border-slate-800 bg-slate-50 dark:bg-slate-900 group relative"
+                  className="text-left py-3 px-3 font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap border-b border-r border-border dark:border-slate-800 bg-slate-50 dark:bg-slate-900 group relative"
+                  style={{ minWidth: `${colWidths[originalIndex] ?? 80}px`, width: `${colWidths[originalIndex] ?? 80}px`, maxWidth: `${colWidths[originalIndex] ?? 80}px` }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span 
@@ -1049,7 +1071,8 @@ const FileContentViewer = ({
                   {paginatedVisibleHeaders.map(({ originalIndex: colIndex }) => (
                     <td 
                       key={colIndex}
-                      className="py-3 px-6 whitespace-nowrap border-r border-border dark:border-slate-800"
+                      className="py-3 px-3 whitespace-nowrap border-r border-border dark:border-slate-800"
+                      style={{ minWidth: `${colWidths[colIndex] ?? 80}px`, width: `${colWidths[colIndex] ?? 80}px`, maxWidth: `${colWidths[colIndex] ?? 80}px` }}
                     >
                       {isEditing && editingRowIndex === item.originalIndex ? (
                         <input

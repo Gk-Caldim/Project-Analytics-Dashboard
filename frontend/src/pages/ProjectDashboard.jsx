@@ -4321,10 +4321,14 @@ const ProjectTitleDashboard = () => {
 
   return (
     <main style={{
-      minHeight: '100vh',
+      height: '100%',
+      minHeight: '0',
       backgroundColor: 'var(--bg)',
       padding: '16px',
-      fontFamily: "'Inter', sans-serif"
+      fontFamily: "'Inter', sans-serif",
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
     }}>
 
 
@@ -4381,7 +4385,9 @@ const ProjectTitleDashboard = () => {
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0'
+        gap: '0',
+        flex: 1,
+        minHeight: 0
       }}>
         {/* Header with navigation */}
         {(activeProject || selectedSubmodule) && (
@@ -5020,7 +5026,7 @@ const ProjectTitleDashboard = () => {
           </div>
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
-          <div style={{ padding: '0 25px 25px 25px' }}>
+          <div style={{ padding: '20px 25px 25px 25px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {renderSubmoduleTable(
               selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones,
               getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
