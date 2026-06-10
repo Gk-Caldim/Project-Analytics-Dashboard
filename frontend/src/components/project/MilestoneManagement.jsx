@@ -940,7 +940,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
   const isGanttFiltered = ganttDeptFilter !== 'All' || ganttTypeFilter !== 'All' || ganttStatusFilter !== 'All';
 
   // Auto-show analytics when any non-default filter is active
-  const isFiltered = departmentFilter !== 'All' || statusFilter !== 'All' || showCriticalOnly;
+  const isFiltered = showCriticalOnly;
 
   // Virtualization boundaries (table)
   const visibleIndices = useMemo(() => {
@@ -1671,189 +1671,233 @@ const MilestoneManagement = ({ project, showNotification }) => {
     return lines;
   }, [ganttBars, dependencies, ganttVisibleIndices, rowHeight, showDataType]);
 
-  const getSCurveOption = () => {
-    const validTasks = tasks.filter(t => t.start_date && t.end_date);
-    if (validTasks.length === 0) {
-      return {
-        title: { text: 'No date data available', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } }
-      };
-    }
-
-    const startDates = validTasks.map(t => new Date(t.start_date));
-    const endDates = validTasks.map(t => new Date(t.end_date));
-    const minDate = new Date(Math.min(...startDates));
-    const maxDate = new Date(Math.max(...endDates));
-    
-    const intervals = 8;
-    const xAxisData = [];
-    const plannedData = [];
-    const actualData = [];
-
-    for (let i = 0; i <= intervals; i++) {
-      const checkDate = new Date(minDate.getTime() + (maxDate - minDate) * (i / intervals));
-      const dateStr = `${checkDate.getDate()}/${checkDate.getMonth() + 1}`;
-      xAxisData.push(dateStr);
-
-      let totalWeight = 0;
-      let cumulativePlannedProgress = 0;
-      let cumulativeActualProgress = 0;
-
-      validTasks.forEach(t => {
-        const duration = Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / 86400000) || 1;
-        const weight = duration;
-        totalWeight += weight;
-
-        const pStart = new Date(t.start_date);
-        const pEnd = new Date(t.end_date);
-        let plannedPct = 0;
-        if (checkDate >= pEnd) {
-          plannedPct = 100;
-        } else if (checkDate >= pStart) {
-          plannedPct = (checkDate - pStart) / (pEnd - pStart) * 100;
-        }
-        cumulativePlannedProgress += (plannedPct * weight);
-
-        let actualPct = 0;
-        if (t.status === 'Completed' && t.actual_end && new Date(t.actual_end) <= checkDate) {
-          actualPct = 100;
-        } else {
-          const history = t.custom_values?.progress_history || [];
-          const pastEntries = history.filter(h => h.date && new Date(h.date) <= checkDate);
-          if (pastEntries.length > 0) {
-            pastEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
-            actualPct = pastEntries[0].complete_percent || 0;
-          } else if (t.actual_start && new Date(t.actual_start) <= checkDate) {
-            actualPct = 10;
-          }
-        }
-        cumulativeActualProgress += (actualPct * weight);
-      });
-
-      plannedData.push(Math.round((cumulativePlannedProgress / (totalWeight || 1)) * 10) / 10);
-      actualData.push(Math.round((cumulativeActualProgress / (totalWeight || 1)) * 10) / 10);
-    }
-
-    return {
-      tooltip: { trigger: 'axis', backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
-      legend: { data: ['Planned (S-Curve)', 'Actual Progress'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '15%' },
-      xAxis: { type: 'category', data: xAxisData, axisLine: { lineStyle: { color: '#334155' } }, axisLabel: { color: '#94a3b8', fontSize: 8 } },
-      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}%', color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
-      series: [
-        { 
-          name: 'Planned (S-Curve)', 
-          type: 'line', 
-          data: plannedData, 
-          smooth: true, 
-          lineStyle: { width: 2, color: '#3b82f6' }, 
-          itemStyle: { color: '#3b82f6' },
-          areaStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: 'rgba(59, 130, 246, 0.15)' },
-              { offset: 1, color: 'rgba(59, 130, 246, 0)' }
-            ])
-          }
-        },
-        { name: 'Actual Progress', type: 'line', data: actualData, smooth: true, lineStyle: { width: 2, color: '#10b981' }, itemStyle: { color: '#10b981' } }
-      ]
-    };
+  const getDeptId = (d) => {
+    if (!d) return 'UNASSIGNED';
+    const dept = d.trim().toLowerCase();
+    if (dept.includes('engineering')) return 'ENG';
+    if (dept.includes('procurement')) return 'PRO';
+    if (dept.includes('manufacturing')) return 'MFG';
+    if (dept.includes('installation')) return 'INST';
+    if (dept.includes('commissioning')) return 'COMM';
+    if (dept.includes('design')) return 'DES';
+    if (dept.includes('quality')) return 'QA';
+    return d.substring(0, 4).toUpperCase();
   };
 
-  const getResourceWorkloadOption = () => {
-    const resourceCounts = {};
-    const completedCounts = {};
+  const getEmployeeIdOnly = (val) => {
+    if (!val) return '';
+    const str = String(val).trim();
     
+    const isIdCode = (s) => {
+      const cleaned = s.trim();
+      return /^[a-z0-9]+$/i.test(cleaned) && cleaned.length <= 8;
+    };
+
+    // 1. If it has parentheses, e.g. "John Doe (PM001)" or "PM001 (John Doe)"
+    const parenMatch = str.match(/\(([^)]+)\)/);
+    if (parenMatch) {
+      const inside = parenMatch[1].trim();
+      const outside = str.replace(/\([^)]+\)/, '').trim();
+      if (isIdCode(inside)) return inside;
+      if (isIdCode(outside)) return outside;
+    }
+
+    // 2. If it has hyphens, e.g. "John Doe - PM001" or "PM001 - John Doe"
+    if (str.includes('-')) {
+      const parts = str.split('-').map(p => p.trim());
+      const idPart = parts.find(isIdCode);
+      if (idPart) return idPart;
+      return parts[0].length < parts[1].length ? parts[0] : parts[1];
+    }
+
+    // 3. If there are spaces, check if any word is an ID code
+    if (str.includes(' ')) {
+      const parts = str.split(/\s+/);
+      const idPart = parts.find(isIdCode);
+      if (idPart) return idPart;
+    }
+
+    return str;
+  };
+
+  const getResourceAvailabilityVsUtilizationOption = () => {
+    const resources = projectTeam.map(e => e.employee_id).filter(Boolean);
+    if (resources.length === 0) {
+      return { title: { text: 'No resource assignments', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } } };
+    }
+
+    const start = new Date(timelineStart);
+    const end = new Date(timelineEnd);
+    const timelineDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24))) || 1;
+
+    const totalHours = {};
+    resources.forEach(id => totalHours[id] = 0);
+
     tasks.forEach(t => {
-      if (t.assigned_to && t.assigned_to.length > 0) {
-        t.assigned_to.forEach(uid => {
-          const emp = projectTeam.find(e => String(e.employee_id) === String(uid));
-          const name = emp ? emp.employee_name : uid;
-          
-          resourceCounts[name] = (resourceCounts[name] || 0) + 1;
-          if (t.status === 'Completed') {
-            completedCounts[name] = (completedCounts[name] || 0) + 1;
-          } else {
-            completedCounts[name] = completedCounts[name] || 0;
-          }
-        });
+      if (t.assigned_to?.length > 0 && t.start_date && t.end_date) {
+        const tStart = new Date(t.start_date);
+        const tEnd = new Date(t.end_date);
+        const overlapStart = new Date(Math.max(tStart, start));
+        const overlapEnd = new Date(Math.min(tEnd, end));
+        if (overlapStart <= overlapEnd) {
+          const days = Math.ceil((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24)) + 1;
+          t.assigned_to.forEach(uid => {
+            const id = String(uid);
+            if (totalHours[id] !== undefined) totalHours[id] += days * 8;
+          });
+        }
       }
     });
 
-    const names = Object.keys(resourceCounts);
-    if (names.length === 0) {
-      return {
-        title: { text: 'No resource assignments', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } }
-      };
-    }
-
-    const totalTasks = names.map(n => resourceCounts[n]);
-    const completedTasks = names.map(n => completedCounts[n]);
+    const ids = Object.keys(totalHours);
+    const availabilityData = ids.map(() => 8);
+    const utilizationData = ids.map(id => Math.round((totalHours[id] / timelineDays) * 10) / 10);
 
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
-      legend: { data: ['Total Assigned', 'Completed'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '15%' },
-      xAxis: { type: 'category', data: names, axisLine: { lineStyle: { color: '#334155' } }, axisLabel: { color: '#94a3b8', fontSize: 8, rotate: 20 } },
-      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { type: 'shadow' }, 
+        backgroundColor: '#1e293b', 
+        borderColor: '#475569', 
+        textStyle: { color: '#f8fafc', fontSize: 10 },
+        formatter: (params) => {
+          if (!params || params.length === 0) return '';
+          const rawId = params[0].name;
+          const idOnly = getEmployeeIdOnly(rawId);
+          const emp = projectTeam.find(e => getEmployeeIdOnly(e.employee_id) === idOnly);
+          const name = emp ? emp.employee_name : rawId;
+          const role = emp ? emp.role : '';
+          
+          let html = `<div style="font-weight: bold; margin-bottom: 4px;">${name} (${idOnly})</div>`;
+          if (role) {
+            html += `<div style="color: #94a3b8; font-size: 9px; margin-bottom: 4px;">${role}</div>`;
+          }
+          params.forEach(p => {
+            html += `<div style="display: flex; justify-content: space-between; gap: 12px;">
+              <span>${p.marker} ${p.seriesName}:</span>
+              <span style="font-weight: bold;">${p.value} hrs/day</span>
+            </div>`;
+          });
+          return html;
+        }
+      },
+      legend: { 
+        data: ['Availability', 'Utilization'], 
+        textStyle: { color: '#94a3b8', fontSize: 9 }, 
+        bottom: 2,
+        itemWidth: 10,
+        itemHeight: 8,
+        itemGap: 12
+      },
+      grid: { left: '3%', right: '4%', bottom: '18%', containLabel: true, top: '8%' },
+      xAxis: { 
+        type: 'category', 
+        data: ids, 
+        axisLine: { lineStyle: { color: '#334155' } }, 
+        axisLabel: { 
+          color: '#94a3b8', 
+          fontSize: 9,
+          formatter: (value) => getEmployeeIdOnly(value)
+        } 
+      },
+      yAxis: { type: 'value', name: 'hrs/day', nameTextStyle: { color: '#94a3b8', fontSize: 8 }, axisLabel: { color: '#94a3b8', fontSize: 9 }, splitLine: { lineStyle: { color: '#1e293b' } } },
       series: [
-        { name: 'Total Assigned', type: 'bar', data: totalTasks, itemStyle: { color: '#8b5cf6', borderRadius: [4, 4, 0, 0] }, barWidth: '40%' },
-        { name: 'Completed', type: 'bar', data: completedTasks, itemStyle: { color: '#10b981', borderRadius: [4, 4, 0, 0] }, barWidth: '40%', barGap: '10%' }
+        { name: 'Availability', type: 'bar', data: availabilityData, itemStyle: { color: '#10b981', borderRadius: [4, 4, 0, 0] }, barWidth: '30%' },
+        { name: 'Utilization', type: 'bar', data: utilizationData, itemStyle: { color: '#6366f1', borderRadius: [4, 4, 0, 0] }, barWidth: '30%' }
       ]
     };
   };
 
-  const getStatusDistributionOption = () => {
+  const getTaskPhaseSubTaskStatusSummaryOption = () => {
     const statusCounts = {};
-    const statusColors = {
-      'Completed': '#10b981',
-      'In Progress': '#3b82f6',
-      'Delayed': '#ef4444',
-      'Upcoming': '#6366f1',
-      'On Hold': '#f59e0b',
-      'Not Started': '#64748b',
-      'Cancelled': '#94a3b8',
-    };
+    const statusColors = { 'Completed': '#10b981', 'In Progress': '#3b82f6', 'Delayed': '#ef4444', 'Upcoming': '#6366f1', 'On Hold': '#f59e0b', 'Not Started': '#64748b', 'Cancelled': '#94a3b8' };
     filteredTasks.forEach(t => {
-      const s = t.status || 'Not Started';
-      statusCounts[s] = (statusCounts[s] || 0) + 1;
+      if (['Task', 'Sub Task', 'Phase'].includes(t.item_type)) {
+        const s = t.status || 'Not Started';
+        statusCounts[s] = (statusCounts[s] || 0) + 1;
+      }
     });
-    const data = Object.entries(statusCounts).map(([name, value]) => ({
-      name, value, itemStyle: { color: statusColors[name] || '#94a3b8' }
-    }));
+    const data = Object.entries(statusCounts).map(([name, value]) => ({ name, value, itemStyle: { color: statusColors[name] || '#94a3b8' } }));
     return {
+      title: { text: 'Project Status summary', left: 'center', top: 5, textStyle: { color: '#64748b', fontSize: 11, fontWeight: 'bold' } },
       tooltip: { trigger: 'item', backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
       legend: { orient: 'vertical', right: '5%', top: 'center', textStyle: { color: '#94a3b8', fontSize: 9 } },
-      series: [{
-        type: 'pie',
-        radius: ['42%', '68%'],
-        center: ['38%', '50%'],
-        data,
+      series: [{ 
+        type: 'pie', 
+        radius: ['45%', '70%'], 
+        center: ['35%', '55%'], 
+        data, 
         label: { show: false },
-        emphasis: { label: { show: true, fontSize: 10, fontWeight: 'bold', color: '#f8fafc' } }
+        labelLine: { show: false },
+        emphasis: {
+          label: { show: false },
+          labelLine: { show: false }
+        }
       }]
     };
   };
 
-  const getDepartmentBreakdownOption = () => {
-    const deptCounts = {};
+  const getDeptTaskBreakdownOption = () => {
+    const deptCounts = {}, deptFullName = {};
+    const statuses = ['Completed', 'Not Started', 'In Progress', 'Delayed', 'Upcoming', 'On Hold', 'Cancelled'];
+    const statusColors = { 'Completed': '#10b981', 'In Progress': '#3b82f6', 'Delayed': '#ef4444', 'Upcoming': '#6366f1', 'On Hold': '#f59e0b', 'Not Started': '#64748b', 'Cancelled': '#94a3b8' };
+
     filteredTasks.forEach(t => {
-      const d = t.department || 'Unassigned';
-      if (!deptCounts[d]) deptCounts[d] = { total: 0, done: 0 };
-      deptCounts[d].total++;
-      if (t.status === 'Completed') deptCounts[d].done++;
+      if (['Task', 'Sub Task'].includes(t.item_type)) {
+        const d = t.department || 'Unassigned';
+        const deptId = getDeptId(d);
+        deptFullName[deptId] = d;
+        if (!deptCounts[deptId]) { deptCounts[deptId] = {}; statuses.forEach(s => deptCounts[deptId][s] = 0); }
+        deptCounts[deptId][t.status || 'Not Started']++;
+      }
     });
-    const depts = Object.keys(deptCounts);
-    if (depts.length === 0) return { title: { text: 'No data', left: 'center', top: 'center', textStyle: { color: '#6b7280', fontSize: 11 } } };
+
+    const deptIds = Object.keys(deptCounts);
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#1e293b', borderColor: '#475569', textStyle: { color: '#f8fafc', fontSize: 10 } },
-      legend: { data: ['Total Tasks', 'Completed'], textStyle: { color: '#94a3b8', fontSize: 9 }, top: 0 },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true, top: '18%' },
-      xAxis: { type: 'category', data: depts, axisLabel: { color: '#94a3b8', fontSize: 8, rotate: 20 }, axisLine: { lineStyle: { color: '#334155' } } },
-      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 8 }, splitLine: { lineStyle: { color: '#1e293b' } } },
-      series: [
-        { name: 'Total Tasks', type: 'bar', data: depts.map(d => deptCounts[d].total), itemStyle: { color: '#6366f1', borderRadius: [4,4,0,0] }, barWidth: '35%' },
-        { name: 'Completed', type: 'bar', data: depts.map(d => deptCounts[d].done), itemStyle: { color: '#10b981', borderRadius: [4,4,0,0] }, barWidth: '35%', barGap: '10%' }
-      ]
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { type: 'shadow' }, 
+        backgroundColor: '#1e293b', 
+        textStyle: { color: '#f8fafc', fontSize: 10 },
+        formatter: (params) => {
+          if (!params || params.length === 0) return '';
+          const deptId = params[0].name;
+          const fullName = deptFullName[deptId] || deptId;
+          let html = `<div style="font-weight: bold; margin-bottom: 4px;">${fullName}</div>`;
+          params.forEach(p => {
+            if (p.value > 0) {
+              html += `<div style="display: flex; justify-content: space-between; gap: 12px;">
+                <span>${p.marker} ${p.seriesName}:</span>
+                <span style="font-weight: bold;">${p.value}</span>
+              </div>`;
+            }
+          });
+          return html;
+        }
+      },
+      legend: { 
+        data: statuses, 
+        textStyle: { color: '#94a3b8', fontSize: 9 }, 
+        bottom: 2,
+        itemWidth: 10,
+        itemHeight: 8,
+        itemGap: 8,
+        padding: [0, 5]
+      },
+      grid: { left: '3%', right: '4%', bottom: '22%', containLabel: true, top: '8%' },
+      xAxis: { 
+        type: 'category', 
+        data: deptIds, 
+        axisLabel: { 
+          color: '#94a3b8', 
+          fontSize: 9, 
+          rotate: 0, 
+          interval: 0 
+        }, 
+        axisLine: { lineStyle: { color: '#334155' } } 
+      },
+      yAxis: { type: 'value', minInterval: 1, axisLabel: { color: '#94a3b8', fontSize: 9 }, splitLine: { lineStyle: { color: '#1e293b' } } },
+      series: statuses.map(status => ({ name: status, type: 'bar', stack: 'status', data: deptIds.map(d => deptCounts[d][status]), itemStyle: { color: statusColors[status] }, barWidth: '35%' }))
     };
   };
 
@@ -2055,51 +2099,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
             </span>
           )}
 
-          {/* Department filter */}
-          <div className="flex items-center gap-1.5">
-            <Building2 size={11} className="text-[var(--text-muted)]" />
-            <span className="text-[var(--text-muted)] font-semibold">Dept:</span>
-            <select
-              value={departmentFilter}
-              onChange={e => setDepartmentFilter(e.target.value)}
-              className="px-2 py-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 font-semibold"
-            >
-              <option value="All">All Departments</option>
-              {['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning'].map(d => (
-                <option key={d} value={d} className="bg-[var(--dropdown-bg)] text-[var(--text-primary)]">{d}</option>
-              ))}
-            </select>
-          </div>
 
-          {/* Status filter */}
-          <div className="flex items-center gap-1.5">
-            <Activity size={11} className="text-[var(--text-muted)]" />
-            <span className="text-[var(--text-muted)] font-semibold">Status:</span>
-            <div className="flex items-center gap-0.5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-0.5">
-              {[
-                { val: 'All',         label: 'All',          icon: null,              color: '' },
-                { val: 'Not Started', label: 'Not Started',  icon: <Clock size={9} />,       color: 'text-slate-400' },
-                { val: 'In Progress', label: 'In Progress',  icon: <CirclePlay size={9} />,  color: 'text-blue-400' },
-                { val: 'Completed',   label: 'Completed',    icon: <CircleCheck size={9} />, color: 'text-emerald-400' },
-                { val: 'Delayed',     label: 'Delayed',      icon: <AlertTriangle size={9} />, color: 'text-rose-400' },
-                { val: 'On Hold',     label: 'On Hold',      icon: <CirclePause size={9} />, color: 'text-amber-400' },
-              ].map(s => (
-                <button
-                  key={s.val}
-                  onClick={() => setStatusFilter(s.val)}
-                  title={s.val}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold transition-all whitespace-nowrap ${
-                    statusFilter === s.val
-                      ? 'bg-indigo-600 text-white shadow'
-                      : `${s.color} hover:bg-[var(--table-hover)] hover:text-[var(--text-primary)]`
-                  }`}
-                >
-                  {s.icon && <span className={statusFilter === s.val ? 'text-white' : ''}>{s.icon}</span>}
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Critical path toggle */}
           <label className="flex items-center gap-1.5 cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium select-none">
@@ -2203,8 +2203,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
               {isFiltered ? (
                 <span>
                   Filtered Analytics
-                  {departmentFilter !== 'All' && <span className="ml-1 px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 text-[9px] normal-case font-extrabold">{departmentFilter}</span>}
-                  {statusFilter !== 'All' && <span className="ml-1 px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 text-[9px] normal-case font-extrabold">{statusFilter}</span>}
+                  {showCriticalOnly && <span className="ml-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500 text-[9px] normal-case font-extrabold">Critical Path</span>}
                 </span>
               ) : 'Project Schedule Analytics'}
             </h3>
@@ -2216,44 +2215,34 @@ const MilestoneManagement = ({ project, showNotification }) => {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {/* Chart 1: Status Distribution (donut) — shows on filter */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Chart 1: Project Status summary */}
             <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
               <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Activity size={10} className="text-indigo-400" /> Status Breakdown
+                <Activity size={10} className="text-indigo-400" /> Project Status summary
               </span>
               <div className="flex-1 min-h-0">
-                <ReactECharts option={getStatusDistributionOption()} style={{ height: '100%', width: '100%' }} />
+                <ReactECharts option={getTaskPhaseSubTaskStatusSummaryOption()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
 
-            {/* Chart 2: Department Breakdown */}
+            {/* Chart 2: Department wise task breakdown count */}
             <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
               <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Building2 size={10} className="text-blue-400" /> By Department
+                <Building2 size={10} className="text-blue-400" /> Department wise task breakdown count
               </span>
               <div className="flex-1 min-h-0">
-                <ReactECharts option={getDepartmentBreakdownOption()} style={{ height: '100%', width: '100%' }} />
+                <ReactECharts option={getDeptTaskBreakdownOption()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
 
-            {/* Chart 3: S-Curve */}
+            {/* Chart 3: Resource availability vs utilization */}
             <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
               <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
-                <BarChart3 size={10} className="text-emerald-400" /> S-Curve Progress
+                <Users size={10} className="text-violet-400" /> resource availability vs utlization
               </span>
               <div className="flex-1 min-h-0">
-                <ReactECharts option={getSCurveOption()} style={{ height: '100%', width: '100%' }} />
-              </div>
-            </div>
-
-            {/* Chart 4: Resource Workload */}
-            <div className="bg-[var(--bg)] p-3 border border-[var(--border-subtle)] rounded-xl h-52 flex flex-col">
-              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Users size={10} className="text-violet-400" /> Resource Loads
-              </span>
-              <div className="flex-1 min-h-0">
-                <ReactECharts option={getResourceWorkloadOption()} style={{ height: '100%', width: '100%' }} />
+                <ReactECharts option={getResourceAvailabilityVsUtilizationOption()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
           </div>
