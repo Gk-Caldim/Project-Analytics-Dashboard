@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X, ExternalLink } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useRef } from 'react';
 import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
 import TopRisksPanel from '../components/issues/TopRisksPanel';
@@ -503,13 +504,40 @@ const VPProjectDashboard = ({
                         <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{parsedDate}</td>
                         <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)', fontSize: '12px' }}>{parsedSyncedAt}</td>
                         <td style={{ padding: '12px 16px' }}>
-                          <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>{h.row_count} issues</span>
+                          {h.sync_id ? (
+                            <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>{h.row_count} issues</span>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '1px 6px' }}>No record</span>
+                          )}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <button
-                            onClick={() => h.session_id && navigate(`/dashboard/mom/view/${h.session_id}`)}
-                            style={{ fontSize: '12px', color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+                            onClick={() => {
+                              if (h.sync_id) {
+                                navigate(`/dashboard/saved-moms?highlight=${h.sync_id}`);
+                              } else {
+                                toast.error('History not found', { duration: 3000 });
+                              }
+                            }}
+                            style={{
+                              fontSize: '12px',
+                              color: 'var(--accent)',
+                              background: 'var(--elevated-card)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: '5px',
+                              cursor: 'pointer',
+                              padding: '3px 10px',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s',
+                            }}
+                            onMouseOver={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                            onMouseOut={e => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                            title={h.sync_id ? 'View in Saved MOMs' : 'No saved record found'}
                           >
+                            <ExternalLink size={11} />
                             View
                           </button>
                         </td>

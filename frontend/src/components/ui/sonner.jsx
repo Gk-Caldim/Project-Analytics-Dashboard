@@ -39,8 +39,13 @@ export function Toaster({ theme = 'light', position = 'top-right', closeButton =
     const handleToastEvent = (action) => {
       if (action.type === 'ADD') {
         setToasts(prev => {
-          const exists = prev.some(t => t.id === action.toast.id);
-          if (exists) return prev;
+          const existingIndex = prev.findIndex(t => t.id === action.toast.id);
+          if (existingIndex !== -1) {
+            // Replace the existing toast in-place (e.g. loading → success transition)
+            const updated = [...prev];
+            updated[existingIndex] = action.toast;
+            return updated;
+          }
           return [...prev, action.toast];
         });
       } else if (action.type === 'DISMISS') {
