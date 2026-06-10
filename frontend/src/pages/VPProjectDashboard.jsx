@@ -33,6 +33,10 @@ const VPProjectDashboard = ({
   const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
   const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
   const [zoomLevel, setZoomLevel] = useState('Week'); // 'Day' | 'Week' | 'Month'
+  const [ganttShowTaskName, setGanttShowTaskName] = useState(true);
+  const [ganttShowPercent, setGanttShowPercent] = useState(true);
+  const [ganttShowTodayLine, setGanttShowTodayLine] = useState(true);
+  const [isGanttSettingsModalOpen, setIsGanttSettingsModalOpen] = useState(false);
 
   // --- Optimized Milestones for Table View (Dashboard optimized) ---
   const optimizedMilestones = useMemo(() => {
@@ -169,70 +173,57 @@ const VPProjectDashboard = ({
       }
 
     } else if (zoomLevel === 'Week') {
-      let currentMonthStartIdx = 0;
-      let currentMonthLabel = '';
-      let daysInGroup = 0;
-      let lastWeekStartIdx = 0;
-
+      const weekStarts = [];
       for (let i = 0; i < daysBetween; i++) {
         const date = new Date(timelineStart);
         date.setDate(date.getDate() + i);
-
-        const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const isWeekStart = date.getDay() === 1 || i === 0;
-
-        if (isWeekStart && i > 0) {
-          const weekStartDate = new Date(timelineStart);
-          weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
-          bottomHeaders.push({
-            key: `b-${lastWeekStartIdx}`,
-            left: lastWeekStartIdx * pxPerDay,
-            width: (i - lastWeekStartIdx) * pxPerDay,
-            label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
-            title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
-            className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
-          });
-          lastWeekStartIdx = i;
-        }
-
-        if (i === 0) {
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = 0;
-          daysInGroup = 1;
-        } else if (monthLabel === currentMonthLabel) {
-          daysInGroup++;
-        } else {
-          topHeaders.push({
-            key: `t-${currentMonthStartIdx}`,
-            left: currentMonthStartIdx * pxPerDay,
-            width: daysInGroup * pxPerDay,
-            label: currentMonthLabel,
-          });
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = i;
-          daysInGroup = 1;
+        if (date.getDay() === 1 || i === 0) {
+          weekStarts.push(i);
         }
       }
+      weekStarts.push(daysBetween);
 
-      if (lastWeekStartIdx < daysBetween) {
-        const weekStartDate = new Date(timelineStart);
-        weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
+      let currentGroupStart = weekStarts[0];
+      let currentGroupLabel = '';
+
+      for (let j = 0; j < weekStarts.length - 1; j++) {
+        const wStart = weekStarts[j];
+        const wEnd = weekStarts[j+1];
+        const wStartDate = new Date(timelineStart);
+        wStartDate.setDate(wStartDate.getDate() + wStart);
+        const label = wStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        if (j === 0) {
+          currentGroupLabel = label;
+          currentGroupStart = wStart;
+        } else if (label !== currentGroupLabel) {
+          topHeaders.push({
+            key: `t-${currentGroupStart}`,
+            left: currentGroupStart * pxPerDay,
+            width: (wStart - currentGroupStart) * pxPerDay,
+            label: currentGroupLabel
+          });
+          currentGroupLabel = label;
+          currentGroupStart = wStart;
+        }
+
         bottomHeaders.push({
-          key: `b-${lastWeekStartIdx}`,
-          left: lastWeekStartIdx * pxPerDay,
-          width: (daysBetween - lastWeekStartIdx) * pxPerDay,
-          label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
-          title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
+          key: `b-${wStart}`,
+          left: wStart * pxPerDay,
+          width: (wEnd - wStart) * pxPerDay,
+          label: `${wStartDate.getDate()} ${wStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
+          title: `Week Commencing: ${wStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
           className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
         });
       }
 
-      if (daysInGroup > 0) {
+      if (weekStarts.length > 1) {
+        const lastStart = weekStarts[weekStarts.length - 1];
         topHeaders.push({
-          key: `t-${currentMonthStartIdx}`,
-          left: currentMonthStartIdx * pxPerDay,
-          width: daysInGroup * pxPerDay,
-          label: currentMonthLabel,
+          key: `t-${currentGroupStart}`,
+          left: currentGroupStart * pxPerDay,
+          width: (lastStart - currentGroupStart) * pxPerDay,
+          label: currentGroupLabel
         });
       }
 
@@ -644,49 +635,73 @@ const VPProjectDashboard = ({
                 </span>
               </div>
               {!isDashboardLoading && !isDashboardError && milestones.length > 0 && (
-                <div style={{ display: 'flex', background: 'var(--bg)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <button
-                    onClick={() => setMilestoneView('table')}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      borderRadius: '6px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      backgroundColor: milestoneView === 'table' ? 'var(--surface)' : 'transparent',
-                      color: milestoneView === 'table' ? 'var(--accent)' : 'var(--text-muted)',
-                      boxShadow: milestoneView === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Table size={12} />
-                    Table View
-                  </button>
-                  <button
-                    onClick={() => setMilestoneView('chart')}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      borderRadius: '6px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      backgroundColor: milestoneView === 'chart' ? 'var(--surface)' : 'transparent',
-                      color: milestoneView === 'chart' ? 'var(--accent)' : 'var(--text-muted)',
-                      boxShadow: milestoneView === 'chart' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <BarChart3 size={12} />
-                    Timeline Chart
-                  </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ display: 'flex', background: 'var(--bg)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                    <button
+                      onClick={() => setMilestoneView('table')}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        backgroundColor: milestoneView === 'table' ? 'var(--surface)' : 'transparent',
+                        color: milestoneView === 'table' ? 'var(--accent)' : 'var(--text-muted)',
+                        boxShadow: milestoneView === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <Table size={12} />
+                      Table View
+                    </button>
+                    <button
+                      onClick={() => setMilestoneView('chart')}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        backgroundColor: milestoneView === 'chart' ? 'var(--surface)' : 'transparent',
+                        color: milestoneView === 'chart' ? 'var(--accent)' : 'var(--text-muted)',
+                        boxShadow: milestoneView === 'chart' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <BarChart3 size={12} />
+                      Timeline Chart
+                    </button>
+                  </div>
+                  {milestoneView === 'chart' && (
+                    <button
+                      onClick={() => setIsGanttSettingsModalOpen(true)}
+                      style={{
+                        padding: '6px 8px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-subtle)',
+                        background: 'var(--surface)',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                      onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+                      title="Gantt Chart Settings"
+                    >
+                      <Settings size={14} />
+                    </button>
+                  )}
                 </div>
               )}
             </header>
@@ -1062,6 +1077,7 @@ const VPProjectDashboard = ({
                                   top: 0,
                                   height: '100%',
                                   borderRight: '1px solid var(--border-subtle)',
+                                  borderLeft: th.left === 0 ? '1px solid var(--border-subtle)' : 'none',
                                   paddingLeft: '12px',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -1129,8 +1145,10 @@ const VPProjectDashboard = ({
                               isMonthStart = tickDate.getDate() === 1;
                             } else if (zoomLevel === 'Week') {
                               showLine = tickDate.getDay() === 1;
-                              isMajorLine = tickDate.getDate() <= 7;
-                              isMonthStart = tickDate.getDate() <= 7;
+                              const prevMonday = new Date(tickDate);
+                              prevMonday.setDate(prevMonday.getDate() - 7);
+                              isMonthStart = tickDate.getMonth() !== prevMonday.getMonth();
+                              isMajorLine = isMonthStart;
                             } else if (zoomLevel === 'Month') {
                               showLine = tickDate.getDate() === 1;
                               isMajorLine = tickDate.getMonth() === 0;
@@ -1184,7 +1202,7 @@ const VPProjectDashboard = ({
                         </div>
 
                         {/* Today Line */}
-                        {todayLeft !== null && (
+                        {ganttShowTodayLine && todayLeft !== null && (
                           <div style={{
                             position: 'absolute',
                             left: todayLeft,
@@ -1318,24 +1336,27 @@ const VPProjectDashboard = ({
                                 )}
 
                                 {/* Inline Text Label (above the bar) */}
-                                <span
-                                  style={{
-                                    position: 'absolute',
-                                    left: isMilestone ? bar.plannedLeft + 12 : bar.plannedLeft,
-                                    top: '4px',
-                                    maxWidth: '420px',
-                                    fontSize: '10px',
-                                    fontWeight: '700',
-                                    color: 'var(--text-primary)',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    pointerEvents: 'none',
-                                    lineHeight: 'none'
-                                  }}
-                                >
-                                  {bar.activityName} {bar.completePercent > 0 && ` (${Math.round(bar.completePercent)}%)`}
-                                </span>
+                                {(ganttShowTaskName || (ganttShowPercent && bar.completePercent > 0)) && (
+                                  <span
+                                    style={{
+                                      position: 'absolute',
+                                      left: isMilestone ? bar.plannedLeft + 12 : bar.plannedLeft,
+                                      top: '4px',
+                                      maxWidth: '420px',
+                                      fontSize: '10px',
+                                      fontWeight: '700',
+                                      color: 'var(--text-primary)',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      pointerEvents: 'none',
+                                      lineHeight: 'none'
+                                    }}
+                                  >
+                                    {ganttShowTaskName ? bar.activityName : ''}
+                                    {ganttShowPercent && bar.completePercent > 0 ? ` (${Math.round(bar.completePercent)}%)` : ''}
+                                  </span>
+                                )}
                               </div>
                             );
                           })}
@@ -1834,6 +1855,94 @@ const VPProjectDashboard = ({
                 }}
               >
                 Save View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── GANTT CHART SETTINGS MODAL ── */}
+      {isGanttSettingsModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '24px',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div style={{
+            background: 'var(--surface)', borderRadius: '12px', width: '100%', maxWidth: '400px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+            animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Gantt Chart Settings</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Configure display settings for the Gantt view
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsGanttSettingsModalOpen(false)}
+                style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+              >
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={ganttShowTaskName}
+                  onChange={e => setGanttShowTaskName(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Task Name</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display the name above the timeline bar</span>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={ganttShowPercent}
+                  onChange={e => setGanttShowPercent(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Progress Percentage</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display completion percentage next to the task name</span>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={ganttShowTodayLine}
+                  onChange={e => setGanttShowTodayLine(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Today Line</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Render a vertical red marker indicating the current date</span>
+                </div>
+              </label>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface)', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+              <button 
+                onClick={() => setIsGanttSettingsModalOpen(false)}
+                style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }}
+              >
+                Close
               </button>
             </div>
           </div>

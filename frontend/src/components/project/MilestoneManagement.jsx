@@ -755,70 +755,57 @@ const MilestoneManagement = ({ project, showNotification }) => {
       }
 
     } else if (zoomLevel === 'Week') {
-      let currentMonthStartIdx = 0;
-      let currentMonthLabel = '';
-      let daysInGroup = 0;
-
-      let lastWeekStartIdx = 0;
+      const weekStarts = [];
       for (let i = 0; i < daysBetween; i++) {
         const date = new Date(timelineStart);
         date.setDate(date.getDate() + i);
-
-        const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const isWeekStart = date.getDay() === 1 || i === 0;
-
-        if (isWeekStart && i > 0) {
-          const weekStartDate = new Date(timelineStart);
-          weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
-          bottomHeaders.push({
-            key: `b-${lastWeekStartIdx}`,
-            left: lastWeekStartIdx * pxPerDay,
-            width: (i - lastWeekStartIdx) * pxPerDay,
-            label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
-            title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
-            className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
-          });
-          lastWeekStartIdx = i;
-        }
-
-        if (i === 0) {
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = 0;
-          daysInGroup = 1;
-        } else if (monthLabel === currentMonthLabel) {
-          daysInGroup++;
-        } else {
-          topHeaders.push({
-            key: `t-${currentMonthStartIdx}`,
-            left: currentMonthStartIdx * pxPerDay,
-            width: daysInGroup * pxPerDay,
-            label: currentMonthLabel,
-          });
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = i;
-          daysInGroup = 1;
+        if (date.getDay() === 1 || i === 0) {
+          weekStarts.push(i);
         }
       }
+      weekStarts.push(daysBetween);
 
-      if (lastWeekStartIdx < daysBetween) {
-        const weekStartDate = new Date(timelineStart);
-        weekStartDate.setDate(weekStartDate.getDate() + lastWeekStartIdx);
+      let currentGroupStart = weekStarts[0];
+      let currentGroupLabel = '';
+
+      for (let j = 0; j < weekStarts.length - 1; j++) {
+        const wStart = weekStarts[j];
+        const wEnd = weekStarts[j+1];
+        const wStartDate = new Date(timelineStart);
+        wStartDate.setDate(wStartDate.getDate() + wStart);
+        const label = wStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        if (j === 0) {
+          currentGroupLabel = label;
+          currentGroupStart = wStart;
+        } else if (label !== currentGroupLabel) {
+          topHeaders.push({
+            key: `t-${currentGroupStart}`,
+            left: currentGroupStart * pxPerDay,
+            width: (wStart - currentGroupStart) * pxPerDay,
+            label: currentGroupLabel
+          });
+          currentGroupLabel = label;
+          currentGroupStart = wStart;
+        }
+
         bottomHeaders.push({
-          key: `b-${lastWeekStartIdx}`,
-          left: lastWeekStartIdx * pxPerDay,
-          width: (daysBetween - lastWeekStartIdx) * pxPerDay,
-          label: `${weekStartDate.getDate()} ${weekStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
-          title: `Week Commencing: ${weekStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
+          key: `b-${wStart}`,
+          left: wStart * pxPerDay,
+          width: (wEnd - wStart) * pxPerDay,
+          label: `${wStartDate.getDate()} ${wStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
+          title: `Week Commencing: ${wStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
           className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
         });
       }
 
-      if (daysInGroup > 0) {
+      if (weekStarts.length > 1) {
+        const lastStart = weekStarts[weekStarts.length - 1];
         topHeaders.push({
-          key: `t-${currentMonthStartIdx}`,
-          left: currentMonthStartIdx * pxPerDay,
-          width: daysInGroup * pxPerDay,
-          label: currentMonthLabel,
+          key: `t-${currentGroupStart}`,
+          left: currentGroupStart * pxPerDay,
+          width: (lastStart - currentGroupStart) * pxPerDay,
+          label: currentGroupLabel
         });
       }
 
@@ -2876,7 +2863,7 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     <div
                       key={th.key}
                       style={{ left: th.left, width: th.width }}
-                      className="absolute top-0 h-full border-r border-[var(--border-subtle)]/50 px-3 flex items-center justify-start truncate gap-1"
+                      className={`absolute top-0 h-full border-r border-[var(--border-subtle)]/50 px-3 flex items-center justify-start truncate gap-1 ${th.left === 0 ? 'border-l' : ''}`}
                     >
                       <span className="text-indigo-500 dark:text-indigo-400 text-[10px]">▶</span>
                       <span>{th.label}</span>
@@ -2915,8 +2902,10 @@ const MilestoneManagement = ({ project, showNotification }) => {
                     isMonthStart = tickDate.getDate() === 1;
                   } else if (zoomLevel === 'Week') {
                     showLine = tickDate.getDay() === 1; // Only show week starts
-                    isMajorLine = tickDate.getDate() <= 7; // First week of month is major
-                    isMonthStart = tickDate.getDate() <= 7;
+                    const prevMonday = new Date(tickDate);
+                    prevMonday.setDate(prevMonday.getDate() - 7);
+                    isMonthStart = tickDate.getMonth() !== prevMonday.getMonth();
+                    isMajorLine = isMonthStart;
                   } else if (zoomLevel === 'Month') {
                     showLine = tickDate.getDate() === 1; // Only show month starts
                     isMajorLine = tickDate.getMonth() === 0; // January is major

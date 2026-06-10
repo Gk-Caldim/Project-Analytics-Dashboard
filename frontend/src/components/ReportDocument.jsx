@@ -286,6 +286,194 @@ const chunkArray = (arr, size) => {
 };
 
 
+const renderPdfGantt = (optimizedMilestones) => {
+  if (!optimizedMilestones || optimizedMilestones.length === 0) return null;
+
+  // Find timeline range
+  let minTime = null;
+  let maxTime = null;
+  optimizedMilestones.forEach(t => {
+    if (t.start_date) {
+      const d = new Date(t.start_date).getTime();
+      if (!minTime || d < minTime) minTime = d;
+    }
+    if (t.end_date) {
+      const d = new Date(t.end_date).getTime();
+      if (!maxTime || d > maxTime) maxTime = d;
+    }
+  });
+
+  if (!minTime) minTime = Date.now();
+  if (!maxTime) maxTime = Date.now() + 30 * 24 * 60 * 60 * 1000;
+
+  // Pad by 7 days start, 14 days end
+  const timelineStart = new Date(minTime - 7 * 24 * 60 * 60 * 1000);
+  const timelineEnd = new Date(maxTime + 14 * 24 * 60 * 60 * 1000);
+  const totalDays = Math.ceil((timelineEnd - timelineStart) / (24 * 60 * 60 * 1000)) || 1;
+
+  // Compute month headers
+  const months = [];
+  const tempDate = new Date(timelineStart);
+  while (tempDate <= timelineEnd) {
+    const mLabel = tempDate.toLocaleDateString('en-US', { month: 'short' });
+    const year = tempDate.getFullYear();
+    months.push({
+      month: tempDate.getMonth(),
+      year: year,
+      label: `${mLabel} ${year}`,
+      firstDay: new Date(year, tempDate.getMonth(), 1)
+    });
+    tempDate.setMonth(tempDate.getMonth() + 1);
+    tempDate.setDate(1);
+  }
+
+  const monthHeaders = months.map((m, idx) => {
+    const nextMonthFirstDay = new Date(m.year, m.month + 1, 1);
+    const start = Math.max(timelineStart.getTime(), m.firstDay.getTime());
+    const end = Math.min(timelineEnd.getTime(), nextMonthFirstDay.getTime());
+    const startPct = ((start - timelineStart.getTime()) / (24 * 60 * 60 * 1000)) / totalDays * 100;
+    const endPct = ((end - timelineStart.getTime()) / (24 * 60 * 60 * 1000)) / totalDays * 100;
+    return {
+      label: m.label,
+      left: `${startPct}%`,
+      width: `${endPct - startPct}%`
+    };
+  });
+
+  return (
+    <View style={{ borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', marginTop: 10 }}>
+      {/* Month Headers */}
+      <View style={{ flexDirection: 'row', height: 18, backgroundColor: '#f1f5f9', borderBottomWidth: 1, borderBottomColor: '#cbd5e1', position: 'relative' }}>
+        <View style={{ width: '40%', borderRightWidth: 1, borderRightColor: '#cbd5e1', justifyContent: 'center', paddingLeft: 6 }}>
+          <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#475569' }}>WBS Activity Name</Text>
+        </View>
+        <View style={{ width: '60%', height: '100%', position: 'relative' }}>
+          {monthHeaders.map((mh, idx) => (
+            <View 
+              key={idx} 
+              style={{ 
+                position: 'absolute', 
+                left: mh.left, 
+                width: mh.width, 
+                height: '100%', 
+                borderRightWidth: 1, 
+                borderRightColor: '#cbd5e1', 
+                justifyContent: 'center', 
+                paddingLeft: 4 
+              }}
+            >
+              <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: '#475569' }}>{mh.label}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Task Rows */}
+      {optimizedMilestones.map((task, idx) => {
+        const isPhase = task.item_type === 'Phase';
+        const isMilestone = task.item_type === 'Milestone';
+        const indent = (task.indent_level || 0) * 8;
+
+        const taskStart = task.start_date ? new Date(task.start_date).getTime() : timelineStart.getTime();
+        const taskEnd = task.end_date ? new Date(task.end_date).getTime() : timelineEnd.getTime();
+        
+        const leftPct = `${Math.max(0, Math.min(98, ((taskStart - timelineStart.getTime()) / (24 * 60 * 60 * 1000)) / totalDays * 100))}%`;
+        const widthPct = `${Math.max(2, Math.min(100, ((taskEnd - taskStart) / (24 * 60 * 60 * 1000)) / totalDays * 100))}%`;
+
+        // Resolve status styles & colors
+        const statusVal = task.status || 'Not Started';
+        const barColor = {
+          'Completed': '#10b981',
+          'In Progress': '#3b82f6',
+          'Delayed': '#ef4444',
+          'Upcoming': '#6366f1',
+          'On Hold': '#f59e0b',
+          'Not Started': '#64748b',
+          'Cancelled': '#94a3b8'
+        }[statusVal] || '#64748b';
+
+        return (
+          <View 
+            key={idx} 
+            style={{ 
+              flexDirection: 'row', 
+              borderBottomWidth: 1, 
+              borderBottomColor: '#e2e8f0', 
+              minHeight: 18, 
+              alignItems: 'center', 
+              backgroundColor: isPhase ? '#f8fafc' : '#ffffff' 
+            }}
+            wrap={false}
+          >
+            {/* Task Label */}
+            <View 
+              style={{ 
+                width: '40%', 
+                paddingLeft: 6 + indent, 
+                borderRightWidth: 1, 
+                borderRightColor: '#e2e8f0', 
+                justifyContent: 'center',
+                paddingVertical: 3
+              }}
+            >
+              <Text style={{ fontSize: 6.5, fontWeight: isPhase ? 'bold' : 'normal', color: isMilestone ? '#6366f1' : '#334155' }}>
+                {task.wbs_code} {task.activity_name}
+              </Text>
+            </View>
+
+            {/* Gantt Bar */}
+            <View style={{ width: '60%', height: '100%', position: 'relative', justifyContent: 'center' }}>
+              {isMilestone ? (
+                // Circle marker for milestone
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: leftPct, 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: 3, 
+                    backgroundColor: barColor, 
+                    borderWidth: 1, 
+                    borderColor: '#ffffff' 
+                  }} 
+                />
+              ) : isPhase ? (
+                // Solid block for phase
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: leftPct, 
+                    width: widthPct, 
+                    height: 5, 
+                    borderRadius: 1, 
+                    backgroundColor: barColor 
+                  }} 
+                />
+              ) : (
+                // Progress bar for standard task
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: leftPct, 
+                    width: widthPct, 
+                    height: 4, 
+                    borderRadius: 2, 
+                    backgroundColor: '#e2e8f0', 
+                    overflow: 'hidden' 
+                  }}
+                >
+                  <View style={{ width: `${task.complete_percent || 0}%`, height: '100%', backgroundColor: barColor }} />
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+
 const ReportDocument = ({ 
   activeProject, 
   milestones, 
@@ -349,44 +537,7 @@ const ReportDocument = ({
             return (
               <View key={key} style={styles.section}>
                 <Text style={[styles.sectionTitle, { borderBottomColor: '#6366f1', color: '#6366f1' }]}>Project Milestones & Timeline</Text>
-                <View style={[styles.table, { marginTop: 10 }]}>
-                  <View style={styles.tableHeader}>
-                    <Text style={[styles.tableCellHeader, { width: '12%' }]}>WBS</Text>
-                    <Text style={[styles.tableCellHeader, { width: '38%' }]}>Activity / Milestone Name</Text>
-                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>Start Date</Text>
-                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>End Date</Text>
-                    <Text style={[styles.tableCellHeader, { width: '10%', textAlign: 'center' }]}>Progress</Text>
-                    <Text style={[styles.tableCellHeader, { width: '10%' }]}>Status</Text>
-                  </View>
-                  {optimizedMilestones.map((task, idx) => {
-                    const isPhase = task.item_type === 'Phase';
-                    const isMilestone = task.item_type === 'Milestone';
-                    const indent = (task.indent_level || 0) * 8;
-                    
-                    const pStart = task.start_date ? new Date(task.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
-                    const pEnd = task.end_date ? new Date(task.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
-                    
-                    const statusVal = task.status || 'Not Started';
-                    const statusStyles = getStatusStyles(statusVal);
-                    
-                    return (
-                      <View key={idx} style={[styles.tableRow, { backgroundColor: isPhase ? '#f8fafc' : '#ffffff' }]} wrap={false}>
-                        <Text style={[styles.tableCell, { width: '12%', fontWeight: isPhase ? 'bold' : 'normal' }]}>{task.wbs_code || ''}</Text>
-                        <Text style={[styles.tableCell, { width: '38%', paddingLeft: Math.min(30, 6 + indent), fontWeight: isPhase ? 'bold' : 'normal', color: isMilestone ? '#6366f1' : '#334155' }]}>
-                          {task.activity_name}
-                        </Text>
-                        <Text style={[styles.tableCell, { width: '15%', color: '#475569' }]}>{pStart}</Text>
-                        <Text style={[styles.tableCell, { width: '15%', color: '#475569' }]}>{pEnd}</Text>
-                        <Text style={[styles.tableCell, { width: '10%', textAlign: 'center', fontWeight: isPhase ? 'bold' : 'normal' }]}>{Math.round(task.complete_percent || 0)}%</Text>
-                        <View style={[styles.tableCell, { width: '10%' }]}>
-                          <Text style={[styles.statusPill, { backgroundColor: statusStyles.backgroundColor, color: statusStyles.color }]}>
-                            {statusVal}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
+                {renderPdfGantt(optimizedMilestones)}
               </View>
             );
           }
