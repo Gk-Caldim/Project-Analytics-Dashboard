@@ -38,7 +38,18 @@ const ContactForm = ({ onSuccess, initialUseCase = 'General Inquiry', mode = 'sa
       await API.post('/enterprise/lead', formData);
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit request. Please try again.');
+      let msg = 'Failed to submit request. Please try again.';
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (typeof detail === 'string') {
+          msg = detail;
+        } else if (Array.isArray(detail)) {
+          msg = detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+        } else if (typeof detail === 'object') {
+          msg = detail.message || JSON.stringify(detail);
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
