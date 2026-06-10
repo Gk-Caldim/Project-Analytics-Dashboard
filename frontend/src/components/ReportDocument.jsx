@@ -252,6 +252,12 @@ const getStatusStyles = (status) => {
     'On Track': { backgroundColor: '#d1fae5', color: '#065f46' },
     'At Risk': { backgroundColor: '#fed7aa', color: '#9a3412' },
     'Likely Delay': { backgroundColor: '#fff7ed', color: '#c2410c' },
+    'Completed': { backgroundColor: '#d1fae5', color: '#065f46' },
+    'Delayed': { backgroundColor: '#fee2e2', color: '#991b1b' },
+    'Upcoming': { backgroundColor: '#e0e7ff', color: '#3730a3' },
+    'On Hold': { backgroundColor: '#fef3c7', color: '#92400e' },
+    'Not Started': { backgroundColor: '#f3f4f6', color: '#374151' },
+    'Cancelled': { backgroundColor: '#e5e7eb', color: '#6b7280' },
   };
   return colors[status] || { backgroundColor: '#f3f4f6', color: '#1f2937' };
 };
@@ -337,7 +343,53 @@ const ReportDocument = ({
 
         {/* Content Sections based on sectionOrder */}
         {[...new Set(sectionOrder)].map((key) => {
-
+          // 1. Milestones
+          if (key === 'milestones' && visibleSections?.milestones && milestones?.length > 0) {
+            const optimizedMilestones = milestones.filter(task => task.item_type === 'Phase' || task.item_type === 'Milestone');
+            return (
+              <View key={key} style={styles.section}>
+                <Text style={[styles.sectionTitle, { borderBottomColor: '#6366f1', color: '#6366f1' }]}>Project Milestones & Timeline</Text>
+                <View style={[styles.table, { marginTop: 10 }]}>
+                  <View style={styles.tableHeader}>
+                    <Text style={[styles.tableCellHeader, { width: '12%' }]}>WBS</Text>
+                    <Text style={[styles.tableCellHeader, { width: '38%' }]}>Activity / Milestone Name</Text>
+                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>Start Date</Text>
+                    <Text style={[styles.tableCellHeader, { width: '15%' }]}>End Date</Text>
+                    <Text style={[styles.tableCellHeader, { width: '10%', textAlign: 'center' }]}>Progress</Text>
+                    <Text style={[styles.tableCellHeader, { width: '10%' }]}>Status</Text>
+                  </View>
+                  {optimizedMilestones.map((task, idx) => {
+                    const isPhase = task.item_type === 'Phase';
+                    const isMilestone = task.item_type === 'Milestone';
+                    const indent = (task.indent_level || 0) * 8;
+                    
+                    const pStart = task.start_date ? new Date(task.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+                    const pEnd = task.end_date ? new Date(task.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : '—';
+                    
+                    const statusVal = task.status || 'Not Started';
+                    const statusStyles = getStatusStyles(statusVal);
+                    
+                    return (
+                      <View key={idx} style={[styles.tableRow, { backgroundColor: isPhase ? '#f8fafc' : '#ffffff' }]} wrap={false}>
+                        <Text style={[styles.tableCell, { width: '12%', fontWeight: isPhase ? 'bold' : 'normal' }]}>{task.wbs_code || ''}</Text>
+                        <Text style={[styles.tableCell, { width: '38%', paddingLeft: Math.min(30, 6 + indent), fontWeight: isPhase ? 'bold' : 'normal', color: isMilestone ? '#6366f1' : '#334155' }]}>
+                          {task.activity_name}
+                        </Text>
+                        <Text style={[styles.tableCell, { width: '15%', color: '#475569' }]}>{pStart}</Text>
+                        <Text style={[styles.tableCell, { width: '15%', color: '#475569' }]}>{pEnd}</Text>
+                        <Text style={[styles.tableCell, { width: '10%', textAlign: 'center', fontWeight: isPhase ? 'bold' : 'normal' }]}>{Math.round(task.complete_percent || 0)}%</Text>
+                        <View style={[styles.tableCell, { width: '10%' }]}>
+                          <Text style={[styles.statusPill, { backgroundColor: statusStyles.backgroundColor, color: statusStyles.color }]}>
+                            {statusVal}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          }
 
           // 2. Critical Issues
           if (key === 'criticalIssues' && visibleSections?.criticalIssues && criticalIssues?.length > 0) {

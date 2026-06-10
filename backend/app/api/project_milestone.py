@@ -41,6 +41,13 @@ def recalculate_schedule(
 ):
     """Trigger manual recalculation of WBS numbers, rollups, and critical path."""
     tasks = recalculate_project_schedule(db, project_id)
+    
+    # Invalidate dashboard cache
+    proj = db.query(Project).filter(Project.project_id == project_id).first()
+    if proj:
+        from app.services.dashboard_service import clear_dashboard_cache
+        clear_dashboard_cache(proj.id)
+        
     return tasks
 
 @router.post("/{project_id}/milestones/bulk-save", response_model=List[MilestoneResponse])
@@ -187,6 +194,12 @@ def bulk_save_milestones(
         details={"summary": f"Saved WBS nodes for project: {project_id}"}
     )
     db.commit()
+
+    # Invalidate dashboard cache
+    proj = db.query(Project).filter(Project.project_id == project_id).first()
+    if proj:
+        from app.services.dashboard_service import clear_dashboard_cache
+        clear_dashboard_cache(proj.id)
 
     return tasks
 

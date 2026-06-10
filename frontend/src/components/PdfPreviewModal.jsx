@@ -144,7 +144,7 @@ const PdfPreviewModal = ({
       if (sectionOrderInitialisedRef.current) return;
       sectionOrderInitialisedRef.current = true;
 
-      const allPossibleSections = ['charts', 'criticalIssues', 'budget', 'resource', 'quality'];
+      const allPossibleSections = ['milestones', 'charts', 'criticalIssues', 'budget', 'resource', 'quality'];
       const currentVisible = allPossibleSections.filter(key => {
         if (key === 'charts') {
           return visibleSections?.metricsSummary || visiblePhaseList.length > 0;
@@ -388,6 +388,7 @@ const PdfPreviewModal = ({
                           >
                             {sectionOrder.map((key, index) => {
                               const labels = {
+                                milestones: 'Project Milestones',
                                 criticalIssues: 'Critical Issues',
                                 budget: 'Budget Summary',
                                 resource: 'Resource Summary',

@@ -208,6 +208,7 @@ const ProjectTitleDashboard = () => {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [activeEmailField, setActiveEmailField] = useState('email');
   const [visibleSections, setVisibleSections] = useState({
+    milestones: true,
     criticalIssues: true,
     metricsSummary: true,
     budget: true
@@ -217,6 +218,7 @@ const ProjectTitleDashboard = () => {
     subject: 'Project Dashboard Report',
     message: '',
     selectedSections: {
+      milestones: true,
       criticalIssues: true,
       budget: true,
       resource: true,
@@ -750,7 +752,7 @@ const ProjectTitleDashboard = () => {
     return { resolvedProjectId, resolvedModule };
   }, [submoduleId, selectedFileId, activeProject?.dbProjectId, projectId]);
 
-  const { data: dashboardQueryData, isLoading: isDashboardLoading } = useQuery({
+  const { data: dashboardQueryData, isLoading: isDashboardLoading, isError: isDashboardError, refetch: refetchDashboard } = useQuery({
     queryKey: ['dashboard', resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule],
     queryFn: async () => {
       const { getDashboard } = await import('../api/dashboard');
@@ -2075,6 +2077,12 @@ const ProjectTitleDashboard = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
+          {hasMilestones && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? 'var(--blue-50)' : 'var(--surface)' }}>
+              <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
+              <span style={{ fontWeight: '600' }}>Project Milestones</span>
+            </label>
+          )}
           {hasCriticalIssues && (
             <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
               <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
@@ -2143,11 +2151,12 @@ const ProjectTitleDashboard = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {Object.entries(tempVisibleSections)
                 .filter(([section, selected]) => {
-                  const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                  const topLevelSections = ['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
                   return selected && topLevelSections.includes(section);
                 })
                 .map(([section]) => {
                   const labels = {
+                    milestones: 'Project Milestones',
                     criticalIssues: 'MOM Issues',
                     budget: 'Budget Summary',
                     resource: 'Resource Summary',
@@ -5023,6 +5032,10 @@ const ProjectTitleDashboard = () => {
                 onSendMail={() => setShowEmailModal(true)}
                 metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
                 visibleSections={visibleSections}
+                milestones={milestones}
+                isDashboardLoading={isDashboardLoading}
+                isDashboardError={isDashboardError}
+                onRetry={refetchDashboard}
               />
 
               {visibleSections.budget && (
