@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { setProjects, updateProjectConfig } from '../store/slices/projectSlice';
-import { setSelectedProjectFileId } from '../store/slices/navSlice';
+import { setSelectedProjectFileId, setActiveModule, setExpandedModules, setActiveView } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
@@ -10,7 +10,8 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon,
+  LayoutDashboard, FolderKanban, Calendar, Users, Wallet, Database
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -173,7 +174,22 @@ const ProjectTitleDashboard = () => {
   const dispatch = useDispatch();
   const { format, symbol } = useCurrency();
   const selectedFileId = useSelector(state => state.nav.selectedProjectFileId);
+  const user = useSelector(state => state.auth.user);
   const onClearSelection = () => dispatch(setSelectedProjectFileId(null));
+
+  const [homeSearchFocused, setHomeSearchFocused] = useState(false);
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getUserInitials = () => {
+    if (!user?.full_name) return 'U';
+    return user.full_name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
 
   const [dashboardData, setDashboardData] = useState(null);
   const [submoduleData, setSubmoduleData] = useState({});
@@ -4471,29 +4487,190 @@ const ProjectTitleDashboard = () => {
 
         {/* Projects List or Dashboard Content */}
         {!activeProject ? (
-          /* Projects List View */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-            {/* Content Array */}
-            <div style={{ padding: '28px' }}>
-              {/* Dashboard Content removed title and stats here */}
+          /* Home / Projects Overview View */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg)' }}>
 
-              {/* Unified Project Overview Container */}
-              <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--elevated-card)', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
+            {/* ── WELCOME SECTION ── */}
+            <div style={{
+              background: 'var(--surface)',
+              borderBottom: '1px solid var(--border-subtle)',
+              padding: '36px 32px 28px',
+              fontFamily: "'Inter', -apple-system, sans-serif"
+            }}>
 
-                    {/* Search Bar Integrated into Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
-                      <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)' }} />
-                      <input
-                        type="text"
-                        placeholder="Search projects..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'var(--surface)' }}
-                      />
+              {/* Greeting row: text left, role card right */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+
+                {/* Left: Greeting */}
+                <div style={{ flex: 1, minWidth: 0, paddingRight: '40px' }}>
+                  <p style={{ margin: '0 0 6px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)', fontFamily: "'Inter', sans-serif" }}>
+                    {getGreeting()}
+                  </p>
+                  <h1 style={{ margin: '0 0 8px', fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.15, fontFamily: "'Inter', sans-serif" }}>
+                    {user?.full_name || 'Welcome back'}
+                  </h1>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, fontWeight: '400', fontFamily: "'Inter', sans-serif" }}>
+                    Your workspace is ready — review projects, schedule meetings, and manage settings.
+                  </p>
+                </div>
+
+                {/* Right: Role card only */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '14px 18px',
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  flexShrink: 0
+                }}>
+                  <div style={{
+                    width: '40px', height: '40px',
+                    borderRadius: '50%',
+                    background: 'var(--brand-navy)',
+                    color: 'white',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '14px', fontWeight: '700',
+                    fontFamily: "'Inter', sans-serif",
+                    letterSpacing: '-0.01em',
+                    flexShrink: 0
+                  }}>
+                    {getUserInitials()}
+                  </div>
+                  <div>
+                    <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: 1.3, fontFamily: "'Inter', sans-serif" }}>
+                      {user?.full_name || 'User'}
+                    </p>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: '10px', fontWeight: '700',
+                      color: 'var(--brand-navy)',
+                      background: 'var(--elevated-card)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '2px 8px', borderRadius: '4px',
+                      textTransform: 'uppercase', letterSpacing: '0.07em',
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {user?.role || 'Member'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search bar — full width */}
+              <div style={{ position: 'relative' }}>
+                <Search size={15} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', zIndex: 1 }} />
+                <input
+                  type="text"
+                  placeholder="Search projects..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setHomeSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setHomeSearchFocused(false), 160)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 40px 11px 42px',
+                    borderRadius: '8px',
+                    border: '1px solid',
+                    borderColor: homeSearchFocused ? 'var(--brand-navy)' : 'var(--border-subtle)',
+                    fontSize: '13px',
+                    color: 'var(--text-primary)',
+                    background: 'var(--bg)',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    fontFamily: "'Inter', -apple-system, sans-serif",
+                    transition: 'border-color 0.15s, box-shadow 0.15s',
+                    boxShadow: homeSearchFocused ? '0 0 0 3px rgba(30,41,59,0.07)' : 'none'
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', display: 'flex', alignItems: 'center' }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+
+                {/* Search Results Dropdown */}
+                {homeSearchFocused && searchQuery && filteredAndSortedProjects.length > 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    right: 0,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                    zIndex: 100,
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ padding: '8px 14px 4px', fontSize: '10px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: "'Inter', sans-serif" }}>
+                      Projects
                     </div>
+                    {filteredAndSortedProjects.slice(0, 6).map((project) => (
+                      <button
+                        key={project.id}
+                        onMouseDown={() => { handleProjectSelect(project.id); setSearchQuery(''); }}
+                        style={{
+                          width: '100%',
+                          padding: '9px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          background: 'none',
+                          border: 'none',
+                          borderTop: '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          color: 'var(--text-primary)',
+                          fontSize: '13px',
+                          fontWeight: '600',
+                          fontFamily: "'Inter', sans-serif",
+                          transition: 'background 0.1s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                      >
+                        <FolderKanban size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        {project.name}
+                        <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>Project</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {homeSearchFocused && searchQuery && filteredAndSortedProjects.length === 0 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    right: 0,
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
+                    zIndex: 100,
+                    padding: '16px 14px',
+                    fontSize: '13px',
+                    color: 'var(--text-muted)',
+                    textAlign: 'center',
+                    fontFamily: "'Inter', sans-serif"
+                  }}>
+                    No projects match "{searchQuery}"
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── PROJECT DASHBOARD SECTION ── */}
+            <div style={{ padding: '28px 32px 20px' }}>
+              {/* Unified Project Overview Container */}
+              <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--elevated-card)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Dashboard {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h2>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -4589,22 +4766,22 @@ const ProjectTitleDashboard = () => {
 
                 {/* Integrated Pagination at Footer */}
                 {filteredAndSortedProjects.length > itemsPerPage && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--elevated-card)', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--elevated-card)' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length} projects
+                      Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length}
                     </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
                       <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                        style={{ padding: '5px 12px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '6px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700', transition: 'background 0.1s' }}
                       >
                         Previous
                       </button>
                       <button
                         onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
                         disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
+                        style={{ padding: '5px 12px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '6px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700', transition: 'background 0.1s' }}
                       >
                         Next
                       </button>
@@ -4613,6 +4790,219 @@ const ProjectTitleDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* ── APPLICATION MODULES SECTION ── */}
+            <div style={{ padding: '0 32px 32px' }}>
+              <h2 style={{ margin: '0 0 14px', fontSize: '11px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: "'Inter', sans-serif" }}>
+                Application Modules
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+
+                {/* Dashboard Module Card */}
+                {(() => {
+                  const moduleNavStyle = {
+                    width: '100%',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'none',
+                    border: 'none',
+                    borderTop: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    transition: 'color 0.1s, background 0.1s'
+                  };
+                  return (
+                    <div
+                      style={{
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                        transition: 'box-shadow 0.15s, transform 0.15s',
+                        cursor: 'default'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'none'; }}
+                    >
+                      {/* Card Header */}
+                      <div
+                        style={{ padding: '14px 16px', background: 'var(--elevated-card)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                        onClick={() => { dispatch(setActiveModule('project-dashboard')); navigate('/dashboard/projects'); }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--brand-navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <LayoutDashboard size={14} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Dashboard</p>
+                          <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>Project tracking & analytics</p>
+                        </div>
+                      </div>
+                      {/* Sub-items */}
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <button
+                          style={{ ...moduleNavStyle, borderTop: 'none', color: 'var(--text-primary)', fontWeight: '700', fontSize: '12px' }}
+                          onClick={() => { dispatch(setActiveModule('project-dashboard')); navigate('/dashboard/projects'); }}
+                          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--brand-navy)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                        >
+                          <FolderKanban size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                          Project Dashboard
+                        </button>
+                        {projects.slice(0, 3).map(p => (
+                          <button
+                            key={p.id}
+                            style={moduleNavStyle}
+                            onClick={() => handleProjectSelect(p.id)}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--brand-navy)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                          >
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--border-strong)', flexShrink: 0, display: 'inline-block' }} />
+                            {p.name}
+                          </button>
+                        ))}
+                        {projects.length > 3 && (
+                          <div style={{ padding: '6px 16px 10px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>
+                            +{projects.length - 3} more projects
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Meetings Module Card */}
+                {(() => {
+                  const meetingsItems = [
+                    { label: 'Calendar', path: '/dashboard/calendar', moduleId: 'calendar', icon: <Calendar size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                    { label: 'Schedule Meeting', path: '/dashboard/schedule-meeting', moduleId: 'schedule-meeting', icon: <Clock size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                    { label: 'Minutes of Meeting', path: '/dashboard/mom', moduleId: 'mom-module', icon: <MessageSquare size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                    { label: 'Saved MOMs', path: '/dashboard/saved-moms', moduleId: 'saved-moms', icon: <Save size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                  ];
+                  const navStyle = {
+                    width: '100%',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'none',
+                    border: 'none',
+                    borderTop: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    transition: 'color 0.1s, background 0.1s'
+                  };
+                  return (
+                    <div
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'box-shadow 0.15s, transform 0.15s', cursor: 'default' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'none'; }}
+                    >
+                      <div style={{ padding: '14px 16px', background: 'var(--elevated-card)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--brand-navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Calendar size={14} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Meetings</p>
+                          <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>MOM, scheduling & calendar</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {meetingsItems.map(item => (
+                          <button
+                            key={item.moduleId}
+                            style={{ ...navStyle, borderTop: meetingsItems.indexOf(item) === 0 ? 'none' : '1px solid var(--border-subtle)' }}
+                            onClick={() => {
+                              dispatch(setActiveModule(item.moduleId));
+                              dispatch(setExpandedModules({ 'mom': true }));
+                              navigate(item.path);
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--brand-navy)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Master Module Card */}
+                {(() => {
+                  const masterItems = [
+                    { label: 'Employee Master', path: '/dashboard/masters/employees', moduleId: 'employee-master', icon: <Users size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                    { label: 'Project Master', path: '/dashboard/masters/project-master', moduleId: 'project-master', icon: <FolderKanban size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                    { label: 'Budget Master', path: '/dashboard/masters/budget-master', moduleId: 'budget-master', icon: <Wallet size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} /> },
+                  ];
+                  const navStyle = {
+                    width: '100%',
+                    padding: '8px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'none',
+                    border: 'none',
+                    borderTop: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    transition: 'color 0.1s, background 0.1s'
+                  };
+                  return (
+                    <div
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'box-shadow 0.15s, transform 0.15s', cursor: 'default' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.07)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; e.currentTarget.style.transform = 'none'; }}
+                    >
+                      <div
+                        style={{ padding: '14px 16px', background: 'var(--elevated-card)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}
+                        onClick={() => { dispatch(setActiveModule('masters-main')); dispatch(setExpandedModules({ 'masters': true })); navigate('/dashboard/masters/employees'); }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--brand-navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Database size={14} style={{ color: 'white' }} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Master</p>
+                          <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', fontWeight: '500' }}>Configuration & data management</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {masterItems.map(item => (
+                          <button
+                            key={item.moduleId}
+                            style={{ ...navStyle, borderTop: masterItems.indexOf(item) === 0 ? 'none' : '1px solid var(--border-subtle)' }}
+                            onClick={() => {
+                              dispatch(setActiveModule(item.moduleId));
+                              dispatch(setExpandedModules({ 'masters': true }));
+                              navigate(item.path);
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--brand-navy)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              </div>
+            </div>
+
           </div>
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
