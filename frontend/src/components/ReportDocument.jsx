@@ -441,19 +441,19 @@ const ReportDocument = ({
                 <Text style={[styles.sectionTitle, { borderBottomColor: '#4f46e5', color: '#4f46e5' }]}>Budget Summary</Text>
                 <View style={[styles.budgetGrid, { marginTop: 10 }]}>
                   <View style={[styles.budgetCard, { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }]}>
-                    <Text style={[styles.budgetLabel, { color: '#64748b' }]}>Approved</Text>
-                    <Text style={[styles.budgetValue, { color: '#1e293b' }]}>{curr}{Number(approved).toLocaleString()}</Text>
+                    <Text style={[styles.budgetLabel, { color: '#64748b' }]}>Approved Budget</Text>
+                    <Text style={[styles.budgetValue, { color: '#1e293b' }]}>{curr}{Number(Math.round(approved)).toLocaleString()}</Text>
                   </View>
                   <View style={[styles.budgetCard, { backgroundColor: '#f0fdf4', borderColor: '#dcfce7' }]}>
-                    <Text style={[styles.budgetLabel, { color: '#166534' }]}>Utilized</Text>
-                    <Text style={[styles.budgetValue, { color: '#10b981' }]}>{curr}{Number(utilized).toLocaleString()}</Text>
+                    <Text style={[styles.budgetLabel, { color: '#166534' }]}>Utilised Budget</Text>
+                    <Text style={[styles.budgetValue, { color: '#10b981' }]}>{curr}{Number(Math.round(utilized)).toLocaleString()}</Text>
                   </View>
                   <View style={[styles.budgetCard, { backgroundColor: '#eff6ff', borderColor: '#dbeafe' }]}>
-                    <Text style={[styles.budgetLabel, { color: '#1e40af' }]}>Balance</Text>
-                    <Text style={[styles.budgetValue, { color: '#4f46e5' }]}>{curr}{Number(balance).toLocaleString()}</Text>
+                    <Text style={[styles.budgetLabel, { color: '#1e40af' }]}>Balance Budget</Text>
+                    <Text style={[styles.budgetValue, { color: '#4f46e5' }]}>{curr}{Number(Math.round(balance)).toLocaleString()}</Text>
                   </View>
                   <View style={[styles.budgetCard, { backgroundColor: '#f5f3ff', borderColor: '#ede9fe' }]}>
-                    <Text style={[styles.budgetLabel, { color: '#6d28d9' }]}>Utilization</Text>
+                    <Text style={[styles.budgetLabel, { color: '#6d28d9' }]}>Outlook Budget</Text>
                     <Text style={[styles.budgetValue, { color: '#8b5cf6' }]}>{outlook}%</Text>
                   </View>
                 </View>
