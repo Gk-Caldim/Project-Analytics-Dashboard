@@ -952,6 +952,11 @@ const ProjectTitleDashboard = () => {
   // Milestones data with plan/actual
   const [milestones, setMilestones] = useState([]);
 
+  // Lifted Gantt Chart filters
+  const [ganttDeptFilter, setGanttDeptFilter] = useState('All');
+  const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
+  const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
+
   // SOP Data - Health and status information
   const [sopData, setSopData] = useState([
     {
@@ -5036,6 +5041,12 @@ const ProjectTitleDashboard = () => {
                 isDashboardLoading={isDashboardLoading}
                 isDashboardError={isDashboardError}
                 onRetry={refetchDashboard}
+                ganttDeptFilter={ganttDeptFilter}
+                setGanttDeptFilter={setGanttDeptFilter}
+                ganttTypeFilter={ganttTypeFilter}
+                setGanttTypeFilter={setGanttTypeFilter}
+                ganttStatusFilter={ganttStatusFilter}
+                setGanttStatusFilter={setGanttStatusFilter}
               />
 
               {visibleSections.budget && (
@@ -5147,6 +5158,9 @@ const ProjectTitleDashboard = () => {
                   masterProjects={masterProjects}
                   budgetCurrency={budgetCurrency}
                   chartImages={pdfChartImages}
+                  ganttDeptFilter={ganttDeptFilter}
+                  ganttTypeFilter={ganttTypeFilter}
+                  ganttStatusFilter={ganttStatusFilter}
                 />
               </React.Suspense>
             )}

@@ -20,7 +20,10 @@ const PdfPreviewModal = ({
   selectedBudgetProject,
   masterProjects,
   budgetCurrency,
-  chartImages
+  chartImages,
+  ganttDeptFilter = 'All',
+  ganttTypeFilter = 'All',
+  ganttStatusFilter = 'All'
 }) => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [sectionOrder, setSectionOrder] = useState([]);
@@ -32,7 +35,10 @@ const PdfPreviewModal = ({
     footerText: 'Project Dashboard Report',
     backgroundColor: '#ffffff',
     watermarkText: '',
-    watermarkOpacity: 0.1
+    watermarkOpacity: 0.1,
+    showProjectName: true,
+    showGenerationDate: true,
+    showActiveFilters: true
   });
 
   const [debouncedPdfConfig, setDebouncedPdfConfig] = useState(pdfConfig);
@@ -54,7 +60,10 @@ const PdfPreviewModal = ({
         footerText: 'Project Dashboard Report',
         backgroundColor: '#ffffff',
         watermarkText: '',
-        watermarkOpacity: 0.1
+        watermarkOpacity: 0.1,
+        showProjectName: true,
+        showGenerationDate: true,
+        showActiveFilters: true
       });
     }
   }, [activeProject]);
@@ -182,6 +191,12 @@ const PdfPreviewModal = ({
           backgroundColor={pdfConfig.backgroundColor}
           watermarkText={pdfConfig.watermarkText}
           watermarkOpacity={pdfConfig.watermarkOpacity}
+          ganttDeptFilter={ganttDeptFilter}
+          ganttTypeFilter={ganttTypeFilter}
+          ganttStatusFilter={ganttStatusFilter}
+          showProjectName={pdfConfig.showProjectName}
+          showGenerationDate={pdfConfig.showGenerationDate}
+          showActiveFilters={pdfConfig.showActiveFilters}
         />
       ).toBlob();
       
@@ -568,6 +583,39 @@ const PdfPreviewModal = ({
                       </div>
                     )}
 
+                    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '10px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Header Options</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={pdfConfig.showProjectName !== false}
+                            onChange={(e) => updatePdfConfig({ showProjectName: e.target.checked })}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          Show Project Name
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={pdfConfig.showGenerationDate !== false}
+                            onChange={(e) => updatePdfConfig({ showGenerationDate: e.target.checked })}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          Show Generation Date
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={pdfConfig.showActiveFilters !== false}
+                            onChange={(e) => updatePdfConfig({ showActiveFilters: e.target.checked })}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          Show Active Filters
+                        </label>
+                      </div>
+                    </div>
+
                     <button
                       onClick={() => {
                         const defaults = {
@@ -576,7 +624,10 @@ const PdfPreviewModal = ({
                           footerText: 'Project Dashboard Report',
                           backgroundColor: '#ffffff',
                           watermarkText: '',
-                          watermarkOpacity: 0.1
+                          watermarkOpacity: 0.1,
+                          showProjectName: true,
+                          showGenerationDate: true,
+                          showActiveFilters: true
                         };
                         updatePdfConfig(defaults);
                         setWatermarkSelect('');
@@ -620,7 +671,7 @@ const PdfPreviewModal = ({
                 PDFViewer renders into an iframe via a web worker and does NOT
                 propagate child prop changes to its internal renderer on its own.
                 Without this, the preview stays frozen on the initial render. */}
-            <PDFViewer key={`${sectionOrder.join('|')}|${debouncedPdfConfig.headerTitle}|${debouncedPdfConfig.subHeading}|${debouncedPdfConfig.footerText}|${debouncedPdfConfig.backgroundColor}|${debouncedPdfConfig.watermarkText}|${debouncedPdfConfig.watermarkOpacity}`} style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
+            <PDFViewer key={`${sectionOrder.join('|')}|${debouncedPdfConfig.headerTitle}|${debouncedPdfConfig.subHeading}|${debouncedPdfConfig.footerText}|${debouncedPdfConfig.backgroundColor}|${debouncedPdfConfig.watermarkText}|${debouncedPdfConfig.watermarkOpacity}|${debouncedPdfConfig.showProjectName}|${debouncedPdfConfig.showGenerationDate}|${debouncedPdfConfig.showActiveFilters}|${ganttDeptFilter}|${ganttTypeFilter}|${ganttStatusFilter}`} style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={false}>
               <ReportDocument 
                 activeProject={activeProject}
                 milestones={milestones}
@@ -640,6 +691,12 @@ const PdfPreviewModal = ({
                 backgroundColor={debouncedPdfConfig.backgroundColor}
                 watermarkText={debouncedPdfConfig.watermarkText}
                 watermarkOpacity={debouncedPdfConfig.watermarkOpacity}
+                ganttDeptFilter={ganttDeptFilter}
+                ganttTypeFilter={ganttTypeFilter}
+                ganttStatusFilter={ganttStatusFilter}
+                showProjectName={debouncedPdfConfig.showProjectName}
+                showGenerationDate={debouncedPdfConfig.showGenerationDate}
+                showActiveFilters={debouncedPdfConfig.showActiveFilters}
               />
             </PDFViewer>
           </div>

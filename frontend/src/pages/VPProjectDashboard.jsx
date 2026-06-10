@@ -20,7 +20,13 @@ const VPProjectDashboard = ({
   milestones = [],
   isDashboardLoading = false,
   isDashboardError = false,
-  onRetry = () => {}
+  onRetry = () => {},
+  ganttDeptFilter = 'All',
+  setGanttDeptFilter,
+  ganttTypeFilter = 'All',
+  setGanttTypeFilter,
+  ganttStatusFilter = 'All',
+  setGanttStatusFilter
 }) => {
   const navigate = useNavigate();
   const [milestoneView, setMilestoneView] = useState('table'); // 'table' | 'chart'
@@ -28,10 +34,7 @@ const VPProjectDashboard = ({
   const [momIssues, setMomIssues] = useState([]);
   const [syncHistory, setSyncHistory] = useState([]);
 
-  // --- Gantt Chart filters & state ---
-  const [ganttDeptFilter, setGanttDeptFilter] = useState('All');
-  const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
-  const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
+  // --- Gantt Chart filters & state (lifted) ---
   const [zoomLevel, setZoomLevel] = useState('Week'); // 'Day' | 'Week' | 'Month'
   const [ganttShowTaskName, setGanttShowTaskName] = useState(true);
   const [ganttShowPercent, setGanttShowPercent] = useState(true);
