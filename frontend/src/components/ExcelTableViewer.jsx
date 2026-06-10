@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Plus, Search, Edit, Trash2, X, Check, ChevronUp, ChevronDown, Download, Eye, EyeOff, CheckSquare, Square, Snowflake, ChevronLeft, ChevronRight, RefreshCw, Copy, ArrowUp, ArrowDown, Filter, Zap, MoreHorizontal, Info, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../hooks/useCurrency';
 
+// ExcelTableViewer — all columns shown with horizontal scroll, drag-to-resize handles
 const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, loading, onDataUpdate, onProcessData }) => {
+
     // Convert string array of columns to object array for consistent handling
     const [columns, setColumns] = useState(() => {
         return (initialColumns || []).map((col, idx) => ({
@@ -59,8 +61,8 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
-    const pageSizeOptions = [10, 25, 50, 100];
+    const [pageSize, setPageSize] = useState(5);
+    const pageSizeOptions = [5, 10, 25, 50, 100];
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
 
     // Modals / Dropdowns / Prompts
@@ -110,103 +112,167 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
     const [tempFrozenColumns, setTempFrozenColumns] = useState([]);
 
 
-    // Column Pagination Derived Values
+    // All visible columns rendered at once — horizontal scroll handles overflow
     const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
     const totalVisibleCols = visibleColumns.length;
 
-    // Dynamic colsPerPage based on header length (logic from image)
-    const colsPerPage = useMemo(() => {
-        const hasLongHeader = visibleColumns.some(col => col.label.length > 8);
-        return hasLongHeader ? 4 : 7;
-    }, [visibleColumns]);
+    // ── Column width engine ──────────────────────────────────────────────────
+    // 1. Content-based minimums (from header label + 20-row sample)
+    const contentColWidths = useMemo(() => {
+        const CHAR_PX = 8;   // avg px per char at text-sm
+        const H_PAD  = 36;   // padding + chevron icon
+        const D_PAD  = 20;
+        const MIN_W  = 55;
+        const MAX_W  = 220;
+        const map = {};
+        visibleColumns.forEach(col => {
+            let w = col.label.length * CHAR_PX + H_PAD;
+            localData.slice(0, 20).forEach(row => {
+                const val = row[col.id];
+                if (val !== null && val !== undefined) {
+                    const dw = String(val).length * CHAR_PX + D_PAD;
+                    if (dw > w) w = dw;
+                }
+            });
+            map[col.id] = Math.max(MIN_W, Math.min(MAX_W, Math.round(w)));
+        });
+        return map;
+    }, [visibleColumns, localData]);
 
-    // Column Pagination State
-    const [columnPage, setColumnPage] = useState(1);
+    // 2. User drag overrides (colId → px)
+    const [userColWidths, setUserColWidths] = useState({});
 
-    const showNotification = (message, type = 'success') => {
-        toast.dismiss();
-        if (type === 'success') toast.success(message);
-        else if (type === 'error') toast.error(message);
-        else toast(message);
-    };
-
+    // 3. Scroll container width (ResizeObserver)
+    const tableScrollRef = useRef(null);
+    const [containerWidth, setContainerWidth] = useState(0);
     useEffect(() => {
-        const handleClickOutside = () => setActiveDropdownColumn(null);
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
+        const el = tableScrollRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(entries => {
+            setContainerWidth(entries[0].contentRect.width);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
     }, []);
 
-    // Helper to sync data back to parent
-    const triggerDataUpdate = (currentData, currentColumns) => {
+    // 4. Drag-resize state
+    const [resizingCol, setResizingCol] = useState(null);
+    const resizeRef = useRef({ startX: 0, startW: 0 });
+
+    const startResize = useCallback((e, colId, currentW) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resizeRef.current = { startX: e.clientX, startW: currentW };
+        setResizingCol(colId);
+    }, []);
+
+    const resetColWidth = useCallback((colId) => {
+        setUserColWidths(prev => { const n = { ...prev }; delete n[colId]; return n; });
+    }, []);
+
+    useEffect(() => {
+        if (!resizingCol) return;
+        const onMove = (e) => {
+            const delta = e.clientX - resizeRef.current.startX;
+            const newW = Math.max(55, resizeRef.current.startW + delta);
+            setUserColWidths(prev => ({ ...prev, [resizingCol]: newW }));
+        };
+        const onUp = () => setResizingCol(null);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        return () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+    }, [resizingCol]);
+
+    // 5. Effective widths = content width + user drag overrides (no auto-stretch)
+    const effectiveColWidths = useMemo(() => {
+        const base = { ...contentColWidths };
+        Object.keys(userColWidths).forEach(id => { if (id in base) base[id] = userColWidths[id]; });
+        return base;
+    }, [contentColWidths, userColWidths]);
+
+    // Filtered data based on search term
+    const filteredData = useMemo(() => {
+        if (!searchTerm) return localData;
+        const search = searchTerm.toLowerCase();
+        return localData.filter(row => {
+            return Object.keys(row).some(key => {
+                if (key.startsWith('_')) return false; // Skip internal fields
+                return String(row[key] || '').toLowerCase().includes(search);
+            });
+        });
+    }, [localData, searchTerm]);
+
+    // Sorted data based on sortConfig
+    const sortedData = useMemo(() => {
+        if (!sortConfig.key) return filteredData;
+        return [...filteredData].sort((a, b) => {
+            const key = sortConfig.key;
+            let valA = a[key];
+            let valB = b[key];
+            
+            // Handle numeric / currency comparison
+            const numA = parseFloat(String(valA).replace(/[^0-9.-]+/g, ''));
+            const numB = parseFloat(String(valB).replace(/[^0-9.-]+/g, ''));
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return sortConfig.direction === 'ascending' ? numA - numB : numB - numA;
+            }
+            
+            // String comparison
+            const strA = String(valA || '').toLowerCase();
+            const strB = String(valB || '').toLowerCase();
+            if (strA < strB) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (strA > strB) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }, [filteredData, sortConfig]);
+
+    // Paginated data based on currentPage and pageSize
+    const paginatedData = useMemo(() => {
+        const startIndex = (currentPage - 1) * pageSize;
+        return sortedData.slice(startIndex, startIndex + pageSize);
+    }, [sortedData, currentPage, pageSize]);
+
+    const totalItems = sortedData.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    const showNotification = (message, type = 'success') => {
+        if (type === 'error') {
+            toast.error(message);
+        } else {
+            toast.success(message);
+        }
+    };
+
+    const triggerDataUpdate = (newData, newCols) => {
+        setLocalData(newData);
+        if (newCols) {
+            setColumns(newCols);
+        }
         setHasChanges(true);
     };
 
     const handleSaveChanges = () => {
         if (onDataUpdate) {
-            const dataToSync = localData.map(row => {
-                const { _local_id, ...rest } = row;
-                return rest;
+            const cleanData = localData.map(row => {
+                const cleanRow = { ...row };
+                delete cleanRow._local_id;
+                return cleanRow;
             });
-            const columnsToSync = columns.map(col => col.id);
-            onDataUpdate(dataToSync, columnsToSync);
+            const cleanHeaders = columns.map(c => c.id);
+            onDataUpdate(cleanData, cleanHeaders);
             setHasChanges(false);
             showNotification('Changes saved successfully!');
+        } else {
+            showNotification('Saving changes is not supported for this dataset.', 'error');
         }
     };
-
-    // Filter data
-    const filteredData = useMemo(() => {
-        return localData.filter(row => {
-            return Object.values(row).some(value =>
-                String(value || '').toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        });
-    }, [localData, searchTerm]);
-
-    // Sort data
-    const sortedData = useMemo(() => {
-        if (!sortConfig.key) return filteredData;
-        return [...filteredData].sort((a, b) => {
-            const aVal = a[sortConfig.key] !== undefined && a[sortConfig.key] !== null ? String(a[sortConfig.key]) : '';
-            const bVal = b[sortConfig.key] !== undefined && b[sortConfig.key] !== null ? String(b[sortConfig.key]) : '';
-
-            const numA = Number(aVal);
-            const numB = Number(bVal);
-            if (!isNaN(numA) && !isNaN(numB)) {
-                return sortConfig.direction === 'ascending' ? numA - numB : numB - numA;
-            }
-
-            if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
-            if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
-            return 0;
-        });
-    }, [filteredData, sortConfig]);
-
-    // Pagination
-    const totalItems = sortedData.length;
-    const totalPages = Math.ceil(totalItems / pageSize) || 1;
-
-    const paginatedData = useMemo(() => {
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        return sortedData.slice(startIndex, endIndex);
-    }, [sortedData, currentPage, pageSize]);
-
-
-    const colStartIndex = useMemo(() => (columnPage - 1) * colsPerPage, [columnPage, colsPerPage]);
-    const colEndIndex = useMemo(() => Math.min(colStartIndex + colsPerPage, totalVisibleCols), [colStartIndex, colsPerPage, totalVisibleCols]);
-
-    const paginatedColumns = useMemo(() => {
-        return visibleColumns.slice(colStartIndex, colEndIndex);
-    }, [visibleColumns, colStartIndex, colEndIndex]);
-
-    // Sync columnPage when visible columns change or filter is applied
-    useEffect(() => {
-        const maxPages = Math.ceil(totalVisibleCols / colsPerPage) || 1;
-        if (columnPage > maxPages) {
-            setColumnPage(maxPages);
-        }
-    }, [totalVisibleCols, colsPerPage, columnPage]);
 
     // Format handlers
     const handleSort = (key) => {
@@ -573,7 +639,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 
 
     return (
-        <div className="flex flex-col bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-full h-[600px] overflow-hidden master-table-container">
+        <div className="flex flex-col bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm w-full h-full flex-1 min-h-[500px] overflow-hidden master-table-container">
 
             {/* Render Toolbar */}
             <div className="p-3 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 bg-slate-50 dark:bg-slate-800">
@@ -643,19 +709,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                     <div className="flex gap-2 mt-2 sm:mt-0 items-center">
                         {selectedRows.length > 0 && (
                             <div className="flex items-center gap-1 mr-2 border-r pr-2 border-slate-300 dark:border-slate-600">
-                                {onProcessData && (
-                                    <button
-                                        onClick={() => {
-                                            const indices = selectedRows.map(id => localData.findIndex(r => r._local_id === id)).filter(idx => idx !== -1);
-                                            onProcessData(indices);
-                                        }}
-                                        disabled={loading}
-                                        className="flex items-center gap-1 h-9 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                    >
-                                        <Zap className="h-4 w-4" />
-                                        <span className="hidden lg:inline">Optimize ({selectedRows.length})</span>
-                                    </button>
-                                )}
+
                                 <button
                                     onClick={handleBulkEdit}
                                     className="flex items-center gap-1 h-9 px-3 text-xs sm:text-sm border border-slate-300 dark:border-slate-600 rounded text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -673,28 +727,6 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             </div>
                         )}
 
-                        {/* COLUMN PAGINATION CONTROL (from image) */}
-                        {totalVisibleCols > colsPerPage && (
-                            <div className="flex items-center gap-2 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-sm mr-2">
-                                <button
-                                    onClick={() => setColumnPage(prev => Math.max(1, prev - 1))}
-                                    disabled={columnPage === 1}
-                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </button>
-                                <span className="text-[11px] sm:text-xs font-semibold text-slate-600 dark:text-slate-300 min-w-[100px] text-center whitespace-nowrap">
-                                    Cols {colStartIndex + 1}-{colEndIndex} of {totalVisibleCols}
-                                </span>
-                                <button
-                                    onClick={() => setColumnPage(prev => Math.min(Math.ceil(totalVisibleCols / colsPerPage), prev + 1))}
-                                    disabled={colEndIndex >= totalVisibleCols}
-                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </button>
-                            </div>
-                        )}
 
                         <button onClick={handleAddRowClick} className="flex items-center gap-1 h-9 px-3 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition" title="Add Row">
                             <Plus className="h-4 w-4" />
@@ -723,7 +755,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             )}
                         </div>
 
-                        {hasChanges ? (
+                        {hasChanges && (
                             <button
                                 onClick={handleSaveChanges}
                                 className="flex items-center gap-1.5 h-9 px-4 text-sm font-bold bg-green-600 text-white rounded-md hover:bg-green-700 transition shadow-sm animate-pulse"
@@ -732,18 +764,6 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                 <Check className="h-4 w-4" />
                                 <span>Save Changes</span>
                             </button>
-                        ) : (
-                            onProcessData && selectedRows.length === 0 && (
-                                <button
-                                    onClick={() => onProcessData()}
-                                    disabled={loading}
-                                    className="flex items-center gap-1.5 h-9 px-3 text-sm font-medium border border-blue-300 dark:border-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition disabled:opacity-50 group"
-                                    title="Process & Optimize Data (Type Inference)"
-                                >
-                                    <Zap className="h-4 w-4 fill-blue-600/20 group-hover:fill-blue-600 transition-all" />
-                                    <span className="hidden sm:inline">Optimize</span>
-                                </button>
-                            )
                         )}
 
                         {onRefresh && (
@@ -756,14 +776,17 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
             </div>
 
             {/* Render Data Table */}
-            <div className="flex-1 overflow-auto relative">
-                <table className="master-table w-full text-left border-collapse">
+            <div className="flex-1 overflow-auto relative" ref={tableScrollRef}>
+                <table
+                    className="master-table text-left border-collapse"
+                    style={{ tableLayout: 'auto', width: 'max-content', minWidth: '100%' }}
+                >
                     <thead className="bg-slate-100 dark:bg-slate-700/80 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-[40]">
                         <tr>
                             {/* Checkbox Header */}
                             <th
-                                className={`text-left py-3 px-4 w-10 border-b border-slate-200 dark:border-slate-700 ${isColumnFrozen(0) ? 'frozen-column shadow-[4px_0_10px_rgba(0,0,0,0.05)] pt-0 bg-slate-100 dark:bg-slate-700 z-[45]' : ''}`}
-                                style={{ left: isColumnFrozen(0) ? '0' : 'auto' }}
+                                className={`text-left py-3 px-2 border-b border-slate-200 dark:border-slate-700 ${isColumnFrozen(0) ? 'frozen-column shadow-[4px_0_10px_rgba(0,0,0,0.05)] pt-0 bg-slate-100 dark:bg-slate-700 z-[45]' : ''}`}
+                                style={{ left: isColumnFrozen(0) ? '0' : 'auto', width: '40px', minWidth: '40px' }}
                             >
                                 <button onClick={toggleSelectAll} className="p-1 text-slate-400 hover:text-slate-700 mt-0.5">
                                     {selectAll ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
@@ -771,27 +794,34 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                             </th>
 
                             {/* Dynamic Headers */}
-                            {paginatedColumns.map((col) => {
+                            {visibleColumns.map((col) => {
                                 const actualColumnIndex = columns.findIndex(c => c.id === col.id);
                                 const isFrozen = isColumnFrozen(actualColumnIndex);
+                                const colW = effectiveColWidths[col.id] ?? 80;
+                                const isActiveDropdown = activeDropdownColumn === col.id;
 
                                 return (
                                     <th
                                         key={col.id}
-                                        className={`py-3 px-4 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 cursor-pointer group min-w-[150px] ${isFrozen ? 'frozen-column bg-slate-100 dark:bg-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.05)] z-[45]' : ''}`}
-                                        style={{ left: isFrozen ? getFrozenColumnLeft(actualColumnIndex) : 'auto' }}
+                                        className={`text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700 cursor-pointer group relative select-none ${isFrozen ? 'frozen-column bg-slate-100 dark:bg-slate-700 shadow-[4px_0_10px_rgba(0,0,0,0.05)]' : ''}`}
+                                        style={{ 
+                                            left: isFrozen ? getFrozenColumnLeft(actualColumnIndex) : 'auto', 
+                                            width: `${colW}px`, 
+                                            minWidth: `${colW}px`,
+                                            zIndex: isActiveDropdown ? 50 : (isFrozen ? 45 : 'auto')
+                                        }}
                                     >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-1.5 flex-1" onClick={() => col.sortable && handleSort(col.id)}>
+                                        <div className="flex items-center justify-between gap-1 px-2 py-3">
+                                            <div className="flex items-center gap-1.5 flex-1 min-w-0" onClick={() => col.sortable && handleSort(col.id)}>
                                                 <span className="truncate">{col.label}</span>
                                             </div>
 
-                                            <div className="relative">
+                                            <div className="relative flex-shrink-0">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setActiveDropdownColumn(activeDropdownColumn === col.id ? null : col.id); }}
                                                     className={`p-1 rounded transition-colors text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 ${activeDropdownColumn === col.id ? 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100' : ''}`}
                                                 >
-                                                    <ChevronDown className="h-4 w-4" />
+                                                    <ChevronDown className="h-3.5 w-3.5" />
                                                 </button>
                                                 {activeDropdownColumn === col.id && (
                                                     <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-[60] py-1 normal-case tracking-normal font-normal">
@@ -808,7 +838,19 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                                             <Snowflake className={`h-3.5 w-3.5 ${isColumnFrozen(actualColumnIndex) ? 'text-blue-500' : 'text-slate-400'}`} />
                                                             <span className={isColumnFrozen(actualColumnIndex) ? 'text-blue-600' : ''}>{isColumnFrozen(actualColumnIndex) ? 'Unfreeze' : 'Freeze'} column</span>
                                                         </button>
-                                                        <button onClick={() => { toggleFreezeRow(); setActiveDropdownColumn(null); }} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                                        <button 
+                                                            onClick={() => { 
+                                                                if (frozenRows.length > 0) {
+                                                                    setFrozenRows([]);
+                                                                    setTempFrozenRows([]);
+                                                                    showNotification('All rows unfrozen');
+                                                                } else {
+                                                                    toggleFreezeRow();
+                                                                }
+                                                                setActiveDropdownColumn(null); 
+                                                            }} 
+                                                            className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-700 dark:text-slate-300"
+                                                        >
                                                             <Snowflake className={`h-3.5 w-3.5 ${frozenRows.length > 0 ? 'text-blue-500' : 'text-slate-400'}`} />
                                                             <span className={frozenRows.length > 0 ? 'text-blue-600' : ''}>{frozenRows.length > 0 ? 'Unfreeze' : 'Freeze'} row(s)</span>
                                                         </button>
@@ -818,11 +860,22 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                                 )}
                                             </div>
                                         </div>
+
+                                        {/* ── Drag-resize handle ── */}
+                                        <div
+                                            className="absolute inset-y-0 right-0 w-2 z-10 flex items-center justify-center group/rh"
+                                            style={{ cursor: 'col-resize' }}
+                                            onMouseDown={(e) => startResize(e, col.id, colW)}
+                                            onDoubleClick={(e) => { e.stopPropagation(); resetColWidth(col.id); }}
+                                            title="Drag to resize · Double-click to reset"
+                                        >
+                                            <div className="w-px h-4 bg-slate-300 dark:bg-slate-500 group-hover/rh:h-full group-hover/rh:w-0.5 group-hover/rh:bg-blue-400 transition-all duration-150" />
+                                        </div>
                                     </th>
                                 );
                             })}
                             {/* Empty TH for Actions Right Side */}
-                            <th className="w-24"></th>
+                            <th style={{ width: '96px', minWidth: '96px' }}></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -853,11 +906,12 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                 <tr key={row._local_id} className={`group hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${isSelected ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''} ${isRowCurrentlyFrozen ? 'frozen-row z-[30] shadow-[0_4px_10px_rgba(0,0,0,0.05)]' : ''}`} style={{ top: isRowCurrentlyFrozen ? getFrozenRowTop(actualRowIndex) : 'auto' }}>
                                     {/* Checkbox Cell */}
                                     <td
-                                        className={`py-2 px-4 w-10 ${isColumnFrozen(0) ? 'frozen-column bg-white dark:bg-slate-800' : ''}`}
+                                        className={`py-2 px-2 ${isColumnFrozen(0) ? 'frozen-column bg-white dark:bg-slate-800' : ''}`}
                                         style={{
                                             left: isColumnFrozen(0) ? '0' : 'auto',
                                             zIndex: isColumnFrozen(0) ? (isRowCurrentlyFrozen ? 35 : 20) : 'auto',
-                                            backgroundColor: isSelected ? 'inherit' : undefined
+                                            backgroundColor: isSelected ? 'inherit' : undefined,
+                                            width: '40px', minWidth: '40px'
                                         }}
                                     >
                                         <div className={`flex items-center justify-center ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}>
@@ -866,17 +920,20 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                     </td>
 
                                     {/* Normal Data Cells */}
-                                    {paginatedColumns.map((col) => {
+                                    {visibleColumns.map((col) => {
                                         const actualColumnIndex = columns.findIndex(c => c.id === col.id);
                                         const isColFrozen = isColumnFrozen(actualColumnIndex);
+                                        const colW = effectiveColWidths[col.id] ?? 80;
                                         return (
                                             <td
                                                 key={col.id}
-                                                className={`py-2.5 px-4 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis min-w-[150px] ${col.id === 'id' ? 'max-w-[120px]' : 'max-w-[200px]'} ${isColFrozen ? 'frozen-column bg-white dark:bg-slate-800' : ''}`}
+                                                className={`text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis ${isColFrozen ? 'frozen-column bg-white dark:bg-slate-800' : ''}`}
                                                 style={{
                                                     left: isColFrozen ? getFrozenColumnLeft(actualColumnIndex) : 'auto',
                                                     zIndex: isColFrozen ? (isRowCurrentlyFrozen ? 35 : 20) : 'auto',
-                                                    backgroundColor: isSelected ? 'inherit' : undefined
+                                                    backgroundColor: isSelected ? 'inherit' : undefined,
+                                                    width: `${colW}px`, minWidth: `${colW}px`, maxWidth: `${colW}px`,
+                                                    padding: '10px 8px'
                                                 }}
                                             >
                                                 {formatCellValue(row[col.id], col.id, col.label)}
@@ -885,7 +942,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                     })}
 
                                     {/* Row Actions Cell */}
-                                    <td className="py-2.5 px-4 text-right whitespace-nowrap w-[100px]">
+                                    <td className="py-2.5 px-2 text-right whitespace-nowrap" style={{ width: '96px', minWidth: '96px' }}>
                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={(e) => { e.stopPropagation(); startEditing(row); }} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md" title="Edit"><Edit className="h-4 w-4" /></button>
                                             <button onClick={(e) => { e.stopPropagation(); setShowDeletePrompt({ id: row._local_id }); }} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md" title="Delete"><Trash2 className="h-4 w-4" /></button>
@@ -896,7 +953,7 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                         })}
                         {paginatedData.length === 0 && (
                             <tr>
-                                <td colSpan={paginatedColumns.length + 2} className="py-20">
+                                <td colSpan={visibleColumns.length + 2} className="py-20">
                                     <div className="flex flex-col items-center justify-center text-center px-4">
                                         <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 animate-pulse">
                                             <FileText className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -931,7 +988,19 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                 <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                     <div className="flex gap-1">
                         <button onClick={handleAddRowClick} className="flex items-center justify-center p-1.5 border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300" title="Add Row"><Plus className="h-4 w-4" /></button>
-                        <button onClick={toggleFreezeRow} className={`flex items-center justify-center p-1.5 border rounded ${frozenRows.length > 0 ? 'bg-blue-50 text-blue-700 border-blue-300' : 'border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}`} title={frozenRows.length > 0 ? "Unfreeze row(s)" : "Freeze row(s)"}>
+                        <button 
+                            onClick={() => {
+                                if (frozenRows.length > 0) {
+                                    setFrozenRows([]);
+                                    setTempFrozenRows([]);
+                                    showNotification('All rows unfrozen');
+                                } else {
+                                    toggleFreezeRow();
+                                }
+                            }} 
+                            className={`flex items-center justify-center p-1.5 border rounded ${frozenRows.length > 0 ? 'bg-blue-50 text-blue-700 border-blue-300' : 'border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'}`} 
+                            title={frozenRows.length > 0 ? "Unfreeze all row(s)" : "Freeze row(s)"}
+                        >
                             <Snowflake className={`h-4 w-4 ${frozenRows.length > 0 ? 'text-blue-600' : ''}`} />
                             {frozenRows.length > 0 && <span className="ml-1 text-xs">{frozenRows.length}</span>}
                         </button>
@@ -948,10 +1017,21 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                 <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                     {selectedRows.length > 0 && <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs">{selectedRows.length} selected</span>}
                     {(frozenRows.length > 0 || frozenColumns.length > 0) && (
-                        <span className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded text-xs flex items-center gap-1">
-                            <Snowflake className="h-3 w-3" />
-                            {frozenRows.length > 0 && frozenColumns.length > 0 ? `${frozenRows.length}r & ${frozenColumns.length}c frzn` : frozenRows.length > 0 ? `${frozenRows.length} row(s) frzn` : `${frozenColumns.length} col(s) frzn`}
-                        </span>
+                        <button
+                            onClick={() => {
+                                setFrozenRows([]);
+                                setTempFrozenRows([]);
+                                setFrozenColumns([]);
+                                setTempFrozenColumns([]);
+                                showNotification('All freezes cleared');
+                            }}
+                            className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-750 hover:bg-red-100 hover:text-red-700 dark:text-slate-300 dark:hover:bg-red-950/40 dark:hover:text-red-400 rounded text-xs flex items-center gap-1 transition-colors"
+                            title="Click to clear all freezes"
+                        >
+                            <Snowflake className="h-3 w-3 text-blue-500" />
+                            <span>{frozenRows.length > 0 && frozenColumns.length > 0 ? `${frozenRows.length}r & ${frozenColumns.length}c frzn` : frozenRows.length > 0 ? `${frozenRows.length}r frzn` : `${frozenColumns.length}c frzn`}</span>
+                            <span className="ml-1 border-l border-slate-300 dark:border-slate-600 pl-1 font-semibold">✕</span>
+                        </button>
                     )}
 
                     <span>{totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0} - {Math.min(currentPage * pageSize, totalItems)} of {totalItems}</span>
@@ -1081,9 +1161,12 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                 )
                             })}
                         </div>
-                        <div className="flex justify-end gap-2 text-sm">
-                            <button onClick={() => setShowFreezeColumnModal(false)} className="px-4 py-2 border rounded">Cancel</button>
-                            <button onClick={handleFreezeColumns} className="px-4 py-2 bg-blue-600 text-white rounded">Apply Freeze</button>
+                        <div className="flex justify-between items-center text-sm">
+                            <button onClick={() => { setTempFrozenColumns([]); setFrozenColumns([]); setShowFreezeColumnModal(false); showNotification('All columns unfrozen'); }} className="text-red-600 hover:text-red-750 font-semibold px-2 py-1 transition-colors">Unfreeze All</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowFreezeColumnModal(false)} className="px-4 py-2 border rounded">Cancel</button>
+                                <button onClick={handleFreezeColumns} className="px-4 py-2 bg-blue-600 text-white rounded">Apply Freeze</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1110,9 +1193,12 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
                                 )
                             })}
                         </div>
-                        <div className="flex justify-end gap-2 text-sm">
-                            <button onClick={() => setShowFreezeRowModal(false)} className="px-4 py-2 border rounded">Cancel</button>
-                            <button onClick={handleFreezeRows} className="px-4 py-2 bg-blue-600 text-white rounded">Apply Freeze</button>
+                        <div className="flex justify-between items-center text-sm">
+                            <button onClick={() => { setTempFrozenRows([]); setFrozenRows([]); setShowFreezeRowModal(false); showNotification('All rows unfrozen'); }} className="text-red-600 hover:text-red-750 font-semibold px-2 py-1 transition-colors">Unfreeze All</button>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowFreezeRowModal(false)} className="px-4 py-2 border rounded">Cancel</button>
+                                <button onClick={handleFreezeRows} className="px-4 py-2 bg-blue-600 text-white rounded">Apply Freeze</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1177,3 +1263,5 @@ const ExcelTableViewer = ({ columns: initialColumns, data, fileName, onRefresh, 
 };
 
 export default ExcelTableViewer;
+
+

@@ -1,0 +1,186 @@
+.modules-panel-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* Header */
+.modules-header-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--brand-navy);
+}
+
+/* Module Cards Grid */
+.modules-stack {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .modules-stack {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .modules-stack {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.module-card {
+  background: var(--surface);
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.module-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+/* Headers - Clean Padding */
+.module-card-header {
+  padding: 16px 20px;
+  background: var(--elevated-card);
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.module-card-header.static {
+  cursor: default;
+}
+
+.module-card-header:not(.static):hover,
+.module-card-header:not(.static):focus {
+  background: rgba(148, 163, 184, 0.12);
+  outline: none;
+}
+
+.module-card-header:focus-visible {
+  outline: 2px solid var(--brand-navy);
+  outline-offset: -2px;
+}
+
+.header-icon-container {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--brand-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-icon {
+  color: white;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  line-height: 1.2;
+}
+
+.header-subtext {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-family: var(--font-primary);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* Card Items List - Clean Extra Padding */
+.module-card-items {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+.module-sub-item {
+  width: 100%;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: var(--font-primary);
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
+  box-sizing: border-box;
+}
+
+.module-sub-item.primary-sub-item {
+  border-top: none;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.module-sub-item:hover,
+.module-sub-item:focus {
+  background-color: var(--elevated-card);
+  color: var(--brand-navy);
+  transform: translateX(4px);
+  outline: none;
+}
+
+.module-sub-item:focus-visible {
+  outline: 2px solid var(--brand-navy);
+  outline-offset: -2px;
+}
+
+/* Consistent Minimal Icons (No Template Color Bloat) */
+.item-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.more-projects-label {
+  padding: 8px 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-family: var(--font-primary);
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
