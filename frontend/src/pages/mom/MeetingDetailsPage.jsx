@@ -136,13 +136,7 @@ const formatDate = (dateStr) => {
   return fmt;
 };
 
-const MOCK_TEAM_MEMBERS = [
-  { id: 'u1', name: 'Pradeep', email: 'pradeep@example.com', timezone: 'IST', avatar: null },
-  { id: 'u2', name: 'Gaurav Kumar', email: 'gk@example.com', timezone: 'IST', avatar: null },
-  { id: 'u3', name: 'John Doe', email: 'john@example.com', timezone: 'PST', avatar: null },
-  { id: 'u4', name: 'Jane Smith', email: 'jane@example.com', timezone: 'GMT', avatar: null },
-  { id: 'u5', name: 'Alice Wong', email: 'alice@example.com', timezone: 'HKT', avatar: null },
-];
+// Removed MOCK_TEAM_MEMBERS
 
 const getAttendeeTime = (timezone, meetingDate, meetingTime) => {
   try {
@@ -248,6 +242,7 @@ const MeetingDetailsPage = () => {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [attendeeUndoTimer, setAttendeeUndoTimer] = useState(null);
   const [removingAttendeeId, setRemovingAttendeeId] = useState(null);
+  const [allEmployees, setAllEmployees] = useState([]);
   
   // Health Panel & Readiness
   const [isHealthCollapsed, setIsHealthCollapsed] = useState(() => {
@@ -650,6 +645,18 @@ const MeetingDetailsPage = () => {
   };
 
   useEffect(() => { fetchMeeting(); }, [id]);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const resp = await API.get('/employees');
+        setAllEmployees(resp.data || []);
+      } catch (err) {
+        console.error('Failed to fetch employees:', err);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     const fetchAllMeetings = async () => {
@@ -2232,34 +2239,33 @@ const MeetingDetailsPage = () => {
 
                           {attendeeSearchQuery.trim() && (
                             <div className="mdp2-autocomplete-dropdown">
-                              {MOCK_TEAM_MEMBERS.filter(m =>
-                                m.name.toLowerCase().includes(attendeeSearchQuery.toLowerCase()) ||
-                                m.email.toLowerCase().includes(attendeeSearchQuery.toLowerCase())
-                              ).map(contact => (
-                                <div
-                                  key={contact.id}
-                                  className="mdp2-autocomplete-item"
-                                  onClick={() => { handleAddAttendee(contact); setAttendeeSearchQuery(''); }}
-                                >
-                                  <div className="mdp2-avatar-sm" style={{ backgroundColor: getInitialsColor(contact.name) }}>{getInitials(contact.name)}</div>
-                                  <div className="mdp2-contact-info">
-                                    <span className="name">{contact.name}</span>
-                                    <span className="email">{contact.email}</span>
+                              {allEmployees.filter(m => {
+                                const name = m.name || m.full_name || m.first_name || '';
+                                const email = m.email || '';
+                                return name.toLowerCase().includes(attendeeSearchQuery.toLowerCase()) ||
+                                       email.toLowerCase().includes(attendeeSearchQuery.toLowerCase());
+                              }).map(contact => {
+                                const name = contact.name || contact.full_name || contact.first_name || contact.email.split('@')[0];
+                                return (
+                                  <div
+                                    key={contact.id || contact.employee_id || contact.email}
+                                    className="mdp2-autocomplete-item"
+                                    onClick={() => { handleAddAttendee({ ...contact, name }); setAttendeeSearchQuery(''); }}
+                                  >
+                                    <div className="mdp2-avatar-sm" style={{ backgroundColor: getInitialsColor(name) }}>{getInitials(name)}</div>
+                                    <div className="mdp2-contact-info">
+                                      <span className="name">{name}</span>
+                                      <span className="email">{contact.email}</span>
+                                    </div>
                                   </div>
-                                  <div className="mdp2-contact-meta">
-                                    {contact.timezone}
-                                    {['22', '23', '00', '01', '02', '03', '04', '05'].includes(getAttendeeTime(contact.timezone, meeting?.date, meeting?.time).split(':')[0]) && (
-                                      <AlertCircle size={10} className="text-amber-500" title="Outside working hours" />
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                              {!MOCK_TEAM_MEMBERS.some(m => m.email === attendeeSearchQuery) && attendeeSearchQuery.includes('@') && (
+                                );
+                              })}
+                              {!allEmployees.some(m => m.email === attendeeSearchQuery) && attendeeSearchQuery.includes('@') && (
                                 <div className="mdp2-autocomplete-item fallback" onClick={() => { handleAddAttendee(attendeeSearchQuery); setAttendeeSearchQuery(''); }}>
                                   <UserPlus size={14} />
                                   <span>Invite <strong>{attendeeSearchQuery}</strong></span>
-                              </div>
-                            )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2311,7 +2317,6 @@ const MeetingDetailsPage = () => {
                                     </div>
                                   </PopoverContent>
                                 </Popover>
-                                <span className="z-tz-pill">{att.timezone || 'IST'}</span>
 
                                 {/* Inline resend — prominent for PENDING, discreet otherwise */}
                                 {rsvp === 'pending' && (
@@ -2366,21 +2371,7 @@ const MeetingDetailsPage = () => {
                         </div>
                       )}
 
-                      {/* Timezone overlap */}
-                      {attendees.some(a => a.timezone && a.timezone !== 'IST') && (
-                        <div className="mdp2-timezone-panel">
-                          <div className="mdp2-timezone-header"><span>Timezone overlap</span><Globe size={12} /></div>
-                          <div className="mdp2-timezone-overlap">
-                            {attendees.map((att, i) => (
-                              <div key={i} className="mdp2-tz-item">
-                                <span className="initials">{getInitials(att.name || att.email)}</span>
-                                <span className="time">{getAttendeeTime(att.timezone || 'IST', meeting?.date, meeting?.time)}</span>
-                                {['22','23','00','01','02','03','04','05'].includes(getAttendeeTime(att.timezone || 'IST', meeting?.date, meeting?.time).split(':')[0]) && <AlertCircle size={10} className="text-amber-500" />}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* Timezone overlap panel removed */}
                     </div>
                   </div>
                 </div>
