@@ -13,6 +13,16 @@ from cachetools import TTLCache
 dashboard_cache = TTLCache(maxsize=100, ttl=300) # 5 mins cache
 
 
+def clear_dashboard_cache(project_id: int = None):
+    """Clear all keys or specific keys for a project from the cache."""
+    if project_id is None:
+        dashboard_cache.clear()
+    else:
+        keys_to_del = [k for k in dashboard_cache.keys() if k.startswith(f"dashboard_{project_id}") or k == "all_projects_summary"]
+        for k in keys_to_del:
+            dashboard_cache.pop(k, None)
+
+
 # ---------------------------------------------------------------------------
 # Status constants
 # ---------------------------------------------------------------------------
@@ -194,6 +204,28 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     pending_pct        = _safe_pct(pending,   total)
 
     milestones = []
+    if results and results[0][0]:
+        project = results[0][0]
+        if project.project_id:
+            from app.models.project_milestone import ProjectMilestone
+            from app.schemas.project_milestone import MilestoneResponse
+            from datetime import datetime
+            
+            milestone_rows = (
+                db.query(ProjectMilestone)
+                .filter(ProjectMilestone.project_id == project.project_id)
+                .order_by(ProjectMilestone.row_order.asc())
+                .all()
+            )
+            for t in milestone_rows:
+                try:
+                    m_dict = MilestoneResponse.model_validate(t).model_dump(mode="json")
+                except AttributeError:
+                    m_dict = MilestoneResponse.from_orm(t).dict()
+                    for k, v in m_dict.items():
+                        if isinstance(v, datetime):
+                            m_dict[k] = v.isoformat()
+                milestones.append(m_dict)
 
     # Map to frontend output list format (omitting delay internals)
     modules = [
