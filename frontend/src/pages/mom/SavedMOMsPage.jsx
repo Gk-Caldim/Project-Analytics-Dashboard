@@ -44,33 +44,33 @@ import './SavedMOMsPage.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DATE_RANGES = [
-  { key: 'all',   label: 'All Time' },
-  { key: 'today', label: 'Today' },
-  { key: 'week',  label: 'This Week' },
-  { key: 'month', label: 'This Month' },
+  { value: 'all', label: 'All Time' },
+  { value: 'today', label: 'Today' },
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
 ];
 
 const SORT_OPTIONS = [
-  { key: 'date_desc',  label: 'Latest First' },
-  { key: 'date_asc',   label: 'Oldest First' },
-  { key: 'name_asc',   label: 'Project A → Z' },
-  { key: 'name_desc',  label: 'Project Z → A' },
+  { value: 'date_desc', label: 'Latest First' },
+  { value: 'date_asc', label: 'Oldest First' },
+  { value: 'name_asc', label: 'Project A → Z' },
+  { value: 'name_desc', label: 'Project Z → A' },
 ];
 
 const CRITICALITY_COLORS = {
-  'High':     { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
-  'Medium':   { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
-  'Low':      { bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },
+  'High': { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
+  'Medium': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+  'Low': { bg: '#F0FDF4', color: '#166534', border: '#BBF7D0' },
   'Critical': { bg: '#DC2626', color: '#FFFFFF', border: '#B91C1C' },
 };
 
 const STATUS_OPTIONS = ['Open', 'In Progress', 'Closed', 'Pending', 'Resolved'];
 const STATUS_COLORS = {
-  'Open':        { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' }, // Same as Pending
-  'Pending':     { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' },
+  'Open': { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' }, // Same as Pending
+  'Pending': { bg: '#FFF7ED', color: '#C2410C', border: '#FFEDD5' },
   'In Progress': { bg: '#EFF6FF', color: '#1D4ED8', border: '#DBEAFE' },
-  'Closed':      { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' }, // Same as Resolved
-  'Resolved':    { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' },
+  'Closed': { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' }, // Same as Resolved
+  'Resolved': { bg: '#F0FDF4', color: '#15803D', border: '#DCFCE7' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ const EditableCell = ({ value, onSave, multiline = false }) => {
   }
 
   return (
-    <div 
+    <div
       onClick={() => setIsEditing(true)}
       className="group flex items-start gap-2 cursor-pointer hover:bg-slate-50 p-1 rounded transition-colors"
     >
@@ -143,7 +143,7 @@ const StatusCell = ({ value, onSave }) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button 
+        <button
           className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer outline-none hover:opacity-85 focus:ring-1 focus:ring-slate-400 select-none"
           style={{ background: style.bg, color: style.color, borderColor: style.border }}
         >
@@ -184,7 +184,7 @@ const DateCell = ({ value, onSave }) => {
   }
 
   return (
-    <div 
+    <div
       onClick={() => setIsEditing(true)}
       className="flex items-center gap-1.5 cursor-pointer text-slate-600 hover:text-blue-600 font-mono text-xs font-bold transition-colors"
     >
@@ -217,9 +217,8 @@ const FunctionCell = ({ value, onSave }) => {
           <DropdownMenuItem
             key={opt}
             onClick={() => onSave(opt)}
-            className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900 ${
-              value === opt ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'
-            }`}
+            className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 rounded transition-colors cursor-pointer outline-none focus:bg-slate-50 focus:text-slate-900 ${value === opt ? 'text-blue-600 font-bold bg-blue-50/50' : 'text-slate-700'
+              }`}
           >
             {opt}
           </DropdownMenuItem>
@@ -272,8 +271,13 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [itemsPerPage, setItemsPerPage] = useState(5);
+
+  // ── Filter State ──
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCriticality, setFilterCriticality] = useState('all');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // ── Per-row edit state ──
   const [editingRowId, setEditingRowId] = useState(null);
@@ -281,6 +285,24 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
 
   // ── Delete confirm state ──
   const [deletingRowId, setDeletingRowId] = useState(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus, filterCriticality, filterSearch]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      if (filterStatus !== 'all' && item.status !== filterStatus) return false;
+      if (filterCriticality !== 'all' && item.criticality !== filterCriticality) return false;
+      if (filterSearch) {
+        const q = filterSearch.toLowerCase();
+        const inPoint = (item.discussion_point || '').toLowerCase().includes(q);
+        const inOwner = (item.responsibility || '').toLowerCase().includes(q);
+        if (!inPoint && !inOwner) return false;
+      }
+      return true;
+    });
+  }, [items, filterStatus, filterCriticality, filterSearch]);
 
   const fetchItems = useCallback(async () => {
     try {
@@ -336,13 +358,13 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
   const startEditRow = (item) => {
     setEditingRowId(item.id);
     setEditingRowData({
-      function:         item.function || 'General',
-      criticality:      item.criticality || 'Medium',
+      function: item.function || 'General',
+      criticality: item.criticality || 'Medium',
       discussion_point: item.discussion_point || '',
-      responsibility:   item.responsibility || '',
-      target:           item.target || '',
-      status:           item.status || 'Open',
-      action_taken:     item.action_taken || '',
+      responsibility: item.responsibility || '',
+      target: item.target || '',
+      status: item.status || 'Open',
+      action_taken: item.action_taken || '',
     });
   };
 
@@ -370,12 +392,12 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
   const activePage = Math.min(currentPage, totalPages);
 
   const paginatedItems = useMemo(() => {
-    return items.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
-  }, [items, activePage, itemsPerPage]);
+    return filteredItems.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+  }, [filteredItems, activePage, itemsPerPage]);
 
   if (loading) {
     return (
@@ -419,6 +441,53 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
 
   return (
     <div className="flex flex-col gap-3 p-1">
+      {/* Inner Filters */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-slate-50/30 border border-slate-100 rounded-lg flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-[280px]">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={filterSearch}
+            onChange={e => setFilterSearch(e.target.value)}
+            placeholder="Search action points or owner..."
+            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-colors"
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="px-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-700 font-semibold cursor-pointer"
+        >
+          <option value="all">All Status</option>
+          {STATUS_OPTIONS.map(s => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={filterCriticality}
+          onChange={e => setFilterCriticality(e.target.value)}
+          className="px-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 text-slate-700 font-semibold cursor-pointer"
+        >
+          <option value="all">All Criticality</option>
+          {CRITICALITY_OPTIONS.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        {(filterStatus !== 'all' || filterCriticality !== 'all' || !!filterSearch) && (
+          <button
+            onClick={() => { setFilterStatus('all'); setFilterCriticality('all'); setFilterSearch(''); }}
+            className="flex items-center gap-1 text-[11px] text-red-500 font-bold hover:text-red-600 transition-colors"
+          >
+            <X size={11} /> Clear
+          </button>
+        )}
+        {(filterStatus !== 'all' || filterCriticality !== 'all' || !!filterSearch) && (
+          <span className="text-[11px] text-slate-400 ml-auto">
+            {filteredItems.length} of {items.length} shown
+          </span>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -440,11 +509,10 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
               return (
                 <tr
                   key={item.id}
-                  className={`transition-colors group ${
-                    isEditing
+                  className={`transition-colors group ${isEditing
                       ? 'bg-blue-50/30 ring-2 ring-inset ring-blue-300/40'
                       : 'hover:bg-slate-50/30'
-                  }`}
+                    }`}
                 >
                   {/* S.No */}
                   <td className="px-4 py-3 text-xs font-mono text-slate-400 text-center">
@@ -596,15 +664,22 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
                 </tr>
               );
             })}
+            {filteredItems.length === 0 && (
+              <tr>
+                <td colSpan="9" className="px-4 py-8 text-center text-slate-400 text-xs font-semibold">
+                  No matching action items found.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
-      {items.length > 0 && (
+      {filteredItems.length > 0 && (
         <div className="py-3 px-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/20 rounded-b-lg print:hidden">
           <div className="flex items-center gap-3">
             <span className="text-[11px] text-slate-400 font-medium">
-              Showing {(activePage - 1) * itemsPerPage + 1}–{Math.min(activePage * itemsPerPage, items.length)} of {items.length} items
+              Showing {(activePage - 1) * itemsPerPage + 1}–{Math.min(activePage * itemsPerPage, filteredItems.length)} of {filteredItems.length} items
             </span>
             <span className="text-[11px] text-slate-200">|</span>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
@@ -646,7 +721,7 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
                   className="cursor-pointer"
                 />
               </PaginationItem>
-              
+
               {Array.from({ length: totalPages }).map((_, i) => (
                 <PaginationItem key={i}>
                   <PaginationLink
@@ -658,7 +733,7 @@ const ActionItemsTable = ({ syncId, onItemDeleted }) => {
                   </PaginationLink>
                 </PaginationItem>
               ))}
-              
+
               <PaginationItem>
                 <PaginationNext
                   onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -687,6 +762,8 @@ const SavedMOMsPage = () => {
   const [multiExpand, setMultiExpand] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
+  const [dateRange, setDateRange] = useState('all');
+  const [sortBy, setSortBy] = useState('date_desc');
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
@@ -715,7 +792,7 @@ const SavedMOMsPage = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedProject]);
+  }, [search, selectedProject, dateRange, sortBy]);
 
   // Premium Custom Alert Dialog state matching Zoho design principles
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -741,7 +818,7 @@ const SavedMOMsPage = () => {
     }
   }, []);
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchRecords().then((recs) => {
       if (highlightSyncId && recs && recs.length > 0) {
         const idx = recs.findIndex(r => r.sync_id === highlightSyncId);
@@ -749,23 +826,35 @@ const SavedMOMsPage = () => {
           const targetPage = Math.floor(idx / itemsPerPage) + 1;
           setCurrentPage(targetPage);
         }
-        
+
         // Delay slightly to allow records and the specific page to render
         setTimeout(() => {
           const el = document.getElementById(`sync-${highlightSyncId}`);
           if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             setExpandedIds(new Set([highlightSyncId]));
+          } else if (highlightSyncId) {
+            // Record was not found — likely deleted
+            toast.error('MOM record not found', {
+              description: 'This sync record may have been deleted from the library.',
+              duration: 5000,
+            });
           }
         }, 500);
+      } else if (highlightSyncId && recs.length > 0) {
+        // highlightSyncId provided but not in any record
+        toast.error('MOM record not found', {
+          description: 'This sync record may have been deleted from the library.',
+          duration: 5000,
+        });
       }
-    }); 
+    });
 
     // Listen for WebSocket broadcasts to auto-refresh the library
     const handleRemoteUpdate = () => {
       fetchRecords();
     };
-    
+
     window.addEventListener('ISSUE_SYNCED', handleRemoteUpdate);
     window.addEventListener('MOM_SAVED', handleRemoteUpdate);
 
@@ -789,17 +878,17 @@ const SavedMOMsPage = () => {
   const handleConfirmDelete = async () => {
     const { syncId, historyId, meetingId } = deleteConfirm;
     setDeleteConfirm(prev => ({ ...prev, isOpen: false }));
-    
+
     const localFilterId = syncId && syncId !== 'null' ? syncId : null;
 
     try {
       const params = new URLSearchParams();
       if (historyId) params.append('history_id', historyId);
       if (meetingId) params.append('meeting_id', meetingId);
-      
+
       // Pass all resolved identifiers to guarantee thorough hard deletion
       await API.delete(`/mom/syncs/${syncId || 'null'}?${params.toString()}`);
-      
+
       setRecords(prev => prev.filter(r => {
         if (localFilterId && r.sync_id === localFilterId) return false;
         if (historyId && r.history_id === historyId) return false;
@@ -818,18 +907,53 @@ const SavedMOMsPage = () => {
   }, []);
 
   const filtered = useMemo(() => {
-    return records.filter(r => {
-      const matchesSearch = !search || 
-        r.meeting_name.toLowerCase().includes(search.toLowerCase()) || 
+    const result = records.filter(r => {
+      const matchesSearch = !search ||
+        r.meeting_name.toLowerCase().includes(search.toLowerCase()) ||
         r.project_name.toLowerCase().includes(search.toLowerCase());
       const matchesProject = selectedProject === 'all' || r.project_name === selectedProject;
-      return matchesSearch && matchesProject;
-    });
-  }, [records, search, selectedProject]);
 
-  const allProjects = useMemo(() => 
-    ['all', ...new Set(records.map(r => r.project_name))].filter(Boolean), 
-  [records]);
+      // Date Range matching
+      let matchesDate = true;
+      if (dateRange !== 'all' && r.synced_at) {
+        const syncDate = new Date(r.synced_at);
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (dateRange === 'today') {
+          matchesDate = syncDate >= startOfToday;
+        } else if (dateRange === 'week') {
+          const startOfWeek = new Date(startOfToday);
+          startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+          matchesDate = syncDate >= startOfWeek;
+        } else if (dateRange === 'month') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          matchesDate = syncDate >= startOfMonth;
+        }
+      }
+      return matchesSearch && matchesProject && matchesDate;
+    });
+
+    // Sort logic
+    result.sort((a, b) => {
+      if (sortBy === 'date_desc') {
+        return new Date(b.synced_at) - new Date(a.synced_at);
+      } else if (sortBy === 'date_asc') {
+        return new Date(a.synced_at) - new Date(b.synced_at);
+      } else if (sortBy === 'name_asc') {
+        return (a.project_name || '').localeCompare(b.project_name || '');
+      } else if (sortBy === 'name_desc') {
+        return (b.project_name || '').localeCompare(a.project_name || '');
+      }
+      return 0;
+    });
+
+    return result;
+  }, [records, search, selectedProject, dateRange, sortBy]);
+
+  const allProjects = useMemo(() =>
+    ['all', ...new Set(records.map(r => r.project_name))].filter(Boolean),
+    [records]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const activePage = Math.min(currentPage, totalPages);
@@ -893,9 +1017,9 @@ const SavedMOMsPage = () => {
       <div className="smp-filterbar">
         <div className="smp-search">
           <Search size={14} className="smp-search-ic" />
-          <input 
-            type="text" 
-            placeholder="Search meetings or projects..." 
+          <input
+            type="text"
+            placeholder="Search meetings or projects..."
             className="smp-search-input"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -926,17 +1050,63 @@ const SavedMOMsPage = () => {
             </ComboboxList>
           </ComboboxContent>
         </Combobox>
-        <div 
+
+        <Combobox
+          items={DATE_RANGES}
+          value={dateRange}
+          onChange={val => setDateRange(val)}
+          className="w-36"
+        >
+          <ComboboxInput
+            hideSearch
+            hideClear
+            placeholder="Date Range"
+            className="smp-pill flex items-center justify-between border-slate-200 hover:border-slate-300 rounded-[20px] shadow-sm text-xs font-semibold text-slate-600 h-[36px] py-1 bg-white cursor-pointer"
+          />
+          <ComboboxContent className="w-36 min-w-0">
+            <ComboboxList className="max-h-48">
+              {(item) => (
+                <ComboboxItem key={item.value} value={item.value} className="text-xs py-1.5 px-3">
+                  {item.label}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+
+        <Combobox
+          items={SORT_OPTIONS}
+          value={sortBy}
+          onChange={val => setSortBy(val)}
+          className="w-40"
+        >
+          <ComboboxInput
+            hideSearch
+            hideClear
+            placeholder="Sort by"
+            className="smp-pill flex items-center justify-between border-slate-200 hover:border-slate-300 rounded-[20px] shadow-sm text-xs font-semibold text-slate-600 h-[36px] py-1 bg-white cursor-pointer"
+          />
+          <ComboboxContent className="w-40 min-w-0">
+            <ComboboxList className="max-h-48">
+              {(item) => (
+                <ComboboxItem key={item.value} value={item.value} className="text-xs py-1.5 px-3">
+                  {item.label}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+        <div
           className="flex items-center gap-2 bg-slate-50/50 hover:bg-slate-50 border border-slate-200 rounded-[20px] px-3.5 h-[36px] select-none"
           title="When enabled, expanding a meeting card keeps previously opened cards open."
         >
-          <Switch 
-            id="multi-expand-toggle" 
-            checked={multiExpand} 
-            onCheckedChange={setMultiExpand} 
+          <Switch
+            id="multi-expand-toggle"
+            checked={multiExpand}
+            onCheckedChange={setMultiExpand}
           />
-          <Label 
-            htmlFor="multi-expand-toggle" 
+          <Label
+            htmlFor="multi-expand-toggle"
             className="text-xs font-semibold text-slate-600 uppercase tracking-wider cursor-pointer"
           >
             Multiple VIEW
@@ -984,16 +1154,16 @@ const SavedMOMsPage = () => {
                           </div>
                         </div>
                       </CollapsibleTrigger>
-                      
+
                       <div className="flex items-center gap-3">
-                        <button 
+                        <button
                           onClick={(e) => { e.stopPropagation(); triggerDeleteSync(rec); }}
                           className="p-2 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-all"
                           title="Hard Delete MOM"
                         >
                           <Trash2 size={16} />
                         </button>
-                        
+
                         <CollapsibleTrigger asChild>
                           <button className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-all cursor-pointer">
                             <ChevronRight size={18} className={`transition-transform duration-300 ${isRecordExpanded ? 'rotate-90 text-blue-500' : 'text-slate-300'}`} />
@@ -1005,7 +1175,7 @@ const SavedMOMsPage = () => {
                     <CollapsibleContent className="overflow-hidden border-t border-slate-100">
                       <AnimatePresence initial={false}>
                         {isRecordExpanded && (
-                          <motion.div 
+                          <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -1061,13 +1231,13 @@ const SavedMOMsPage = () => {
                 <Pagination className="w-auto mx-0">
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
+                      <PaginationPrevious
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={activePage === 1}
                         className="cursor-pointer"
                       />
                     </PaginationItem>
-                    
+
                     {Array.from({ length: totalPages }).map((_, i) => (
                       <PaginationItem key={i}>
                         <PaginationLink
@@ -1079,9 +1249,9 @@ const SavedMOMsPage = () => {
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    
+
                     <PaginationItem>
-                      <PaginationNext 
+                      <PaginationNext
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                         disabled={activePage === totalPages}
                         className="cursor-pointer"
@@ -1129,7 +1299,7 @@ const SavedMOMsPage = () => {
                   "{deleteConfirm.meetingName}"
                 </strong>
               </p>
-              
+
               <div className="smp-dialog-warning-box">
                 <strong style={{ display: 'block', marginBottom: '4px', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.04em' }}>
                   ⚠️ CRITICAL SYSTEM CASCADE
