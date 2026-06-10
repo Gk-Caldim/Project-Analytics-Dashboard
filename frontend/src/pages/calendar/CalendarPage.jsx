@@ -6,7 +6,7 @@ import isoWeek from 'dayjs/plugin/isoWeek';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { ChevronLeft, ChevronRight, Plus, Search, MoreHorizontal, X, Video, MapPin, PlusCircle, Bell, Calendar as CalendarIcon, Clock, Trash2, Palette, Eye, EyeOff, Archive, CalendarDays, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import './CalendarPage.css';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '../../components/ui/dropdown-menu';
 import CalendarGrid from './components/CalendarGrid';
@@ -1633,7 +1633,7 @@ const CalendarPage = () => {
                 {rightPanelEvents.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '36px 16px 24px' }}>
                     <div style={{ fontSize: '26px', marginBottom: 10 }}>
-                      {rightPanelFilter === 'past' ? '📂' : '📅'}
+                      {rightPanelFilter === 'past' ? '📂' : ''}
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: 4 }}>
                       {rightPanelFilter === 'upcoming' ? 'No upcoming meetings' :

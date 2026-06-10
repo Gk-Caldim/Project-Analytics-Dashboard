@@ -3588,7 +3588,7 @@
   background: #ffffff;
   border-radius: 10px;
   border: 0.5px solid #e0e0e0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .z-card-header {
@@ -3597,6 +3597,7 @@
   align-items: center;
   padding: 16px 20px;
   border-bottom: 0.5px solid #f1f3f4;
+  border-radius: 9px 9px 0 0;
 }
 
 .z-card-label {
@@ -4560,7 +4561,7 @@
   background: #ffffff;
   border: 1px solid #e8eaed;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   animation: mdp2Fade 0.25s ease both;
 }
 
@@ -4573,6 +4574,7 @@
   background: #fafbfc;
   gap: 10px;
   min-height: 44px;
+  border-radius: 11px 11px 0 0;
 }
 
 .z-card-label {

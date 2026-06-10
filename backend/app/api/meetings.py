@@ -791,7 +791,30 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
             raise HTTPException(status_code=500, detail=f"Failed to regenerate meeting link: {str(e)}")
 
     # 2. Update all meetings in the series
+    new_attendees = []
     for m in meetings:
+        if req.attendees is not None:
+            old_emails = set()
+            try:
+                old_atts = json.loads(cast(str, m.attendees)) if m.attendees else []
+                for a in old_atts:
+                    if isinstance(a, str):
+                        old_emails.add(a.strip().lower())
+                    elif isinstance(a, dict) and a.get("email"):
+                        old_emails.add(a.get("email").strip().lower())
+            except Exception:
+                pass
+            
+            for a in req.attendees:
+                email = None
+                if isinstance(a, str):
+                    email = a.strip().lower()
+                elif isinstance(a, dict) and a.get("email"):
+                    email = a.get("email").strip().lower()
+                
+                if email and email not in old_emails:
+                    new_attendees.append(a)
+
         if req.title is not None: m.title = req.title  # type: ignore
         
         # Only update the date of the specific instance modified
@@ -844,6 +867,31 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
     db.commit()
     for m in meetings:
         db.refresh(m)
+
+    # Trigger email invites for newly added attendees in the background
+    if req.attendees is not None and new_attendees:
+        emails_to_invite = []
+        for a in new_attendees:
+            if isinstance(a, str):
+                emails_to_invite.append(a)
+            elif isinstance(a, dict) and a.get("email"):
+                emails_to_invite.append(a.get("email"))
+        if emails_to_invite:
+            meeting_data = {
+                "title": meeting.title,
+                "date": meeting.date,
+                "time": meeting.time,
+                "duration_minutes": meeting.duration_minutes,
+                "platform": meeting.platform,
+                "description": meeting.description,
+                "agenda_text": meeting.agenda_text,
+                "attendees": emails_to_invite,
+                "timezone_name": meeting.timezone_name or "UTC"
+            }
+            try:
+                email_service.send_meeting_invite(meeting_data, meeting.join_url)
+            except Exception as e:
+                logger.error(f"Failed to send email to new attendees: {e}")
     
     return await get_meeting(cast(str, meeting.id), db=db)
 
@@ -911,7 +959,8 @@ async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(ge
         "platform": meeting.platform,
         "description": meeting.description,
         "agenda_text": meeting.agenda_text,
-        "attendees": [email]  # Target only this specific email
+        "attendees": [email],  # Target only this specific email
+        "timezone_name": meeting.timezone_name or "UTC"
     }
     
     try:

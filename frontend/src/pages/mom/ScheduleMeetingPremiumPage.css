@@ -41,68 +41,134 @@
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
+  transition: flex 0.2s ease-out;
 }
 
 .column-left::-webkit-scrollbar { display: none; }
 
 .column-right {
-  padding: 24px 32px 24px 24px;
+  padding: 24px 32px 24px 28px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-main);
-  border-left: 0.5px solid var(--border-hairline);
-  transition: flex 0.2s ease-out;
+  /* border-left removed: the resizer ::before handles the visual divider line */
+  transition: flex 0.2s ease-out, padding 0.2s ease-out, opacity 0.2s ease-out;
+  min-width: 200px;
 }
 
-/* --- Resizer Handle --- */
+/* ─── Resizer Handle (Google / Zoho / Notion style) ─── */
 .resizer-handle {
-  width: 16px;
-  cursor: col-resize;
+  width: 10px;
+  flex-shrink: 0;
   position: relative;
   z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 -8px;
+  cursor: col-resize;
   background: transparent;
+  transition: background 0.15s ease;
 }
 
-.resizer-line {
+/* The divider line — always visible and clean */
+.resizer-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 1px;
-  height: 100%;
-  background: var(--border-hairline);
-  transition: all 0.2s;
+  background: #cbd5e1; /* Slate 300, clear visual divider */
+  transition: width 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: none;
 }
 
-.resizer-handle:hover .resizer-line {
-  background: var(--accent-blue);
+/* Active / hover state: line turns blue and highlights */
+.resizer-handle:hover::before,
+.resizer-handle.active::before {
   width: 2px;
+  background: var(--accent-blue);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
 }
 
+.resizer-handle:hover {
+  background: rgba(0, 0, 0, 0.01); /* Very subtle hover feedback for grab area */
+}
+
+/* resizer-line is no longer used for layout — kept for compat but hidden */
+.resizer-line { display: none; }
+
+/* ── Collapse / Expand toggle ── */
 .collapse-toggle {
   position: absolute;
-  top: 24px;
-  width: 26px;
-  height: 26px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
   background: white;
-  border: 0.5px solid var(--border-hairline);
+  border: 1px solid #cbd5e1;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-  color: var(--text-secondary);
-  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  color: #475569; /* Slate 600 */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 60;
+  opacity: 0.85; /* Always visible for clear VP UX discovery */
+  pointer-events: auto;
 }
 
 .collapse-toggle:hover {
+  opacity: 1;
   border-color: var(--accent-blue);
   color: var(--accent-blue);
-  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transform: translate(-50%, -50%) scale(1.1);
 }
+
+/* When sidebar is collapsed, style the arrow toggle as a prominent pull-tab on the right edge */
+.resizer-handle.collapsed .collapse-toggle {
+  opacity: 1;
+  background: white;
+  border: 1.5px solid var(--accent-blue);
+  border-right: none;
+  /* Shift it to the left of the resizer handle boundary to be fully inside the viewport */
+  transform: translate(-100%, -50%) translateX(2px);
+  width: 32px;
+  height: 52px;
+  border-radius: 8px 0 0 8px; /* Elegant rounded tab against the screen edge */
+  box-shadow: -3px 0 10px rgba(37, 99, 235, 0.15);
+  color: var(--accent-blue);
+}
+
+.resizer-handle.collapsed .collapse-toggle:hover {
+  width: 26px;
+  height: 46px;
+  box-shadow: -4px 0 14px rgba(37, 99, 235, 0.3);
+  color: var(--accent-blue-hover);
+  transform: translate(-100%, -50%) translateX(2px);
+}
+
+/* Disable transitions during resize drag to prevent UI latency */
+.column-left.resizing,
+.column-right.resizing {
+  transition: none !important;
+}
+
+/* Full collapse styles for the right column */
+.column-right.collapsed {
+  min-width: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+
 
 /* --- Non-Obscuring Top Orchestration Strip --- */
 .top-action-strip {

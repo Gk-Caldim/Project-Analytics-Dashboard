@@ -302,7 +302,10 @@ const ScheduleMeetingPremiumPage = () => {
   // Column resizing layout state
   const [columnWidth, setColumnWidth] = useState(62);
   const [isResizing, setIsResizing] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const rightGridRef = useRef(null);
+  const containerRef = useRef(null);
+  const prevColumnWidth = useRef(62); // stores width before collapse
 
   // Load Projects and Meetings
   useEffect(() => {
@@ -618,24 +621,54 @@ const ScheduleMeetingPremiumPage = () => {
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [is24Hour, setIs24Hour] = useState(false);
 
-  // Mouse resizing events
+  // Mouse resizing events — accurate container-relative calculation
   const startResizing = (e) => {
     e.preventDefault();
     setIsResizing(true);
   };
 
+  const handleResizerDoubleClick = () => {
+    // Double-click resets to default 62% split
+    setColumnWidth(62);
+    setIsSidebarCollapsed(false);
+  };
+
+  const handleCollapseToggle = (e) => {
+    e.stopPropagation();
+    if (isSidebarCollapsed) {
+      setIsSidebarCollapsed(false);
+      setColumnWidth(prevColumnWidth.current);
+    } else {
+      prevColumnWidth.current = columnWidth;
+      setIsSidebarCollapsed(true);
+      setColumnWidth(100); // collapse sidebar completely
+    }
+  };
+
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isResizing) return;
-      const newW = (e.clientX / window.innerWidth) * 100;
-      if (newW >= 40 && newW <= 80) setColumnWidth(newW);
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const relativeX = e.clientX - rect.left;
+      const newW = (relativeX / rect.width) * 100;
+      // Min 35%, Max 75% for left column
+      if (newW >= 35 && newW <= 75) {
+        setColumnWidth(newW);
+        setIsSidebarCollapsed(false);
+      }
     };
     const handleMouseUp = () => setIsResizing(false);
     if (isResizing) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     }
     return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -807,9 +840,9 @@ const ScheduleMeetingPremiumPage = () => {
 
   return (
     <div className="schedule-premium-page" onClick={() => { setShowDatePicker(false); setShowStartTimePicker(false); setShowEndTimePicker(false); setIsRecurrenceDropOpen(false); }}>
-      <main className="schedule-content">
+      <main className="schedule-content" ref={containerRef}>
         
-        <section className="column-left" style={{ flex: `0 0 ${columnWidth}%` }}>
+        <section className={`column-left ${isResizing ? 'resizing' : ''}`} style={{ flex: `0 0 calc(${columnWidth}% - 10px)` }}>
           
           {/* Top Permanent Action Bar — Sleek, fixed inline at the document root to avoid scroll clipping */}
           <div className="top-action-strip">
@@ -1211,13 +1244,28 @@ const ScheduleMeetingPremiumPage = () => {
           </div>
         </section>
 
-        {/* Resizer Divider */}
-        <div className="resizer-handle" onMouseDown={startResizing}>
-          <div className="resizer-line" />
+        {/* Resizer — thin invisible hit zone, line via ::before pseudo-element */}
+        <div
+          className={`resizer-handle ${isResizing ? 'active' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`}
+          onMouseDown={startResizing}
+          onDoubleClick={handleResizerDoubleClick}
+          title="Drag to resize · Double-click to reset"
+        >
+          {/* Collapse / expand chevron pill */}
+          <button
+            className="collapse-toggle"
+            onClick={handleCollapseToggle}
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isSidebarCollapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
         </div>
 
         {/* Right Column — Synchronized Live Scheduling Aid Sidebar */}
-        <section className="column-right" style={{ flex: `0 0 ${100 - columnWidth}%` }}>
+        <section 
+          className={`column-right ${isSidebarCollapsed ? 'collapsed' : ''} ${isResizing ? 'resizing' : ''}`} 
+          style={{ flex: `0 0 ${100 - columnWidth}%` }}
+        >
           
           <div className="sidebar-calendar-container">
             
