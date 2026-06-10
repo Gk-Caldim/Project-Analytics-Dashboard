@@ -343,6 +343,7 @@ const VPProjectDashboard = ({
       
       const plannedLeft = ((plannedStart - timelineStart) / 86400000) * pxPerDay;
       const plannedWidth = Math.max(4, ((plannedEnd - plannedStart) / 86400000) * pxPerDay);
+      const durationDays = Math.ceil((plannedEnd - plannedStart) / 86400000) || 1;
 
       const isMilestone = t.item_type === 'Milestone' || t.item_type === 'Approval Gate';
       const isParent = t.item_type === 'Phase' || (milestones || []).some(child => child.parent_id === t.id);
@@ -359,14 +360,24 @@ const VPProjectDashboard = ({
         completePercent: t.complete_percent || 0,
         activityName: t.activity_name,
         wbsCode: t.wbs_code,
+        itemType: t.item_type,
+        department: t.department,
+        assignedTo: t.assigned_to,
         colors,
         status: t.status,
-        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        durationDays,
+        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        plannedStartStr: plannedStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+        plannedEndStr: plannedEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       };
     });
   }, [ganttFilteredTasks, timelineStart, pxPerDay, milestones, getPhaseColors]);
 
   const rowHeight = 50;
+
+  // --- Gantt hover tooltip state ---
+  const [hoveredBar, setHoveredBar] = useState(null); // { bar, x, y }
+  const ganttContainerRef = useRef(null);
 
   // --- Pinned Issues State ---
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -1015,15 +1026,17 @@ const VPProjectDashboard = ({
                     </div>
                   </div>
 
-                  {/* ── GANTT TIMELINE TIMELINE CANVAS ── */}
-                  <div style={{
-                    flex: 1,
-                    overflow: 'auto',
-                    position: 'relative',
-                    maxHeight: '450px',
-                    minHeight: '320px',
-                    backgroundColor: 'var(--bg)'
-                  }}>
+                  {/* ── GANTT TIMELINE CANVAS ── */}
+                  <div
+                    ref={ganttContainerRef}
+                    style={{
+                      flex: 1,
+                      overflow: 'auto',
+                      position: 'relative',
+                      maxHeight: '450px',
+                      minHeight: '320px',
+                      backgroundColor: 'var(--bg)'
+                    }}>
                     {ganttFilteredTasks.length === 0 ? (
                       <div style={{
                         display: 'flex',
@@ -1270,8 +1283,24 @@ const VPProjectDashboard = ({
                                   display: 'flex',
                                   alignItems: 'center',
                                   borderBottom: '1px solid var(--border-subtle)',
-                                  backgroundColor: isParent ? 'rgba(100, 116, 139, 0.02)' : 'transparent'
+                                  backgroundColor: isParent ? 'rgba(100, 116, 139, 0.02)' : 'transparent',
+                                  cursor: 'pointer'
                                 }}
+                                onMouseEnter={(e) => {
+                                  setHoveredBar({
+                                    bar,
+                                    x: e.clientX + 14,
+                                    y: e.clientY + 14
+                                  });
+                                }}
+                                onMouseMove={(e) => {
+                                  setHoveredBar(prev => prev ? ({
+                                    ...prev,
+                                    x: e.clientX + 14,
+                                    y: e.clientY + 14
+                                  }) : null);
+                                }}
+                                onMouseLeave={() => setHoveredBar(null)}
                               >
                                 {isMilestone ? (
                                   <>
@@ -1289,7 +1318,6 @@ const VPProjectDashboard = ({
                                         border: '1.5px solid #fff',
                                         zIndex: 10
                                       }}
-                                      title={`Milestone: ${bar.activityName}`}
                                     />
                                   </>
                                 ) : isParent ? (
@@ -1367,6 +1395,104 @@ const VPProjectDashboard = ({
                         </div>
                       </div>
                     )}
+
+                    {/* ── GANTT HOVER TOOLTIP ── */}
+                    {hoveredBar && (() => {
+                      const { bar } = hoveredBar;
+                      const statusColorMap = {
+                        'Completed':   { bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
+                        'In Progress': { bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' },
+                        'Delayed':     { bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
+                        'Upcoming':    { bg: '#ede9fe', text: '#4c1d95', dot: '#8b5cf6' },
+                        'On Hold':     { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
+                        'Not Started': { bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' },
+                        'Cancelled':   { bg: '#f1f5f9', text: '#94a3b8', dot: '#cbd5e1' },
+                      };
+                      const sc = statusColorMap[bar.status] || statusColorMap['Not Started'];
+                      return (
+                        <div
+                          style={{
+                            position: 'fixed',
+                            left: hoveredBar.x,
+                            top: hoveredBar.y,
+                            zIndex: 9999,
+                            pointerEvents: 'none',
+                            backgroundColor: '#1e293b',
+                            border: '1px solid #334155',
+                            borderRadius: '10px',
+                            padding: '12px 14px',
+                            minWidth: '220px',
+                            maxWidth: '300px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+                            fontSize: '11px',
+                            color: '#f8fafc'
+                          }}
+                        >
+                          {/* Title */}
+                          <div style={{ fontWeight: '800', fontSize: '12px', color: bar.colors.fill, marginBottom: '8px', lineHeight: 1.3 }}>
+                            {bar.activityName}
+                          </div>
+
+                          {/* WBS + Type row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            {bar.wbsCode && (
+                              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94a3b8', backgroundColor: '#0f172a', padding: '1px 6px', borderRadius: '4px', border: '1px solid #334155' }}>
+                                {bar.wbsCode}
+                              </span>
+                            )}
+                            <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', backgroundColor: '#0f172a', padding: '1px 6px', borderRadius: '4px', border: '1px solid #334155' }}>
+                              {bar.itemType || 'Task'}
+                            </span>
+                          </div>
+
+                          {/* Status badge */}
+                          <div style={{ marginBottom: '10px' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: sc.bg, color: sc.text, border: `1px solid ${sc.dot}40`, padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: '700' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: sc.dot, flexShrink: 0 }} />
+                              {bar.status || 'Not Started'}
+                            </span>
+                          </div>
+
+                          {/* Divider */}
+                          <div style={{ height: '1px', backgroundColor: '#334155', marginBottom: '8px' }} />
+
+                          {/* Dates */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: '8px' }}>
+                            <div>
+                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Start</div>
+                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.plannedStartStr}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>End</div>
+                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.plannedEndStr}</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
+                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.durationDays} day{bar.durationDays !== 1 ? 's' : ''}</div>
+                            </div>
+                            {bar.department && (
+                              <div>
+                                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Dept</div>
+                                <div style={{ fontWeight: '600', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bar.department}</div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Progress */}
+                          {!bar.isMilestone && (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Progress</span>
+                                <span style={{ fontWeight: '800', color: bar.colors.fill }}>{Math.round(bar.completePercent)}%</span>
+                              </div>
+                              <div style={{ height: '5px', backgroundColor: '#334155', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${bar.completePercent}%`, height: '100%', backgroundColor: bar.colors.fill, borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )
