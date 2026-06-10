@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X, ExternalLink } from 'lucide-react';
+import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X, ExternalLink, Table, BarChart3, Filter, Building2, ListTodo, Activity } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
