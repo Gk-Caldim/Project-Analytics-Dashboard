@@ -4563,7 +4563,7 @@ const ProjectTitleDashboard = () => {
         ) : (
           /* Active Project Dashboard */
           <>
-            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px', flex: 1, overflowY: 'auto' }}>
               <VPProjectDashboard
                 activeProject={activeProject}
                 dashboardData={dashboardData}
