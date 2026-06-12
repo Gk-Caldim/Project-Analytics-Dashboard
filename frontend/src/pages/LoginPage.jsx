@@ -4,22 +4,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
 import API from '../utils/api';
-import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '../components/ui/alert';
+import { Eye, EyeOff, Shield, ArrowLeft, Timer, CheckCircle2, AlertCircle, SunIcon as Sunburst } from 'lucide-react';
 import { toast } from 'sonner';
 import './LoginPage.css';
 
 const getPasswordStrength = (pwd) => {
-  if (!pwd) return { score: 0, label: 'None', color: '#E5E5E2' };
+  if (!pwd) return { score: 0, label: 'None', color: '#64748b' };
   let score = 0;
   if (pwd.length >= 8) score += 1;
   if (/[0-9]/.test(pwd)) score += 1;
   if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
   if (/[A-Z]/.test(pwd)) score += 1;
 
-  if (score <= 1) return { score: 25, label: 'Weak', color: '#dc2626' }; // Red
+  if (score <= 1) return { score: 25, label: 'Weak', color: '#ef4444' }; // Red
   if (score === 2 || score === 3) return { score: 65, label: 'Medium', color: '#eab308' }; // Yellow
-  return { score: 100, label: 'Strong', color: '#16a34a' }; // Green
+  return { score: 100, label: 'Strong', color: '#22c55e' }; // Green
 };
 
 const LoginPage = () => {
@@ -169,10 +168,6 @@ const LoginPage = () => {
     }
   };
 
-
-
-
-
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
@@ -238,493 +233,602 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="ws-login-root">
-      {/* ── LEFT PANEL ── */}
-      <div className="ws-login-left" style={{ backgroundColor: '#0D1B2A' }}>
-        <div className="ws-left-content">
-          <div className="ws-login-logo">
-            <div className="ws-logo-mark">
+    <div 
+      className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 md:p-8 relative overflow-y-auto font-sans"
+      style={{
+        backgroundImage: 'radial-gradient(#e2e8f0 1.5px, transparent 1.5px)',
+        backgroundSize: '24px 24px',
+        backgroundPosition: 'center'
+      }}
+    >
+      
+      {/* The Centered Floating Card */}
+      <div className="w-full max-w-5xl rounded-xl overflow-hidden flex flex-col md:flex-row shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.01)] border border-slate-200/60 bg-white">
+        
+        {/* ── LEFT SIDE OF CARD: Product Blueprint ── */}
+        <div className="bg-[#0F172A] text-white p-8 md:p-10 md:w-1/2 flex flex-col justify-between relative overflow-hidden border-b md:border-b-0 md:border-r border-slate-800 rounded-t-xl md:rounded-r-none md:rounded-l-xl">
+          <div className="relative z-10 flex flex-col h-full justify-between gap-8">
+            <div>
+              {/* Brand Logo Header */}
+              <div className="flex items-center gap-2 mb-8">
+                <div className="w-6.5 h-6.5 rounded bg-[#FF6B00] flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Sunburst className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-semibold text-sm tracking-tight text-white font-sans">
+                  CALDIM
+                </span>
+              </div>
+
+              {/* Value Copy Headline */}
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight leading-tight text-white mb-3 max-w-sm">
+                One platform.<br />
+                <span className="text-[#FF6B00]">Complete operational</span> clarity.
+              </h1>
+              <p className="text-xs text-slate-450 text-slate-400 leading-relaxed mb-8 max-w-xs opacity-90">
+                Designed to standardize program governance and consolidate tooling CapEx workflows in engineering operations.
+              </p>
+
+              {/* Bento Feature Matrix */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                
+                {/* Cell 1: Program Portfolio */}
+                <div className="bg-slate-900/50 border border-slate-800/80 rounded-lg p-4 flex flex-col gap-2 transition-colors hover:border-slate-700/50">
+                  <div className="w-7 h-7 rounded-md flex items-center justify-center bg-orange-500/10 text-[#FF6B00]">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
+                  </div>
+                  <span className="text-xs font-semibold text-white">Program Portfolio</span>
+                  <p className="text-[11px] text-slate-400 leading-normal">Track SOP readiness, trial runs, and milestone gates in real time.</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">SOP Gates</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Drift</span>
+                  </div>
+                </div>
+
+                {/* Cell 2: Consolidated Trackers */}
+                <div className="bg-slate-900/50 border border-slate-800/80 rounded-lg p-4 flex flex-col gap-2 transition-colors hover:border-slate-700/50">
+                  <div className="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-500/10 text-emerald-450 text-emerald-405 text-emerald-400">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+                  </div>
+                  <span className="text-xs font-semibold text-white">Consolidated Trackers</span>
+                  <p className="text-[11px] text-slate-400 leading-normal">Consolidate supplier trackers into a database with strict change logs.</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Excel Parser</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Diffs</span>
+                  </div>
+                </div>
+
+                {/* Cell 3: MOM Intelligence */}
+                <div className="bg-slate-900/50 border border-slate-800/80 rounded-lg p-4 flex flex-col gap-2 transition-colors hover:border-slate-700/50">
+                  <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-500/10 text-blue-400">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+                  </div>
+                  <span className="text-xs font-semibold text-white">MOM Intelligence</span>
+                  <p className="text-[11px] text-slate-400 leading-normal">Capture alignments, transcribe audio minutes, and auto-assign actions.</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Audio MOM</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Actions</span>
+                  </div>
+                </div>
+
+                {/* Cell 4: Tooling CapEx */}
+                <div className="bg-slate-900/50 border border-slate-800/80 rounded-lg p-4 flex flex-col gap-2 transition-colors hover:border-slate-700/50">
+                  <div className="w-7 h-7 rounded-md flex items-center justify-center bg-amber-500/10 text-amber-400">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                  </div>
+                  <span className="text-xs font-semibold text-white">Tooling CapEx</span>
+                  <p className="text-[11px] text-slate-400 leading-normal">Monitor capital expenditures and tooling budgets against limits.</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Variance</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-850/40 text-slate-350 text-slate-300 font-mono font-medium tracking-tight hover:bg-slate-800 transition-colors">Audits</span>
+                  </div>
+                </div>
+
+              </div>
             </div>
-            <span className="ws-logo-text">Industrial Analytics Dashboard
-            </span>
-          </div>
 
-          <div className="ws-login-promo">
-            <h1 className="ws-promo-headline">
-              One platform.<br />
-              <span className="text-brand-red">Complete operational</span> clarity.
-            </h1>
-            <p className="ws-promo-subline">Everything your leadership team needs, in one place.</p>
-
-            <div className="ws-checklist">
-              <div className="ws-check-row">
-                <svg className="ws-minimal-tick" width="12" height="10" viewBox="0 0 12 10" fill="none">
-                  <path d="M1 5L4.5 8.5L11 1.5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Portfolio dashboards updated in real time</span>
-              </div>
-              <div className="ws-check-row">
-                <svg className="ws-minimal-tick" width="12" height="10" viewBox="0 0 12 10" fill="none">
-                  <path d="M1 5L4.5 8.5L11 1.5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Meetings tracked from agenda to action</span>
-              </div>
-              <div className="ws-check-row">
-                <svg className="ws-minimal-tick" width="12" height="10" viewBox="0 0 12 10" fill="none">
-                  <path d="M1 5L4.5 8.5L11 1.5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Budget alerts before they become problems</span>
-              </div>
-              <div className="ws-check-row">
-                <svg className="ws-minimal-tick" width="12" height="10" viewBox="0 0 12 10" fill="none">
-                  <path d="M1 5L4.5 8.5L11 1.5" stroke="rgba(255,255,255,0.45)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Access controls for every role and team</span>
-              </div>
-            </div>
-
-            <div className="ws-divider"></div>
-
-            <div className="ws-modules-section">
-              <div className="ws-module-grid">
-                <div className="ws-module-card">
-                  <div className="ws-mod-icon-box" style={{ background: 'rgba(200,52,26,0.18)', color: '#E8836E' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                  </div>
-                  <span className="ws-mod-name">Analytics</span>
-                  <span className="ws-mod-stat"><span className="val">137</span> active projects</span>
-                </div>
-                <div className="ws-module-card">
-                  <div className="ws-mod-icon-box" style={{ background: 'rgba(29,158,117,0.15)', color: '#5DCAA5' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  </div>
-                  <span className="ws-mod-name">Meetings</span>
-                  <span className="ws-mod-stat"><span className="val">147</span> meetings today</span>
-                </div>
-                <div className="ws-module-card">
-                  <div className="ws-mod-icon-box" style={{ background: 'rgba(55,138,221,0.15)', color: '#7BB8ED' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
-                  </div>
-                  <span className="ws-mod-name">Dashboard</span>
-                  <span className="ws-mod-stat"><span className="val">24</span> on track</span>
-                </div>
-                <div className="ws-module-card">
-                  <div className="ws-mod-icon-box" style={{ background: 'rgba(186,117,23,0.15)', color: '#DBA84A' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  </div>
-                  <span className="ws-mod-name">Budget</span>
-                  <span className="ws-mod-stat"><span className="val">68%</span> utilised</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
-        <div className="ws-left-footer">
-          © 2026 Industrial Analytics Workspace
-        </div>
-      </div>
 
-      {/* ── RIGHT PANEL ── */}
-      <div className="ws-login-right">
-        <div className="ws-login-form-container">
-          {showForgotPasswordForm ? (
-            <>
-              {/* ── FORGOT PASSWORD WIZARD (ZOHO-STYLE) ── */}
-              {resetStep === 1 && (
-                <form className="ws-login-form" onSubmit={handleRequestOtp}>
-                  <div className="ws-back-btn-row">
+        {/* ── RIGHT SIDE OF CARD: Zoho-Style Light Login Flow ── */}
+        <div className="bg-white text-slate-950 p-8 md:p-12 md:w-1/2 flex flex-col justify-between relative min-h-[500px] rounded-b-xl md:rounded-l-none md:rounded-r-xl">
+          <div className="w-full max-w-sm mx-auto my-auto">
+            {showForgotPasswordForm ? (
+              <>
+                {/* ── FORGOT PASSWORD FLOW ── */}
+                {resetStep === 1 && (
+                  <form onSubmit={handleRequestOtp} className="flex flex-col gap-5" noValidate>
+                    <div className="ws-back-btn-row">
+                      <button 
+                        type="button" 
+                        onClick={() => { setShowForgotPasswordForm(false); setForgotError(''); setForgotSuccess(''); }} 
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer bg-none border-none p-0 outline-none"
+                      >
+                        <ArrowLeft size={14} />
+                        <span>Back to Sign In</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col mb-2">
+                      <div className="text-[#FF6B00] mb-3">
+                        <Sunburst className="h-9 w-9" />
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight text-[#1E293B]">Reset Password</h2>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        Enter your account email. We will send you a 6-digit OTP code to verify your identity.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="forgot-email" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email Address</label>
+                      <input 
+                        type="email" 
+                        id="forgot-email"
+                        placeholder="name@company.com" 
+                        className="text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required 
+                      />
+                    </div>
+
+                    {forgotError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg flex items-start gap-2.5 text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+                        <span>{forgotError}</span>
+                      </div>
+                    )}
+
+                    <button 
+                      type="submit" 
+                      className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? 'Sending OTP...' : 'Send Verification Code'}
+                    </button>
+                  </form>
+                )}
+
+                {resetStep === 2 && (
+                  <form onSubmit={handleVerifyOtp} className="flex flex-col gap-5" noValidate>
+                    <div className="ws-back-btn-row">
+                      <button 
+                        type="button" 
+                        onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer bg-none border-none p-0 outline-none"
+                      >
+                        <ArrowLeft size={14} />
+                        <span>Back to Email</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col mb-2">
+                      <div className="text-[#FF6B00] mb-3">
+                        <Sunburst className="h-9 w-9" />
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight text-[#1E293B]">Enter Code</h2>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        We've sent a secure 6-digit verification code to <strong className="text-slate-800 font-semibold">{forgotEmail}</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="otp" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Enter 6-Digit OTP</label>
+                      <input 
+                        type="text" 
+                        id="otp"
+                        maxLength="6"
+                        placeholder="000000" 
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                        className="ws-otp-input text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                        required 
+                      />
+                    </div>
+
+                    {forgotError && (
+                      <div className="bg-red-50 border border-red-200 text-red-750 p-3 rounded-lg flex items-start gap-2.5 text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+                        <span>{forgotError}</span>
+                      </div>
+                    )}
+                    {forgotSuccess && (
+                      <div className="bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg flex items-start gap-2.5 text-xs">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-green-500" />
+                        <span>{forgotSuccess}</span>
+                      </div>
+                    )}
+
+                    <div className="ws-timer-row">
+                      <Timer size={13} className="ws-timer-icon" />
+                      {countdown > 0 ? (
+                        <span className="ws-countdown-text text-slate-500">Resend code in {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}</span>
+                      ) : (
+                        <button type="button" onClick={handleResendOtp} className="ws-resend-btn text-[#FF6B00] hover:text-orange-600 font-semibold cursor-pointer">
+                          Resend Code Now
+                        </button>
+                      )}
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                  </form>
+                )}
+
+                {resetStep === 3 && (
+                  <form onSubmit={handleResetPassword} className="flex flex-col gap-5" noValidate>
+                    <div className="ws-back-btn-row">
+                      <button 
+                        type="button" 
+                        onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer bg-none border-none p-0 outline-none"
+                      >
+                        <ArrowLeft size={14} />
+                        <span>Back to Email</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col mb-2">
+                      <div className="text-[#FF6B00] mb-3">
+                        <Sunburst className="h-9 w-9" />
+                      </div>
+                      <h2 className="text-2xl font-bold tracking-tight text-[#1E293B]">Create Password</h2>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        Set a secure, high-entropy password for your account.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 relative">
+                      <label htmlFor="new-pwd" className="text-xs font-semibold uppercase tracking-wider text-slate-500">New Password</label>
+                      <div className="relative">
+                        <input 
+                          type={showResetPassword ? "text" : "password"} 
+                          id="new-pwd"
+                          placeholder="••••••••" 
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                          required 
+                        />
+                        <button 
+                          type="button" 
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                          onClick={() => setShowResetPassword(!showResetPassword)}
+                        >
+                          {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Password Strength Indicator */}
+                    {newPassword && (
+                      <div className="ws-strength-meter-container my-1">
+                        <div className="ws-strength-labels flex justify-between items-center text-xs mb-1.5">
+                          <span className="ws-strength-title text-slate-500 font-medium">Password Strength:</span>
+                          <span className="ws-strength-badge font-bold" style={{ color: newPasswordStrength.color }}>
+                            {newPasswordStrength.label}
+                          </span>
+                        </div>
+                        <div className="ws-strength-bar-bg bg-slate-200 h-1.5 rounded-full overflow-hidden w-full">
+                          <div 
+                            className="ws-strength-bar-fill h-full transition-all duration-300" 
+                            style={{ 
+                              width: `${newPasswordStrength.score}%`, 
+                              backgroundColor: newPasswordStrength.color 
+                            }}
+                          ></div>
+                        </div>
+                        <ul className="ws-strength-hints text-[11px] text-slate-500 space-y-1 mt-2">
+                          <li className={newPassword.length >= 8 ? "valid text-green-600 font-semibold" : "text-slate-405"}>
+                            At least 8 characters
+                          </li>
+                          <li className={/[0-9]/.test(newPassword) ? "valid text-green-600 font-semibold" : "text-slate-405"}>
+                            Contains a number
+                          </li>
+                          <li className={/[^A-Za-z0-9]/.test(newPassword) ? "valid text-green-600 font-semibold" : "text-slate-405"}>
+                            Contains a special character
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1.5 relative">
+                      <label htmlFor="confirm-new-pwd" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Confirm New Password</label>
+                      <div className="relative">
+                        <input 
+                          type={showConfirmResetPassword ? "text" : "password"} 
+                          id="confirm-new-pwd"
+                          placeholder="••••••••" 
+                          value={confirmNewPassword}
+                          onChange={(e) => setConfirmNewPassword(e.target.value)}
+                          className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                          required 
+                        />
+                        <button 
+                          type="button" 
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                          onClick={() => setShowConfirmResetPassword(!showConfirmResetPassword)}
+                        >
+                          {showConfirmResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {forgotError && (
+                      <div className="bg-red-50 border border-red-200 text-red-750 p-3 rounded-lg flex items-start gap-2.5 text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+                        <span>{forgotError}</span>
+                      </div>
+                    )}
+
+                    <button 
+                      type="submit" 
+                      className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? 'Updating...' : 'Save & Reset Password'}
+                    </button>
+                  </form>
+                )}
+
+                {resetStep === 4 && (
+                  <div className="ws-success-state text-center flex flex-col items-center justify-center">
+                    <div className="ws-success-icon-container bg-green-500/10 p-4 rounded-full text-green-600 mb-4 animate-rec-pulse">
+                      <CheckCircle2 size={40} className="ws-success-icon" />
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight text-[#1E293B] mb-2">Reset Successful</h2>
+                    <p className="text-xs text-slate-500 mb-6 max-w-xs leading-relaxed">
+                      Your password has been successfully updated. You can now sign in using your new credentials.
+                    </p>
                     <button 
                       type="button" 
-                      onClick={() => setShowForgotPasswordForm(false)} 
-                      className="ws-back-to-login"
+                      className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                      onClick={() => {
+                        setShowForgotPasswordForm(false);
+                        setResetStep(1);
+                        setForgotEmail('');
+                        setOtpCode('');
+                        setNewPassword('');
+                        setConfirmNewPassword('');
+                        setResetToken('');
+                        setForgotError('');
+                        setForgotSuccess('');
+                      }}
                     >
-                      <ArrowLeft size={14} />
-                      <span>Back to Sign In</span>
+                      Go to Sign In
                     </button>
                   </div>
-                  
-                  <h1 className="ws-form-title">Forgot Password</h1>
-                  <p className="ws-form-subtext">Enter your account email. We will send you a 6-digit OTP code to verify your identity.</p>
+                )}
+              </>
+            ) : !showRequestForm ? (
+              <>
+                {/* ── SIGN IN FORM ── */}
+                <div className="flex flex-col mb-8">
+                  <div className="text-[#FF6B00] mb-3.5">
+                    <Sunburst className="h-9 w-9" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-[#1E293B]">Sign In</h2>
+                </div>
 
-                  <div className="ws-input-group">
-                    <label>Email Address</label>
+                <form onSubmit={handleSignIn} className="flex flex-col gap-5" noValidate>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="signin-email" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Your email</label>
                     <input 
                       type="email" 
-                      placeholder="name@company.com" 
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
+                      id="signin-email"
+                      placeholder="hi@hextastudio.in"
+                      className="text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       required 
                     />
                   </div>
 
-                  {forgotError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{forgotError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
-                    {forgotLoading ? 'Sending...' : 'Send Verification Code'}
-                  </button>
-                </form>
-              )}
-
-              {resetStep === 2 && (
-                <form className="ws-login-form" onSubmit={handleVerifyOtp}>
-                  <div className="ws-back-btn-row">
-                    <button 
-                      type="button" 
-                      onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
-                      className="ws-back-to-login"
-                    >
-                      <ArrowLeft size={14} />
-                      <span>Back to Email</span>
-                    </button>
+                  <div className="flex flex-col gap-1.5 relative">
+                    <div className="flex justify-between items-center">
+                      <label htmlFor="signin-password" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Password</label>
+                      <a 
+                        href="#" 
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          setShowForgotPasswordForm(true); 
+                          setResetStep(1); 
+                          setForgotError(''); 
+                          setForgotSuccess(''); 
+                        }} 
+                        className="text-xs text-[#FF6B00] hover:underline font-semibold transition-colors"
+                      >
+                        Forgot password?
+                      </a>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        id="signin-password"
+                        placeholder="••••••••" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
 
-                  <h1 className="ws-form-title">Enter Code</h1>
-                  <p className="ws-form-subtext">We've sent a secure 6-digit verification code to <strong>{forgotEmail}</strong>.</p>
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-655 text-red-600 p-3.5 rounded-lg flex items-start gap-2.5 text-xs">
+                      <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-red-550 text-red-500" />
+                      <span>{error}</span>
+                    </div>
+                  )}
 
-                  <div className="ws-input-group">
-                    <label>Enter 6-Digit OTP</label>
+                  <button 
+                    type="submit" 
+                    className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                    disabled={loading}
+                  >
+                    {loading ? 'Signing In...' : 'Sign In'}
+                  </button>
+
+                  <div className="text-center text-slate-500 text-sm mt-6">
+                    Don't have an account?{" "}
+                    <button 
+                      type="button"
+                      onClick={() => setShowRequestForm(true)} 
+                      className="text-[#FF6B00] hover:underline font-semibold cursor-pointer transition-colors"
+                    >
+                      Request access
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                {/* ── REQUEST ACCESS FORM ── */}
+                <div className="flex flex-col mb-5">
+                  <div className="text-[#FF6B00] mb-3.5">
+                    <Sunburst className="h-9 w-9" />
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-[#1E293B]">Get Started</h2>
+                  <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                    Submit your details to request an account.
+                  </p>
+                </div>
+
+                <form onSubmit={handleRequestAccess} className="flex flex-col gap-4" noValidate>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="req-name" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Name</label>
                     <input 
                       type="text" 
-                      maxLength="6"
-                      placeholder="000000" 
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      className="ws-otp-input"
+                      id="req-name"
+                      placeholder="Full Name" 
+                      value={reqFormData.name}
+                      onChange={(e) => setReqFormData({...reqFormData, name: e.target.value})}
+                      className="text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
                       required 
                     />
                   </div>
 
-
-
-                  {forgotError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{forgotError}</AlertDescription>
-                    </Alert>
-                  )}
-                  {forgotSuccess && (
-                    <Alert variant="success" className="mb-4">
-                      <CheckCircle2 className="h-4 w-4" />
-                      <AlertDescription>{forgotSuccess}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="ws-timer-row">
-                    <Timer size={13} className="ws-timer-icon" />
-                    {countdown > 0 ? (
-                      <span className="ws-countdown-text">Resend code in {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}</span>
-                    ) : (
-                      <button type="button" onClick={handleResendOtp} className="ws-resend-btn">
-                        Resend Code Now
-                      </button>
-                    )}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="req-email" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email</label>
+                    <input 
+                      type="email" 
+                      id="req-email"
+                      placeholder="name@company.com" 
+                      value={reqFormData.email}
+                      onChange={(e) => setReqFormData({...reqFormData, email: e.target.value})}
+                      className="text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                      required 
+                    />
                   </div>
 
-                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
-                    {forgotLoading ? 'Verifying...' : 'Verify Code'}
-                  </button>
-                </form>
-              )}
-
-              {resetStep === 3 && (
-                <form className="ws-login-form" onSubmit={handleResetPassword}>
-                  <div className="ws-back-btn-row">
-                    <button 
-                      type="button" 
-                      onClick={() => { setResetStep(1); setForgotError(''); setForgotSuccess(''); }} 
-                      className="ws-back-to-login"
-                    >
-                      <ArrowLeft size={14} />
-                      <span>Back to Email</span>
-                    </button>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="req-role" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Requested Role</label>
+                    <input 
+                      list="roles-list"
+                      id="req-role"
+                      value={reqFormData.role}
+                      onChange={(e) => setReqFormData({...reqFormData, role: e.target.value})}
+                      placeholder="Select or type a role"
+                      required
+                      className="text-sm w-full py-3.5 px-4 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
+                    />
+                    <datalist id="roles-list">
+                      {roles.map(r => <option key={r.id} value={r.name} />)}
+                    </datalist>
                   </div>
 
-                  <h1 className="ws-form-title">Create Password</h1>
-                  <p className="ws-form-subtext">Set a secure, high-entropy password for your account.</p>
-
-                  <div className="ws-input-group">
-                    <label>New Password</label>
-                    <div className="ws-password-wrapper">
+                  <div className="flex flex-col gap-1.5 relative">
+                    <label htmlFor="req-pwd" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Password</label>
+                    <div className="relative">
                       <input 
-                        type={showResetPassword ? "text" : "password"} 
+                        type={showReqPassword ? "text" : "password"} 
+                        id="req-pwd"
                         placeholder="••••••••" 
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
+                        value={reqFormData.password}
+                        onChange={(e) => setReqFormData({...reqFormData, password: e.target.value})}
+                        className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
                         required 
                       />
                       <button 
                         type="button" 
-                        className="ws-password-toggle"
-                        onClick={() => setShowResetPassword(!showResetPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                        onClick={() => setShowReqPassword(!showReqPassword)}
                       >
-                        {showResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        {showReqPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Password Strength Indicator */}
-                  {newPassword && (
-                    <div className="ws-strength-meter-container">
-                      <div className="ws-strength-labels">
-                        <span className="ws-strength-title">Password Strength:</span>
-                        <span className="ws-strength-badge" style={{ color: newPasswordStrength.color }}>
-                          {newPasswordStrength.label}
-                        </span>
-                      </div>
-                      <div className="ws-strength-bar-bg">
-                        <div 
-                          className="ws-strength-bar-fill" 
-                          style={{ 
-                            width: `${newPasswordStrength.score}%`, 
-                            backgroundColor: newPasswordStrength.color 
-                          }}
-                        ></div>
-                      </div>
-                      <ul className="ws-strength-hints">
-                        <li className={newPassword.length >= 8 ? "valid" : ""}>
-                          At least 8 characters
-                        </li>
-                        <li className={/[0-9]/.test(newPassword) ? "valid" : ""}>
-                          Contains a number
-                        </li>
-                        <li className={/[^A-Za-z0-9]/.test(newPassword) ? "valid" : ""}>
-                          Contains a special character
-                        </li>
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className="ws-input-group">
-                    <label>Confirm New Password</label>
-                    <div className="ws-password-wrapper">
+                  <div className="flex flex-col gap-1.5 relative">
+                    <label htmlFor="req-confirm-pwd" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Confirm Password</label>
+                    <div className="relative">
                       <input 
-                        type={showConfirmResetPassword ? "text" : "password"} 
+                        type={showReqConfirmPassword ? "text" : "password"} 
+                        id="req-confirm-pwd"
                         placeholder="••••••••" 
-                        value={confirmNewPassword}
-                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        value={reqFormData.confirm_password}
+                        onChange={(e) => setReqFormData({...reqFormData, confirm_password: e.target.value})}
+                        className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] text-slate-900 border-[#CBD5E1] placeholder-slate-400 hover:border-slate-350 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
                         required 
                       />
                       <button 
                         type="button" 
-                        className="ws-password-toggle"
-                        onClick={() => setShowConfirmResetPassword(!showConfirmResetPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer"
+                        onClick={() => setShowReqConfirmPassword(!showReqConfirmPassword)}
                       >
-                        {showConfirmResetPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        {showReqConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                   </div>
 
-                  {forgotError && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{forgotError}</AlertDescription>
-                    </Alert>
+                  {reqError && (
+                    <div className="bg-red-50 border border-red-200 text-red-750 p-3.5 rounded-lg flex items-start gap-2.5 text-xs">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+                      <span>{reqError}</span>
+                    </div>
+                  )}
+                  {reqSuccess && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 p-3.5 rounded-lg flex items-start gap-2.5 text-xs">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-green-500" />
+                      <span>{reqSuccess}</span>
+                    </div>
                   )}
 
-                  <button type="submit" className="ws-signin-btn" disabled={forgotLoading}>
-                    {forgotLoading ? 'Updating...' : 'Save & Reset Password'}
-                  </button>
-                </form>
-              )}
-
-              {resetStep === 4 && (
-                <div className="ws-success-state">
-                  <div className="ws-success-icon-container">
-                    <CheckCircle2 size={40} className="ws-success-icon" />
-                  </div>
-                  <h1 className="ws-form-title" style={{ textAlign: 'center', marginTop: '16px' }}>Reset Successful</h1>
-                  <p className="ws-form-subtext" style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    Your password has been successfully updated. You can now sign in using your new credentials.
-                  </p>
                   <button 
-                    type="button" 
-                    className="ws-signin-btn"
-                    onClick={() => {
-                      setShowForgotPasswordForm(false);
-                      setResetStep(1);
-                      setForgotEmail('');
-                      setOtpCode('');
-                      setNewPassword('');
-                      setConfirmNewPassword('');
-                      setResetToken('');
-                      setForgotError('');
-                      setForgotSuccess('');
-                    }}
+                    type="submit" 
+                    className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm"
+                    disabled={reqLoading}
                   >
-                    Go to Sign In
+                    {reqLoading ? 'Submitting...' : 'Submit Request'}
                   </button>
-                </div>
-              )}
-            </>
-          ) : !showRequestForm ? (
-            <>
-              <h1 className="ws-form-title">Sign In</h1>
-              <p className="ws-form-subtext">Enter your details below to continue.</p>
-              
-              <form className="ws-login-form" onSubmit={handleSignIn}>
-                <div className="ws-input-group">
-                  <label>Email</label>
-                  <input 
-                    type="email" 
-                    placeholder="name@company.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required 
-                  />
-                </div>
 
-                <div className="ws-input-group">
-                  <div className="ws-label-row">
-                    <label>Password</label>
-                    <a href="#" onClick={(e) => { e.preventDefault(); setShowForgotPasswordForm(true); setResetStep(1); setForgotError(''); setForgotSuccess(''); }} className="ws-forgot-link">Forgot password?</a>
-                  </div>
-                  <div className="ws-password-wrapper">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required 
-                    />
+                  <div className="text-center text-slate-500 text-sm mt-4">
+                    Already have an account?{" "}
                     <button 
-                      type="button" 
-                      className="ws-password-toggle"
-                      onClick={() => setShowPassword(!showPassword)}
+                      type="button"
+                      onClick={() => setShowRequestForm(false)} 
+                      className="text-[#FF6B00] hover:underline font-semibold cursor-pointer transition-colors"
                     >
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      Sign in
                     </button>
                   </div>
-                </div>
-
-                {error && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <button type="submit" className="ws-signin-btn" disabled={loading}>
-                  {loading ? 'Signing in...' : 'Sign In'}
-                </button>
-              </form>
-
-              <p className="ws-access-footer">
-                New here? <button onClick={() => setShowRequestForm(true)} className="ws-request-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>Request access →</button>
-              </p>
-            </>
-          ) : (
-            <>
-              <h1 className="ws-form-title">Request Access</h1>
-              <p className="ws-form-subtext">Submit your details to request an account.</p>
-              
-              <form className="ws-login-form" onSubmit={handleRequestAccess}>
-                <div className="ws-input-group">
-                  <label>Name</label>
-                  <input 
-                    type="text" 
-                    placeholder="Full Name" 
-                    value={reqFormData.name}
-                    onChange={(e) => setReqFormData({...reqFormData, name: e.target.value})}
-                    required 
-                  />
-                </div>
-                <div className="ws-input-group" style={{ marginTop: '12px' }}>
-                  <label>Email</label>
-                  <input 
-                    type="email" 
-                    placeholder="name@company.com" 
-                    value={reqFormData.email}
-                    onChange={(e) => setReqFormData({...reqFormData, email: e.target.value})}
-                    required 
-                  />
-                </div>
-                <div className="ws-input-group" style={{ marginTop: '12px' }}>
-                  <label>Requested Role</label>
-                  <input 
-                    list="roles-list"
-                    value={reqFormData.role}
-                    onChange={(e) => setReqFormData({...reqFormData, role: e.target.value})}
-                    placeholder="Select or type a role"
-                    required
-                    style={{ width: '100%', padding: '12px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', fontSize: '14px', outline: 'none' }}
-                  />
-                  <datalist id="roles-list">
-                    {roles.map(r => <option key={r.id} value={r.name} />)}
-                  </datalist>
-                </div>
-                <div className="ws-input-group" style={{ marginTop: '12px' }}>
-                  <label>Password</label>
-                  <div className="ws-password-wrapper">
-                    <input 
-                      type={showReqPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      value={reqFormData.password}
-                      onChange={(e) => setReqFormData({...reqFormData, password: e.target.value})}
-                      required 
-                    />
-                    <button 
-                      type="button" 
-                      className="ws-password-toggle"
-                      onClick={() => setShowReqPassword(!showReqPassword)}
-                    >
-                      {showReqPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="ws-input-group" style={{ marginTop: '12px', marginBottom: '16px' }}>
-                  <label>Confirm Password</label>
-                  <div className="ws-password-wrapper">
-                    <input 
-                      type={showReqConfirmPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      value={reqFormData.confirm_password}
-                      onChange={(e) => setReqFormData({...reqFormData, confirm_password: e.target.value})}
-                      required 
-                    />
-                    <button 
-                      type="button" 
-                      className="ws-password-toggle"
-                      onClick={() => setShowReqConfirmPassword(!showReqConfirmPassword)}
-                    >
-                      {showReqConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                {reqError && (
-                  <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{reqError}</AlertDescription>
-                  </Alert>
-                )}
-                {reqSuccess && (
-                  <Alert variant="success" className="mb-4">
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertDescription>{reqSuccess}</AlertDescription>
-                  </Alert>
-                )}
-
-                <button type="submit" className="ws-signin-btn" disabled={reqLoading}>
-                  {reqLoading ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </form>
-
-              <p className="ws-access-footer">
-                Already have an account? <button onClick={() => setShowRequestForm(false)} className="ws-request-link" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}>Sign in →</button>
-              </p>
-            </>
-          )}
-
-          <div className="ws-security-footer">
-            <Shield size={11} className="ws-shield-icon" />
-            <span>Your data is private and encrypted</span>
+                </form>
+              </>
+            )}
           </div>
         </div>
+
       </div>
     </div>
   );
