@@ -264,9 +264,6 @@ const LoginPage = () => {
                 One platform.<br />
                 <span className="text-[#FF6B00]">Complete operational</span> clarity.
               </h1>
-              <p className="text-xs text-slate-450 text-slate-400 leading-relaxed mb-8 max-w-xs opacity-90">
-                Designed to standardize program governance and consolidate tooling CapEx workflows in engineering operations.
-              </p>
 
               {/* Bento Feature Matrix */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
