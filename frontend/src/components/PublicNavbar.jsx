@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 import './PublicNavbar.css';
 
 const PublicNavbar = () => {
@@ -39,21 +40,36 @@ const PublicNavbar = () => {
           <a 
             href="/customers" 
             className={`public-nav-link ${isActive('/customers') ? 'active' : ''}`} 
-            onClick={(e) => { e.preventDefault(); navigate('/customers'); }}
+            onClick={(e) => { 
+              e.preventDefault(); 
+              toast.info("Coming Soon", {
+                description: "The Customers module is currently under development."
+              });
+            }}
           >
             Customers
           </a>
           <a 
             href="/pricing" 
             className={`public-nav-link ${isActive('/pricing') ? 'active' : ''}`} 
-            onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}
+            onClick={(e) => { 
+              e.preventDefault(); 
+              toast.info("Coming Soon", {
+                description: "The Pricing plans page is currently under development."
+              });
+            }}
           >
             Pricing
           </a>
           <a 
             href="/enterprise" 
             className={`public-nav-link ${isActive('/enterprise') ? 'active' : ''}`} 
-            onClick={(e) => { e.preventDefault(); navigate('/enterprise'); }}
+            onClick={(e) => { 
+              e.preventDefault(); 
+              toast.info("Coming Soon", {
+                description: "The Enterprise integration suite is currently under development."
+              });
+            }}
           >
             Enterprise
           </a>

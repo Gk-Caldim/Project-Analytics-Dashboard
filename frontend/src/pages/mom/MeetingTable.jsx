@@ -3,11 +3,11 @@ import ReactDOM from 'react-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout, RefreshCw } from 'lucide-react';
+import { Download, Clipboard, Check, Tag, Trash2, AlertCircle, Zap, Loader2, Info, FileText, Share2, FolderOpen, Mail, X, ChevronDown, Settings, ArrowRight, Calendar, Edit3, AlertTriangle, CheckCircle, Layout, RefreshCw, Plus, Filter, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Select from 'react-select';
 import API from '../../utils/api';
-import { saveMOM, updateMomRow } from '../../store/slices/momSlice';
+import { saveMOM, updateMomRow, addMomRows } from '../../store/slices/momSlice';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -263,6 +263,176 @@ const ProjectCell = ({ projectName, defaultProjectName }) => {
 import { Skeleton } from '../../components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../../components/ui/collapsible';
 
+// ── RowEditor: controlled per-row component — fixes "all rows update together" bug ──
+// Root cause was: <input defaultValue=...> and <Select defaultValue=...> are UNCONTROLLED.
+// React only sets uncontrolled inputs ONCE at mount. When rows share a render cycle,
+// they all pick up the same stale closure value on blur/change.
+// Fix: lift text fields into local state per row; sync from props via useEffect.
+const RowEditor = React.memo(({
+  m, rowId, idx, activePage, itemsPerPage,
+  selectedIds, toggleSelectRow,
+  expandedRows, toggleRowExpand,
+  onUpdateMeeting, onDeleteMeeting, handleManualSyncRow,
+  effectiveProjectId, reduxProjectName, employees,
+}) => {
+  const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
+
+  // ── Local controlled state for text fields ──
+  const [localFunction, setLocalFunction] = useState(m.function || 'General');
+  const [localDiscussion, setLocalDiscussion] = useState(m.discussion_point || '');
+
+  // Sync if the parent row data changes (e.g. after a save/reload)
+  useEffect(() => { setLocalFunction(m.function || 'General'); }, [m.function]);
+  useEffect(() => { setLocalDiscussion(m.discussion_point || ''); }, [m.discussion_point]);
+
+  // ── Controlled Select value ──
+  const responsibilityValue = m.responsibility
+    ? { value: m.responsibility, label: m.responsibility }
+    : null;
+
+  const sno = m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1);
+
+  return (
+    <React.Fragment>
+      <tr
+        className="hover:bg-[#FAFCFF] transition-none group"
+        style={{
+          height: '52px',
+          borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
+        }}
+      >
+        <td className="px-1.5 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
+          <input
+            type="checkbox"
+            checked={selectedIds.has(rowId)}
+            onChange={() => toggleSelectRow(rowId)}
+            aria-label={`Select row ${sno}`}
+            className="w-4 h-4 rounded border-slate-300 cursor-pointer accent-[#0D9488]"
+          />
+        </td>
+        <td className="px-1.5 py-2 text-center" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>{sno}</td>
+        <td className="px-2 py-2 text-center" style={cellBorder}>
+          <input
+            type="text"
+            value={localFunction}
+            onChange={e => setLocalFunction(e.target.value)}
+            onBlur={() => onUpdateMeeting(m.id, { function: localFunction })}
+            className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full"
+            style={{ fontSize: '14px', color: 'var(--text-primary)' }}
+          />
+        </td>
+        <td className="px-2 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
+          <ProjectCell projectName={m.project_name} defaultProjectName={reduxProjectName} />
+        </td>
+        <td className="px-2 py-2 text-center" style={cellBorder}>
+          <PillDropdown
+            value={m.criticality || 'Normal'}
+            options={['Low', 'Medium', 'High', 'Critical']}
+            onChange={(val) => onUpdateMeeting(m.id, { criticality: val })}
+            colors={CRITICALITY_COLORS}
+          />
+        </td>
+        <td className="px-4 py-2 leading-relaxed min-w-[260px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
+          <div className="relative group/heuristic flex gap-2 w-full">
+            <textarea
+              value={localDiscussion}
+              onChange={e => setLocalDiscussion(e.target.value)}
+              onBlur={() => onUpdateMeeting(m.id, { discussion_point: localDiscussion })}
+              className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]"
+            />
+            <div className="flex-shrink-0 cursor-help text-gray-300 hover:text-teal-600 mt-1" title={m.isHeuristic ? 'Fallback heuristic used' : 'AI extracted'}><Info className="w-4 h-4" /></div>
+          </div>
+        </td>
+        <td className="px-2 py-2 min-w-[140px]" style={cellBorder}>
+          <Select
+            options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
+            value={responsibilityValue}
+            onChange={(opt) => onUpdateMeeting(m.id, { responsibility: opt?.value })}
+            placeholder="Assign..."
+            className="text-left"
+            menuPortalTarget={document.body}
+            menuPosition="fixed"
+            styles={{
+              menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+              menu: (base) => ({ ...base, borderRadius: '10px', border: '1px solid #E2E8F0', boxShadow: '0 12px 32px rgba(0,0,0,0.12)', overflow: 'hidden', fontSize: '13px' }),
+              menuList: (base) => ({ ...base, padding: '4px', maxHeight: '220px' }),
+              option: (base, state) => ({ ...base, fontSize: '13px', fontWeight: state.isSelected ? 700 : 500, color: state.isSelected ? '#0D9488' : '#334155', background: state.isSelected ? '#F0FDFA' : state.isFocused ? '#F8FAFC' : 'transparent', borderRadius: '6px', padding: '7px 10px', cursor: 'pointer' }),
+              control: (base) => ({ ...base, minHeight: '30px', background: 'transparent', border: 'none', boxShadow: 'none', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }),
+              placeholder: (base) => ({ ...base, color: '#94A3B8', fontSize: '12px' }),
+              singleValue: (base) => ({ ...base, color: 'var(--text-primary)', fontWeight: 500 }),
+              indicatorSeparator: () => ({ display: 'none' }),
+              dropdownIndicator: (base, state) => ({ ...base, color: '#94A3B8', padding: '0 4px', transform: state.selectProps.menuIsOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }),
+              input: (base) => ({ ...base, fontSize: '13px' }),
+              valueContainer: (base) => ({ ...base, padding: '0 6px' }),
+            }}
+          />
+        </td>
+        <td className="px-2 py-2 text-center text-gray-500" style={cellBorder}>
+          <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
+        </td>
+        <td className="px-2 py-2 text-center" style={cellBorder}>
+          <PillDropdown
+            value={m.status || 'Pending'}
+            options={['Open', 'Pending', 'In Progress', 'Needs Review', 'Done', 'Closed']}
+            onChange={(val) => onUpdateMeeting(m.id, { status: val, needsReview: val === 'Needs Review' })}
+            colors={{
+              'Done': { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
+              'Closed': { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' },
+              'Pending': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+              'Open': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
+              'In Progress': { bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' },
+              'Needs Review': { bg: '#FEF3C7', color: '#92400E', border: '#F59E0B' }
+            }}
+          />
+        </td>
+        <td className="px-2 py-2 min-w-[130px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
+          <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
+        </td>
+        <td className="px-1.5 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
+          <div className="flex items-center justify-center gap-1">
+            <button
+              onClick={() => toggleRowExpand(rowId)}
+              className="p-1.5 text-gray-400 hover:text-teal-600 transition-colors"
+              title={expandedRows.has(rowId) ? 'Collapse preview' : 'Expand preview'}
+            >
+              <ChevronDown
+                className="w-3.5 h-3.5 mx-auto transition-transform duration-200"
+                style={{ transform: expandedRows.has(rowId) ? 'rotate(180deg)' : 'none' }}
+              />
+            </button>
+            <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
+            <button onClick={() => onDeleteMeeting(rowId)} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
+          </div>
+        </td>
+      </tr>
+      {/* ── Inline Preview Row ── */}
+      {expandedRows.has(rowId) && (
+        <tr className="mt-row-preview-tr">
+          <td colSpan={11} className="mt-preview-cell" style={{ padding: 0, borderBottom: '1px solid #E2E8F0' }}>
+            <div className="mt-preview-body">
+              <div className="mt-preview-section">
+                <span className="mt-preview-label">Full Discussion Point</span>
+                <p className="mt-preview-text">{localDiscussion || '—'}</p>
+              </div>
+              {m.action_taken && m.action_taken !== 'None' && (
+                <div className="mt-preview-section">
+                  <span className="mt-preview-label">Action Taken</span>
+                  <p className="mt-preview-text">{m.action_taken}</p>
+                </div>
+              )}
+              <div className="mt-preview-chips">
+                {m.function && <span className="mt-preview-chip">{localFunction}</span>}
+                {m.criticality && <span className="mt-preview-chip" style={{ background: CRITICALITY_COLORS[m.criticality]?.bg, color: CRITICALITY_COLORS[m.criticality]?.color }}>{m.criticality}</span>}
+                {m.target && <span className="mt-preview-chip">Due: {m.target}</span>}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
+  );
+});
+
 const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeting, lockedProjectId, loading }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -286,20 +456,60 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
     setSelectedIds(new Set());
   }, [meetings.length]);
 
+  // ── Filter State ──
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterCriticality, setFilterCriticality] = useState('all');
+  const [filterSearch, setFilterSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const filteredMeetings = React.useMemo(() => {
+    return meetings.filter(m => {
+      if (filterStatus !== 'all' && m.status !== filterStatus) return false;
+      if (filterCriticality !== 'all' && m.criticality !== filterCriticality) return false;
+      if (filterSearch) {
+        const q = filterSearch.toLowerCase();
+        const inPoint = (m.discussion_point || '').toLowerCase().includes(q);
+        const inOwner = (m.responsibility || '').toLowerCase().includes(q);
+        if (!inPoint && !inOwner) return false;
+      }
+      return true;
+    });
+  }, [meetings, filterStatus, filterCriticality, filterSearch]);
+
+  const activeFilterCount = [filterStatus !== 'all', filterCriticality !== 'all', !!filterSearch].filter(Boolean).length;
+
   // ── Local Pagination State ──
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [meetings.length]);
+  }, [meetings.length, filterStatus, filterCriticality, filterSearch]);
 
-  const totalPages = Math.max(1, Math.ceil(meetings.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredMeetings.length / itemsPerPage));
   const activePage = Math.min(currentPage, totalPages);
   
   const paginatedMeetings = React.useMemo(() => {
-    return meetings.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
-  }, [meetings, activePage, itemsPerPage]);
+    return filteredMeetings.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+  }, [filteredMeetings, activePage, itemsPerPage]);
+
+  // ── Add Row Handler ──
+  const handleAddRow = useCallback(() => {
+    dispatch(addMomRows([{
+      function: 'General',
+      criticality: 'Medium',
+      discussion_point: '',
+      responsibility: '',
+      target: '',
+      status: 'Pending',
+      action_taken: '',
+      project_name: reduxProjectName || '',
+    }]));
+    // Jump to last page so user sees the new row
+    setTimeout(() => {
+      setCurrentPage(Math.ceil((meetings.length + 1) / itemsPerPage));
+    }, 50);
+  }, [dispatch, reduxProjectName, meetings.length, itemsPerPage]);
 
   // ── Inline row preview state (multi-expand via Set) ──
   const [expandedRows, setExpandedRows] = React.useState(new Set());
@@ -1037,6 +1247,32 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               </div>
 
               {showLinkWarning && <span className="text-[11px] text-amber-600 font-bold animate-pulse">Link a project to save.</span>}
+
+               {/* Filter toggle */}
+               <button
+                 onClick={() => setShowFilters(v => !v)}
+                 className={`flex items-center gap-1.5 px-3 h-8 rounded border text-xs font-bold transition-colors ${
+                   showFilters || activeFilterCount > 0
+                     ? 'bg-teal-50 border-teal-300 text-teal-700'
+                     : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                 }`}
+                 title="Filter rows"
+               >
+                 <Filter size={13} />
+                 Filter
+                 {activeFilterCount > 0 && (
+                   <span className="bg-teal-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+                 )}
+               </button>
+
+               {/* Add Row */}
+               <button
+                 onClick={handleAddRow}
+                 className="flex items-center gap-1.5 px-3 h-8 rounded border border-dashed border-gray-300 text-gray-500 text-xs font-bold hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50/50 transition-colors"
+                 title="Add action item"
+               >
+                 <Plus size={13} /> Add Row
+               </button>
            </div>
 
            {/* Right side: Exports */}
@@ -1067,6 +1303,59 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
               </div>
            </div>
         </div>
+
+        {/* ── Filter Panel ── */}
+        {showFilters && (
+          <div className="px-6 py-3 bg-white border-b border-[#E2E8F0] flex items-center gap-3 flex-wrap print:hidden">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px] max-w-[280px]">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={filterSearch}
+                onChange={e => setFilterSearch(e.target.value)}
+                placeholder="Search action points..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-[4px] bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 focus:border-teal-400 transition-colors"
+              />
+            </div>
+            {/* Status filter */}
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-[4px] bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 text-gray-700 font-semibold cursor-pointer"
+            >
+              <option value="all">All Status</option>
+              {['Open', 'Pending', 'In Progress', 'Needs Review', 'Done', 'Closed'].map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {/* Criticality filter */}
+            <select
+              value={filterCriticality}
+              onChange={e => setFilterCriticality(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-gray-200 rounded-[4px] bg-white focus:outline-none focus:ring-1 focus:ring-teal-400 text-gray-700 font-semibold cursor-pointer"
+            >
+              <option value="all">All Criticality</option>
+              {['Low', 'Medium', 'High', 'Critical'].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {/* Clear */}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={() => { setFilterStatus('all'); setFilterCriticality('all'); setFilterSearch(''); }}
+                className="flex items-center gap-1 text-[11px] text-red-500 font-bold hover:text-red-600 transition-colors"
+              >
+                <X size={11} /> Clear
+              </button>
+            )}
+            {activeFilterCount > 0 && (
+              <span className="text-[11px] text-slate-400 ml-auto">
+                {filteredMeetings.length} of {meetings.length} shown
+              </span>
+            )}
+          </div>
+        )}
 
 
 
@@ -1201,177 +1490,28 @@ const MeetingTable = ({ meetings, employees = [], onUpdateMeeting, onDeleteMeeti
             </thead>
             <tbody>
               {paginatedMeetings.map((m, idx) => {
-                const cellBorder = { borderRight: '1px solid #F1F5F9', borderBottom: '1px solid #F8FAFC' };
+                const rowId = m.id || ((activePage - 1) * itemsPerPage + idx);
                 return (
-                  <React.Fragment key={m.id || idx}>
-                  <tr
-                    className="hover:bg-[#FAFCFF] transition-none group"
-                    style={{
-                      height: '52px',
-                      borderLeft: m.needsReview ? '3px solid #F59E0B' : '3px solid transparent',
-                    }}
-                  >
-                    <td className="px-1.5 py-2 text-center print:hidden" style={{ ...cellBorder, width: '40px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))}
-                        onChange={() => toggleSelectRow(m.id || ((activePage - 1) * itemsPerPage + idx))}
-                        aria-label={`Select row ${m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}`}
-                        className={`w-4 h-4 rounded border-slate-300 cursor-pointer accent-[#0D9488] transition-opacity duration-100 ${
-                          selectedIds.has(m.id || ((activePage - 1) * itemsPerPage + idx))
-                            ? 'opacity-100'
-                            : 'opacity-100'
-                        }`}
-                      />
-                    </td>
-                    <td className="px-1.5 py-2 text-center" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>{m.s_no || m.sno || ((activePage - 1) * itemsPerPage + idx + 1)}</td>
-                    <td className="px-2 py-2 text-center" style={cellBorder}>
-                       <input type="text" defaultValue={m.function || 'General'} className="bg-transparent text-center focus:bg-white focus:outline-teal-500 w-full" style={{ fontSize: '14px', color: 'var(--text-primary)' }} onBlur={(e) => onUpdateMeeting(m.id, { function: e.target.value })} />
-                    </td>
-                    <td className="px-2 py-2 text-left font-medium" style={{ maxWidth: '160px', ...cellBorder }}>
-                      <ProjectCell projectName={m.project_name} defaultProjectName={reduxProjectName} />
-                    </td>
-                    <td className="px-2 py-2 text-center" style={cellBorder}>
-                      {(() => {
-                        const crit = m.criticality || 'Normal';
-                        return (
-                          <PillDropdown
-                            value={crit}
-                            options={['Low', 'Medium', 'High', 'Critical']}
-                            onChange={(val) => onUpdateMeeting(m.id, { criticality: val })}
-                            colors={CRITICALITY_COLORS}
-                          />
-                        );
-                      })()}
-                    </td>
-                    <td className="px-4 py-2 leading-relaxed min-w-[260px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
-                      <div className="relative group/heuristic flex gap-2 w-full">
-                        <textarea defaultValue={m.discussion_point || '—'} className="w-full bg-transparent resize-none focus:bg-white focus:outline-teal-500 min-h-[40px]" onBlur={(e) => onUpdateMeeting(m.id, { discussion_point: e.target.value })} />
-                        <div className="flex-shrink-0 cursor-help text-gray-300 hover:text-teal-600 mt-1" title={m.isHeuristic ? 'Fallback heuristic used' : 'AI extracted'}><Info className="w-4 h-4" /></div>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 min-w-[140px]" style={cellBorder}>
-                      <Select
-                        options={employees.map(e => ({ value: e.name, label: e.name, employeeId: e.employee_id }))}
-                        defaultValue={m.responsibility ? { value: m.responsibility, label: m.responsibility } : null}
-                        onChange={(opt) => onUpdateMeeting(m.id, { responsibility: opt?.value })}
-                        placeholder="Assign..."
-                        className="text-left"
-                        /* ── Portal fix: render menu to body to escape overflow:auto ── */
-                        menuPortalTarget={document.body}
-                        menuPosition="fixed"
-                        styles={{
-                          menuPortal: (base) => ({ ...base, zIndex: 99999 }),
-                          menu: (base) => ({
-                            ...base,
-                            borderRadius: '10px',
-                            border: '1px solid #E2E8F0',
-                            boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-                            overflow: 'hidden',
-                            fontSize: '13px',
-                          }),
-                          menuList: (base) => ({ ...base, padding: '4px', maxHeight: '220px' }),
-                          option: (base, state) => ({
-                            ...base,
-                            fontSize: '13px',
-                            fontWeight: state.isSelected ? 700 : 500,
-                            color: state.isSelected ? '#0D9488' : '#334155',
-                            background: state.isSelected ? '#F0FDFA' : state.isFocused ? '#F8FAFC' : 'transparent',
-                            borderRadius: '6px',
-                            padding: '7px 10px',
-                            cursor: 'pointer',
-                          }),
-                          control: (base) => ({
-                            ...base,
-                            minHeight: '30px',
-                            background: 'transparent',
-                            border: 'none',
-                            boxShadow: 'none',
-                            fontSize: '13px',
-                            color: 'var(--text-primary)',
-                            cursor: 'pointer',
-                          }),
-                          placeholder: (base) => ({ ...base, color: '#94A3B8', fontSize: '12px' }),
-                          singleValue: (base) => ({ ...base, color: 'var(--text-primary)', fontWeight: 500 }),
-                          indicatorSeparator: () => ({ display: 'none' }),
-                          dropdownIndicator: (base, state) => ({
-                            ...base,
-                            color: '#94A3B8',
-                            padding: '0 4px',
-                            transform: state.selectProps.menuIsOpen ? 'rotate(180deg)' : 'none',
-                            transition: 'transform 0.2s',
-                          }),
-                          input: (base) => ({ ...base, fontSize: '13px' }),
-                          valueContainer: (base) => ({ ...base, padding: '0 6px' }),
-                        }}
-                      />
-                    </td>
-                    <td className="px-2 py-2 text-center text-gray-500" style={cellBorder}>
-                      <TargetDateCell value={m.target} onChange={(newVal) => onUpdateMeeting(m.id, { target: newVal })} />
-                    </td>
-                     <td className="px-2 py-2 text-center" style={cellBorder}>
-                        <PillDropdown
-                          value={m.status || 'Pending'}
-                          options={['Open', 'Pending', 'In Progress', 'Needs Review', 'Done', 'Closed']}
-                          onChange={(val) => onUpdateMeeting(m.id, { status: val, needsReview: val === 'Needs Review' })}
-                          colors={{
-                            'Done': { bg: '#D1FAE5', color: '#065F46', border: '#A7F3D0' },
-                            'Closed': { bg: '#F1F5F9', color: '#64748B', border: '#E2E8F0' },
-                            'Pending': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
-                            'Open': { bg: '#FFFBEB', color: '#B45309', border: '#FDE68A' },
-                            'In Progress': { bg: '#DBEAFE', color: '#1D4ED8', border: '#BFDBFE' },
-                             'Needs Review': { bg: '#FEF3C7', color: '#92400E', border: '#F59E0B' }
-                          }}
-                        />
-                     </td>
-                     <td className="px-2 py-2 min-w-[130px]" style={{ fontSize: '14px', color: 'var(--text-primary)', ...cellBorder }}>
-                       <ActionTakenCell value={m.action_taken} onChange={(newVal) => onUpdateMeeting(m.id, { action_taken: newVal })} />
-                      </td>
-                      <td className="px-1.5 py-2 text-center print:hidden" style={{ borderBottom: '1px solid #F8FAFC' }}>
-                        <div className="flex items-center justify-center gap-1">
-                          {/* Row expand toggle */}
-                          <button
-                            onClick={() => toggleRowExpand(m.id || ((activePage - 1) * itemsPerPage + idx))}
-                            className="p-1.5 text-gray-400 hover:text-teal-600 transition-colors"
-                            title={expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'Collapse preview' : 'Expand preview'}
-                          >
-                            <ChevronDown
-                              className="w-3.5 h-3.5 mx-auto transition-transform duration-200"
-                              style={{ transform: expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) ? 'rotate(180deg)' : 'none' }}
-                            />
-                          </button>
-                          <button onClick={() => handleManualSyncRow(m)} className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="Sync this row as issue" disabled={!effectiveProjectId}><Zap className="w-3.5 h-3.5 mx-auto" /></button>
-                          <button onClick={() => handleDeleteClick(m.id || ((activePage - 1) * itemsPerPage + idx))} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete row"><Trash2 className="w-3.5 h-3.5 mx-auto" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                    {/* ── Inline Preview Row (conditionally rendered) ── */}
-                    {expandedRows.has(m.id || ((activePage - 1) * itemsPerPage + idx)) && (
-                      <tr className="mt-row-preview-tr">
-                        <td colSpan={11} className="mt-preview-cell" style={{ padding: 0, borderBottom: '1px solid #E2E8F0' }}>
-                          <div className="mt-preview-body">
-                            <div className="mt-preview-section">
-                              <span className="mt-preview-label">Full Discussion Point</span>
-                              <p className="mt-preview-text">{m.discussion_point || '—'}</p>
-                            </div>
-                            {m.action_taken && m.action_taken !== 'None' && (
-                              <div className="mt-preview-section">
-                                <span className="mt-preview-label">Action Taken</span>
-                                <p className="mt-preview-text">{m.action_taken}</p>
-                              </div>
-                            )}
-                            <div className="mt-preview-chips">
-                              {m.function && <span className="mt-preview-chip">{m.function}</span>}
-                              {m.criticality && <span className="mt-preview-chip" style={{ background: CRITICALITY_COLORS[m.criticality]?.bg, color: CRITICALITY_COLORS[m.criticality]?.color }}>{m.criticality}</span>}
-                              {m.target && <span className="mt-preview-chip">Due: {m.target}</span>}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                   </React.Fragment>
-                  );
-                })}
+                  <RowEditor
+                    key={rowId}
+                    m={m}
+                    rowId={rowId}
+                    idx={idx}
+                    activePage={activePage}
+                    itemsPerPage={itemsPerPage}
+                    selectedIds={selectedIds}
+                    toggleSelectRow={toggleSelectRow}
+                    expandedRows={expandedRows}
+                    toggleRowExpand={toggleRowExpand}
+                    onUpdateMeeting={onUpdateMeeting}
+                    onDeleteMeeting={handleDeleteClick}
+                    handleManualSyncRow={handleManualSyncRow}
+                    effectiveProjectId={effectiveProjectId}
+                    reduxProjectName={reduxProjectName}
+                    employees={employees}
+                  />
+                );
+              })}
              </tbody>
            </table>
          </div>

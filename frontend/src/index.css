@@ -19,6 +19,7 @@
   /* Industrial Analytics Brand Colors - Redesign 2026 */
   --brand-navy: #1e293b;
   --brand-primary-bg: #F8FAFC;
+  --brand-red: #C8341A;
 
   /* Redesign Specs - Light Theme (Default) */
   --secondary: #0F172A;
@@ -86,6 +87,7 @@
   /* Industrial Analytics Brand Colors - Dark Theme */
   --brand-navy: #16313E;
   --brand-primary-bg: #1E242B;
+  --brand-red: #E24A3B;
 
   /* Redesign Specs - Dark Theme */
   --secondary: #FFFFFF;
@@ -296,7 +298,6 @@
     border-collapse: separate;
     border-spacing: 0;
     width: max-content;
-    min-width: 100%;
   }
 
   .master-table thead,
@@ -305,11 +306,11 @@
   }
 
   .master-table th {
-    @apply sticky top-0 z-30 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-[13px] border-b border-slate-200/80 py-3 px-4 text-left whitespace-nowrap;
+    @apply sticky top-0 z-30 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-[13px] border-b border-slate-200/80 py-3 px-2 text-left whitespace-nowrap;
   }
 
   .master-table td {
-    @apply border-b border-slate-100/80 dark:border-slate-700/50 py-3.5 px-4 whitespace-nowrap text-sm text-slate-700 dark:text-slate-100;
+    @apply border-b border-slate-100/80 dark:border-slate-700/50 py-3.5 px-2 whitespace-nowrap text-sm text-slate-700 dark:text-slate-100;
   }
 
   .master-table tbody tr {

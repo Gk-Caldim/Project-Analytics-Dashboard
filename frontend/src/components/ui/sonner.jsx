@@ -39,8 +39,13 @@ export function Toaster({ theme = 'light', position = 'top-right', closeButton =
     const handleToastEvent = (action) => {
       if (action.type === 'ADD') {
         setToasts(prev => {
-          const exists = prev.some(t => t.id === action.toast.id);
-          if (exists) return prev;
+          const existingIndex = prev.findIndex(t => t.id === action.toast.id);
+          if (existingIndex !== -1) {
+            // Replace the existing toast in-place (e.g. loading → success transition)
+            const updated = [...prev];
+            updated[existingIndex] = action.toast;
+            return updated;
+          }
           return [...prev, action.toast];
         });
       } else if (action.type === 'DISMISS') {
@@ -79,7 +84,7 @@ export function Toaster({ theme = 'light', position = 'top-right', closeButton =
   );
 }
 
-function ToastItem({ toast: t, theme, closeButton, richColors }) {
+const ToastItem = React.forwardRef(({ toast: t, theme, closeButton, richColors }, ref) => {
   useEffect(() => {
     if (t.duration === Infinity) return;
     const timer = setTimeout(() => {
@@ -129,7 +134,7 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
       case 'loading':
         Icon = Loader2;
         iconColor = 'text-blue-500 animate-spin';
-        bgClass = isDark ? 'bg-slate-950/95 border-slate-800 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
+        bgClass = isDark ? 'bg-slate-950/95 border-slate-850 shadow-slate-950/10' : 'bg-white border-slate-200/80 shadow-slate-200/40';
         textClass = isDark ? 'text-slate-100' : 'text-slate-900';
         descClass = isDark ? 'text-slate-400' : 'text-slate-600';
         break;
@@ -147,6 +152,7 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -193,4 +199,6 @@ function ToastItem({ toast: t, theme, closeButton, richColors }) {
       )}
     </motion.div>
   );
-}
+});
+
+ToastItem.displayName = 'ToastItem';

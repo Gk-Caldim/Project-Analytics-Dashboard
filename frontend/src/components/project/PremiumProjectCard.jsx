@@ -71,11 +71,22 @@ const PremiumProjectCard = ({
     <div 
       className={`executive-project-card ${isFeatured ? 'featured' : ''} ${isPinned ? 'pinned' : ''} ${urgencyColor ? 'has-priority' : ''} ${viewMode === 'list' ? 'list-view' : ''}`}
       style={urgencyColor || isPinned ? { '--glow-color': urgencyColor || 'var(--accent)' } : {}}
+      tabIndex={0}
       onClick={(e) => {
         if (selectionMode) {
           onSelect(!isSelected);
         } else if (!menuOpen) {
           onClick(project.id);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (selectionMode) {
+            onSelect(!isSelected);
+          } else if (!menuOpen) {
+            onClick(project.id);
+          }
         }
       }}
     >

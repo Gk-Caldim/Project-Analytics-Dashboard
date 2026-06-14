@@ -42,7 +42,7 @@ const LandingPage = () => {
       title: 'Minutes & Meetings',
       path: '/meetings',
       desc: 'Intelligent scheduling with auto-capture meeting records. Action items assigned, tracked, and escalated automatically.',
-      features: ['AI Transcription', 'Task Auto-Assign', 'ISO Compliance'],
+      features: ['AI Transcription', 'Task Auto-Assign', 'Smart Summaries'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="4" width="18" height="16" rx="2" strokeLinecap="square" strokeLinejoin="miter" />
@@ -66,8 +66,8 @@ const LandingPage = () => {
       id: 'governance',
       title: 'Team Governance',
       path: '/governance',
-      desc: 'Role-based access controls and audit logging. Full compliance-ready access trails for ISO and SOC 2 audits.',
-      features: ['SOC 2 Audit Trails', 'Granular RBAC', 'MFA Enforcement'],
+      desc: 'Role-based access controls and activity logging. Complete activity trails for team management.',
+      features: ['Activity Trails', 'Granular RBAC', 'Secure Access'],
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path strokeLinecap="square" strokeLinejoin="miter" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -110,15 +110,7 @@ const LandingPage = () => {
                 Request a Demo
               </button>
             </div>
-            <div className="hero-trust-row">
-              <div className="hero-avatars">
-                <div className="hero-avatar">VP</div>
-                <div className="hero-avatar">MD</div>
-                <div className="hero-avatar">CX</div>
-                <div className="hero-avatar">GM</div>
-              </div>
-              <span className="hero-trust-text">Loved by 2,400+ leaders across Fortune 500s</span>
-            </div>
+
           </div>
 
           <div className="zoho-hero-visual">
@@ -295,26 +287,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── LOGO STRIP ── */}
-      <section className="logo-strip-section">
-        <div className="logo-strip-inner">
-          <p className="logo-strip-label">TRUSTED BY INDUSTRY LEADERS</p>
-          <div className="logo-strip-logos">
-            <span>MAHINDRA</span>
-            <span className="dot">·</span>
-            <span>TATA GROUP</span>
-            <span className="dot">·</span>
-            <span>AIRBUS</span>
-            <span className="dot">·</span>
-            <span>HDFC</span>
-            <span className="dot">·</span>
-            <span>LEYLAND</span>
-            <span className="dot">·</span>
-            <span>L&T</span>
-          </div>
-        </div>
-      </section>
-
       {/* ── TWO-COLUMN HIGHLIGHT GRID ── */}
       <section id="products" className="zoho-apps-section">
         <div className="zoho-apps-inner">
@@ -352,30 +324,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ── BY THE NUMBERS ── */}
-      <section className="stats-section">
-        <div className="stats-inner">
-          <span className="stats-label">BY THE NUMBERS</span>
-          <h2 className="stats-title">Enterprises don't guess. They measure.</h2>
-          <div className="stats-grid">
-            <div className="stat-block">
-              <span className="stat-accent-bar"></span>
-              <h3 className="stat-val">2,400+</h3>
-              <p className="stat-desc">Enterprise users across manufacturing, finance, and logistics</p>
-            </div>
-            <div className="stat-block">
-              <span className="stat-accent-bar"></span>
-              <h3 className="stat-val">38%</h3>
-              <p className="stat-desc">Average reduction in board meeting prep time within 90 days</p>
-            </div>
-            <div className="stat-block">
-              <span className="stat-accent-bar"></span>
-              <h3 className="stat-val">99.9%</h3>
-              <p className="stat-desc">Uptime SLA, enterprise-grade reliability</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ── BOTTOM CTA ── */}
       <section className="bottom-cta-section">

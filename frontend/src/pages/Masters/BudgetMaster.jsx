@@ -1086,7 +1086,7 @@ const BudgetMaster = () => {
                   <div>
                     <p className="text-base font-bold text-red-800 dark:text-red-400">Project is Over Budget</p>
                     <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                      Total utilization <strong>{format(totalUtilization)}</strong> exceeds budget <strong>{format(parseFloat(overallBudget))}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget))}</strong>
+                      Total utilization <strong>{format(totalUtilization, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> exceeds budget <strong>{format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>
                     </p>
                   </div>
                 </div>
@@ -1096,32 +1096,32 @@ const BudgetMaster = () => {
               {(selectedProject || tableData.length > 0) && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <SummaryCard
-                    label="Total Estimated"
+                    label="Estimated Budget"
                     value={totalEstimated}
                     color="blue"
-                    format={format}
+                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     subLabel="Summation of Estimated Values"
                     count={tableData.length}
                     extraStat={{ label: 'Project Lead', value: managerName || 'Unassigned' }}
                   />
                   <SummaryCard
-                    label="Total Utilization"
+                    label="Utilised Budget"
                     value={totalUtilization}
                     color={isOverBudget ? 'red' : 'emerald'}
-                    format={format}
+                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     subLabel="Summation of (Utilized + Commitment)"
                     count={tableData.length}
                     extraStat={{
-                      label: 'Budget Limit',
-                      value: format(parseFloat(overallBudget)),
+                      label: 'Approved Budget',
+                      value: format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
                       color: isOverBudget ? 'text-red-500' : 'text-slate-500 dark:text-slate-300'
                     }}
                   />
                   <SummaryCard
-                    label="Total Balance"
+                    label="Balance Budget"
                     value={totalBalance}
                     color={totalBalance < 0 ? 'red' : 'emerald'}
-                    format={format}
+                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     subLabel="Summation of Balance Remaining"
                     count={tableData.length}
                     extraStat={{

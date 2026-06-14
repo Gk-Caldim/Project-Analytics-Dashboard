@@ -1,0 +1,17 @@
+.dashboard-home-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background-color: var(--bg);
+  overflow-y: auto;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.welcome-panel-col,
+.projects-panel-col,
+.modules-panel-col {
+  width: 100%;
+}

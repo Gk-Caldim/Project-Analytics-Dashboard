@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { setProjects, updateProjectConfig } from '../store/slices/projectSlice';
-import { setSelectedProjectFileId } from '../store/slices/navSlice';
+import { setSelectedProjectFileId, setActiveModule, setExpandedModules, setActiveView } from '../store/slices/navSlice';
 import ReactECharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import '../utils/echarts-theme-v5'; // Register the v5 theme
@@ -10,7 +10,8 @@ import ExcelTableViewer from '../components/ExcelTableViewer';
 import {
   Layout, Maximize2, Minimize2, Send, Mail, Search, Edit, Plus, Trash2, X, Filter,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Save, Settings, Download, GripVertical,
-  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon
+  TrendingUp, CheckCircle2, AlertCircle, Clock, MessageSquare, Sparkles as SparklesIcon,
+  LayoutDashboard, FolderKanban, Calendar, Users, Wallet, Database
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -28,6 +29,10 @@ import VPProjectDashboard from './VPProjectDashboard';
 import Modal from '../components/ui/Modal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useConfirm } from '../hooks/use-confirm';
+import DashboardHomeLayout from '../components/project/DashboardHomeLayout';
+import WelcomePanel from '../components/project/WelcomePanel';
+import ProjectsPanel from '../components/project/ProjectsPanel';
+import ModulesPanel from '../components/project/ModulesPanel';
 
 
 
@@ -173,7 +178,22 @@ const ProjectTitleDashboard = () => {
   const dispatch = useDispatch();
   const { format, symbol } = useCurrency();
   const selectedFileId = useSelector(state => state.nav.selectedProjectFileId);
+  const user = useSelector(state => state.auth.user);
   const onClearSelection = () => dispatch(setSelectedProjectFileId(null));
+
+  const [homeSearchFocused, setHomeSearchFocused] = useState(false);
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const getUserInitials = () => {
+    if (!user?.full_name) return 'U';
+    return user.full_name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
 
   const [dashboardData, setDashboardData] = useState(null);
   const [submoduleData, setSubmoduleData] = useState({});
@@ -192,6 +212,7 @@ const ProjectTitleDashboard = () => {
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [activeEmailField, setActiveEmailField] = useState('email');
   const [visibleSections, setVisibleSections] = useState({
+    milestones: true,
     criticalIssues: true,
     metricsSummary: true,
     budget: true
@@ -201,6 +222,7 @@ const ProjectTitleDashboard = () => {
     subject: 'Project Dashboard Report',
     message: '',
     selectedSections: {
+      milestones: true,
       criticalIssues: true,
       budget: true,
       resource: true,
@@ -382,7 +404,7 @@ const ProjectTitleDashboard = () => {
 
   const selectedSubmodule = useMemo(() => {
     if (!activeProject || !submoduleId) return null;
-    
+
     let match = activeProject.submodules?.find(s =>
       String(s.id) === String(submoduleId) ||
       String(s.trackerId) === String(submoduleId) ||
@@ -390,7 +412,7 @@ const ProjectTitleDashboard = () => {
     );
 
     if (!match && activeProject.uploads) {
-      const upload = activeProject.uploads.find(u => 
+      const upload = activeProject.uploads.find(u =>
         String(u.upload_id) === String(submoduleId) ||
         `tracker-file-${u.upload_id}` === String(submoduleId)
       );
@@ -405,7 +427,7 @@ const ProjectTitleDashboard = () => {
         };
       }
     }
-    
+
     return match;
   }, [activeProject, submoduleId]);
 
@@ -468,155 +490,155 @@ const ProjectTitleDashboard = () => {
     try {
       const structures = structuresData;
 
-        const newProjects = (() => {
-          const uniqueProjectsMap = new Map();
+      const newProjects = (() => {
+        const uniqueProjectsMap = new Map();
 
-          structures.forEach((struct) => {
-            let projectName = struct.project_name || 'Uncategorized';
-            projectName = projectName.replace(/tata\s+motors/ig, 'TATA');
-            const capitalizedName = projectName.charAt(0).toUpperCase() + projectName.slice(1);
+        structures.forEach((struct) => {
+          let projectName = struct.project_name || 'Uncategorized';
+          projectName = projectName.replace(/tata\s+motors/ig, 'TATA');
+          const capitalizedName = projectName.charAt(0).toUpperCase() + projectName.slice(1);
 
-            let dashboardConfig = struct.dashboard_config || null;
+          let dashboardConfig = struct.dashboard_config || null;
 
-            // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
-            if (dashboardConfig?.visibleSections) {
-              const sections = { ...dashboardConfig.visibleSections };
-              const uploads = struct.uploads || [];
-              const defaultPhases = [
-                { id: 'design', aliases: ['design'] },
-                { id: 'partDevelopment', aliases: ['part', 'development'] },
-                { id: 'build', aliases: ['build'] },
-                { id: 'gateway', aliases: ['gateway'] },
-                { id: 'validation', aliases: ['validation'] },
-                { id: 'qualityIssues', aliases: ['quality'] }
-              ];
+          // Normalize visibleSections to prefer phase keys over upload- keys for mapped trackers
+          if (dashboardConfig?.visibleSections) {
+            const sections = { ...dashboardConfig.visibleSections };
+            const uploads = struct.uploads || [];
+            const defaultPhases = [
+              { id: 'design', aliases: ['design'] },
+              { id: 'partDevelopment', aliases: ['part', 'development'] },
+              { id: 'build', aliases: ['build'] },
+              { id: 'gateway', aliases: ['gateway'] },
+              { id: 'validation', aliases: ['validation'] },
+              { id: 'qualityIssues', aliases: ['quality'] }
+            ];
 
-              uploads.forEach(u => {
-                const fname = (u.file_name || '').toLowerCase();
-                const uploadKey = `upload-${u.file_name}`;
-                if (sections[uploadKey]) {
-                  const matchedPhase = defaultPhases.find(p => p.aliases.some(a => fname.includes(a)));
-                  if (matchedPhase) {
-                    sections[matchedPhase.id] = true;
-                    delete sections[uploadKey];
-                  }
+            uploads.forEach(u => {
+              const fname = (u.file_name || '').toLowerCase();
+              const uploadKey = `upload-${u.file_name}`;
+              if (sections[uploadKey]) {
+                const matchedPhase = defaultPhases.find(p => p.aliases.some(a => fname.includes(a)));
+                if (matchedPhase) {
+                  sections[matchedPhase.id] = true;
+                  delete sections[uploadKey];
                 }
-              });
-              dashboardConfig = {
-                ...dashboardConfig,
-                visibleSections: sections
-              };
-            }
+              }
+            });
+            dashboardConfig = {
+              ...dashboardConfig,
+              visibleSections: sections
+            };
+          }
 
-            if (!uniqueProjectsMap.has(capitalizedName)) {
-              uniqueProjectsMap.set(capitalizedName, {
-                id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
-                name: capitalizedName,
-                dbProjectId: struct.project_id,
-                code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
-                status: 'In Progress', // Default status
-                submodules: [],
-                active: false,
-                dashboardConfig: dashboardConfig,
-                budget: struct.budget || 0,
-                utilized_budget: struct.utilized_budget || 0,
-                balance_budget: struct.balance_budget || 0,
-                project_manager: struct.project_manager || null,
-                employee_name: struct.employee_name || null,
-                originalName: struct.project_name || 'Uncategorized'
-              });
-            }
+          if (!uniqueProjectsMap.has(capitalizedName)) {
+            uniqueProjectsMap.set(capitalizedName, {
+              id: `project-dashboard-${capitalizedName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+              name: capitalizedName,
+              dbProjectId: struct.project_id,
+              code: capitalizedName.substring(0, 4).toUpperCase(), // Default code
+              status: 'In Progress', // Default status
+              submodules: [],
+              active: false,
+              dashboardConfig: dashboardConfig,
+              budget: struct.budget || 0,
+              utilized_budget: struct.utilized_budget || 0,
+              balance_budget: struct.balance_budget || 0,
+              project_manager: struct.project_manager || null,
+              employee_name: struct.employee_name || null,
+              originalName: struct.project_name || 'Uncategorized'
+            });
+          }
 
-            const existingProject = uniqueProjectsMap.get(capitalizedName);
+          const existingProject = uniqueProjectsMap.get(capitalizedName);
 
-            // MERGE logic instead of overwrite
-            if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
-              existingProject.dbProjectId = struct.project_id;
-            }
+          // MERGE logic instead of overwrite
+          if (!existingProject.dbProjectId || struct.project_id === existingProject.dbProjectId) {
+            existingProject.dbProjectId = struct.project_id;
+          }
 
-            // Collect all submodules and uploads from all structures matching this name
-            existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
-            existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
+          // Collect all submodules and uploads from all structures matching this name
+          existingProject.submodules = [...(existingProject.submodules || []), ...(struct.modules || [])];
+          existingProject.uploads = [...(existingProject.uploads || []), ...(struct.uploads || [])];
 
-            // Deduplicate submodules by ID/Name using a Map for O(N) performance
-            const subMap = new Map();
-            existingProject.submodules.forEach(s => { if (!subMap.has(s.id)) subMap.set(s.id, s); });
-            existingProject.submodules = Array.from(subMap.values());
+          // Deduplicate submodules by ID/Name using a Map for O(N) performance
+          const subMap = new Map();
+          existingProject.submodules.forEach(s => { if (!subMap.has(s.id)) subMap.set(s.id, s); });
+          existingProject.submodules = Array.from(subMap.values());
 
-            // Deduplicate uploads by upload_id using a Map for O(N) performance
-            const uploadMap = new Map();
-            existingProject.uploads.forEach(u => { if (!uploadMap.has(u.upload_id)) uploadMap.set(u.upload_id, u); });
-            existingProject.uploads = Array.from(uploadMap.values());
+          // Deduplicate uploads by upload_id using a Map for O(N) performance
+          const uploadMap = new Map();
+          existingProject.uploads.forEach(u => { if (!uploadMap.has(u.upload_id)) uploadMap.set(u.upload_id, u); });
+          existingProject.uploads = Array.from(uploadMap.values());
 
-            existingProject.dashboardConfig = dashboardConfig || existingProject.dashboardConfig;
-            existingProject.budget = Math.max(existingProject.budget || 0, struct.budget || 0);
-            existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
-            existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
-            existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
-            existingProject.employee_name = struct.employee_name || existingProject.employee_name || null;
+          existingProject.dashboardConfig = dashboardConfig || existingProject.dashboardConfig;
+          existingProject.budget = Math.max(existingProject.budget || 0, struct.budget || 0);
+          existingProject.utilized_budget = Math.max(existingProject.utilized_budget || 0, struct.utilized_budget || 0);
+          existingProject.balance_budget = Math.max(existingProject.balance_budget || 0, struct.balance_budget || 0);
+          existingProject.project_manager = struct.project_manager || existingProject.project_manager || null;
+          existingProject.employee_name = struct.employee_name || existingProject.employee_name || null;
 
-            const moduleMap = new Map();
+          const moduleMap = new Map();
 
-            // Build a map of module_name -> upload_id from uploads
+          // Build a map of module_name -> upload_id from uploads
+          (struct.uploads || []).forEach(upload => {
+            (upload.modules || []).forEach(mod => {
+              if (mod.module_name && !moduleMap.has(mod.module_name)) {
+                moduleMap.set(mod.module_name, upload.upload_id);
+              }
+            });
+          });
+
+          // PREFERRED: use flat top-level modules[] (deduplicated by server)
+          const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
+          const moduleSet = new Set(existingProject.submodules.map(s => s.name));
+
+          if (flatModules.length > 0) {
+            flatModules.forEach(mod => {
+              const modName = mod.module_name;
+              if (modName && !moduleSet.has(modName)) {
+                moduleSet.add(modName);
+                existingProject.submodules.push({
+                  id: `module-${struct.project_id}-${modName}`,
+                  trackerId: moduleMap.get(modName), // Get trackerId from map
+                  dbProjectId: struct.project_id,
+                  name: modName,
+                  displayName: modName,
+                  milestones_count: mod.milestones_count,
+                  type: 'module',
+                  projectName: capitalizedName
+                });
+              }
+            });
+          } else {
+            // Fallback: iterate uploads for older API shape
             (struct.uploads || []).forEach(upload => {
               (upload.modules || []).forEach(mod => {
-                if (mod.module_name && !moduleMap.has(mod.module_name)) {
-                  moduleMap.set(mod.module_name, upload.upload_id);
-                }
-              });
-            });
-
-            // PREFERRED: use flat top-level modules[] (deduplicated by server)
-            const flatModules = Array.isArray(struct.modules) ? struct.modules : [];
-            const moduleSet = new Set(existingProject.submodules.map(s => s.name));
-
-            if (flatModules.length > 0) {
-              flatModules.forEach(mod => {
                 const modName = mod.module_name;
                 if (modName && !moduleSet.has(modName)) {
                   moduleSet.add(modName);
                   existingProject.submodules.push({
                     id: `module-${struct.project_id}-${modName}`,
-                    trackerId: moduleMap.get(modName), // Get trackerId from map
+                    trackerId: upload.upload_id,
                     dbProjectId: struct.project_id,
                     name: modName,
                     displayName: modName,
-                    milestones_count: mod.milestones_count,
+                    department: upload.department,
                     type: 'module',
                     projectName: capitalizedName
                   });
                 }
               });
-            } else {
-              // Fallback: iterate uploads for older API shape
-              (struct.uploads || []).forEach(upload => {
-                (upload.modules || []).forEach(mod => {
-                  const modName = mod.module_name;
-                  if (modName && !moduleSet.has(modName)) {
-                    moduleSet.add(modName);
-                    existingProject.submodules.push({
-                      id: `module-${struct.project_id}-${modName}`,
-                      trackerId: upload.upload_id,
-                      dbProjectId: struct.project_id,
-                      name: modName,
-                      displayName: modName,
-                      department: upload.department,
-                      type: 'module',
-                      projectName: capitalizedName
-                    });
-                  }
-                });
-              });
-            }
-          });
+            });
+          }
+        });
 
-          return Array.from(uniqueProjectsMap.values());
-        })();
+        return Array.from(uniqueProjectsMap.values());
+      })();
 
-        dispatch(setProjects(newProjects));
-      } catch (error) {
-        console.error('[ProjectDashboard] Error loading project modules:', error);
-      }
+      dispatch(setProjects(newProjects));
+    } catch (error) {
+      console.error('[ProjectDashboard] Error loading project modules:', error);
+    }
   }, [structuresData, dispatch]);
 
   useEffect(() => {
@@ -734,7 +756,7 @@ const ProjectTitleDashboard = () => {
     return { resolvedProjectId, resolvedModule };
   }, [submoduleId, selectedFileId, activeProject?.dbProjectId, projectId]);
 
-  const { data: dashboardQueryData, isLoading: isDashboardLoading } = useQuery({
+  const { data: dashboardQueryData, isLoading: isDashboardLoading, isError: isDashboardError, refetch: refetchDashboard } = useQuery({
     queryKey: ['dashboard', resolvedDashboardParams.resolvedProjectId, resolvedDashboardParams.resolvedModule],
     queryFn: async () => {
       const { getDashboard } = await import('../api/dashboard');
@@ -767,8 +789,8 @@ const ProjectTitleDashboard = () => {
     if (issuesData) {
       const momSpecific = Array.isArray(issuesData)
         ? issuesData
-            .filter(i => (i.source || '').toUpperCase() === 'MOM')
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .filter(i => (i.source || '').toUpperCase() === 'MOM')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         : [];
       setCriticalIssues(momSpecific);
     }
@@ -933,6 +955,11 @@ const ProjectTitleDashboard = () => {
 
   // Milestones data with plan/actual
   const [milestones, setMilestones] = useState([]);
+
+  // Lifted Gantt Chart filters
+  const [ganttDeptFilter, setGanttDeptFilter] = useState('All');
+  const [ganttTypeFilter, setGanttTypeFilter] = useState('All');
+  const [ganttStatusFilter, setGanttStatusFilter] = useState('All');
 
   // SOP Data - Health and status information
   const [sopData, setSopData] = useState([
@@ -1243,7 +1270,7 @@ const ProjectTitleDashboard = () => {
         );
 
         if (!sub && activeProject.uploads) {
-          const upload = activeProject.uploads.find(u => 
+          const upload = activeProject.uploads.find(u =>
             String(u.upload_id) === String(idToResolve) ||
             `tracker-file-${u.upload_id}` === String(idToResolve)
           );
@@ -1279,7 +1306,7 @@ const ProjectTitleDashboard = () => {
         );
 
         if (!fileMatch && project.uploads) {
-          const upload = project.uploads.find(u => 
+          const upload = project.uploads.find(u =>
             String(u.upload_id) === String(selectedFileId) ||
             `tracker-file-${u.upload_id}` === String(selectedFileId)
           );
@@ -1997,7 +2024,7 @@ const ProjectTitleDashboard = () => {
     const allSelected = availableSectionKeys.every(key => tempVisibleSections[key]);
 
 
-       return (
+    return (
       <Modal
         isOpen={showSimulateModal}
         onClose={handleCancelConfig}
@@ -2059,6 +2086,12 @@ const ProjectTitleDashboard = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '16px' }}>
+          {hasMilestones && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.milestones ? 'var(--blue-50)' : 'var(--surface)' }}>
+              <input type="checkbox" checked={tempVisibleSections.milestones || false} onChange={() => handleSectionVisibilityToggle('milestones')} />
+              <span style={{ fontWeight: '600' }}>Project Milestones</span>
+            </label>
+          )}
           {hasCriticalIssues && (
             <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', cursor: 'pointer', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: '8px', background: tempVisibleSections.criticalIssues ? 'var(--blue-50)' : 'var(--surface)' }}>
               <input type="checkbox" checked={tempVisibleSections.criticalIssues || false} onChange={() => handleSectionVisibilityToggle('criticalIssues')} />
@@ -2127,11 +2160,12 @@ const ProjectTitleDashboard = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {Object.entries(tempVisibleSections)
                 .filter(([section, selected]) => {
-                  const topLevelSections = ['criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
+                  const topLevelSections = ['milestones', 'criticalIssues', 'budget', 'resource', 'quality', 'metricsSummary'];
                   return selected && topLevelSections.includes(section);
                 })
                 .map(([section]) => {
                   const labels = {
+                    milestones: 'Project Milestones',
                     criticalIssues: 'MOM Issues',
                     budget: 'Budget Summary',
                     resource: 'Resource Summary',
@@ -2925,7 +2959,7 @@ const ProjectTitleDashboard = () => {
       if (isGrouped) {
         if (!groupedData[xVal]) groupedData[xVal] = {};
         if (!groupedData[xVal][groupVal]) groupedData[xVal][groupVal] = 0;
-        
+
         // If Y is numeric and we are grouping, we sum the Y values for that group
         // If Y is string, we just count occurrences of (X, Y) pair
         if (yAxisIsNumeric && !derivedConfig) {
@@ -3626,21 +3660,21 @@ const ProjectTitleDashboard = () => {
           Analyze
         </button>
 
-      {showAxisSelector === chartId && (
-        <AxisSelectorModal
-          chartId={chartId}
-          onClose={() => setShowAxisSelector(null)}
-          activeProject={activeProject}
-          axisConfigs={axisConfigs}
-          submoduleData={submoduleData}
-          tracker={getTrackerForPhase(chartId)}
-          availableColumns={availableColumns}
-          handleAxesUpdate={handleAxesUpdate}
-        />
-      )}
-    </div>
-  );
-};
+        {showAxisSelector === chartId && (
+          <AxisSelectorModal
+            chartId={chartId}
+            onClose={() => setShowAxisSelector(null)}
+            activeProject={activeProject}
+            axisConfigs={axisConfigs}
+            submoduleData={submoduleData}
+            tracker={getTrackerForPhase(chartId)}
+            availableColumns={availableColumns}
+            handleAxesUpdate={handleAxesUpdate}
+          />
+        )}
+      </div>
+    );
+  };
 
   const renderBudgetTable = () => {
     // Columns the user wants: Sno, Category, Item name, unity type, Estimated, Utilized, commitment, total utilization, balance
@@ -3726,7 +3760,7 @@ const ProjectTitleDashboard = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Rows per page:</span>
-                <select 
+                <select
                   value={budgetItemsPerPage}
                   onChange={(e) => {
                     setBudgetItemsPerPage(Number(e.target.value));
@@ -3771,7 +3805,7 @@ const ProjectTitleDashboard = () => {
                 >
                   <ChevronLeft size={14} /> Prev
                 </button>
-                
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {(() => {
                     const pages = [];
@@ -3789,7 +3823,7 @@ const ProjectTitleDashboard = () => {
                       if (budgetPage < totalBudgetPages - 2) pages.push('...');
                       if (!pages.includes(totalBudgetPages)) pages.push(totalBudgetPages);
                     }
-                    
+
                     return pages.map((p, i) => (
                       <button
                         key={i}
@@ -4053,16 +4087,15 @@ const ProjectTitleDashboard = () => {
               <div className="h-1.5 w-1.5 rounded-full bg-blue-600"></div>
               <h3 className="app-modal-title">{humanizeLabel(phaseLabel)} Analysis</h3>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <div className="relative">
                 <button
                   onClick={() => toggleAxisSelector(maximizedChart)}
-                  className={`px-3 py-1.5 text-xs font-bold border rounded-md transition-colors flex items-center justify-center cursor-pointer ${
-                    showAxisSelector === maximizedChart 
-                      ? 'bg-blue-600 border-blue-600 text-white' 
+                  className={`px-3 py-1.5 text-xs font-bold border rounded-md transition-colors flex items-center justify-center cursor-pointer ${showAxisSelector === maximizedChart
+                      ? 'bg-blue-600 border-blue-600 text-white'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   AXES CONFIG
                 </button>
@@ -4291,10 +4324,14 @@ const ProjectTitleDashboard = () => {
 
   return (
     <main style={{
-      minHeight: '100vh',
+      height: '100%',
+      minHeight: '0',
       backgroundColor: 'var(--bg)',
       padding: '16px',
-      fontFamily: "'Inter', sans-serif"
+      fontFamily: "'Inter', sans-serif",
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
     }}>
 
 
@@ -4351,7 +4388,9 @@ const ProjectTitleDashboard = () => {
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: '0'
+        gap: '0',
+        flex: 1,
+        minHeight: 0
       }}>
         {/* Header with navigation */}
         {(activeProject || selectedSubmodule) && (
@@ -4471,152 +4510,51 @@ const ProjectTitleDashboard = () => {
 
         {/* Projects List or Dashboard Content */}
         {!activeProject ? (
-          /* Projects List View */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-            {/* Content Array */}
-            <div style={{ padding: '28px' }}>
-              {/* Dashboard Content removed title and stats here */}
-
-              {/* Unified Project Overview Container */}
-              <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--elevated-card)', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <h3 style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Project Overview {filteredAndSortedProjects.length > 0 && `(${filteredAndSortedProjects.length})`}</h3>
-
-                    {/* Search Bar Integrated into Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', position: 'relative', width: '240px' }}>
-                      <Search size={14} style={{ position: 'absolute', left: '10px', color: 'var(--text-tertiary)' }} />
-                      <input
-                        type="text"
-                        placeholder="Search projects..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', padding: '6px 10px 6px 32px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '12px', outline: 'none', background: 'var(--surface)' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    {/* Bulk Actions Menu (Visible when selecting) */}
-                    {selectionMode && selectedProjects.length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface)', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-subtle)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', marginRight: '4px' }}>
-                          {selectedProjects.length} selected
-                        </span>
-                        <button onClick={() => handleBulkPin(true)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Pin</button>
-                        <button onClick={() => handleBulkPin(false)} style={{ padding: '4px 8px', fontSize: '11px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: '600' }}>Unpin</button>
-                        {/* More bulk actions could go here */}
-                        <button
-                          onClick={() => {
-                            setSelectionMode(false);
-                            setSelectedProjects([]);
-                          }}
-                          style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          setSelectionMode(!selectionMode);
-                          if (selectionMode) setSelectedProjects([]);
-                        }}
-                        style={{ background: selectionMode ? 'var(--brand-navy)' : 'var(--surface)', color: selectionMode ? 'white' : 'var(--text-primary)', border: '1px solid var(--border-subtle)', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: '700' }}
-                      >
-                        {selectionMode ? 'Cancel' : 'Select'}
-                      </button>
-
-                      <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }}></div>
-
-                      <div style={{ display: 'flex', background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px' }}>
-                        <button
-                          onClick={() => setViewMode('grid')}
-                          style={{ background: viewMode === 'grid' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'grid' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
-                          <Layout size={14} />
-                        </button>
-                        <button
-                          onClick={() => setViewMode('list')}
-                          style={{ background: viewMode === 'list' ? 'var(--brand-navy)' : 'none', border: 'none', color: viewMode === 'list' ? 'white' : 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', padding: '4px', borderRadius: '2px' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{
-                  padding: viewMode === 'grid' ? '24px' : '0',
-                  display: 'grid',
-                  gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : '1fr',
-                  gap: viewMode === 'grid' ? '20px' : '0',
-                  flex: 1,
-                  position: 'relative'
-                }}>
-                  {filteredAndSortedProjects.length === 0 ? (
-                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                      <div style={{ marginBottom: '12px', opacity: 0.5 }}><Search size={40} style={{ margin: '0 auto' }} /></div>
-                      No projects match your current filters or search query.
-                    </div>
-                  ) : filteredAndSortedProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project, idx) => (
-                    <PremiumProjectCard
-                      key={project.id}
-                      project={project}
-                      onClick={handleProjectSelect}
-                      isFeatured={project.dashboardConfig && idx === projects.findIndex(p => p.dashboardConfig) && currentPage === 1 && !searchQuery}
-                      viewMode={viewMode}
-                      selectionMode={selectionMode}
-                      isSelected={selectedProjects.includes(project.id)}
-                      onSelect={(selected) => {
-                        if (selected) setSelectedProjects(prev => [...prev, project.id]);
-                        else setSelectedProjects(prev => prev.filter(id => id !== project.id));
-                      }}
-                      isPinned={pinnedProjects.includes(project.id)}
-                      onPinToggle={(pin) => {
-                        if (pin) setPinnedProjects(prev => [...new Set([...prev, project.id])]);
-                        else setPinnedProjects(prev => prev.filter(id => id !== project.id));
-                      }}
-                      urgency={projectUrgency[project.id] || 'None'}
-                      onUrgencyChange={(level) => {
-                        setProjectUrgency(prev => ({ ...prev, [project.id]: level }));
-                      }}
-                      onDeleteRequest={(p) => setProjectToDelete(p)}
-                    />
-                  ))}
-                </div>
-
-                {/* Integrated Pagination at Footer */}
-                {filteredAndSortedProjects.length > itemsPerPage && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--elevated-card)', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
-                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedProjects.length)} of {filteredAndSortedProjects.length} projects
-                    </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredAndSortedProjects.length / itemsPerPage), p + 1))}
-                        disabled={currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage)}
-                        style={{ padding: '6px 14px', border: '1px solid var(--border-subtle)', background: 'var(--surface)', borderRadius: '4px', cursor: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'not-allowed' : 'pointer', color: currentPage === Math.ceil(filteredAndSortedProjects.length / itemsPerPage) ? 'var(--text-muted)' : 'var(--brand-navy)', fontSize: '12px', fontWeight: '700' }}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          /* Home / Projects Overview View */
+          <DashboardHomeLayout>
+            <WelcomePanel
+              user={user}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              homeSearchFocused={homeSearchFocused}
+              setHomeSearchFocused={setHomeSearchFocused}
+              filteredAndSortedProjects={filteredAndSortedProjects}
+              handleProjectSelect={handleProjectSelect}
+              getUserInitials={getUserInitials}
+              getGreeting={getGreeting}
+            />
+            <ProjectsPanel
+              filteredAndSortedProjects={filteredAndSortedProjects}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              selectionMode={selectionMode}
+              setSelectionMode={setSelectionMode}
+              selectedProjects={selectedProjects}
+              setSelectedProjects={setSelectedProjects}
+              pinnedProjects={pinnedProjects}
+              setPinnedProjects={setPinnedProjects}
+              projectUrgency={projectUrgency}
+              setProjectUrgency={setProjectUrgency}
+              setProjectToDelete={setProjectToDelete}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              handleProjectSelect={handleProjectSelect}
+              handleBulkPin={handleBulkPin}
+              handleBulkUrgency={handleBulkUrgency}
+            />
+            <ModulesPanel
+              projects={projects}
+              handleProjectSelect={handleProjectSelect}
+              dispatch={dispatch}
+              setActiveModule={setActiveModule}
+              setExpandedModules={setExpandedModules}
+              navigate={navigate}
+            />
+          </DashboardHomeLayout>
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
-          <div style={{ padding: '0 25px 25px 25px' }}>
+          <div style={{ padding: '20px 25px 25px 25px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {renderSubmoduleTable(
               selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones,
               getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
@@ -4625,7 +4563,7 @@ const ProjectTitleDashboard = () => {
         ) : (
           /* Active Project Dashboard */
           <>
-            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px', flex: 1, overflowY: 'auto' }}>
               <VPProjectDashboard
                 activeProject={activeProject}
                 dashboardData={dashboardData}
@@ -4633,6 +4571,16 @@ const ProjectTitleDashboard = () => {
                 onSendMail={() => setShowEmailModal(true)}
                 metricsContent={visibleSections.metricsSummary ? renderMetricsSummary() : null}
                 visibleSections={visibleSections}
+                milestones={milestones}
+                isDashboardLoading={isDashboardLoading}
+                isDashboardError={isDashboardError}
+                onRetry={refetchDashboard}
+                ganttDeptFilter={ganttDeptFilter}
+                setGanttDeptFilter={setGanttDeptFilter}
+                ganttTypeFilter={ganttTypeFilter}
+                setGanttTypeFilter={setGanttTypeFilter}
+                ganttStatusFilter={ganttStatusFilter}
+                setGanttStatusFilter={setGanttStatusFilter}
               />
 
               {visibleSections.budget && (
@@ -4701,19 +4649,19 @@ const ProjectTitleDashboard = () => {
                   ) : budgetViewMode === 'simplified' ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
                       <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{symbol}{summaryData.budgetApproved}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{format(summaryData.budgetApproved, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--green-50)', borderRadius: '12px', border: '1px solid var(--green-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilized</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{symbol}{summaryData.budgetUtilized}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilised Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{format(summaryData.budgetUtilized, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--blue-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{symbol}{summaryData.budgetBalance}</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance Budget</p>
+                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{format(summaryData.budgetBalance, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
                       </div>
                       <div style={{ padding: '20px', backgroundColor: 'var(--purple-50)', borderRadius: '12px', border: '1px solid var(--purple-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook</p>
+                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook Budget</p>
                         <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--purple-900)' }}>{summaryData.budgetOutlook}%</p>
                       </div>
                     </div>
@@ -4744,6 +4692,9 @@ const ProjectTitleDashboard = () => {
                   masterProjects={masterProjects}
                   budgetCurrency={budgetCurrency}
                   chartImages={pdfChartImages}
+                  ganttDeptFilter={ganttDeptFilter}
+                  ganttTypeFilter={ganttTypeFilter}
+                  ganttStatusFilter={ganttStatusFilter}
                 />
               </React.Suspense>
             )}
@@ -4850,7 +4801,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
         setErrorMsg('Invalid email format');
         return;
       }
-      
+
       const emailExists = allEmployees?.some(emp => String(emp.email).toLowerCase() === String(email).toLowerCase());
       if (!emailExists) {
         const isConfirmed = await confirm({
@@ -4859,7 +4810,7 @@ const RecipientInput = ({ label, type, emails, onUpdate, allEmployees, disabledE
           confirmText: 'Yes, add anyway',
           cancelText: 'Cancel'
         });
-        
+
         if (!isConfirmed) {
           setInputValue('');
           return;
