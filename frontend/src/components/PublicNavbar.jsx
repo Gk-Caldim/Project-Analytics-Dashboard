@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import './PublicNavbar.css';
 
@@ -19,6 +20,8 @@ const PublicNavbar = () => {
       navigate('/#products');
     }
   };
+
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   return (
     <nav className="public-nav">
@@ -76,7 +79,7 @@ const PublicNavbar = () => {
           <button className="public-nav-login" onClick={() => navigate('/login')}>
             Sign In
           </button>
-          <button className="public-btn-primary" onClick={() => navigate('/login')}>
+          <button className="public-btn-primary" onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}>
             Access Workspace
           </button>
         </div>
