@@ -29,7 +29,7 @@ const carouselSlides = [
     description: "Track program milestones, active trial gates, and operational metrics in a single unified view.",
     stats: [
       { label: "KPIs Tracked", value: "Real-time" },
-      { label: "Executive Rollups", value: "VP Analytics" }
+      { label: "Milestone Tracking", value: "Active Gates" }
     ],
     bg: "from-orange-500/10 to-transparent",
     color: "#FF6B00",
@@ -40,8 +40,8 @@ const carouselSlides = [
     subtitle: "Meeting Minutes & Action Items",
     description: "Record alignment meetings, view transcriptions, capture alignments, and auto-sync action items to project timelines.",
     stats: [
-      { label: "Audio Recorder", value: "Web Integrated" },
-      { label: "Pending Tasks", value: "Auto-Sync" }
+      { label: "Voice Transcribing", value: "Speech-to-Text" },
+      { label: "MOM Action Sync", value: "Auto-Assigned" }
     ],
     bg: "from-blue-500/10 to-transparent",
     color: "#3b82f6",
@@ -52,8 +52,8 @@ const carouselSlides = [
     subtitle: "Excel Spreadsheet Grid Parser",
     description: "Upload vendor Excel sheets, parse them, and view/edit cell contents in an interactive web grid.",
     stats: [
-      { label: "Excel Upload", value: "Automated" },
-      { label: "Interactive Grid", value: "Online Sync" }
+      { label: "Excel Upload", value: "Handsontable Grid" },
+      { label: "Data Cells Parsed", value: "Instant Sync" }
     ],
     bg: "from-emerald-500/10 to-transparent",
     color: "#10b981",
@@ -64,8 +64,8 @@ const carouselSlides = [
     subtitle: "Tooling & Financial Variance",
     description: "Upload tooling lists, track cost distributions, and monitor program expenditure details with visual budget summaries.",
     stats: [
-      { label: "Budget Summary", value: "Automatic" },
-      { label: "Cost Variance", value: "Visualized" }
+      { label: "Tooling Lists", value: "CapEx Tracking" },
+      { label: "Budget Variance", value: "Auto-Calculated" }
     ],
     bg: "from-amber-500/10 to-transparent",
     color: "#f59e0b",
@@ -368,10 +368,7 @@ const LoginPage = () => {
             <div>
               {/* Brand Logo Header */}
               <div className="flex items-center gap-2 mb-8">
-                <div className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0 shadow-sm" style={{ backgroundColor: '#FF6B00' }}>
-                  <Sunburst className="h-4.5 w-4.5 text-white" />
-                </div>
-                <span className="font-bold text-sm tracking-tight text-white font-sans">
+                <span className="font-bold text-sm tracking-tight text-white font-sans uppercase">
                   CALDIM
                 </span>
               </div>
