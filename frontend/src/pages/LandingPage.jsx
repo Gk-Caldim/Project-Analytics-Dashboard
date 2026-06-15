@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import PublicNavbar from '../components/PublicNavbar';
 import { LeadModal } from '../components/LeadModal';
 import './LandingPage.css';
@@ -78,6 +79,8 @@ const LandingPage = () => {
     }
   ];
 
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
   return (
     <div className="zoho-lp-root">
       
@@ -103,7 +106,7 @@ const LandingPage = () => {
               Manage your corporate portfolio, track meeting workflows, and monitor budgets through a single unified suite. Designed for absolute operational control.
             </p>
             <div className="zoho-hero-actions">
-              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate('/login')}>
+              <button className="zoho-btn-primary zoho-btn-lg" onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}>
                 Get Started
               </button>
               <button className="zoho-btn-ghost zoho-btn-lg" onClick={() => openModal('demo')}>
@@ -332,7 +335,7 @@ const LandingPage = () => {
           <h2 className="bottom-cta-title">Ready to give your leadership team a single source of truth?</h2>
           <p className="bottom-cta-desc">Set up your workspace in under 10 minutes. No credit card required for the first 30 days.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/login')}>Access Workspace</button>
+            <button className="cta-btn-white" onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}>Access Workspace</button>
             <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Enterprise Sales</button>
           </div>
         </div>
