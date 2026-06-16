@@ -162,6 +162,18 @@ class EmailService:
             return
             
         platform = meeting_data.get('platform', '').upper()
+        
+        # If the platform is Zoom, we exclude the organizer's email from the SMTP recipients list
+        # to prevent sending a double email notification to the host (who is already emailed by Zoom).
+        organizer_email = meeting_data.get('organizer_email')
+        if organizer_email and platform in ('ZOOM', 'ZOOM MEETING'):
+            attendees = [
+                email for email in attendees 
+                if email.strip().lower() != organizer_email.strip().lower()
+            ]
+            if not attendees:
+                logger.info("Skipping SMTP invite dispatch: Zoom meeting host is the only attendee and is already notified by Zoom.")
+                return
         title = meeting_data.get('title', 'Meeting')
         agenda_points = _format_agenda(meeting_data.get('agenda_text'))
             

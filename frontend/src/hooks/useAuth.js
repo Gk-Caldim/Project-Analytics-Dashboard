@@ -35,6 +35,7 @@ export const useAuth = () => {
   const logout = () => {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    localStorage.removeItem('caldim_last_user');
     setUser(null);
     window.location.href = '/login';
   };

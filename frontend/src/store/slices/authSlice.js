@@ -35,6 +35,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       sessionStorage.removeItem('user');
       sessionStorage.removeItem('token');
+      localStorage.removeItem('caldim_last_user');
     },
     setUser: (state, action) => {
       state.user = action.payload;

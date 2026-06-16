@@ -231,7 +231,12 @@ const ScheduleMeetingPremiumPage = () => {
   const [reminder, setReminder] = useState(15);
   const [projectId, setProjectId] = useState('');
   const [projects, setProjects] = useState([]);
-  const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
+  const [eventColor, setEventColor] = useState(() => {
+    const p = new URLSearchParams(location.search);
+    const c = p.get('color');
+    if (c) return c;
+    return localStorage.getItem('caldim_default_event_color') || EVENT_COLORS[0].hex;
+  });
   const [description, setDescription] = useState('');
   const [recurrenceRule, setRecurrenceRule] = useState('none');
   const [isRecurrenceDropOpen, setIsRecurrenceDropOpen] = useState(false);
@@ -379,6 +384,16 @@ const ScheduleMeetingPremiumPage = () => {
               setRecurrenceRule(m.recurrence_rule);
             } else {
               setRecurrenceRule('none');
+            }
+            if (m.color) {
+              setEventColor(m.color);
+            } else {
+              const savedColors = JSON.parse(localStorage.getItem('caldim_event_colors') || '{}');
+              if (savedColors[m.id]) {
+                setEventColor(savedColors[m.id]);
+              } else {
+                setEventColor(localStorage.getItem('caldim_default_event_color') || EVENT_COLORS[0].hex);
+              }
             }
           }
         } catch (error) {
@@ -599,6 +614,15 @@ const ScheduleMeetingPremiumPage = () => {
       
       if (response.data?.success) {
         toast.success(isEditMode ? 'Meeting updated' : 'Meeting scheduled', { id: loadingToast, description: isEditMode ? 'Changes have been saved successfully.' : 'Invitations have been sent to all attendees.' });
+        
+        // Save the chosen color locally to ensure immediate alignment
+        const createdId = isEditMode ? editId : response.data.meeting?.id;
+        if (createdId) {
+          const colorMap = JSON.parse(localStorage.getItem('caldim_event_colors') || '{}');
+          colorMap[createdId] = eventColor;
+          localStorage.setItem('caldim_event_colors', JSON.stringify(colorMap));
+        }
+
         setTimeout(() => {
           if (isEditMode) {
              navigate('/dashboard/calendar');

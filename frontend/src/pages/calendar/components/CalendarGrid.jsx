@@ -174,7 +174,7 @@ const PLATFORMS = [
 
 
 // ── Quick Schedule Popup (Zoho One-Liner Aesthetic) ─────────────────────
-const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }) => {
+const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions, defaultColor }) => {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(position.date);
   const [startTime, setStartTime] = useState(position.startTime);
@@ -184,7 +184,7 @@ const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState(PLATFORMS[0]);
-  const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
+  const [eventColor, setEventColor] = useState(defaultColor || EVENT_COLORS[0].hex);
   const [agenda, setAgenda] = useState('');
   
   // UI States
@@ -423,12 +423,32 @@ const CalendarGrid = ({
   onEventSelect,
   selectedEventId,
   defaultColor,
+  onEventUpdate,
 }) => {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
   const [nowPos, setNowPos] = useState(0);
   const [nowTime, setNowTime] = useState('');
   const [quickSchedule, setQuickSchedule] = useState(null);
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  const [activeDrag, setActiveDrag] = useState(null);
+
+  // Measure scrollbar width dynamically to align header columns with body columns
+  useEffect(() => {
+    const updateScrollbarWidth = () => {
+      if (scrollRef.current) {
+        const width = scrollRef.current.offsetWidth - scrollRef.current.clientWidth;
+        setScrollbarWidth(width);
+      }
+    };
+    updateScrollbarWidth();
+    const timer = setTimeout(updateScrollbarWidth, 100);
+    window.addEventListener('resize', updateScrollbarWidth);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateScrollbarWidth);
+    };
+  }, [activeView, showWeekends, showWeekNumbers]);
 
   // ── Real-time now position (updates every minute) ──
   useEffect(() => {
@@ -467,6 +487,10 @@ const CalendarGrid = ({
   }, [viewDate, showWeekends, activeView]);
 
   const weekNumber = useMemo(() => viewDate.isoWeek(), [viewDate]);
+
+  const displayDays = useMemo(() => {
+    return activeView === 'Day' ? [viewDate] : weekDays;
+  }, [activeView, viewDate, weekDays]);
 
   // ── Click on empty grid area → show QuickSchedule ──
   const handleGridClick = (e, date) => {
@@ -548,6 +572,211 @@ const CalendarGrid = ({
     if (onEventSelect) onEventSelect(ev);
   };
 
+  const handleEventDoubleClick = (e, ev, dayIndex) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    // Clear any active dragging states
+    setActiveDrag(null);
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    setTilePreview(null);
+    
+    // Retrieve times
+    const startMins = dayjs(ev.start).hour() * 60 + dayjs(ev.start).minute();
+    
+    // Open Quick Schedule Popup at this exact time slot
+    const targetDay = displayDays[dayIndex];
+    
+    const popupWidth = 480;
+    const popupHeight = 420;
+    
+    // Position popup relative to cursor coordinates
+    let popupX = e.clientX + 16;
+    if (popupX + popupWidth > window.innerWidth) {
+      popupX = e.clientX - popupWidth - 16;
+    }
+    popupX = Math.max(16, popupX);
+    
+    let popupY = e.clientY - (popupHeight / 2);
+    if (popupY + popupHeight > window.innerHeight - 16) {
+      popupY = window.innerHeight - popupHeight - 16;
+    }
+    popupY = Math.max(80, popupY);
+
+    setQuickSchedule({
+      x: popupX,
+      y: popupY,
+      date: dayjs(targetDay),
+      startTime: dayjs(ev.start).format('h:mm A'),
+      endTime: dayjs(ev.end).format('h:mm A'),
+      rawStart: dayjs(ev.start),
+      gridY: startMins,
+    });
+
+    if (onEventSelect) onEventSelect(null);
+  };
+
+  // ── Drag & Drop Reschedule / Resize Mechanics ────────────────────────
+  const mouseMoveRef = useRef(null);
+  const mouseUpRef = useRef(null);
+
+  const handleMouseDown = (e, ev, type, dayIndex) => {
+    if (e.button !== 0) return; // Left click only
+    e.stopPropagation();
+    e.preventDefault(); // Prevent text selection
+    setQuickSchedule(null);
+
+    const startMins = dayjs(ev.start).hour() * 60 + dayjs(ev.start).minute();
+    const duration = dayjs(ev.end).diff(dayjs(ev.start), 'minute');
+
+    const scrollArea = scrollRef.current;
+    const scrollTop = scrollArea ? scrollArea.scrollTop : 0;
+    const columnsContainer = document.querySelector('.grid-columns-container');
+    const containerRect = columnsContainer ? columnsContainer.getBoundingClientRect() : { top: 0, left: 0, width: 0 };
+    const startMouseY = e.clientY - containerRect.top + scrollTop;
+
+    setActiveDrag({
+      event: ev,
+      type,
+      startClientY: e.clientY,
+      startClientX: e.clientX,
+      startMouseY,
+      startTop: startMins,
+      startHeight: duration,
+      startDayIndex: dayIndex,
+      currentDayIndex: dayIndex,
+      currentStartMins: startMins,
+      currentDuration: duration,
+      hasMoved: false
+    });
+
+    window.addEventListener('mousemove', onGlobalMouseMove);
+    window.addEventListener('mouseup', onGlobalMouseUp);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!activeDrag) return;
+
+    const dx = e.clientX - activeDrag.startClientX;
+    const dy = e.clientY - activeDrag.startClientY;
+
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      activeDrag.hasMoved = true;
+    }
+
+    const columnsContainer = document.querySelector('.grid-columns-container');
+    if (!columnsContainer) return;
+    const containerRect = columnsContainer.getBoundingClientRect();
+
+    // Auto-scroll scroll area when dragging near top/bottom edges of the grid viewport
+    if (scrollRef.current) {
+      const scrollContainer = scrollRef.current;
+      const rect = scrollContainer.getBoundingClientRect();
+      const threshold = 40; // pixels trigger zone
+      
+      const distTop = e.clientY - rect.top;
+      const distBottom = rect.bottom - e.clientY;
+      
+      if (distTop < threshold && distTop > 0) {
+        scrollContainer.scrollTop -= 8;
+      } else if (distBottom < threshold && distBottom > 0) {
+        scrollContainer.scrollTop += 8;
+      }
+    }
+
+    // Calculate current day index mathematically based on horizontal cursor position relative to columns container
+    const colWidth = containerRect.width / displayDays.length;
+    const mouseX = e.clientX - containerRect.left;
+    let currentDayIndex = Math.floor(mouseX / colWidth);
+    currentDayIndex = Math.max(0, Math.min(displayDays.length - 1, currentDayIndex));
+
+    const scrollArea = scrollRef.current;
+    const scrollTop = scrollArea ? scrollArea.scrollTop : 0;
+    const currentMouseY = e.clientY - containerRect.top + scrollTop;
+    const deltaY = currentMouseY - activeDrag.startMouseY;
+
+    if (activeDrag.type === 'resize') {
+      const newDuration = Math.max(15, activeDrag.startHeight + deltaY);
+      setActiveDrag(prev => prev ? { ...prev, currentDuration: newDuration, hasMoved: true } : null);
+    } else if (activeDrag.type === 'move') {
+      let newStartMins = activeDrag.startTop + deltaY;
+      newStartMins = Math.max(0, Math.min(1440 - activeDrag.startHeight, newStartMins));
+      setActiveDrag(prev => prev ? { ...prev, currentStartMins: newStartMins, currentDayIndex, hasMoved: true } : null);
+    }
+  };
+
+  const handleMouseUp = (e) => {
+    if (!activeDrag) return;
+
+    window.removeEventListener('mousemove', onGlobalMouseMove);
+    window.removeEventListener('mouseup', onGlobalMouseUp);
+
+    const ev = activeDrag.event;
+
+    if (!activeDrag.hasMoved) {
+      // It's a standard click
+      handleEventClick(e, ev);
+    } else {
+      // Reschedule or resize event completed - apply 15-minute snapping for database persist
+      if (activeDrag.type === 'resize') {
+        const snappedDuration = Math.max(15, Math.round(activeDrag.currentDuration / 15) * 15);
+        if (snappedDuration !== activeDrag.startHeight) {
+          const startTime = dayjs(ev.start);
+          if (onEventUpdate) {
+            onEventUpdate(ev.id, {
+              date: startTime.format('YYYY-MM-DD'),
+              time: startTime.format('h:mm A'),
+              duration_minutes: snappedDuration
+            });
+          }
+        }
+      } else if (activeDrag.type === 'move') {
+        const snappedStartMins = Math.round(activeDrag.currentStartMins / 15) * 15;
+        const newDayIndex = activeDrag.currentDayIndex;
+        const targetDay = displayDays[newDayIndex];
+
+        if (targetDay) {
+          const startHour = Math.floor(snappedStartMins / 60);
+          const startMin = snappedStartMins % 60;
+          const newStart = dayjs(targetDay).hour(startHour).minute(startMin).second(0);
+          
+          if (!newStart.isSame(dayjs(ev.start), 'minute')) {
+            if (onEventUpdate) {
+              onEventUpdate(ev.id, {
+                date: newStart.format('YYYY-MM-DD'),
+                time: newStart.format('h:mm A'),
+                duration_minutes: activeDrag.startHeight
+              });
+            }
+          }
+        }
+      }
+    }
+
+    setActiveDrag(null);
+  };
+
+  // Dynamic closure delegation refs
+  useEffect(() => {
+    mouseMoveRef.current = handleMouseMove;
+    mouseUpRef.current = handleMouseUp;
+  });
+
+  const onGlobalMouseMove = (e) => {
+    if (mouseMoveRef.current) mouseMoveRef.current(e);
+  };
+
+  const onGlobalMouseUp = (e) => {
+    if (mouseUpRef.current) mouseUpRef.current(e);
+  };
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', onGlobalMouseMove);
+      window.removeEventListener('mouseup', onGlobalMouseUp);
+    };
+  }, []);
+
   // ── Compute tiled layout for overlapping events ──
   // Returns array of { event, left, width } with correct side-by-side positioning
   const getEventLayout = (dayEvents) => {
@@ -568,8 +797,8 @@ const CalendarGrid = ({
       const myIndex = overlapGroup.findIndex((o) => o.id === ev.id);
       const groupSize = overlapGroup.length;
 
-      const widthPct = groupSize > 1 ? 88 / groupSize : 92;
-      const leftPct = groupSize > 1 ? myIndex * (88 / groupSize) : 4;
+      const widthPct = groupSize > 1 ? 92 / groupSize : 92;
+      const leftPct = groupSize > 1 ? 4 + myIndex * (92 / groupSize) : 4;
 
       return {
         event: ev,
@@ -583,7 +812,6 @@ const CalendarGrid = ({
 
   // ── Week / Day View ───────────────────────────────────────────────
   if (activeView === 'Week' || activeView === 'Day') {
-    const displayDays = activeView === 'Day' ? [viewDate] : weekDays;
     const isCurrentWeek =
       activeView === 'Week'
         ? viewDate.isSame(dayjs(), 'week')
@@ -592,7 +820,7 @@ const CalendarGrid = ({
     return (
       <div className="calendar-grid-container">
         {/* Day column headers */}
-        <div className="grid-header-row">
+        <div className="grid-header-row" style={{ paddingRight: scrollbarWidth }}>
           <div className="time-gutter-header">
             {showWeekNumbers && (
               <span className="week-num-label">W{weekNumber}</span>
@@ -601,8 +829,6 @@ const CalendarGrid = ({
               GMT+5:30
             </span>
           </div>
-          {/* Scrollbar offset spacer — matches padding-right on header row */}
-          <div style={{ width: 8, borderBottom: '1px solid var(--cg-border-light)', flexShrink: 0 }} />
           {displayDays.map((day, i) => {
             const isToday = day.isSame(dayjs(), 'day');
             return (
@@ -648,67 +874,134 @@ const CalendarGrid = ({
           <div className="grid-columns-container">
             {displayDays.map((day, i) => {
               const isToday = day.isSame(dayjs(), 'day');
-              const dayEvents = events.filter((ev) =>
-                dayjs(ev.start).isSame(day, 'day')
-              );
+              
+              // 1. Gather all database events for this day
+              const dayEvents = events.filter((ev) => dayjs(ev.start).isSame(day, 'day'));
+
+              // Add Quick Schedule ghost event if active on this day
+              if (quickSchedule && quickSchedule.date.isSame(day, 'day')) {
+                const qsStartMins = quickSchedule.gridY;
+                const startHour = Math.floor(qsStartMins / 60);
+                const startMin = qsStartMins % 60;
+                const start = dayjs(day).hour(startHour).minute(startMin).second(0).toDate();
+                
+                const startMins = parseTimeToMinutes(quickSchedule.startTime);
+                const endMins = parseTimeToMinutes(quickSchedule.endTime);
+                const duration = Math.max(15, endMins - startMins);
+                const end = dayjs(start).add(duration, 'minute').toDate();
+
+                dayEvents.push({
+                  id: 'quick-schedule-ghost',
+                  title: 'New event',
+                  start,
+                  end,
+                  color: defaultColor || '#2563eb',
+                  isGhost: true
+                });
+              }
+
+              // 2. Compute layouts for all events on this day (static layout)
               const layouts = getEventLayout(dayEvents);
 
               return (
                 <div
                   key={i}
+                  data-day-index={i}
                   className={`grid-day-column ${isToday ? 'today-highlight' : ''}`}
                   onClick={(e) => handleGridClick(e, day)}
                 >
-                  {/* Ghost Block */}
-                  {quickSchedule && quickSchedule.date.isSame(day, 'day') && (
-                    <div 
-                      className="ghost-event-block"
-                      style={{
-                        top: quickSchedule.gridY,
-                        height: 26, // 30 mins (default)
-                        width: '92%',
-                        left: '4%',
-                      }}
-                    >
-                      New event
-                    </div>
-                  )}
-
                   {layouts.map(({ event: ev, left, width }) => {
-                    const startMins =
-                      dayjs(ev.start).hour() * 60 + dayjs(ev.start).minute();
+                    if (ev.isGhost) {
+                      const startMins = dayjs(ev.start).hour() * 60 + dayjs(ev.start).minute();
+                      const duration = dayjs(ev.end).diff(dayjs(ev.start), 'minute');
+                      const renderHeight = Math.max(duration, 22);
+
+                      return (
+                        <div 
+                          key="quick-schedule-ghost"
+                          className="ghost-event-block"
+                          style={{
+                            top: startMins,
+                            height: renderHeight,
+                            width,
+                            left,
+                            zIndex: 15,
+                          }}
+                        >
+                          <div className="event-title">New event</div>
+                          {duration >= 30 && (
+                            <div className="event-time">
+                              {dayjs(ev.start).format('h:mm A')}
+                              {duration >= 45 && ` – ${dayjs(ev.end).format('h:mm A')}`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    const startMins = dayjs(ev.start).hour() * 60 + dayjs(ev.start).minute();
                     const duration = dayjs(ev.end).diff(dayjs(ev.start), 'minute');
                     const isSelected = selectedEventId === ev.id;
                     const isDeclined = ev.rsvpStatus === 'Declined';
+                    const isDraggingThisEvent = activeDrag && activeDrag.event.id === ev.id;
 
-                    // Zoho card: selected = solid fill, unselected = tinted bg
+                    const renderHeight = Math.max(duration, 22);
+
+                    const displayStart = dayjs(ev.start);
+                    const displayEnd = dayjs(ev.end);
+
                     const bgColor = isSelected
                       ? ev.color
                       : `${ev.color}1A`; // 10% opacity
                     const textColor = isSelected ? '#fff' : ev.color;
+
+                    if (isDraggingThisEvent) {
+                      return (
+                        <div
+                          key={ev.id}
+                          className={`event-block placeholder-event-block ${isDeclined ? 'declined' : ''}`}
+                          style={{
+                            top: startMins,
+                            height: renderHeight,
+                            backgroundColor: `${ev.color}0D`, // 5% opacity
+                            color: ev.color,
+                            borderLeftColor: ev.color,
+                            borderLeftStyle: 'dashed',
+                            opacity: 0.4,
+                            left,
+                            width,
+                            zIndex: 8,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          <div className="event-title">{ev.title}</div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div
                         key={ev.id}
                         className={`event-block ${isDeclined ? 'declined' : ''} ${isSelected ? 'is-selected' : ''}`}
                         style={{
-                          top: startMins, // 1px = 1min
-                          height: Math.max(duration, 22),
+                          top: startMins,
+                          height: renderHeight,
                           backgroundColor: bgColor,
                           color: textColor,
                           borderLeftColor: ev.color,
                           left,
                           width,
-                          zIndex: isSelected ? 90 : 10,
+                          zIndex: isSelected ? 95 : 10,
                         }}
-                        onClick={(e) => handleEventClick(e, ev)}
-                        title={`${ev.title}\n${dayjs(ev.start).format('h:mm A')} – ${dayjs(ev.end).format('h:mm A')}`}
+                        onMouseDown={(e) => handleMouseDown(e, ev, 'move', i)}
+                        onDoubleClick={(e) => handleEventDoubleClick(e, ev, i)}
+                        title={`${ev.title}\n${displayStart.format('h:mm A')} – ${displayEnd.format('h:mm A')}`}
                       >
                         <div className="event-title">{ev.title}</div>
                         {duration >= 30 && (
                           <div className="event-time">
-                            {dayjs(ev.start).format('h:mm A')}
-                            {duration >= 45 && ` – ${dayjs(ev.end).format('h:mm A')}`}
+                            {displayStart.format('h:mm A')}
+                            {duration >= 45 && ` – ${displayEnd.format('h:mm A')}`}
                           </div>
                         )}
                         {/* Platform icon for tall events */}
@@ -730,9 +1023,52 @@ const CalendarGrid = ({
                             )}
                           </div>
                         )}
+                        {/* Resize handle at bottom */}
+                        <div
+                          className="event-resize-handle"
+                          onMouseDown={(e) => handleMouseDown(e, ev, 'resize', i)}
+                        />
                       </div>
                     );
                   })}
+
+                  {/* Render the floating active drag preview card if the user is dragging in this column */}
+                  {activeDrag && activeDrag.currentDayIndex === i && (
+                    <div
+                      key="drag-preview-card"
+                      className="event-block is-dragging"
+                      style={{
+                        top: activeDrag.currentStartMins,
+                        height: Math.max(activeDrag.currentDuration, 22),
+                        backgroundColor: activeDrag.event.color,
+                        color: '#fff',
+                        borderLeftColor: activeDrag.event.color,
+                        left: '4%',
+                        width: '92%',
+                        zIndex: 100,
+                        pointerEvents: 'none',
+                        boxShadow: 'var(--cg-shadow-premium)',
+                      }}
+                    >
+                      <div className="event-title" style={{ color: '#fff' }}>{activeDrag.event.title}</div>
+                      {(() => {
+                        const displayStartMins = Math.round(activeDrag.currentStartMins / 15) * 15;
+                        const displayDuration = Math.max(15, Math.round(activeDrag.currentDuration / 15) * 15);
+                        const displayStart = dayjs(day).hour(Math.floor(displayStartMins / 60)).minute(displayStartMins % 60);
+                        const displayEnd = displayStart.add(displayDuration, 'minute');
+                        return (
+                          <>
+                            {displayDuration >= 30 && (
+                              <div className="event-time" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>
+                                {displayStart.format('h:mm A')}
+                                {displayDuration >= 45 && ` – ${displayEnd.format('h:mm A')}`}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -777,6 +1113,7 @@ const CalendarGrid = ({
               <QuickSchedulePopup
                 position={quickSchedule}
                 events={events}
+                defaultColor={defaultColor}
                 onClose={() => setQuickSchedule(null)}
                 onSave={(title, extraData) => {
                   onQuickSave(title, { ...quickSchedule, ...extraData });
@@ -785,9 +1122,10 @@ const CalendarGrid = ({
                 onMoreOptions={(extraData) => {
                   const dateStr = extraData?.date?.format('YYYY-MM-DD') || quickSchedule.date.format('YYYY-MM-DD');
                   const timeStr = extraData?.startTime || quickSchedule.startTime;
+                  const selectedCol = extraData?.color || defaultColor;
                   setQuickSchedule(null);
                   navigate(
-                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}`
+                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}${selectedCol ? `&color=${encodeURIComponent(selectedCol)}` : ''}`
                   );
                 }}
               />
@@ -904,6 +1242,7 @@ const CalendarGrid = ({
               <QuickSchedulePopup
                 position={quickSchedule}
                 events={events}
+                defaultColor={defaultColor}
                 onClose={() => setQuickSchedule(null)}
                 onSave={(title, extraData) => {
                   onQuickSave(title, { ...quickSchedule, ...extraData });
@@ -912,9 +1251,10 @@ const CalendarGrid = ({
                 onMoreOptions={(extraData) => {
                   const dateStr = extraData?.date?.format('YYYY-MM-DD') || quickSchedule.date.format('YYYY-MM-DD');
                   const timeStr = extraData?.startTime || quickSchedule.startTime;
+                  const selectedCol = extraData?.color || defaultColor;
                   setQuickSchedule(null);
                   navigate(
-                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}`
+                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}${selectedCol ? `&color=${encodeURIComponent(selectedCol)}` : ''}`
                   );
                 }}
               />
