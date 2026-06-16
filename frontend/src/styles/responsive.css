@@ -1,0 +1,139 @@
+/*
+ * Jira-Style Responsive Breakpoints
+ * ──────────────────────────────────
+ * Mobile-first grid layout utilities for the new component system.
+ * Uses .jira-* prefix to avoid collisions.
+ *
+ * Breakpoints:
+ *   Mobile:  ≤ 640px   → 1 column, sidebar hidden
+ *   Tablet:  641–1024px → 2 columns, sidebar 200px
+ *   Desktop: ≥ 1025px  → 3 columns, sidebar 240px
+ *   Large:   ≥ 1441px  → 4 columns
+ */
+
+/* ── Grid Container ──────────────────────────────────────── */
+.jira-grid {
+  display: grid;
+  gap: var(--card-gap, 16px);
+  width: 100%;
+}
+
+/* ── Mobile (default) ────────────────────────────────────── */
+.jira-grid {
+  grid-template-columns: 1fr;
+}
+
+/* ── Mobile: ≤ 640px ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --sidebar-width-expanded: 0px;
+  }
+
+  .jira-layout-sidebar {
+    display: none;
+  }
+
+  .jira-layout-sidebar.jira-sidebar-mobile-open {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 240px;
+    z-index: var(--z-sidebar, 50);
+  }
+
+  .jira-navbar {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .jira-navbar-search {
+    display: none;
+  }
+
+  .jira-navbar-breadcrumb {
+    display: none;
+  }
+
+  .jira-content-area {
+    padding: 16px 12px;
+  }
+
+  .jira-table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── Tablet: 641px–1024px ────────────────────────────────── */
+@media (min-width: 641px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width-expanded: 200px;
+  }
+
+  .jira-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .jira-content-area {
+    padding: 20px 24px;
+  }
+}
+
+/* ── Desktop: ≥ 1025px ───────────────────────────────────── */
+@media (min-width: 1025px) {
+  :root {
+    --sidebar-width-expanded: 240px;
+  }
+
+  .jira-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .jira-content-area {
+    max-width: var(--content-max-width, 1400px);
+  }
+}
+
+/* ── Large Desktop: ≥ 1441px ─────────────────────────────── */
+@media (min-width: 1441px) {
+  .jira-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ── Grid Span Utilities ─────────────────────────────────── */
+.jira-col-span-2 {
+  grid-column: span 2;
+}
+
+.jira-col-span-3 {
+  grid-column: span 3;
+}
+
+.jira-col-span-full {
+  grid-column: 1 / -1;
+}
+
+/* ── Mobile single-column override for spans ─────────────── */
+@media (max-width: 640px) {
+  .jira-col-span-2,
+  .jira-col-span-3,
+  .jira-col-span-full {
+    grid-column: span 1;
+  }
+}
+
+/* ── Two-column layout (e.g. Issues + Activity side by side) */
+.jira-grid-2col {
+  display: grid;
+  gap: var(--card-gap, 16px);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 641px) {
+  .jira-grid-2col {
+    grid-template-columns: 1fr 1fr;
+  }
+}

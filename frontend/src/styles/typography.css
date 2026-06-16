@@ -1,0 +1,119 @@
+/*
+ * Jira-Style Typography System
+ * ────────────────────────────
+ * Complements existing heading styles in index.css.
+ * Uses .jira-* prefix to avoid collisions with Tailwind utilities
+ * and existing enterprise-theme.css typography classes.
+ */
+
+/* ── Heading Hierarchy ───────────────────────────────────── */
+.jira-h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.jira-h2 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.jira-h3 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.jira-h4 {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+/* ── Body Text ───────────────────────────────────────────── */
+.jira-body {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.jira-body-sm {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.jira-small {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.jira-xs {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* ── Emphasis & Inline ───────────────────────────────────── */
+.jira-strong {
+  font-weight: 700;
+}
+
+.jira-code {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+/* ── Labels & Captions ───────────────────────────────────── */
+.jira-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+}
+
+.jira-caption {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ── Card Title (uppercase industrial style) ─────────────── */
+.jira-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Navigation Text ─────────────────────────────────────── */
+.jira-nav-text {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+}
+
+.jira-nav-sub-text {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}

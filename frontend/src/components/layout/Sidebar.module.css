@@ -1,0 +1,190 @@
+/* Sidebar.module.css — Fixed left navigation sidebar */
+
+.sidebar {
+  position: fixed;
+  top: var(--navbar-height, 56px);
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width-expanded, 240px);
+  background: var(--elevated-card);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-sidebar, 50);
+  padding: 8px 0;
+  overflow: hidden;
+  transition: width var(--duration-normal, 250ms) var(--ease-default);
+}
+
+.sidebarCollapsed {
+  width: var(--sidebar-width-collapsed, 60px);
+}
+
+/* ── Scrollable nav area ─────────────────────────────────── */
+.navScroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+}
+
+.navScroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.navScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.navScroll::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+
+/* ── Section Label ───────────────────────────────────────── */
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 16px 16px 6px;
+  user-select: none;
+}
+
+/* ── Nav Item ────────────────────────────────────────────── */
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  margin: 1px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--duration-fast, 150ms) var(--ease-default);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border-left: 4px solid transparent;
+  user-select: none;
+  position: relative;
+}
+
+.navItem:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.navItemActive {
+  border-left-color: var(--accent);
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+.navItemIcon {
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.navItemActive .navItemIcon {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.navItemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navItemChevron {
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: transform var(--duration-fast, 150ms);
+}
+
+.navItemChevronOpen {
+  transform: rotate(90deg);
+}
+
+/* ── Sub-menu ────────────────────────────────────────────── */
+.subMenu {
+  overflow: hidden;
+  transition: max-height var(--duration-normal, 250ms) var(--ease-default);
+}
+
+.subMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px 6px 44px;
+  margin: 0 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: all var(--duration-fast, 150ms) var(--ease-default);
+  user-select: none;
+}
+
+.subMenuItem:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.subMenuItemActive {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Divider inside submenu ──────────────────────────────── */
+.subMenuDivider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 44px 4px 44px;
+}
+
+/* ── Collapsed state icon-only ───────────────────────────── */
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding: 10px 0;
+  margin: 2px 8px;
+  gap: 0;
+}
+
+.sidebarCollapsed .navItemLabel,
+.sidebarCollapsed .navItemChevron,
+.sidebarCollapsed .sectionLabel,
+.sidebarCollapsed .subMenu {
+  display: none;
+}
+
+.sidebarCollapsed .navItemActive {
+  border-left-width: 3px;
+}
+
+/* ── Collapse Toggle Button ──────────────────────────────── */
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast, 150ms);
+}
+
+.collapseBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg);
+}
