@@ -384,6 +384,54 @@ const CalendarPage = () => {
     }
   };
 
+  const handleEventUpdate = async (id, updatedFields) => {
+    const loadingToast = toast.loading('Rescheduling meeting...');
+    try {
+      const payload = {
+        date: updatedFields.date,
+        time: updatedFields.time,
+        duration: updatedFields.duration_minutes
+      };
+
+      const response = await API.patch(`/meetings/${id}`, payload);
+      if (response.data?.success || response.status === 200) {
+        toast.success('Meeting updated successfully', { id: loadingToast });
+        
+        // Refresh meetings list
+        const mRes = await API.get('/meetings/');
+        if (mRes.data?.meetings) {
+          const freshMeetings = mRes.data.meetings;
+          setMeetings(freshMeetings);
+          
+          // Sync selectedEvent details sidebar if it is the one that got modified
+          if (selectedEvent && selectedEvent.id === id) {
+            const updatedRaw = freshMeetings.find(m => m.id === id);
+            if (updatedRaw) {
+              const startStr = `${updatedRaw.date} ${updatedRaw.time}`;
+              const startDate = dayjs(startStr, ['YYYY-MM-DD h:mm A', 'YYYY-MM-DD HH:mm']);
+              const dur = updatedRaw.duration || updatedRaw.duration_minutes || 60;
+              const endDate = startDate.add(dur, 'minute');
+              
+              setSelectedEvent(prev => ({
+                ...prev,
+                start: startDate.toDate(),
+                end: endDate.toDate()
+              }));
+            }
+          }
+        }
+      } else {
+        throw new Error('Failed to update');
+      }
+    } catch (err) {
+      console.error('Drag update error:', err);
+      toast.error('Could not reschedule: ' + (err.response?.data?.detail || err.message), { id: loadingToast });
+      
+      // Force state refresh to revert the temporary dragging state visual
+      setMeetings([...meetings]);
+    }
+  };
+
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   // joinProjectId kept for backward compat with any other references; now unused in the modal.
   const [joinProjectId, setJoinProjectId] = useState('');
@@ -1258,6 +1306,7 @@ const CalendarPage = () => {
             onEventSelect={setSelectedEvent}
             selectedEventId={selectedEvent?.id}
             defaultColor={selectedEventColor}
+            onEventUpdate={handleEventUpdate}
           />
         </main>
 

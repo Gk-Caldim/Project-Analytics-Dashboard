@@ -261,7 +261,7 @@
   padding: 5px 8px 5px 10px;
   border-left: 3px solid currentColor;
   font-size: 12px;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s;
   box-sizing: border-box;
@@ -313,6 +313,50 @@
   font-weight: 500;
   opacity: 0.75;
   white-space: nowrap;
+}
+
+/* Resize handle and dragging preview styles */
+.event-resize-handle {
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  cursor: ns-resize;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  transition: background-color 0.15s;
+}
+
+.event-resize-handle:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.event-resize-handle::after {
+  content: '';
+  width: 16px;
+  height: 2px;
+  background-color: currentColor;
+  opacity: 0.5;
+  border-radius: 1px;
+  transition: opacity 0.15s, width 0.15s;
+}
+
+.event-resize-handle:hover::after {
+  opacity: 0.9;
+  width: 24px;
+}
+
+.event-block.is-dragging {
+  cursor: grabbing !important;
+  opacity: 0.8;
+  box-shadow: var(--cg-shadow-premium);
+  border-style: dashed;
+  transform: scale(1.02);
+  transition: none !important;
 }
 
 /* ── Month View ──────────────────────────────────────────── */
@@ -720,18 +764,19 @@
 
 .ghost-event-block {
   position: absolute;
-  background: rgba(26, 115, 232, 0.15);
-  border: 1px dashed #1a73e8;
-  border-left: 3px solid #1a73e8;
-  border-radius: 4px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px dashed #2563eb;
+  border-left: 3px solid #2563eb;
+  border-radius: var(--cg-radius-sm);
   pointer-events: none;
-  z-index: 8;
   display: flex;
-  padding: 6px 10px;
-  color: #1a73e8;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  color: #2563eb;
   font-size: 12px;
   box-sizing: border-box;
-  opacity: 0.8;
+  z-index: 15;
 }
 /* ── DatePicker Dropdown ────────────────────────────────────────── */
 .date-picker-dropdown {
@@ -1120,6 +1165,17 @@
 
 [data-theme='dark'] .date-picker-cell.muted {
   color: #334155;
+}
+
+[data-theme='dark'] .event-resize-handle:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .ghost-event-block {
+  background: rgba(96, 165, 250, 0.08);
+  border-color: #60a5fa;
+  border-left-color: #60a5fa;
+  color: #60a5fa;
 }
 
 
