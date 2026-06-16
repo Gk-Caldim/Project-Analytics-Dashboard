@@ -155,7 +155,7 @@ const BudgetGovernanceWorkspace = ({
           <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded p-2 flex flex-col">
             <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-muted)] mb-1">Status Distribution</span>
             <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 130 }}>
-              <ReactECharts option={statusDonutOption} style={{ height: 130, width: '100%' }} opts={{ renderer: 'svg' }} />
+              <ReactECharts key="status-donut-analytics" option={statusDonutOption} notMerge={true} style={{ height: 130, width: '100%' }} opts={{ renderer: 'svg' }} />
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-xl font-black text-[var(--text-primary)]">{revisions.length}</span>
                 <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Total</span>
@@ -164,11 +164,11 @@ const BudgetGovernanceWorkspace = ({
           </div>
           <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded p-2 flex flex-col">
             <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-muted)] mb-1">Budget Impact by Project (Δ)</span>
-            <ReactECharts option={revisionImpactOption} style={{ height: 150, width: '100%' }} opts={{ renderer: 'svg' }} />
+            <ReactECharts key="revision-impact-analytics" option={revisionImpactOption} notMerge={true} style={{ height: 150, width: '100%' }} opts={{ renderer: 'svg' }} />
           </div>
           <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded p-2 flex flex-col">
             <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-muted)] mb-1">Revision Activity (Monthly)</span>
-            <ReactECharts option={timelineOption} style={{ height: 150, width: '100%' }} opts={{ renderer: 'svg' }} />
+            <ReactECharts key="timeline-analytics" option={timelineOption} notMerge={true} style={{ height: 150, width: '100%' }} opts={{ renderer: 'svg' }} />
           </div>
         </div>
 
@@ -257,7 +257,7 @@ const BudgetGovernanceWorkspace = ({
             {!selectedRevision ? (
               <div className="flex flex-col gap-2 flex-1">
                 <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--text-muted)] mb-1">Status Distribution</span>
-                <ReactECharts option={statusDonutOption} style={{ height: 160, width: '100%' }} opts={{ renderer: 'svg' }} />
+                <ReactECharts key="status-donut-split" option={statusDonutOption} notMerge={true} style={{ height: 160, width: '100%' }} opts={{ renderer: 'svg' }} />
               </div>
             ) : (
               <div className="flex-1 flex flex-col gap-3 text-[11px] justify-between">
@@ -305,7 +305,7 @@ const BudgetGovernanceWorkspace = ({
               <BarChart3 size={12} className="text-[var(--text-muted)]" /> Budget Impact (Δ by Project)
             </h4>
             {revisions.length > 0 ? (
-              <ReactECharts option={revisionImpactOption} style={{ height: 200, width: '100%' }} opts={{ renderer: 'svg' }} />
+              <ReactECharts key="revision-impact-split" option={revisionImpactOption} notMerge={true} style={{ height: 200, width: '100%' }} opts={{ renderer: 'svg' }} />
             ) : (
               <div className="text-center text-[var(--text-muted)] py-4 italic text-xs">No revision data</div>
             )}

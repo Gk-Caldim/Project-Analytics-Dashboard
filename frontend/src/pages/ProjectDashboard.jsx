@@ -39,7 +39,6 @@ import PortfolioHealthMatrix from '../components/dashboard/PortfolioHealthMatrix
 import OperationsCommandCenter from '../components/dashboard/OperationsCommandCenter';
 import BudgetGovernanceWorkspace from '../components/dashboard/BudgetGovernanceWorkspace';
 import SupplyChainRiskCenter from '../components/dashboard/SupplyChainRiskCenter';
-import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
 import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 import ResourceLoads from '../components/dashboard/ResourceLoads';
@@ -4958,6 +4957,10 @@ const ProjectTitleDashboard = () => {
         {!activeProject ? (
           /* Home / Projects Overview View */
           <DashboardHomeLayout>
+            <div className="dashboard-header-title-section">
+              <h1 className="dashboard-title">Project Command Center</h1>
+              <p className="dashboard-subtitle">Enterprise-level project health, budget governance, and resource analytics overview.</p>
+            </div>
             <TodayPrioritiesStrip
               escalationsCount={escalationsCount}
               criticalPathDelaysCount={criticalPathDelaysCount}
@@ -5028,16 +5031,6 @@ const ProjectTitleDashboard = () => {
                           onRefresh={handleHomepageRefresh}
                         />
                       </div>
-                    </div>
-
-                    {/* Operational Activity Stream — preserved below the sketch grid */}
-                    <div id="operational-activity-stream">
-                      <OperationalActivityStream
-                        uploads={allUploads}
-                        meetings={meetingsData || []}
-                        revisions={allRevisionsData || []}
-                        milestones={allMilestonesFromSummary}
-                      />
                     </div>
                   </div>
                 );

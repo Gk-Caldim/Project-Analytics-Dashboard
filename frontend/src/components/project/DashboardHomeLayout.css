@@ -170,3 +170,62 @@
     margin-right: auto;
   }
 }
+
+/* =========================================================================
+   Dashboard Title Header Styling
+   ========================================================================= */
+.dashboard-header-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px 16px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
+}
+
+.dashboard-title {
+  font-size: 24px !important;
+  font-weight: 900 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: -0.02em !important;
+  margin: 0 !important;
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent) 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.dashboard-subtitle {
+  font-size: 13px !important;
+  color: var(--text-muted) !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+/* =========================================================================
+   Grid Card Header Accent Highlights (Visual Recognition)
+   ========================================================================= */
+.sketch-cell > div > div:first-child,
+.sketch-cell > section > header,
+.sketch-row-timeline > section > div:first-child {
+  position: relative !important;
+  border-left: 4px solid var(--accent) !important;
+  padding-left: 16px !important;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%) !important;
+}
+
+/* Ensure consistent text styling for highlighted header titles */
+.sketch-cell h3,
+.sketch-row-timeline h3 {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 !important;
+}
