@@ -10,6 +10,8 @@ import Skeleton from '../components/ui/skeleton';
 import API from '../utils/api';
 import { listIssues } from '../api/issues';
 import './VPProjectDashboard.css';
+import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
+import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 
 const VPProjectDashboard = ({
   activeProject,
@@ -34,6 +36,9 @@ const VPProjectDashboard = ({
   const [recentMeetings, setRecentMeetings] = useState([]);
   const [momIssues, setMomIssues] = useState([]);
   const [syncHistory, setSyncHistory] = useState([]);
+  const [projectTeam, setProjectTeam] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
   // --- Gantt Chart filters & state (lifted) ---
   const [zoomLevel, setZoomLevel] = useState('Week'); // 'Day' | 'Week' | 'Month'
@@ -469,6 +474,23 @@ const VPProjectDashboard = ({
       });
   }, [activeProject?.dbProjectId]);  // depend on ID only, not full object
 
+  const fetchTeamAndEmployees = useCallback(async () => {
+    if (!activeProject?.dbProjectId) return;
+    try {
+      setLoadingTeam(true);
+      const [teamRes, empRes] = await Promise.all([
+        API.get(`/projects/${activeProject.dbProjectId}/team`),
+        API.get('/employees')
+      ]);
+      setProjectTeam(teamRes.data || []);
+      setEmployees(empRes.data || []);
+    } catch (e) {
+      console.error('[VPPD] Failed to fetch team/employees:', e);
+    } finally {
+      setLoadingTeam(false);
+    }
+  }, [activeProject?.dbProjectId]);
+
   useEffect(() => {
     // Only fetch when project ID actually changes
     const newId = activeProject?.dbProjectId;
@@ -476,6 +498,7 @@ const VPProjectDashboard = ({
     projectIdRef.current = newId;
 
     fetchMomIssues();
+    fetchTeamAndEmployees();
 
     API.get('/meetings')
       .then(res => {
@@ -628,19 +651,22 @@ const VPProjectDashboard = ({
 
   return (
     <div className="vppd-root" style={{ padding: 0 }}>
-      <div className="vppd-main-grid" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <div className="vppd-main-grid" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+        {/* ── PROJECT SUMMARY CARDS & CHARTS ── */}
+        {metricsContent}
 
         {/* ── PROJECT MILESTONES & TIMELINE ── */}
         {visibleSections.milestones && (
           <div className="vppd-section full" style={{
             backgroundColor: 'var(--surface)',
             borderRadius: '12px',
-            padding: '24px',
+            padding: '16px',
             border: '1px solid var(--border-strong)',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px'
+            gap: '12px'
           }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -784,7 +810,7 @@ const VPProjectDashboard = ({
                   No milestones configured yet
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '360px', lineHeight: 1.5 }}>
-                  Go to Project Master -> Detailed View -> Milestone Management tab to create and manage WBS schedules for this project.
+                  Go to Project Master {'→'} Detailed View {'→'} Milestone Management tab to create and manage WBS schedules for this project.
                 </div>
                 <button
                   onClick={() => navigate(`/dashboard/masters/project-master/${activeProject?.dbProjectId || activeProject?.id}`)}
@@ -1500,18 +1526,26 @@ const VPProjectDashboard = ({
           </div>
         )}
 
-        {/* ── PROJECT METRICS SUMMARY ── */}
-        {visibleSections.metricsSummary && metricsContent && (
-          <div className="vppd-section full">
-            <div className="vppd-section-header">
-              <TrendingUp size={18} color="var(--accent)" />
-              Project Metrics Summary
-            </div>
-            <div style={{ padding: '0px' }}>
-              {metricsContent}
-            </div>
-          </div>
-        )}
+        {/* ── RESOURCE & QUALITY HEALTH CENTERS ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+          {visibleSections.resource && (
+            <ResourceManagementCenter
+              projectTeam={projectTeam}
+              employees={employees}
+              projectId={activeProject?.dbProjectId || activeProject?.id}
+              onRefresh={fetchTeamAndEmployees}
+            />
+          )}
+
+          {visibleSections.quality && (
+            <QualityHealthCenter
+              projectMilestones={milestones}
+              projectId={activeProject?.dbProjectId || activeProject?.id}
+              projectName={activeProject?.name}
+              onRefresh={onRetry}
+            />
+          )}
+        </div>
 
         {/* ── MOM ISSUES ── */}
         {visibleSections.criticalIssues && (

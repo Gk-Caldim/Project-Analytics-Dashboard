@@ -1,0 +1,74 @@
+/*
+ * Jira-Style Industrial Design System — CSS Custom Properties
+ * ────────────────────────────────────────────────────────────
+ * Additive layer on top of existing index.css variables.
+ * Defines NEW tokens only — does NOT redeclare vars from index.css
+ * to avoid conflicts with the existing component tree.
+ *
+ * Existing vars consumed directly from index.css:
+ *   --accent, --text-primary, --text-secondary, --text-muted,
+ *   --surface, --bg, --elevated-card, --border-subtle, --border-strong,
+ *   --green, --red, --amber
+ */
+
+:root {
+  /* ── Accent Extensions ─────────────────────────────────── */
+  --accent-light: #93c5fd;
+  --accent-dark: #1e40af;
+
+  /* ── Extended Palette ──────────────────────────────────── */
+  --blue: #3b82f6;
+  --indigo: #6366f1;
+
+  /* ── Gradients ─────────────────────────────────────────── */
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-danger: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+
+  /* ── Shadows ───────────────────────────────────────────── */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-navbar: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* ── Layout Tokens ─────────────────────────────────────── */
+  --navbar-height: 56px;
+  --sidebar-width-expanded: 240px;
+  --sidebar-width-collapsed: 60px;
+  --content-max-width: 1400px;
+  --content-padding-y: 24px;
+  --content-padding-x: 32px;
+  --card-gap: 16px;
+
+  /* ── Transition Tokens ─────────────────────────────────── */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+
+  /* ── Z-Index Scale ─────────────────────────────────────── */
+  --z-sidebar: 50;
+  --z-navbar: 100;
+  --z-filter-panel: 200;
+  --z-modal-overlay: 1000;
+}
+
+/* ── Dark Theme Extensions ─────────────────────────────── */
+[data-theme='dark'] {
+  --accent-light: #60a5fa;
+  --accent-dark: #1e3a8a;
+
+  --blue: #60a5fa;
+  --indigo: #818cf8;
+
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  --gradient-danger: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.3);
+  --shadow-navbar: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+}

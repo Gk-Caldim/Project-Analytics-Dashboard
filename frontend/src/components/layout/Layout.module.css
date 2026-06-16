@@ -1,0 +1,68 @@
+/* Layout.module.css — Master layout wrapper */
+
+.layoutRoot {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ── Navbar spacer (pushes content below fixed navbar) ──── */
+.navbarSpacer {
+  height: var(--navbar-height, 56px);
+  flex-shrink: 0;
+}
+
+/* ── Body = sidebar + content ────────────────────────────── */
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Sidebar offset spacer (non-fixed element to occupy sidebar space) ── */
+.sidebarSpacer {
+  width: var(--sidebar-width-expanded, 240px);
+  flex-shrink: 0;
+  transition: width var(--duration-normal, 250ms) var(--ease-default);
+}
+
+.sidebarSpacerCollapsed {
+  width: var(--sidebar-width-collapsed, 60px);
+}
+
+/* ── Main content area ───────────────────────────────────── */
+.content {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--content-max-width, 1400px);
+  margin: 0 auto;
+  padding: var(--content-padding-y, 24px) var(--content-padding-x, 32px);
+  width: 100%;
+}
+
+/* ── When content should fill available width without max constraint ── */
+.contentFluid {
+  max-width: none;
+}
+
+/* ── Mobile adjustments ──────────────────────────────────── */
+@media (max-width: 640px) {
+  .sidebarSpacer {
+    width: 0;
+  }
+
+  .content {
+    padding: 16px 12px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .sidebarSpacer {
+    width: 200px;
+  }
+
+  .content {
+    padding: 20px 24px;
+  }
+}

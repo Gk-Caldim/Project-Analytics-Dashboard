@@ -1,8 +1,8 @@
 .dashboard-home-layout {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 24px;
+  gap: 16px;
+  padding: 16px 20px;
   background-color: var(--bg);
   overflow-y: auto;
   flex: 1;

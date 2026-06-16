@@ -75,6 +75,14 @@ def list_revisions(db: Session = Depends(get_db)):
     return db.query(BudgetRevision).order_by(BudgetRevision.created_at.desc()).all()
 
 
+@router.get("/commodities/")
+def get_commodities(db: Session = Depends(get_db)):
+    """Get latest commodity prices/indices for supply chain center."""
+    from app.services.commodity_service import get_latest_commodity_prices
+    return get_latest_commodity_prices(db)
+
+
+
 @router.post("/revisions/", response_model=BudgetRevisionResponse)
 async def submit_revision(
     project_id: Optional[str] = Form(None),

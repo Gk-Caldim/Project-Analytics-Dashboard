@@ -34,6 +34,15 @@ import WelcomePanel from '../components/project/WelcomePanel';
 import ProjectsPanel from '../components/project/ProjectsPanel';
 import ModulesPanel from '../components/project/ModulesPanel';
 
+import TodayPrioritiesStrip from '../components/dashboard/TodayPrioritiesStrip';
+import PortfolioHealthMatrix from '../components/dashboard/PortfolioHealthMatrix';
+import OperationsCommandCenter from '../components/dashboard/OperationsCommandCenter';
+import BudgetGovernanceWorkspace from '../components/dashboard/BudgetGovernanceWorkspace';
+import SupplyChainRiskCenter from '../components/dashboard/SupplyChainRiskCenter';
+import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
+import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
+import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
+
 
 
 // Helper to get display name without project prefix
@@ -798,6 +807,380 @@ const ProjectTitleDashboard = () => {
 
 
 
+  // --- New Dashboard Queries for Homepage Decision Areas ---
+  const { data: projectsSummaryData, refetch: refetchProjectsSummary } = useQuery({
+    queryKey: ['projectsSummary'],
+    queryFn: async () => {
+      const { getDashboardSummary } = await import('../api/dashboard');
+      return getDashboardSummary();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allRevisionsData, refetch: refetchAllRevisions } = useQuery({
+    queryKey: ['allRevisions'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/budget/revisions/');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: allIssuesData, refetch: refetchAllIssues } = useQuery({
+    queryKey: ['allIssues'],
+    queryFn: async () => {
+      const { listIssues } = await import('../api/issues');
+      return listIssues();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: commodityPricesData, refetch: refetchCommodityPrices } = useQuery({
+    queryKey: ['commodityPrices'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/budget/commodities/');
+      return response.data || {};
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: meetingsData, refetch: refetchMeetings } = useQuery({
+    queryKey: ['meetings'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/meetings');
+      return response.data?.meetings || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { default: API } = await import('../utils/api');
+      const response = await API.get('/employees');
+      return response.data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const handleHomepageRefresh = () => {
+    refetchProjectsSummary();
+    refetchAllRevisions();
+    refetchAllIssues();
+    refetchCommodityPrices();
+    refetchMeetings();
+  };
+
+  const handleMatrixAction = (action, payload) => {
+    if (action === 'open-tracker') {
+      const { trackerId, struct } = payload;
+      const reduxProj = projects.find(p => String(p.dbProjectId) === String(struct.project_id));
+      if (reduxProj) {
+        setSearchParams({
+          projectId: reduxProj.id,
+          submoduleId: trackerId
+        });
+      }
+    }
+  };
+
+  // --- Derived Selectors & Metrics ---
+  const mergedProjectsSummary = useMemo(() => {
+    if (!projectsSummaryData) return [];
+    let list = projectsSummaryData.map(p => {
+      const reduxProj = projects.find(rp => String(rp.dbProjectId) === String(p.project_id));
+      return {
+        ...p,
+        id: reduxProj?.id || `project-id-${p.project_id}`,
+        budgetApproved: reduxProj?.budget || 0,
+        budgetUtilized: reduxProj?.utilized_budget || 0,
+        budgetBalance: reduxProj?.balance_budget || 0,
+      };
+    });
+
+    // Apply pinned priority sorting
+    list.sort((a, b) => {
+      const aPinned = pinnedProjects.includes(a.id);
+      const bPinned = pinnedProjects.includes(b.id);
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return 0;
+    });
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(p => p.project_name.toLowerCase().includes(q));
+    }
+
+    return list;
+  }, [projectsSummaryData, projects, pinnedProjects, searchQuery]);
+
+  const issuesMap = useMemo(() => {
+    const map = {};
+    (allIssuesData || []).forEach(issue => {
+      const pid = issue.project_id;
+      if (!map[pid]) map[pid] = [];
+      map[pid].push(issue);
+    });
+    return map;
+  }, [allIssuesData]);
+
+  const budgetsMap = useMemo(() => {
+    const map = {};
+    projects.forEach(p => {
+      map[p.name] = {
+        overall_budget: p.budget,
+        spent: p.utilized_budget,
+        balance: p.balance_budget
+      };
+    });
+    return map;
+  }, [projects]);
+
+  const allUploads = useMemo(() => {
+    if (!structuresData) return [];
+    const list = [];
+    structuresData.forEach(struct => {
+      if (struct.uploads) {
+        struct.uploads.forEach(u => {
+          list.push({
+            ...u,
+            project_id: struct.project_id,
+            project_name: struct.project_name
+          });
+        });
+      }
+    });
+    return list.sort((a, b) => {
+      const da = a.uploaded_at ? new Date(a.uploaded_at) : new Date(0);
+      const db = b.uploaded_at ? new Date(b.uploaded_at) : new Date(0);
+      return db - da;
+    });
+  }, [structuresData]);
+
+  const ALERT_THRESHOLDS = { steel: 10.0, copper: 8.0, lithium: 12.0, aluminium: 10.0, fuel: 10.0, rubber: 10.0, semiconductor: 0.0 };
+
+  const commodityAlerts = useMemo(() => {
+    const alerts = [];
+    Object.entries(commodityPricesData || {}).forEach(([cat, data]) => {
+      const pct = data.percentage_change || 0;
+      const thresh = ALERT_THRESHOLDS[cat] ?? 10.0;
+      const isShortage = cat === 'semiconductor' && (data.supply_chain_risk || 0) > 0.65;
+      if (pct >= thresh || isShortage) {
+        alerts.push({
+          id: `commodity-${cat}`,
+          title: cat.toUpperCase(),
+          category: cat,
+          severity: pct >= (thresh * 1.5) ? 'Critical' : 'High',
+          message: isShortage 
+            ? `⚠️ Semiconductor supply risk: ${data.supply_chain_risk || 0.7}`
+            : `🚨 Price spike: ${pct}%`
+        });
+      }
+    });
+    return alerts;
+  }, [commodityPricesData]);
+
+  const escalations = useMemo(() => {
+    return (allIssuesData || []).filter(i => i.status !== 'Closed' && i.priority === 'High');
+  }, [allIssuesData]);
+
+  const delays = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return (allIssuesData || []).filter(i => {
+      if (i.status === 'Closed' || !i.due_date) return false;
+      const due = new Date(i.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due < today;
+    });
+  }, [allIssuesData]);
+
+  const momActions = useMemo(() => {
+    return (allIssuesData || []).filter(i => {
+      if (i.status === 'Closed') return false;
+      if ((i.source || '').toUpperCase() !== 'MOM') return false;
+      if (!i.due_date) return true;
+      const todayStr = new Date().toISOString().split('T')[0];
+      return i.due_date.startsWith(todayStr);
+    });
+  }, [allIssuesData]);
+
+  const allMilestonesFromSummary = useMemo(() => {
+    const list = [];
+    (projectsSummaryData || []).forEach(proj => {
+      if (proj.delayed > 0) {
+        list.push({
+          id: `milestone-delay-${proj.project_id}`,
+          activity_name: `${proj.project_name} baseline milestone schedule`,
+          status: 'Delayed',
+          complete_percent: proj.on_track_pct,
+          end_date: new Date().toISOString()
+        });
+      }
+    });
+    return list;
+  }, [projectsSummaryData]);
+
+  const myTasks = useMemo(() => {
+    if (!allIssuesData || !user?.full_name) return [];
+    const name = user.full_name.toLowerCase();
+    return allIssuesData.filter(i => 
+      i.status !== 'Closed' && 
+      (i.owner || '').toLowerCase().includes(name)
+    );
+  }, [allIssuesData, user]);
+
+  const ingestionLogs = useMemo(() => {
+    if (!structuresData) return [];
+    const list = [];
+    structuresData.forEach(struct => {
+      if (struct.uploads) {
+        struct.uploads.forEach(u => {
+          list.push({
+            ...u,
+            project_name: struct.project_name
+          });
+        });
+      }
+    });
+    return list.sort((a, b) => new Date(b.uploaded_at || 0) - new Date(a.uploaded_at || 0));
+  }, [structuresData]);
+
+  const escalationsCount = escalations.length;
+  const criticalPathDelaysCount = (projectsSummaryData || []).reduce((acc, p) => acc + (p.delayed || 0), 0);
+  const revisionsCount = (allRevisionsData || []).filter(r => r.status === 'Pending Head' || r.status === 'Pending Finance').length;
+  const commodityAlertsCount = commodityAlerts.length;
+
+  const renderMyTasksChecklist = () => {
+    return (
+      <div className="w-full bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex flex-col mb-6">
+        <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+          <h3 className="m-0 text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <CheckCircle2 size={14} className="text-emerald-500" />
+            My Action Items Checklist
+          </h3>
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800">
+            Assigned to Me
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          {myTasks.length === 0 ? (
+            <div className="text-center text-slate-500 py-10 italic text-xs">
+              No active tasks assigned to you. Enjoy your clean workspace!
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px] select-none">
+                  <th className="p-3">Task / Issue</th>
+                  <th className="p-3">Project</th>
+                  <th className="p-3 text-center">Priority</th>
+                  <th className="p-3 text-center">Due Date</th>
+                  <th className="p-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myTasks.map(task => (
+                  <tr key={task.id} className="border-b border-slate-800 hover:bg-slate-850/30 transition-colors">
+                    <td className="p-3 font-semibold text-slate-200">{task.title}</td>
+                    <td className="p-3 text-slate-400">
+                      {projects.find(p => String(p.dbProjectId) === String(task.project_id))?.name || `Project ${task.project_id}`}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold border uppercase ${
+                        task.priority === 'High' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                        task.priority === 'Medium' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                        'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                      }`}>
+                        {task.priority || 'Low'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center text-slate-300 font-semibold">{task.due_date || 'N/A'}</td>
+                    <td className="p-3 text-center">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const { updateIssue } = await import('../api/issues');
+                            await updateIssue(task.id, { status: 'Closed' });
+                            toast.success('Task marked as completed');
+                            refetchAllIssues();
+                          } catch (e) {
+                            toast.error('Failed to update task');
+                          }
+                        }}
+                        className="px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-400 border border-emerald-500/20 hover:border-emerald-400/40 hover:bg-emerald-500/10 rounded transition-all cursor-pointer"
+                      >
+                        Complete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderIngestionTrackerLogs = () => {
+    return (
+      <div className="w-full bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex flex-col mb-6">
+        <div className="px-4 py-3 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
+          <h3 className="m-0 text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Database size={14} className="text-blue-500" />
+            Ingestion Tracker Logs
+          </h3>
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800">
+            System Logs
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          {ingestionLogs.length === 0 ? (
+            <div className="text-center text-slate-500 py-10 italic text-xs">
+              No recent ingestion logs found.
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px] select-none">
+                  <th className="p-3">File Name</th>
+                  <th className="p-3">Project</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-right">Row Count</th>
+                  <th className="p-3 text-center">Date Ingested</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ingestionLogs.slice(0, 15).map((log, idx) => (
+                  <tr key={log.upload_id || idx} className="border-b border-slate-800 hover:bg-slate-850/30 transition-colors">
+                    <td className="p-3 font-semibold text-slate-200 truncate max-w-[200px]">{log.file_name}</td>
+                    <td className="p-3 text-slate-400">{log.project_name}</td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold border uppercase ${
+                        log.status === 'Completed' || log.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                        log.status === 'Failed' || log.status === 'error' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                        'bg-slate-500/10 text-slate-400 border-slate-800'
+                      }`}>
+                        {log.status || 'unknown'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right font-bold text-slate-300">{log.row_count || 0}</td>
+                    <td className="p-3 text-center text-slate-500 font-medium">{log.uploaded_at || 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // BUFFER STATE for Dashboard Configuration Modal
   const [tempVisibleSections, setTempVisibleSections] = useState({ ...visibleSections });
 
@@ -812,7 +1195,22 @@ const ProjectTitleDashboard = () => {
   useEffect(() => {
     if (activeProject?.dashboardConfig) {
       if (activeProject.dashboardConfig.visibleSections) {
-        setVisibleSections(activeProject.dashboardConfig.visibleSections);
+        setVisibleSections({
+          metricsSummary: true,
+          milestones: true,
+          criticalIssues: true,
+          budget: true,
+          resource: true,
+          quality: true,
+          design: true,
+          partDevelopment: true,
+          build: true,
+          gateway: true,
+          validation: true,
+          qualityIssues: true,
+          sopTables: false,
+          ...activeProject.dashboardConfig.visibleSections
+        });
       }
       if (activeProject.dashboardConfig.chartTypes) {
         setChartTypes(prev => ({
@@ -829,17 +1227,18 @@ const ProjectTitleDashboard = () => {
     } else if (activeProject) {
       // Reset to default if no config found for active project
       setVisibleSections({
+        metricsSummary: true,
         milestones: true,
         criticalIssues: true,
-        budget: false,
-        resource: false,
-        quality: false,
-        design: false,
-        partDevelopment: false,
-        build: false,
-        gateway: false,
-        validation: false,
-        qualityIssues: false,
+        budget: true,
+        resource: true,
+        quality: true,
+        design: true,
+        partDevelopment: true,
+        build: true,
+        gateway: true,
+        validation: true,
+        qualityIssues: true,
         sopTables: false
       });
     }
@@ -1366,7 +1765,22 @@ const ProjectTitleDashboard = () => {
 
     if (selectedProject?.dashboardConfig) {
       setSearchParams({ projectId: selectedProject.id });
-      setVisibleSections(selectedProject.dashboardConfig.visibleSections || {});
+      setVisibleSections({
+        metricsSummary: true,
+        milestones: true,
+        criticalIssues: true,
+        budget: true,
+        resource: true,
+        quality: true,
+        design: true,
+        partDevelopment: true,
+        build: true,
+        gateway: true,
+        validation: true,
+        qualityIssues: true,
+        sopTables: false,
+        ...(selectedProject.dashboardConfig.visibleSections || {})
+      });
     } else if (selectedProject) {
       // If no config, go straight to configure modal
       // We use push here because it's a new "page" transition from the list
@@ -1455,7 +1869,22 @@ const ProjectTitleDashboard = () => {
     if (activeProject && !activeProject.dashboardConfig) {
       handleBackToProjects();
     } else if (activeProject && activeProject.dashboardConfig) {
-      setVisibleSections(activeProject.dashboardConfig.visibleSections || {});
+      setVisibleSections({
+        metricsSummary: true,
+        milestones: true,
+        criticalIssues: true,
+        budget: true,
+        resource: true,
+        quality: true,
+        design: true,
+        partDevelopment: true,
+        build: true,
+        gateway: true,
+        validation: true,
+        qualityIssues: true,
+        sopTables: false,
+        ...(activeProject.dashboardConfig.visibleSections || {})
+      });
     }
     setShowSimulateModal(false);
   };
@@ -4327,7 +4756,7 @@ const ProjectTitleDashboard = () => {
       height: '100%',
       minHeight: '0',
       backgroundColor: 'var(--bg)',
-      padding: '16px',
+      padding: '8px 12px',
       fontFamily: "'Inter', sans-serif",
       display: 'flex',
       flexDirection: 'column',
@@ -4397,8 +4826,8 @@ const ProjectTitleDashboard = () => {
           <header style={{
             backgroundColor: 'var(--surface)',
             color: 'var(--text-primary)',
-            padding: '16px 32px',
-            fontSize: '16px',
+            padding: '10px 20px',
+            fontSize: '15px',
             fontWeight: '600',
             borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
@@ -4449,7 +4878,22 @@ const ProjectTitleDashboard = () => {
                   <button
                     aria-label="Configure Dashboard Visibility"
                     onClick={() => {
-                      setVisibleSections(activeProject.dashboardConfig?.visibleSections || {});
+                      setVisibleSections({
+                        metricsSummary: true,
+                        milestones: true,
+                        criticalIssues: true,
+                        budget: true,
+                        resource: true,
+                        quality: true,
+                        design: true,
+                        partDevelopment: true,
+                        build: true,
+                        gateway: true,
+                        validation: true,
+                        qualityIssues: true,
+                        sopTables: false,
+                        ...(activeProject.dashboardConfig?.visibleSections || {})
+                      });
                       setShowSimulateModal(true);
                     }}
                     style={{
@@ -4512,49 +4956,143 @@ const ProjectTitleDashboard = () => {
         {!activeProject ? (
           /* Home / Projects Overview View */
           <DashboardHomeLayout>
-            <WelcomePanel
-              user={user}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              homeSearchFocused={homeSearchFocused}
-              setHomeSearchFocused={setHomeSearchFocused}
-              filteredAndSortedProjects={filteredAndSortedProjects}
-              handleProjectSelect={handleProjectSelect}
-              getUserInitials={getUserInitials}
-              getGreeting={getGreeting}
+            <TodayPrioritiesStrip
+              escalationsCount={escalationsCount}
+              criticalPathDelaysCount={criticalPathDelaysCount}
+              revisionsCount={revisionsCount}
+              commodityAlertsCount={commodityAlertsCount}
+              onAlertClick={(type) => {
+                const elementId = type === 'escalations' ? 'operations-command-center' :
+                                  type === 'delays' ? 'portfolio-health-matrix' :
+                                  type === 'revisions' ? 'budget-governance-workspace' :
+                                  type === 'commodity' ? 'supply-chain-risk-center' : null;
+                if (elementId) {
+                  const el = document.getElementById(elementId);
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
             />
-            <ProjectsPanel
-              filteredAndSortedProjects={filteredAndSortedProjects}
-              currentPage={currentPage}
-              setCurrentPage={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              selectionMode={selectionMode}
-              setSelectionMode={setSelectionMode}
-              selectedProjects={selectedProjects}
-              setSelectedProjects={setSelectedProjects}
-              pinnedProjects={pinnedProjects}
-              setPinnedProjects={setPinnedProjects}
-              projectUrgency={projectUrgency}
-              setProjectUrgency={setProjectUrgency}
-              setProjectToDelete={setProjectToDelete}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              handleProjectSelect={handleProjectSelect}
-              handleBulkPin={handleBulkPin}
-              handleBulkUrgency={handleBulkUrgency}
-            />
-            <ModulesPanel
-              projects={projects}
-              handleProjectSelect={handleProjectSelect}
-              dispatch={dispatch}
-              setActiveModule={setActiveModule}
-              setExpandedModules={setExpandedModules}
-              navigate={navigate}
-            />
+
+            {(() => {
+              const role = (user?.role || 'Admin').trim();
+              const isExecOrAdmin = ['Admin', 'Super Admin', 'Finance', 'Head'].includes(role);
+              const isPM = role === 'Project Manager';
+
+              if (isExecOrAdmin) {
+                return (
+                  <div className="dash-layout-main-sidebar">
+                    {/* Main content column */}
+                    <div className="flex flex-col gap-3 min-w-0">
+                      {/* Portfolio Health Matrix — full width of main column */}
+                      <div id="portfolio-health-matrix">
+                        <PortfolioHealthMatrix
+                          projectsSummary={mergedProjectsSummary}
+                          structures={structuresData || []}
+                          onProjectSelect={(proj) => {
+                            const found = projects.find(p => String(p.dbProjectId) === String(proj.project_id));
+                            if (found) handleProjectSelect(found.id);
+                          }}
+                          issuesMap={issuesMap}
+                          budgetsMap={budgetsMap}
+                          onActionClick={handleMatrixAction}
+                        />
+                      </div>
+
+                      {/* Budget + Supply Chain side by side */}
+                      <div className="dash-grid-halves">
+                        <div id="budget-governance-workspace">
+                          <BudgetGovernanceWorkspace
+                            revisions={allRevisionsData || []}
+                            onRefresh={handleHomepageRefresh}
+                          />
+                        </div>
+                        <div id="supply-chain-risk-center">
+                          <SupplyChainRiskCenter
+                            commodityPrices={commodityPricesData || {}}
+                            projects={mergedProjectsSummary}
+                            structures={structuresData || []}
+                            onRefresh={handleHomepageRefresh}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Fixed sidebar — Activity Stream */}
+                    <div className="dash-sidebar-sticky">
+                      <OperationalActivityStream
+                        uploads={allUploads}
+                        meetings={meetingsData || []}
+                        revisions={allRevisionsData || []}
+                        milestones={allMilestonesFromSummary}
+                      />
+                    </div>
+                  </div>
+                );
+              } else if (isPM) {
+                return (
+                  <div className="dash-layout-main-sidebar">
+                    {/* Main content column */}
+                    <div className="flex flex-col gap-3 min-w-0">
+                      <div id="operations-command-center">
+                        <OperationsCommandCenter
+                          escalations={escalations}
+                          delays={delays}
+                          revisions={allRevisionsData || []}
+                          commodityAlerts={commodityAlerts}
+                          momActions={momActions}
+                          onRefresh={handleHomepageRefresh}
+                        />
+                      </div>
+                      <div id="portfolio-health-matrix">
+                        <PortfolioHealthMatrix
+                          projectsSummary={mergedProjectsSummary}
+                          structures={structuresData || []}
+                          onProjectSelect={(proj) => {
+                            const found = projects.find(p => String(p.dbProjectId) === String(proj.project_id));
+                            if (found) handleProjectSelect(found.id);
+                          }}
+                          issuesMap={issuesMap}
+                          budgetsMap={budgetsMap}
+                          onActionClick={handleMatrixAction}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Fixed sidebar — Activity Stream */}
+                    <div className="dash-sidebar-sticky">
+                      <OperationalActivityStream
+                        uploads={allUploads}
+                        meetings={meetingsData || []}
+                        revisions={allRevisionsData || []}
+                        milestones={allMilestonesFromSummary}
+                      />
+                    </div>
+                  </div>
+                );
+              } else {
+                // Team Lead / Engineer / Employee
+                return (
+                  <div className="dash-layout-main-sidebar">
+                    <div className="flex flex-col gap-3 min-w-0">
+                      {renderMyTasksChecklist()}
+                      {renderIngestionTrackerLogs()}
+                    </div>
+                    <div className="dash-sidebar-sticky">
+                      <OperationalActivityStream
+                        uploads={allUploads}
+                        meetings={meetingsData || []}
+                        revisions={allRevisionsData || []}
+                        milestones={allMilestonesFromSummary}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            })()}
           </DashboardHomeLayout>
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
-          <div style={{ padding: '20px 25px 25px 25px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 16px 16px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {renderSubmoduleTable(
               selectedSubmodule.trackerId ? submoduleData[selectedSubmodule.trackerId] : dashboardData?.milestones,
               getDisplayFileName(selectedSubmodule.name, selectedSubmodule.projectName)
@@ -4563,7 +5101,7 @@ const ProjectTitleDashboard = () => {
         ) : (
           /* Active Project Dashboard */
           <>
-            <section aria-label="Project Overview Content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '32px', flex: 1, overflowY: 'auto' }}>
+            <section aria-label="Project Overview Content" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
               <VPProjectDashboard
                 activeProject={activeProject}
                 dashboardData={dashboardData}
