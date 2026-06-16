@@ -42,6 +42,8 @@ import SupplyChainRiskCenter from '../components/dashboard/SupplyChainRiskCenter
 import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
 import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
+import ResourceLoads from '../components/dashboard/ResourceLoads';
+import ProjectTimelinePanel from '../components/dashboard/ProjectTimelinePanel';
 
 
 
@@ -4980,11 +4982,10 @@ const ProjectTitleDashboard = () => {
 
               if (isExecOrAdmin) {
                 return (
-                  <div className="dash-layout-main-sidebar">
-                    {/* Main content column */}
-                    <div className="flex flex-col gap-3 min-w-0">
-                      {/* Portfolio Health Matrix — full width of main column */}
-                      <div id="portfolio-health-matrix">
+                  <div className="sketch-dashboard">
+                    {/* Row 1 — Portfolio Health Matrix | Budget Governance Workspace */}
+                    <div className="sketch-row-top">
+                      <div className="sketch-cell" id="portfolio-health-matrix">
                         <PortfolioHealthMatrix
                           projectsSummary={mergedProjectsSummary}
                           structures={structuresData || []}
@@ -4997,28 +4998,40 @@ const ProjectTitleDashboard = () => {
                           onActionClick={handleMatrixAction}
                         />
                       </div>
-
-                      {/* Budget + Supply Chain side by side */}
-                      <div className="dash-grid-halves">
-                        <div id="budget-governance-workspace">
-                          <BudgetGovernanceWorkspace
-                            revisions={allRevisionsData || []}
-                            onRefresh={handleHomepageRefresh}
-                          />
-                        </div>
-                        <div id="supply-chain-risk-center">
-                          <SupplyChainRiskCenter
-                            commodityPrices={commodityPricesData || {}}
-                            projects={mergedProjectsSummary}
-                            structures={structuresData || []}
-                            onRefresh={handleHomepageRefresh}
-                          />
-                        </div>
+                      <div className="sketch-cell" id="budget-governance-workspace">
+                        <BudgetGovernanceWorkspace
+                          revisions={allRevisionsData || []}
+                          onRefresh={handleHomepageRefresh}
+                        />
                       </div>
                     </div>
 
-                    {/* Fixed sidebar — Activity Stream */}
-                    <div className="dash-sidebar-sticky">
+                    {/* Row 2 — Project Timeline (full width, tabbed) */}
+                    <div className="sketch-row-timeline" id="project-timeline">
+                      <ProjectTimelinePanel
+                        projects={mergedProjectsSummary}
+                        uploads={allUploads}
+                        revisions={allRevisionsData || []}
+                      />
+                    </div>
+
+                    {/* Row 3 — Resource Loads (narrow) | Supply Chain Risk Center (wide) */}
+                    <div className="sketch-row-bottom">
+                      <div className="sketch-cell" id="resource-loads">
+                        <ResourceLoads employees={employeesData || allEmployees || []} />
+                      </div>
+                      <div className="sketch-cell" id="supply-chain-risk-center">
+                        <SupplyChainRiskCenter
+                          commodityPrices={commodityPricesData || {}}
+                          projects={mergedProjectsSummary}
+                          structures={structuresData || []}
+                          onRefresh={handleHomepageRefresh}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Operational Activity Stream — preserved below the sketch grid */}
+                    <div id="operational-activity-stream">
                       <OperationalActivityStream
                         uploads={allUploads}
                         meetings={meetingsData || []}

@@ -15,3 +15,158 @@
 .modules-panel-col {
   width: 100%;
 }
+
+/* =========================================================================
+   Sketch dashboard layout (exec/admin home)
+   Mobile-first: single column → tablet/desktop → big screens
+   Row 1: Portfolio Health Matrix | Budget Governance Workspace (halves)
+   Row 2: Project Timeline (full width, tabbed)
+   Row 3: Resource Loads (narrow) | Supply Chain Risk Center (wide)
+   ========================================================================= */
+.sketch-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.sketch-row-top,
+.sketch-row-bottom {
+  display: grid;
+  grid-template-columns: 1fr;   /* mobile: stacked */
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+.sketch-row-timeline {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Each grid cell must be allowed to shrink so inner charts/tables stay responsive */
+.sketch-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.sketch-cell > * {
+  min-width: 0;
+}
+
+/* Cell/component height constraint rules */
+#portfolio-health-matrix,
+#budget-governance-workspace {
+  height: 480px;
+}
+
+#project-timeline {
+  height: 400px;
+}
+
+#resource-loads,
+#supply-chain-risk-center {
+  height: 480px;
+}
+
+/* Ensure components inside sketch cells expand to full height and use flexbox */
+.sketch-cell > div,
+.sketch-cell > section {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  margin-bottom: 0 !important; /* override mb-6 */
+}
+
+/* Make content container below header scrollable if content overflows */
+.sketch-cell > div > div:nth-child(2) {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* Specific rule for full-width Project Timeline panel */
+.sketch-row-timeline > section {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.sketch-row-timeline > section > div:last-of-type {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* Premium scrollbar styling for scrollable grid cell contents */
+.sketch-cell > div > div:nth-child(2)::-webkit-scrollbar,
+.sketch-row-timeline > section > div:last-of-type::-webkit-scrollbar,
+.sketch-cell > section > div::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.sketch-cell > div > div:nth-child(2)::-webkit-scrollbar-track,
+.sketch-row-timeline > section > div:last-of-type::-webkit-scrollbar-track,
+.sketch-cell > section > div::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sketch-cell > div > div:nth-child(2)::-webkit-scrollbar-thumb,
+.sketch-row-timeline > section > div:last-of-type::-webkit-scrollbar-thumb,
+.sketch-cell > section > div::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+.sketch-cell > div > div:nth-child(2)::-webkit-scrollbar-thumb:hover,
+.sketch-row-timeline > section > div:last-of-type::-webkit-scrollbar-thumb:hover,
+.sketch-cell > section > div::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── Tablet / Desktop: ≥ 768px ── */
+@media (min-width: 768px) {
+  .sketch-row-top {
+    grid-template-columns: 1fr 1fr;          /* two equal halves */
+  }
+  .sketch-row-bottom {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); /* resource narrow, supply wide */
+  }
+  #project-timeline {
+    height: 420px;
+  }
+}
+
+/* ── Big screens: ≥ 1441px ── */
+@media (min-width: 1441px) {
+  .sketch-dashboard {
+    gap: 20px;
+  }
+  .sketch-row-top,
+  .sketch-row-bottom {
+    gap: 20px;
+  }
+  .sketch-row-bottom {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3.4fr);
+  }
+}
+
+/* ── Ultra-wide: ≥ 1920px — cap content width, keep proportions ── */
+@media (min-width: 1920px) {
+  .sketch-dashboard {
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
