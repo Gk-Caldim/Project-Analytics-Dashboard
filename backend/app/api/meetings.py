@@ -168,6 +168,7 @@ class ScheduleRequest(BaseModel):
     reminder_minutes: Optional[int] = None
     reminder_notify_attendees: Optional[bool] = True
     recurrence_rule: Optional[str] = None
+    color: Optional[str] = None
 
 class MeetingUpdateRequest(BaseModel):
     title: Optional[str] = None
@@ -187,6 +188,7 @@ class MeetingUpdateRequest(BaseModel):
     action_item_count: Optional[int] = None
     project_id: Optional[Any] = None
     recurrence_rule: Optional[str] = None
+    color: Optional[str] = None
 
 class CancelRequest(BaseModel):
     reason: Optional[str] = None
@@ -446,6 +448,7 @@ async def list_meetings(db: Session = Depends(get_db)):
                 "project_id":    m.project_id,
                 "recurrence_rule": m.recurrence_rule,
                 "recurrence_group_id": m.recurrence_group_id,
+                "color":         m.color,
             })
         return {"success": True, "meetings": results}
     except Exception as e:
@@ -482,6 +485,7 @@ async def publish_meeting(
         "attendees":       req.attendees or [],
         "timezone_name":   req.timezone,
         "agenda_text":     req.agenda_text or "",
+        "organizer_email": req.organizer_email,
     }
 
     platform   = req.platform.lower()
@@ -561,6 +565,7 @@ async def publish_meeting(
             reminder_notify_attendees=req.reminder_notify_attendees,
             recurrence_rule=req.recurrence_rule,
             recurrence_group_id=recurrence_group_id,
+            color=req.color,
         )
         db.add(meeting)
         db.commit()
@@ -589,6 +594,7 @@ async def publish_meeting(
                         reminder_notify_attendees=req.reminder_notify_attendees,
                         recurrence_rule=req.recurrence_rule,
                         recurrence_group_id=recurrence_group_id,
+                        color=req.color,
                     )
                     db.add(cloned)
                 db.commit()
@@ -611,6 +617,7 @@ async def publish_meeting(
                 "attendees":    req.attendees,
                 "invites_sent": meeting.invites_sent,
                 "project_id":   meeting.project_id,
+                "color":        meeting.color,
             },
         }
 
@@ -710,6 +717,7 @@ async def get_meeting(meeting_id: str, db: Session = Depends(get_db)):
             "cancellation_note": meeting.cancellation_note,
             "cancelled_by": meeting.cancelled_by,
             "project_id":   meeting.project_id,
+            "color":        meeting.color,
             "reminder_minutes": meeting.reminder_minutes,
             "reminder_notify_attendees": meeting.reminder_notify_attendees,
             "recurrence_rule": meeting.recurrence_rule,
@@ -825,6 +833,7 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
         if req.duration is not None: m.duration_minutes = req.duration  # type: ignore
         if req.attendees is not None: m.attendees = json.dumps(req.attendees)  # type: ignore
         if req.description is not None: m.description = req.description  # type: ignore
+        if req.color is not None: m.color = req.color  # type: ignore
         
         if req.status is not None:
             if m.status == "cancelled" and req.status in ("scheduled", "upcoming"):
@@ -886,7 +895,8 @@ async def update_meeting(meeting_id: str, req: MeetingUpdateRequest, db: Session
                 "description": meeting.description,
                 "agenda_text": meeting.agenda_text,
                 "attendees": emails_to_invite,
-                "timezone_name": meeting.timezone_name or "UTC"
+                "timezone_name": meeting.timezone_name or "UTC",
+                "organizer_email": meeting.organizer_email,
             }
             try:
                 email_service.send_meeting_invite(meeting_data, meeting.join_url)
@@ -960,7 +970,8 @@ async def resend_invite(meeting_id: str, payload: dict, db: Session = Depends(ge
         "description": meeting.description,
         "agenda_text": meeting.agenda_text,
         "attendees": [email],  # Target only this specific email
-        "timezone_name": meeting.timezone_name or "UTC"
+        "timezone_name": meeting.timezone_name or "UTC",
+        "organizer_email": meeting.organizer_email,
     }
     
     try:
@@ -1045,6 +1056,7 @@ async def duplicate_meeting(
             "attendees":       req.attendees or [],
             "timezone_name":   req.timezone,
             "agenda_text":     req.agenda_text or "",
+            "organizer_email": req.organizer_email,
         }
 
         if platform in ("google", "gmeet", "meet"):
@@ -1084,6 +1096,7 @@ async def duplicate_meeting(
         project_id=req.project_id,
         reminder_minutes=req.reminder_minutes,
         reminder_notify_attendees=req.reminder_notify_attendees,
+        color=req.color if req.color else original.color,
     )
     
     db.add(new_meeting)

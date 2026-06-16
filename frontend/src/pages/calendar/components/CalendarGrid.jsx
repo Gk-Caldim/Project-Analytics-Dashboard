@@ -174,7 +174,7 @@ const PLATFORMS = [
 
 
 // ── Quick Schedule Popup (Zoho One-Liner Aesthetic) ─────────────────────
-const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }) => {
+const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions, defaultColor }) => {
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(position.date);
   const [startTime, setStartTime] = useState(position.startTime);
@@ -184,7 +184,7 @@ const QuickSchedulePopup = ({ position, events, onClose, onSave, onMoreOptions }
   const [attendees, setAttendees] = useState([]);
   const [attendeeInput, setAttendeeInput] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState(PLATFORMS[0]);
-  const [eventColor, setEventColor] = useState(EVENT_COLORS[0].hex);
+  const [eventColor, setEventColor] = useState(defaultColor || EVENT_COLORS[0].hex);
   const [agenda, setAgenda] = useState('');
   
   // UI States
@@ -429,6 +429,24 @@ const CalendarGrid = ({
   const [nowPos, setNowPos] = useState(0);
   const [nowTime, setNowTime] = useState('');
   const [quickSchedule, setQuickSchedule] = useState(null);
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
+
+  // Measure scrollbar width dynamically to align header columns with body columns
+  useEffect(() => {
+    const updateScrollbarWidth = () => {
+      if (scrollRef.current) {
+        const width = scrollRef.current.offsetWidth - scrollRef.current.clientWidth;
+        setScrollbarWidth(width);
+      }
+    };
+    updateScrollbarWidth();
+    const timer = setTimeout(updateScrollbarWidth, 100);
+    window.addEventListener('resize', updateScrollbarWidth);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateScrollbarWidth);
+    };
+  }, [activeView, showWeekends, showWeekNumbers]);
 
   // ── Real-time now position (updates every minute) ──
   useEffect(() => {
@@ -592,7 +610,7 @@ const CalendarGrid = ({
     return (
       <div className="calendar-grid-container">
         {/* Day column headers */}
-        <div className="grid-header-row">
+        <div className="grid-header-row" style={{ paddingRight: scrollbarWidth }}>
           <div className="time-gutter-header">
             {showWeekNumbers && (
               <span className="week-num-label">W{weekNumber}</span>
@@ -601,8 +619,6 @@ const CalendarGrid = ({
               GMT+5:30
             </span>
           </div>
-          {/* Scrollbar offset spacer — matches padding-right on header row */}
-          <div style={{ width: 8, borderBottom: '1px solid var(--cg-border-light)', flexShrink: 0 }} />
           {displayDays.map((day, i) => {
             const isToday = day.isSame(dayjs(), 'day');
             return (
@@ -777,6 +793,7 @@ const CalendarGrid = ({
               <QuickSchedulePopup
                 position={quickSchedule}
                 events={events}
+                defaultColor={defaultColor}
                 onClose={() => setQuickSchedule(null)}
                 onSave={(title, extraData) => {
                   onQuickSave(title, { ...quickSchedule, ...extraData });
@@ -785,9 +802,10 @@ const CalendarGrid = ({
                 onMoreOptions={(extraData) => {
                   const dateStr = extraData?.date?.format('YYYY-MM-DD') || quickSchedule.date.format('YYYY-MM-DD');
                   const timeStr = extraData?.startTime || quickSchedule.startTime;
+                  const selectedCol = extraData?.color || defaultColor;
                   setQuickSchedule(null);
                   navigate(
-                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}`
+                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}${selectedCol ? `&color=${encodeURIComponent(selectedCol)}` : ''}`
                   );
                 }}
               />
@@ -904,6 +922,7 @@ const CalendarGrid = ({
               <QuickSchedulePopup
                 position={quickSchedule}
                 events={events}
+                defaultColor={defaultColor}
                 onClose={() => setQuickSchedule(null)}
                 onSave={(title, extraData) => {
                   onQuickSave(title, { ...quickSchedule, ...extraData });
@@ -912,9 +931,10 @@ const CalendarGrid = ({
                 onMoreOptions={(extraData) => {
                   const dateStr = extraData?.date?.format('YYYY-MM-DD') || quickSchedule.date.format('YYYY-MM-DD');
                   const timeStr = extraData?.startTime || quickSchedule.startTime;
+                  const selectedCol = extraData?.color || defaultColor;
                   setQuickSchedule(null);
                   navigate(
-                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}`
+                    `/dashboard/schedule-meeting?date=${dateStr}&time=${encodeURIComponent(timeStr)}${selectedCol ? `&color=${encodeURIComponent(selectedCol)}` : ''}`
                   );
                 }}
               />

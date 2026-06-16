@@ -23,7 +23,7 @@
 .calendar-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   background-color: var(--bg-app);
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -224,7 +224,7 @@
   padding: 24px;
   flex: 1;
   overflow: hidden;
-  height: calc(100vh - 64px);
+  height: 100%;
 }
 
 /* Zone Cards Common */

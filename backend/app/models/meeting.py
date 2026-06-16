@@ -58,6 +58,9 @@ class Meeting(Base):
     reminder_minutes = Column(Integer, nullable=True)
     reminder_notify_attendees = Column(Boolean, default=True)
     
+    # Event color accent hex
+    color = Column(String(7), nullable=True)
+    
     # Recurrence Settings
     recurrence_rule = Column(String(50), nullable=True)
     recurrence_group_id = Column(String(100), nullable=True, index=True)

@@ -1131,6 +1131,11 @@ const MeetingDetailsPage = () => {
 
       const resp = await API.post(`/meetings/${id}/duplicate`, payload);
       if (resp.data.success) {
+        const originalColor = meeting.color || JSON.parse(localStorage.getItem('caldim_event_colors') || '{}')[id] || '#2563EB';
+        const colorMap = JSON.parse(localStorage.getItem('caldim_event_colors') || '{}');
+        colorMap[resp.data.meeting_id] = originalColor;
+        localStorage.setItem('caldim_event_colors', JSON.stringify(colorMap));
+
         showToast('Meeting duplicated successfully');
         setShowDuplicatePanel(false);
         navigate(`/dashboard/meeting/${resp.data.meeting_id}`);

@@ -1028,6 +1028,9 @@ const Dashboard = () => {
               </nav>
             </div>
 
+            {/* Center - Portal Slot for Pages (like Calendar Search) */}
+            <div id="header-portal-slot" className="flex-1 flex justify-center px-4" />
+
             {/* Right - Date/Time, AI Chat Toggle & Profile */}
             <div className="flex items-center gap-4 ml-auto">
               {/* Date and Time */}

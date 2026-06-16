@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
@@ -685,9 +686,9 @@ const CalendarPage = () => {
         const duration = m.duration || m.duration_minutes || 60;
         const endDate = startDate.add(duration, 'minute');
 
-        // Use locally saved color or fallback to calendar color
+        // Use database persisted color, locally saved color override, or fallback to calendar color
         const savedColors = JSON.parse(localStorage.getItem('caldim_event_colors') || '{}');
-        const calColor = savedColors[m.id] || calendars.find(c => c.name === m.project_name || c.id === m.project_id)?.color || EVENT_COLOR_HEXES[0];
+        const calColor = m.color || savedColors[m.id] || calendars.find(c => c.name === m.project_name || c.id === m.project_id)?.color || EVENT_COLOR_HEXES[0];
 
         return {
           id: m.id,
@@ -829,43 +830,25 @@ const CalendarPage = () => {
 
   return (
     <div className="calendar-page">
-      {/* ── Top Header ─────────────────────────────────────────── */}
-      <header className="calendar-header">
-        {/* Preserving an empty flex cell keeps the search bar exactly centered */}
-        <div className="header-left" />
-
-        <div className="header-center">
-          <div className="search-bar-container">
-            <Search size={16} className="search-icon" />
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search events (/)" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button className="search-clear-btn" onClick={() => setSearchQuery('')}>
-                <X size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="header-right">
-          <div className="view-switcher-container">
-            {['Day', 'Week', 'Month'].map((v) => (
-              <button
-                key={v}
-                className={`view-pill ${activeView === v ? 'active' : ''}`}
-                onClick={() => setActiveView(v)}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
+      {/* ── Top Header Search Portal ── */}
+      {document.getElementById('header-portal-slot') && ReactDOM.createPortal(
+        <div className="search-bar-container">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search events (/)" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="search-clear-btn" onClick={() => setSearchQuery('')}>
+              <X size={13} />
+            </button>
+          )}
+        </div>,
+        document.getElementById('header-portal-slot')
+      )}
 
       {/* ── 3-Zone Body ────────────────────────────────────────── */}
       <div className="calendar-body-3zone">
@@ -1241,12 +1224,26 @@ const CalendarPage = () => {
         <main className="zone-card calendar-main-grid">
           {/* Header row moved here */}
           <div className="main-grid-toolbar">
-            <div className="main-month-title">
-              {viewDate.format('MMMM YYYY')}
+            <div className="flex items-center gap-3">
+              <div className="main-grid-nav">
+                <button className="btn-nav-arrow" onClick={() => handleNav(-1)}><ChevronLeft size={16} /></button>
+                <button className="btn-nav-arrow" onClick={() => handleNav(1)}><ChevronRight size={16} /></button>
+              </div>
+              <div className="main-month-title">
+                {viewDate.format('MMMM YYYY')}
+              </div>
             </div>
-            <div className="main-grid-nav">
-              <button className="btn-nav-arrow" onClick={() => handleNav(-1)}><ChevronLeft size={16} /></button>
-              <button className="btn-nav-arrow" onClick={() => handleNav(1)}><ChevronRight size={16} /></button>
+
+            <div className="view-switcher-container">
+              {['Day', 'Week', 'Month'].map((v) => (
+                <button
+                  key={v}
+                  className={`view-pill ${activeView === v ? 'active' : ''}`}
+                  onClick={() => setActiveView(v)}
+                >
+                  {v}
+                </button>
+              ))}
             </div>
           </div>
           

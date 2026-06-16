@@ -179,6 +179,10 @@ async def startup_event():
         from app.scripts.password_reset_migration import run_password_reset_migration
         run_password_reset_migration(db)
 
+        # ── Idempotent meeting_color migration ──────────────────────────────
+        from app.scripts.meeting_color_migration import run_meeting_color_migration
+        run_meeting_color_migration(db)
+
         # Start background procurement scheduler
         from app.services.scheduler_service import init_scheduler
         init_scheduler()
