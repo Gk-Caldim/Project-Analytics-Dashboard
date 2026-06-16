@@ -121,14 +121,6 @@ const LoginPage = () => {
   const [showConfirmResetPassword, setShowConfirmResetPassword] = useState(false);
 
   // ── PROFILE CACHE & CAROUSEL STATE ──
-  const [cachedUser, setCachedUser] = useState(() => {
-    try {
-      const item = localStorage.getItem('caldim_last_user');
-      return item ? JSON.parse(item) : null;
-    } catch {
-      return null;
-    }
-  });
   const [carouselIndex, setCarouselIndex] = useState(0);
 
   // ── OTP TIMER COUNTDOWN ──
@@ -259,15 +251,6 @@ const LoginPage = () => {
       const response = await API.post('/auth/login', { email, password });
       if (response.data && response.data.access_token) {
         const { access_token, user } = response.data;
-        
-        // Cache user info for Quick profile card login
-        const userProfile = {
-          name: user.full_name || user.email.split('@')[0],
-          email: user.email,
-          avatar: ''
-        };
-        localStorage.setItem('caldim_last_user', JSON.stringify(userProfile));
-        setCachedUser(userProfile);
 
         dispatch(loginSuccess({ token: access_token, user }));
         navigate('/dashboard');
@@ -281,26 +264,7 @@ const LoginPage = () => {
     }
   };
 
-  const handleQuickSignIn = async (e) => {
-    e.preventDefault();
-    if (!cachedUser) return;
-    setError('');
-    dispatch(loginStart());
-    try {
-      const response = await API.post('/auth/login', { email: cachedUser.email, password });
-      if (response.data && response.data.access_token) {
-        const { access_token, user } = response.data;
-        dispatch(loginSuccess({ token: access_token, user }));
-        navigate('/dashboard');
-      } else {
-        throw new Error('Invalid response from server');
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Login failed';
-      dispatch(loginFailure(errorMessage));
-      setError(errorMessage);
-    }
-  };
+
 
   const handleGoogleSignIn = (e) => {
     e.preventDefault();
@@ -736,7 +700,7 @@ const LoginPage = () => {
                       {user?.full_name ? user.full_name.slice(0, 2) : (user?.email ? user.email.slice(0, 2) : 'US')}
                     </div>
                     <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Active Session Found</h2>
-                    <p className="text-xs text-slate-550 text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    <p className="text-xs text-slate-555 text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       You are currently signed in as <strong className="text-slate-800 dark:text-slate-200 font-semibold">{user?.full_name || user?.email.split('@')[0]}</strong> ({user?.email}).
                     </p>
 
@@ -753,98 +717,12 @@ const LoginPage = () => {
                         type="button"
                         onClick={() => {
                           dispatch(logout());
-                          localStorage.removeItem('caldim_last_user');
-                          setCachedUser(null);
                         }}
                         className="w-full bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-semibold py-3.5 px-4 border border-slate-200 dark:border-slate-850 rounded-lg hover:shadow-sm active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm font-sans"
                       >
                         Sign Out / Switch Account
                       </button>
                     </div>
-                  </div>
-                ) : cachedUser ? (
-                  <div className="flex flex-col text-center pt-2">
-                    {/* Cached Quick login card */}
-                    <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-950/20 text-[#FF6B00] font-bold text-xl flex items-center justify-center border border-orange-200/40 dark:border-orange-900/40 shadow-sm mx-auto mb-3 uppercase select-none">
-                      {cachedUser.name.slice(0, 2)}
-                    </div>
-                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome back</h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{cachedUser.name} ({cachedUser.email})</p>
-
-                    <form onSubmit={handleQuickSignIn} className="flex flex-col gap-4 mt-6 text-left" noValidate>
-                      <div className="flex flex-col gap-1.5 relative">
-                        <div className="flex justify-between items-center">
-                          <label htmlFor="quick-signin-password" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Password</label>
-                          <a 
-                            href="#" 
-                            onClick={(e) => { 
-                              e.preventDefault(); 
-                              setShowForgotPasswordForm(true); 
-                              setResetStep(1); 
-                              setForgotError(''); 
-                              setForgotSuccess(''); 
-                            }} 
-                            className="text-xs text-[#FF6B00] hover:underline font-semibold"
-                          >
-                            Forgot password?
-                          </a>
-                        </div>
-                        <div className="relative">
-                          <input 
-                            type={showPassword ? "text" : "password"} 
-                            id="quick-signin-password"
-                            placeholder="••••••••" 
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="text-sm w-full py-3.5 px-4 pr-11 border rounded-lg bg-[#F8FAFC] dark:bg-[#0f1115] text-slate-900 dark:text-slate-100 border-[#CBD5E1] dark:border-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-[#FF6B00] transition-all duration-200"
-                            required 
-                            autoFocus
-                          />
-                          <button 
-                            type="button" 
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 cursor-pointer bg-none border-none p-0"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {error && (
-                        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 p-3.5 rounded-lg flex items-start gap-2.5 text-xs">
-                          <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-red-500" />
-                          <span>{error}</span>
-                        </div>
-                      )}
-
-                      <button 
-                        type="submit" 
-                        className="w-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-semibold py-3.5 px-4 rounded-lg hover:shadow-md active:scale-[0.99] transition-all duration-200 cursor-pointer text-center text-sm shadow-sm font-sans"
-                        disabled={loading}
-                      >
-                        {loading ? 'Signing In...' : 'Sign In'}
-                      </button>
-
-                      <div className="flex items-center justify-between mt-3 text-xs">
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            setCachedUser(null);
-                            localStorage.removeItem('caldim_last_user');
-                          }}
-                          className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white font-medium cursor-pointer"
-                        >
-                          Switch account
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setShowRequestForm(true)} 
-                          className="text-[#FF6B00] hover:underline font-semibold cursor-pointer"
-                        >
-                          Request access
-                        </button>
-                      </div>
-                    </form>
                   </div>
                 ) : (
                   <>
