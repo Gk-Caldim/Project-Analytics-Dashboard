@@ -1,17 +1,109 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Mail, AlertTriangle, Calendar, Award, CheckCircle, Clock, TrendingUp, ClipboardList, AlertCircle, CheckCircle2, Users, RefreshCw, FileText, X, ExternalLink, Table, BarChart3, Filter, Building2, ListTodo, Activity } from 'lucide-react';
+import {
+  LayoutDashboard, BarChart3, Calendar, AlertTriangle, Wallet,
+  Settings, Mail, CheckCircle2, RefreshCw, FileText, X, ExternalLink,
+  Table, Filter, Building2, ListTodo, Activity, Sparkles,
+  TrendingUp, TrendingDown, AlertCircle, Zap, ClipboardList, Users
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
-import CriticalIssuesWidget from '../components/issues/CriticalIssuesWidget';
-import TopRisksPanel from '../components/issues/TopRisksPanel';
 import Skeleton from '../components/ui/skeleton';
 import API from '../utils/api';
 import { listIssues } from '../api/issues';
 import './VPProjectDashboard.css';
 import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
+
+
+/* ─────────────────────────────── helpers ──────────────────────────── */
+
+const humanizeLabel = (key = '') =>
+  key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+
+const fmtDate = (d, opts = { day: '2-digit', month: 'short', year: 'numeric' }) =>
+  d ? new Date(d).toLocaleDateString('en-GB', opts) : '—';
+
+const fmtMoney = (n) => {
+  if (n === null || n === undefined || n === '') return '—';
+  const num = parseFloat(String(n).replace(/[^0-9.-]/g, ''));
+  if (isNaN(num)) return '—';
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toLocaleString();
+};
+
+/* ─────────────────────────────── StatusBadge ──────────────────────── */
+
+const STATUS_COLORS = {
+  Completed:   { bg: 'var(--green-50)',   text: 'var(--green-900)',  border: '#86efac', dot: '#10b981' },
+  'In Progress': { bg: 'var(--blue-50)', text: 'var(--blue-900)',   border: '#93c5fd', dot: '#3b82f6' },
+  Delayed:     { bg: 'var(--red-50)',     text: 'var(--red-900)',    border: '#fca5a5', dot: '#ef4444' },
+  Upcoming:    { bg: '#ede9fe',           text: '#4c1d95',           border: '#c4b5fd', dot: '#8b5cf6' },
+  'On Hold':   { bg: '#fef3c7',           text: '#92400e',           border: '#fcd34d', dot: '#f59e0b' },
+  'Not Started': { bg: 'var(--elevated-card)', text: 'var(--text-secondary)', border: 'var(--border-subtle)', dot: '#94a3b8' },
+  Cancelled:   { bg: 'var(--elevated-card)', text: 'var(--text-muted)', border: 'var(--border-subtle)', dot: '#cbd5e1' },
+  Pending:     { bg: '#fef3c7',           text: '#92400e',           border: '#fcd34d', dot: '#f59e0b' },
+  Resolved:    { bg: 'var(--green-50)',   text: 'var(--green-900)',  border: '#86efac', dot: '#10b981' },
+  Open:        { bg: 'var(--red-50)',     text: 'var(--red-900)',    border: '#fca5a5', dot: '#ef4444' },
+};
+
+const StatusBadge = ({ status, size = 'sm' }) => {
+  const s = STATUS_COLORS[status] || STATUS_COLORS['Not Started'];
+  const sz = size === 'sm' ? { fontSize: '10px', padding: '2px 8px' } : { fontSize: '11px', padding: '3px 10px' };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '5px',
+      backgroundColor: s.bg, color: s.text, border: `1px solid ${s.border}`,
+      borderRadius: '999px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+      ...sz
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: s.dot, flexShrink: 0 }} />
+      {status || 'Not Started'}
+    </span>
+  );
+};
+
+/* ─────────────────────────────── PriorityBadge ────────────────────── */
+
+const PRIORITY_COLORS = {
+  Critical: { bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },
+  High:     { bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },
+  Medium:   { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  Low:      { bg: 'var(--green-50)', text: 'var(--green-900)', border: '#86efac' },
+};
+
+const PriorityBadge = ({ priority }) => {
+  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.Medium;
+  return (
+    <span className="vppd-priority-badge" style={{
+      backgroundColor: c.bg, color: c.text, borderColor: c.border
+    }}>
+      {priority}
+    </span>
+  );
+};
+
+/* ─────────────────────────────── Mini Progress ─────────────────────── */
+
+const MiniProgress = ({ pct, color = '#3b82f6' }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100 }}>
+    <div className="vppd-progress-bar" style={{ flex: 1 }}>
+      <div className="vppd-progress-fill" style={{ width: `${pct || 0}%`, backgroundColor: color }} />
+    </div>
+    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', width: 32, textAlign: 'right' }}>{Math.round(pct || 0)}%</span>
+  </div>
+);
+
+/* ─────────────────────────────── Main Component ────────────────────── */
+
+const TABS = [
+  { id: 'overview',         label: 'Overview',                    Icon: LayoutDashboard },
+  { id: 'metrics',          label: 'Project Metrics',             Icon: BarChart3       },
+  { id: 'milestones',       label: 'Milestones & Timeline',       Icon: Calendar        },
+  { id: 'issues',           label: 'Critical Issues',             Icon: AlertTriangle   },
+  { id: 'budget',           label: 'Budget Summary',              Icon: Wallet          },
+];
 
 const VPProjectDashboard = ({
   activeProject,
@@ -29,393 +121,70 @@ const VPProjectDashboard = ({
   ganttTypeFilter = 'All',
   setGanttTypeFilter,
   ganttStatusFilter = 'All',
-  setGanttStatusFilter
+  setGanttStatusFilter,
+  /* Budget props (passed from ProjectDashboard) */
+  budgetTableData = [],
+  budgetSummaryData = null,
+  isBudgetLoading = false,
+  renderBudgetTableContent = null,
+  budgetCurrencySymbol = '$',
 }) => {
   const navigate = useNavigate();
-  const [milestoneView, setMilestoneView] = useState('table'); // 'table' | 'chart'
-  const [recentMeetings, setRecentMeetings] = useState([]);
-  const [momIssues, setMomIssues] = useState([]);
-  const [syncHistory, setSyncHistory] = useState([]);
-  const [projectTeam, setProjectTeam] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // --- Gantt Chart filters & state (lifted) ---
-  const [zoomLevel, setZoomLevel] = useState('Week'); // 'Day' | 'Week' | 'Month'
+  /* ── Milestone view (table | chart) ── */
+  const [milestoneView, setMilestoneView] = useState('table');
+
+  /* ── Gantt settings ── */
+  const [zoomLevel, setZoomLevel] = useState('Week');
   const [ganttShowTaskName, setGanttShowTaskName] = useState(true);
   const [ganttShowPercent, setGanttShowPercent] = useState(true);
   const [ganttShowTodayLine, setGanttShowTodayLine] = useState(true);
   const [isGanttSettingsModalOpen, setIsGanttSettingsModalOpen] = useState(false);
 
-  // --- Optimized Milestones for Table View (Dashboard optimized) ---
-  const optimizedMilestones = useMemo(() => {
-    return (milestones || []).filter(t => t.item_type === 'Phase' || t.item_type === 'Milestone');
-  }, [milestones]);
+  /* ── Issues state ── */
+  const [momIssues, setMomIssues] = useState([]);
+  const [syncHistory, setSyncHistory] = useState([]);
+  const [loadingMom, setLoadingMom] = useState(false);
+  const fetchingRef = useRef(false);
+  const projectIdRef = useRef(null);
 
-  // --- Gantt Options & Timeline calculations ---
-  const departmentOptions = useMemo(() => {
-    const depts = new Set(['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning']);
-    (milestones || []).forEach(m => {
-      if (m.department && m.department.trim()) depts.add(m.department.trim());
-    });
-    return Array.from(depts);
-  }, [milestones]);
-
-  const sortedMilestones = useMemo(() => {
-    return [...(milestones || [])].sort((a, b) => (a.row_order || 0) - (b.row_order || 0));
-  }, [milestones]);
-
-  const ganttFilteredTasks = useMemo(() => {
-    return sortedMilestones.filter(t => {
-      if (ganttDeptFilter !== 'All' && t.department !== ganttDeptFilter) return false;
-      if (ganttTypeFilter !== 'All' && t.item_type !== ganttTypeFilter) return false;
-      if (ganttStatusFilter !== 'All' && t.status !== ganttStatusFilter) return false;
-      return true;
-    });
-  }, [sortedMilestones, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
-
-  const { timelineStart, timelineEnd, daysBetween } = useMemo(() => {
-    if (!milestones || milestones.length === 0) {
-      const start = new Date();
-      start.setDate(start.getDate() - 7);
-      const end = new Date();
-      end.setDate(end.getDate() + 90);
-      return { timelineStart: start, timelineEnd: end, daysBetween: 97 };
-    }
-
-    let minDate = null;
-    let maxDate = null;
-
-    milestones.forEach(t => {
-      if (t.start_date) {
-        const d = new Date(t.start_date);
-        if (!minDate || d < minDate) minDate = d;
-      }
-      if (t.end_date) {
-        const d = new Date(t.end_date);
-        if (!maxDate || d > maxDate) maxDate = d;
-      }
-    });
-
-    if (!minDate) minDate = new Date();
-    if (!maxDate) {
-      maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() + 90);
-    }
-
-    const startPadding = new Date(minDate);
-    startPadding.setDate(startPadding.getDate() - 14);
-    const endPadding = new Date(maxDate);
-    endPadding.setDate(endPadding.getDate() + 45);
-
-    const days = Math.ceil((endPadding - startPadding) / (1000 * 60 * 60 * 24)) || 1;
-    return { timelineStart: startPadding, timelineEnd: endPadding, daysBetween: days };
-  }, [milestones]);
-
-  const pxPerDay = useMemo(() => {
-    if (zoomLevel === 'Day') return 24;
-    if (zoomLevel === 'Week') return 8;
-    return 2.5; 
-  }, [zoomLevel]);
-
-  const todayLeft = useMemo(() => {
-    const today = new Date();
-    if (today < timelineStart || today > timelineEnd) return null;
-    const daysOffset = (today - timelineStart) / (1000 * 60 * 60 * 24);
-    return daysOffset * pxPerDay;
-  }, [timelineStart, timelineEnd, pxPerDay]);
-
-  const timelineWidth = useMemo(() => {
-    return daysBetween * pxPerDay;
-  }, [daysBetween, pxPerDay]);
-
-  const timelineHeaders = useMemo(() => {
-    const topHeaders = [];
-    const bottomHeaders = [];
-
-    if (zoomLevel === 'Day') {
-      let currentMonthStartIdx = 0;
-      let currentMonthLabel = '';
-      let daysInGroup = 0;
-
-      for (let i = 0; i < daysBetween; i++) {
-        const date = new Date(timelineStart);
-        date.setDate(date.getDate() + i);
-
-        const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const dayLabel = String(date.getDate());
-
-        bottomHeaders.push({
-          key: `b-${i}`,
-          left: i * pxPerDay,
-          width: pxPerDay,
-          label: dayLabel,
-          title: date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }),
-          className: "border-l border-[var(--border-subtle)]/40 justify-center text-[8px]"
-        });
-
-        if (i === 0) {
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = 0;
-          daysInGroup = 1;
-        } else if (monthLabel === currentMonthLabel) {
-          daysInGroup++;
-        } else {
-          topHeaders.push({
-            key: `t-${currentMonthStartIdx}`,
-            left: currentMonthStartIdx * pxPerDay,
-            width: daysInGroup * pxPerDay,
-            label: currentMonthLabel,
-          });
-          currentMonthLabel = monthLabel;
-          currentMonthStartIdx = i;
-          daysInGroup = 1;
-        }
-      }
-      if (daysInGroup > 0) {
-        topHeaders.push({
-          key: `t-${currentMonthStartIdx}`,
-          left: currentMonthStartIdx * pxPerDay,
-          width: daysInGroup * pxPerDay,
-          label: currentMonthLabel,
-        });
-      }
-
-    } else if (zoomLevel === 'Week') {
-      const weekStarts = [];
-      for (let i = 0; i < daysBetween; i++) {
-        const date = new Date(timelineStart);
-        date.setDate(date.getDate() + i);
-        if (date.getDay() === 1 || i === 0) {
-          weekStarts.push(i);
-        }
-      }
-      weekStarts.push(daysBetween);
-
-      let currentGroupStart = weekStarts[0];
-      let currentGroupLabel = '';
-
-      for (let j = 0; j < weekStarts.length - 1; j++) {
-        const wStart = weekStarts[j];
-        const wEnd = weekStarts[j+1];
-        const wStartDate = new Date(timelineStart);
-        wStartDate.setDate(wStartDate.getDate() + wStart);
-        const label = wStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-        if (j === 0) {
-          currentGroupLabel = label;
-          currentGroupStart = wStart;
-        } else if (label !== currentGroupLabel) {
-          topHeaders.push({
-            key: `t-${currentGroupStart}`,
-            left: currentGroupStart * pxPerDay,
-            width: (wStart - currentGroupStart) * pxPerDay,
-            label: currentGroupLabel
-          });
-          currentGroupLabel = label;
-          currentGroupStart = wStart;
-        }
-
-        bottomHeaders.push({
-          key: `b-${wStart}`,
-          left: wStart * pxPerDay,
-          width: (wEnd - wStart) * pxPerDay,
-          label: `${wStartDate.getDate()} ${wStartDate.toLocaleDateString('en-US', { month: 'short' })}`,
-          title: `Week Commencing: ${wStartDate.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}`,
-          className: "border-l border-[var(--border-subtle)]/40 px-1 justify-start font-semibold text-[8px]"
-        });
-      }
-
-      if (weekStarts.length > 1) {
-        const lastStart = weekStarts[weekStarts.length - 1];
-        topHeaders.push({
-          key: `t-${currentGroupStart}`,
-          left: currentGroupStart * pxPerDay,
-          width: (lastStart - currentGroupStart) * pxPerDay,
-          label: currentGroupLabel
-        });
-      }
-
-    } else if (zoomLevel === 'Month') {
-      let currentYearStartIdx = 0;
-      let currentYearLabel = '';
-      let daysInYearGroup = 0;
-      let lastMonthStartIdx = 0;
-      let lastMonthLabel = '';
-
-      for (let i = 0; i < daysBetween; i++) {
-        const date = new Date(timelineStart);
-        date.setDate(date.getDate() + i);
-
-        const yearLabel = String(date.getFullYear());
-        const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-        const isMonthStart = date.getDate() === 1 || i === 0;
-
-        if (isMonthStart && i > 0) {
-          const monthStartDate = new Date(timelineStart);
-          monthStartDate.setDate(monthStartDate.getDate() + lastMonthStartIdx);
-          bottomHeaders.push({
-            key: `b-${lastMonthStartIdx}`,
-            left: lastMonthStartIdx * pxPerDay,
-            width: (i - lastMonthStartIdx) * pxPerDay,
-            label: lastMonthLabel,
-            title: monthStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-            className: "border-l border-[var(--border-subtle)]/40 px-1 justify-center font-bold text-[9px]"
-          });
-          lastMonthStartIdx = i;
-          lastMonthLabel = monthName;
-        } else if (i === 0) {
-          lastMonthLabel = monthName;
-        }
-
-        if (i === 0) {
-          currentYearLabel = yearLabel;
-          currentYearStartIdx = 0;
-          daysInYearGroup = 1;
-        } else if (yearLabel === currentYearLabel) {
-          daysInYearGroup++;
-        } else {
-          topHeaders.push({
-            key: `t-${currentYearStartIdx}`,
-            left: currentYearStartIdx * pxPerDay,
-            width: daysInYearGroup * pxPerDay,
-            label: currentYearLabel,
-          });
-          currentYearLabel = yearLabel;
-          currentYearStartIdx = i;
-          daysInYearGroup = 1;
-        }
-      }
-
-      if (lastMonthStartIdx < daysBetween) {
-        const monthStartDate = new Date(timelineStart);
-        monthStartDate.setDate(monthStartDate.getDate() + lastMonthStartIdx);
-        bottomHeaders.push({
-          key: `b-${lastMonthStartIdx}`,
-          left: lastMonthStartIdx * pxPerDay,
-          width: (daysBetween - lastMonthStartIdx) * pxPerDay,
-          label: lastMonthLabel,
-          title: monthStartDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          className: "border-l border-[var(--border-subtle)]/40 px-1 justify-center font-bold text-[9px]"
-        });
-      }
-
-      if (daysInYearGroup > 0) {
-        topHeaders.push({
-          key: `t-${currentYearStartIdx}`,
-          left: currentYearStartIdx * pxPerDay,
-          width: daysInYearGroup * pxPerDay,
-          label: currentYearLabel,
-        });
-      }
-    }
-
-    return { topHeaders, bottomHeaders };
-  }, [zoomLevel, timelineStart, daysBetween, pxPerDay]);
-
-  const getPhaseColors = useCallback((taskIndex) => {
-    let phaseName = 'Contracts';
-    const list = milestones || [];
-    for (let i = taskIndex; i >= 0; i--) {
-      const t = list[i];
-      if (t && t.item_type === 'Phase') {
-        phaseName = t.activity_name;
-        break;
-      }
-    }
-
-    const name = phaseName.toLowerCase();
-    if (name.includes('contracts') || name.includes('proposal')) {
-      return { border: 'border-[#0ea5e9]', text: 'text-[#0ea5e9]', fill: '#0ea5e9', light: 'bg-[#0ea5e9]/10' };
-    } else if (name.includes('design') || name.includes('engineering')) {
-      return { border: 'border-[#3b82f6]', text: 'text-[#3b82f6]', fill: '#3b82f6', light: 'bg-[#3b82f6]/10' };
-    } else if (name.includes('procurement')) {
-      return { border: 'border-[#8b5cf6]', text: 'text-[#8b5cf6]', fill: '#8b5cf6', light: 'bg-[#8b5cf6]/10' };
-    } else if (name.includes('construction') || name.includes('manufacturing')) {
-      return { border: 'border-[#f97316]', text: 'text-[#f97316]', fill: '#f97316', light: 'bg-[#f97316]/10' };
-    } else if (name.includes('closing') || name.includes('post') || name.includes('handover')) {
-      return { border: 'border-[#10b981]', text: 'text-[#10b981]', fill: '#10b981', light: 'bg-[#10b981]/10' };
-    }
-    return { border: 'border-[#14b8a6]', text: 'text-[#14b8a6]', fill: '#14b8a6', light: 'bg-[#14b8a6]/10' };
-  }, [milestones]);
-
-  const ganttBars = useMemo(() => {
-    return ganttFilteredTasks.map((t, idx) => {
-      if (!t.start_date || !t.end_date) return null;
-
-      const plannedStart = new Date(t.start_date);
-      const plannedEnd = new Date(t.end_date);
-      
-      const plannedLeft = ((plannedStart - timelineStart) / 86400000) * pxPerDay;
-      const plannedWidth = Math.max(4, ((plannedEnd - plannedStart) / 86400000) * pxPerDay);
-      const durationDays = Math.ceil((plannedEnd - plannedStart) / 86400000) || 1;
-
-      const isMilestone = t.item_type === 'Milestone' || t.item_type === 'Approval Gate';
-      const isParent = t.item_type === 'Phase' || (milestones || []).some(child => child.parent_id === t.id);
-      
-      const originalIndex = (milestones || []).findIndex(m => m.id === t.id);
-      const colors = getPhaseColors(originalIndex >= 0 ? originalIndex : idx);
-
-      return {
-        id: t.id,
-        plannedLeft,
-        plannedWidth,
-        isMilestone,
-        isParent,
-        completePercent: t.complete_percent || 0,
-        activityName: t.activity_name,
-        wbsCode: t.wbs_code,
-        itemType: t.item_type,
-        department: t.department,
-        assignedTo: t.assigned_to,
-        colors,
-        status: t.status,
-        durationDays,
-        startDateStr: plannedStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        plannedStartStr: plannedStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        plannedEndStr: plannedEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      };
-    });
-  }, [ganttFilteredTasks, timelineStart, pxPerDay, milestones, getPhaseColors]);
-
-  const rowHeight = 50;
-
-  // --- Gantt hover tooltip state ---
-  const [hoveredBar, setHoveredBar] = useState(null); // { bar, x, y }
-  const ganttContainerRef = useRef(null);
-
-  // --- Pinned Issues State ---
+  /* ── Pinned issues ── */
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [pinnedIssueIds, setPinnedIssueIds] = useState(() => {
     try {
-      const stored = localStorage.getItem(`caldim_pinned_issues_${activeProject?.dbProjectId}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      return [];
-    }
+      const s = localStorage.getItem(`caldim_pinned_issues_${activeProject?.dbProjectId}`);
+      return s ? JSON.parse(s) : [];
+    } catch { return []; }
   });
   const [tempPinnedIds, setTempPinnedIds] = useState([]);
 
-  // Sync pinned issues if project changes
+  /* ── Team ── */
+  const [projectTeam, setProjectTeam] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+
+  /* ── Gantt hover tooltip ── */
+  const [hoveredBar, setHoveredBar] = useState(null);
+  const ganttContainerRef = useRef(null);
+
+  /* ─────────── Sync pinned issues when project changes ─────────── */
   useEffect(() => {
     if (activeProject?.dbProjectId) {
       try {
-        const stored = localStorage.getItem(`caldim_pinned_issues_${activeProject.dbProjectId}`);
-        setPinnedIssueIds(stored ? JSON.parse(stored) : []);
-      } catch (e) {
-        setPinnedIssueIds([]);
-      }
+        const s = localStorage.getItem(`caldim_pinned_issues_${activeProject.dbProjectId}`);
+        setPinnedIssueIds(s ? JSON.parse(s) : []);
+      } catch { setPinnedIssueIds([]); }
     }
   }, [activeProject?.dbProjectId]);
 
+  /* ─────────── Filtered MOM issues ─────────── */
   const filteredMomIssues = useMemo(() => {
-    if (syncHistory.length === 0) {
-      return momIssues;
-    }
-    const latestSync = syncHistory[0];
-    return momIssues.filter(i => 
-      (i.sync_id && i.sync_id === latestSync.sync_id) || 
-      (i.meeting_id && (i.meeting_id === latestSync.session_id || i.meeting_id === latestSync.meeting_id))
+    if (syncHistory.length === 0) return momIssues;
+    const latest = syncHistory[0];
+    return momIssues.filter(i =>
+      (i.sync_id && i.sync_id === latest.sync_id) ||
+      (i.meeting_id && (i.meeting_id === latest.session_id || i.meeting_id === latest.meeting_id))
     );
   }, [momIssues, syncHistory]);
 
@@ -427,53 +196,31 @@ const VPProjectDashboard = ({
     return filteredMomIssues.slice(0, 5);
   }, [filteredMomIssues, pinnedIssueIds]);
 
-  const [loadingMom, setLoadingMom] = useState(false);
-
-  const fetchingRef = useRef(false);
-  const projectIdRef = useRef(null);
-
+  /* ─────────── Fetch issues ─────────── */
   const fetchMomIssues = useCallback(() => {
     if (!activeProject?.dbProjectId) return;
-
-    // Guard: skip if already fetching
-    if (fetchingRef.current) {
-      console.log('[VPPD] Fetch already in progress, skipping duplicate call');
-      return;
-    }
-
+    if (fetchingRef.current) return;
     fetchingRef.current = true;
     setLoadingMom(true);
-    console.log('[VPPD] Fetching issues for project:',
-      activeProject.dbProjectId, activeProject.name);
 
-    const issuesPromise = listIssues({ project_id: activeProject.dbProjectId });
-    const historyPromise = API.get(
-      `/mom/history/project/${activeProject.dbProjectId}`
-    ).catch(() => ({ data: [] }));
-
-    Promise.all([issuesPromise, historyPromise])
+    Promise.all([
+      listIssues({ project_id: activeProject.dbProjectId }),
+      API.get(`/mom/history/project/${activeProject.dbProjectId}`).catch(() => ({ data: [] }))
+    ])
       .then(([issues, historyRes]) => {
-        const momSpecific = Array.isArray(issues)
-          ? issues
-            .filter(i => (i.source || '').toUpperCase() === 'MOM')
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-          : [];
-        setMomIssues(momSpecific);
-
-        if (Array.isArray(historyRes?.data)) {
-          setSyncHistory(historyRes.data);
-        }
+        setMomIssues(
+          Array.isArray(issues)
+            ? issues.filter(i => (i.source || '').toUpperCase() === 'MOM')
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            : []
+        );
+        if (Array.isArray(historyRes?.data)) setSyncHistory(historyRes.data);
       })
-      .catch(err => {
-        console.error('[VPPD] Fetch error:', err.message);
-        setMomIssues([]);
-      })
-      .finally(() => {
-        setLoadingMom(false);
-        fetchingRef.current = false;
-      });
-  }, [activeProject?.dbProjectId]);  // depend on ID only, not full object
+      .catch(() => setMomIssues([]))
+      .finally(() => { setLoadingMom(false); fetchingRef.current = false; });
+  }, [activeProject?.dbProjectId]);
 
+  /* ─────────── Fetch team ─────────── */
   const fetchTeamAndEmployees = useCallback(async () => {
     if (!activeProject?.dbProjectId) return;
     try {
@@ -485,1566 +232,1240 @@ const VPProjectDashboard = ({
       setProjectTeam(teamRes.data || []);
       setEmployees(empRes.data || []);
     } catch (e) {
-      console.error('[VPPD] Failed to fetch team/employees:', e);
-    } finally {
-      setLoadingTeam(false);
-    }
+      console.error('[VPPD] team fetch failed:', e);
+    } finally { setLoadingTeam(false); }
   }, [activeProject?.dbProjectId]);
 
+  /* ─────────── On project change ─────────── */
   useEffect(() => {
-    // Only fetch when project ID actually changes
     const newId = activeProject?.dbProjectId;
     if (!newId || newId === projectIdRef.current) return;
     projectIdRef.current = newId;
-
     fetchMomIssues();
     fetchTeamAndEmployees();
 
-    API.get('/meetings')
-      .then(res => {
-        if (res.data?.success) {
-          const projectMeetings = (res.data.meetings || [])
-            .filter(m => String(m.project_id) === String(newId))
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 5);
-          setRecentMeetings(projectMeetings);
-        }
-      })
-      .catch(() => { });
-
-    const refreshTimeoutRef = { current: null };
-    const handleRemoteUpdate = () => {
-      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
-      refreshTimeoutRef.current = setTimeout(() => {
-        fetchingRef.current = false;  // reset guard before refresh
-        fetchMomIssues();
-      }, 800);
+    const rto = { current: null };
+    const onUpdate = () => {
+      if (rto.current) clearTimeout(rto.current);
+      rto.current = setTimeout(() => { fetchingRef.current = false; fetchMomIssues(); }, 800);
     };
-
-    window.addEventListener('MOM_SAVED', handleRemoteUpdate);
-    window.addEventListener('ISSUE_SYNCED', handleRemoteUpdate);
-
+    window.addEventListener('MOM_SAVED', onUpdate);
+    window.addEventListener('ISSUE_SYNCED', onUpdate);
     return () => {
-      window.removeEventListener('MOM_SAVED', handleRemoteUpdate);
-      window.removeEventListener('ISSUE_SYNCED', handleRemoteUpdate);
-      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      window.removeEventListener('MOM_SAVED', onUpdate);
+      window.removeEventListener('ISSUE_SYNCED', onUpdate);
+      if (rto.current) clearTimeout(rto.current);
     };
   }, [activeProject?.dbProjectId, fetchMomIssues]);
 
+  /* ─────────── Gantt calculations ─────────── */
+  const departmentOptions = useMemo(() => {
+    const depts = new Set(['Engineering', 'Design', 'Procurement', 'Manufacturing', 'Quality', 'Installation', 'Commissioning']);
+    (milestones || []).forEach(m => { if (m.department?.trim()) depts.add(m.department.trim()); });
+    return Array.from(depts);
+  }, [milestones]);
 
+  const sortedMilestones = useMemo(() =>
+    [...(milestones || [])].sort((a, b) => (a.row_order || 0) - (b.row_order || 0)),
+  [milestones]);
 
-  const getMilestoneChartOption = useCallback(() => {
-    const displayTasks = [...(milestones || [])]
-      .filter(t => t.item_type !== 'Phase')
-      .slice(0, 15)
-      .reverse();
+  const ganttFilteredTasks = useMemo(() =>
+    sortedMilestones.filter(t => {
+      if (ganttDeptFilter !== 'All' && t.department !== ganttDeptFilter) return false;
+      if (ganttTypeFilter !== 'All' && t.item_type !== ganttTypeFilter) return false;
+      if (ganttStatusFilter !== 'All' && t.status !== ganttStatusFilter) return false;
+      return true;
+    }),
+  [sortedMilestones, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
 
-    const categories = displayTasks.map(t => t.activity_name);
-    const startDates = displayTasks.map(t => t.start_date ? new Date(t.start_date).getTime() : new Date().getTime());
-    const endDates = displayTasks.map(t => t.end_date ? new Date(t.end_date).getTime() : new Date().getTime());
-    const durations = endDates.map((end, idx) => Math.max(0, end - startDates[idx]));
+  const { timelineStart, timelineEnd, daysBetween } = useMemo(() => {
+    if (!milestones?.length) {
+      const s = new Date(); s.setDate(s.getDate() - 7);
+      const e = new Date(); e.setDate(e.getDate() + 90);
+      return { timelineStart: s, timelineEnd: e, daysBetween: 97 };
+    }
+    let minD = null, maxD = null;
+    milestones.forEach(t => {
+      if (t.start_date) { const d = new Date(t.start_date); if (!minD || d < minD) minD = d; }
+      if (t.end_date)   { const d = new Date(t.end_date);   if (!maxD || d > maxD) maxD = d; }
+    });
+    if (!minD) minD = new Date();
+    if (!maxD) { maxD = new Date(); maxD.setDate(maxD.getDate() + 90); }
+    const sp = new Date(minD); sp.setDate(sp.getDate() - 14);
+    const ep = new Date(maxD); ep.setDate(ep.getDate() + 45);
+    return { timelineStart: sp, timelineEnd: ep, daysBetween: Math.ceil((ep - sp) / 86400000) || 1 };
+  }, [milestones]);
 
+  const pxPerDay = useMemo(() => zoomLevel === 'Day' ? 24 : zoomLevel === 'Week' ? 8 : 2.5, [zoomLevel]);
+  const timelineWidth = useMemo(() => daysBetween * pxPerDay, [daysBetween, pxPerDay]);
+
+  const todayLeft = useMemo(() => {
+    const today = new Date();
+    if (today < timelineStart || today > timelineEnd) return null;
+    return ((today - timelineStart) / 86400000) * pxPerDay;
+  }, [timelineStart, timelineEnd, pxPerDay]);
+
+  const getPhaseColors = useCallback((taskIndex) => {
+    let phaseName = 'Contracts';
+    const list = milestones || [];
+    for (let i = taskIndex; i >= 0; i--) {
+      const t = list[i];
+      if (t?.item_type === 'Phase') { phaseName = t.activity_name; break; }
+    }
+    const name = phaseName.toLowerCase();
+    if (name.includes('contracts') || name.includes('proposal'))   return { fill: '#0ea5e9' };
+    if (name.includes('design') || name.includes('engineering'))   return { fill: '#3b82f6' };
+    if (name.includes('procurement'))                               return { fill: '#8b5cf6' };
+    if (name.includes('construction') || name.includes('manufacturing')) return { fill: '#f97316' };
+    if (name.includes('closing') || name.includes('handover'))     return { fill: '#10b981' };
+    return { fill: '#14b8a6' };
+  }, [milestones]);
+
+  const ganttBars = useMemo(() => ganttFilteredTasks.map((t, idx) => {
+    if (!t.start_date || !t.end_date) return null;
+    const ps = new Date(t.start_date), pe = new Date(t.end_date);
+    const origIdx = (milestones || []).findIndex(m => m.id === t.id);
     return {
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        backgroundColor: '#1e293b',
-        borderColor: '#475569',
-        textStyle: { color: '#f8fafc', fontSize: 11 },
-        formatter: (params) => {
-          const tar = params[1] || params[0];
-          const taskName = tar.name;
-          const task = displayTasks.find(t => t.activity_name === taskName);
-          if (!task) return '';
-          const start = task.start_date ? new Date(task.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-          const end = task.end_date ? new Date(task.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-          return `<div style="padding: 4px 6px;">
-            <strong style="color: #6366f1; font-size: 12px; display: block; margin-bottom: 4px;">${taskName}</strong>
-            Start: <span style="font-weight: 600; color: #fff;">${start}</span><br/>
-            End: <span style="font-weight: 600; color: #fff;">${end}</span><br/>
-            Progress: <span style="font-weight: 600; color: #fff;">${Math.round(task.complete_percent || 0)}%</span><br/>
-            Status: <span style="font-weight: 600; color: #fff;">${task.status || 'Not Started'}</span>
-          </div>`;
+      id: t.id,
+      plannedLeft: ((ps - timelineStart) / 86400000) * pxPerDay,
+      plannedWidth: Math.max(4, ((pe - ps) / 86400000) * pxPerDay),
+      isMilestone: t.item_type === 'Milestone' || t.item_type === 'Approval Gate',
+      isParent: t.item_type === 'Phase' || (milestones || []).some(c => c.parent_id === t.id),
+      completePercent: t.complete_percent || 0,
+      activityName: t.activity_name,
+      wbsCode: t.wbs_code,
+      itemType: t.item_type,
+      department: t.department,
+      colors: getPhaseColors(origIdx >= 0 ? origIdx : idx),
+      status: t.status,
+      durationDays: Math.ceil((pe - ps) / 86400000) || 1,
+      plannedStartStr: fmtDate(ps),
+      plannedEndStr: fmtDate(pe),
+    };
+  }), [ganttFilteredTasks, timelineStart, pxPerDay, milestones, getPhaseColors]);
+
+  const ROW_HEIGHT = 50;
+
+  /* ─────────── Timeline headers ─────────── */
+  const timelineHeaders = useMemo(() => {
+    const top = [], bottom = [];
+    if (zoomLevel === 'Week') {
+      const weekStarts = [];
+      for (let i = 0; i < daysBetween; i++) {
+        const d = new Date(timelineStart); d.setDate(d.getDate() + i);
+        if (d.getDay() === 1 || i === 0) weekStarts.push(i);
+      }
+      weekStarts.push(daysBetween);
+      let cgStart = weekStarts[0], cgLabel = '';
+      for (let j = 0; j < weekStarts.length - 1; j++) {
+        const ws = weekStarts[j], we = weekStarts[j + 1];
+        const wsd = new Date(timelineStart); wsd.setDate(wsd.getDate() + ws);
+        const lbl = wsd.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        if (j === 0) { cgLabel = lbl; cgStart = ws; }
+        else if (lbl !== cgLabel) {
+          top.push({ key: `t-${cgStart}`, left: cgStart * pxPerDay, width: (ws - cgStart) * pxPerDay, label: cgLabel });
+          cgLabel = lbl; cgStart = ws;
         }
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '5%',
-        top: '5%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'time',
-        axisLabel: {
-          color: 'var(--text-secondary)',
-          fontSize: 10,
-          formatter: (value) => {
-            return new Date(value).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-          }
-        },
-        splitLine: {
-          lineStyle: {
-            color: 'var(--border-subtle)',
-            type: 'dashed'
-          }
-        },
-        axisLine: {
-          lineStyle: { color: 'var(--border-subtle)' }
+        bottom.push({
+          key: `b-${ws}`, left: ws * pxPerDay, width: (we - ws) * pxPerDay,
+          label: `${wsd.getDate()} ${wsd.toLocaleDateString('en-US', { month: 'short' })}`,
+        });
+      }
+      if (weekStarts.length > 1) {
+        top.push({ key: `t-${cgStart}`, left: cgStart * pxPerDay, width: (weekStarts[weekStarts.length - 1] - cgStart) * pxPerDay, label: cgLabel });
+      }
+    } else if (zoomLevel === 'Month') {
+      let cyStart = 0, cyLabel = '', daysInY = 0, lmStart = 0, lmLabel = '';
+      for (let i = 0; i < daysBetween; i++) {
+        const d = new Date(timelineStart); d.setDate(d.getDate() + i);
+        const yl = String(d.getFullYear()), ml = d.toLocaleDateString('en-US', { month: 'short' });
+        const isMStart = d.getDate() === 1 || i === 0;
+        if (isMStart && i > 0) {
+          bottom.push({ key: `b-${lmStart}`, left: lmStart * pxPerDay, width: (i - lmStart) * pxPerDay, label: lmLabel });
+          lmStart = i; lmLabel = ml;
+        } else if (i === 0) { lmLabel = ml; }
+        if (i === 0) { cyLabel = yl; cyStart = 0; daysInY = 1; }
+        else if (yl === cyLabel) daysInY++;
+        else {
+          top.push({ key: `t-${cyStart}`, left: cyStart * pxPerDay, width: daysInY * pxPerDay, label: cyLabel });
+          cyLabel = yl; cyStart = i; daysInY = 1;
         }
-      },
-      yAxis: {
-        type: 'category',
-        data: categories,
-        axisLabel: {
-          color: 'var(--text-primary)',
-          fontSize: 10,
-          width: 180,
-          overflow: 'truncate'
-        },
-        axisLine: {
-          lineStyle: { color: 'var(--border-subtle)' }
+      }
+      if (lmStart < daysBetween) bottom.push({ key: `b-${lmStart}`, left: lmStart * pxPerDay, width: (daysBetween - lmStart) * pxPerDay, label: lmLabel });
+      if (daysInY > 0) top.push({ key: `t-${cyStart}`, left: cyStart * pxPerDay, width: daysInY * pxPerDay, label: cyLabel });
+    } else {
+      // Day
+      let cmStart = 0, cmLabel = '';
+      for (let i = 0; i < daysBetween; i++) {
+        const d = new Date(timelineStart); d.setDate(d.getDate() + i);
+        const ml = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        bottom.push({ key: `b-${i}`, left: i * pxPerDay, width: pxPerDay, label: String(d.getDate()) });
+        if (i === 0) { cmLabel = ml; cmStart = 0; }
+        else if (ml !== cmLabel) {
+          top.push({ key: `t-${cmStart}`, left: cmStart * pxPerDay, width: (i - cmStart) * pxPerDay, label: cmLabel });
+          cmLabel = ml; cmStart = i;
         }
-      },
-      series: [
-        {
-          name: 'Placeholder',
-          type: 'bar',
-          stack: 'Timeline',
-          itemStyle: {
-            borderColor: 'transparent',
-            color: 'transparent'
-          },
-          emphasis: {
-            itemStyle: {
-              borderColor: 'transparent',
-              color: 'transparent'
-            }
-          },
-          data: startDates
-        },
-        {
-          name: 'Duration',
-          type: 'bar',
-          stack: 'Timeline',
-          itemStyle: {
-            color: (params) => {
-              const taskName = params.name;
-              const task = displayTasks.find(t => t.activity_name === taskName);
-              if (!task) return '#3b82f6';
-              const colors = {
-                'Completed': '#10b981',
-                'In Progress': '#3b82f6',
-                'Delayed': '#ef4444',
-                'Upcoming': '#6366f1',
-                'On Hold': '#f59e0b'
-              };
-              return colors[task.status] || '#64748b';
-            },
-            borderRadius: 4
-          },
-          data: durations
-        }
-      ]
+      }
+      top.push({ key: `t-${cmStart}`, left: cmStart * pxPerDay, width: (daysBetween - cmStart) * pxPerDay, label: cmLabel });
+    }
+    return { topHeaders: top, bottomHeaders: bottom };
+  }, [zoomLevel, timelineStart, daysBetween, pxPerDay]);
+
+  /* ─────────── Milestone KPI summary ─────────── */
+  const milestoneStats = useMemo(() => {
+    const list = milestones || [];
+    return {
+      total: list.length,
+      completed: list.filter(m => m.status === 'Completed' || m.status === 'Complete').length,
+      delayed: list.filter(m => m.status === 'Delayed').length,
+      inProgress: list.filter(m => m.status === 'In Progress').length,
+      upcoming: list.filter(m => m.status === 'Upcoming' || m.status === 'Not Started').length,
     };
   }, [milestones]);
 
-  return (
-    <div className="vppd-root" style={{ padding: 0 }}>
-      <div className="vppd-main-grid" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+  /* ─────────── Issues analytics ─────────── */
+  const issuesByPriority = useMemo(() => {
+    const counts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+    filteredMomIssues.forEach(i => { const p = i.priority || 'Medium'; counts[p] = (counts[p] || 0) + 1; });
+    return counts;
+  }, [filteredMomIssues]);
 
-        {/* ── PROJECT SUMMARY CARDS & CHARTS ── */}
-        {metricsContent}
+  const issuesByStatus = useMemo(() => {
+    const counts = {};
+    filteredMomIssues.forEach(i => {
+      const s = i.status || 'Open';
+      counts[s] = (counts[s] || 0) + 1;
+    });
+    return counts;
+  }, [filteredMomIssues]);
 
-        {/* ── PROJECT MILESTONES & TIMELINE ── */}
-        {visibleSections.milestones && (
-          <div className="vppd-section full" style={{
-            backgroundColor: 'var(--surface)',
-            borderRadius: '12px',
-            padding: '16px',
-            border: '1px solid var(--border-strong)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={18} color="var(--accent)" />
-                <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
-                  PROJECT MILESTONES & TIMELINE
-                </span>
-              </div>
-              {!isDashboardLoading && !isDashboardError && milestones.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ display: 'flex', background: 'var(--bg)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                    <button
-                      onClick={() => setMilestoneView('table')}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        backgroundColor: milestoneView === 'table' ? 'var(--surface)' : 'transparent',
-                        color: milestoneView === 'table' ? 'var(--accent)' : 'var(--text-muted)',
-                        boxShadow: milestoneView === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <Table size={12} />
-                      Table View
-                    </button>
-                    <button
-                      onClick={() => setMilestoneView('chart')}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        backgroundColor: milestoneView === 'chart' ? 'var(--surface)' : 'transparent',
-                        color: milestoneView === 'chart' ? 'var(--accent)' : 'var(--text-muted)',
-                        boxShadow: milestoneView === 'chart' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <BarChart3 size={12} />
-                      Timeline Chart
-                    </button>
-                  </div>
-                  {milestoneView === 'chart' && (
-                    <button
-                      onClick={() => setIsGanttSettingsModalOpen(true)}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--surface)',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseOver={(e) => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                      onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-                      title="Gantt Chart Settings"
-                    >
-                      <Settings size={14} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </header>
+  /* ─────────── Budget data ─────────── */
+  const budgetApproved = budgetSummaryData?.budgetApproved || 0;
+  const budgetUtilized = budgetSummaryData?.budgetUtilized || 0;
+  const budgetBalance  = budgetSummaryData?.budgetBalance  || 0;
+  const budgetOutlook  = budgetSummaryData?.budgetOutlook  || 0;
+  const utilizationPct = budgetApproved > 0 ? Math.min(100, Math.round((budgetUtilized / budgetApproved) * 100)) : 0;
 
-            {/* Loading State */}
-            {isDashboardLoading && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <Skeleton className="h-10 w-full" />
-                {Array.from({ length: 4 }).map((_, idx) => (
-                  <Skeleton key={`milestones-skeleton-${idx}`} className="h-8 w-full" />
-                ))}
-              </div>
-            )}
+  /* ─────────── ECharts options ─────────── */
+  const issuesPriorityOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)',
+      backgroundColor: 'var(--surface)',
+      borderColor: 'var(--border-strong)',
+      textStyle: { color: 'var(--text-primary)', fontSize: 12 }
+    },
+    legend: { show: false },
+    series: [{
+      type: 'pie', radius: ['48%', '72%'], center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      label: { show: true, position: 'inside', formatter: p => p.percent > 10 ? `${p.percent.toFixed(0)}%` : '', fontSize: 10, fontWeight: 700, color: '#fff' },
+      labelLine: { show: false },
+      data: [
+        { value: issuesByPriority.Critical, name: 'Critical', itemStyle: { color: '#ef4444' } },
+        { value: issuesByPriority.High,     name: 'High',     itemStyle: { color: '#f97316' } },
+        { value: issuesByPriority.Medium,   name: 'Medium',   itemStyle: { color: '#f59e0b' } },
+        { value: issuesByPriority.Low,      name: 'Low',      itemStyle: { color: '#10b981' } },
+      ].filter(d => d.value > 0)
+    }]
+  }), [issuesByPriority]);
 
-            {/* Error State */}
-            {!isDashboardLoading && isDashboardError && (
-              <div style={{
-                padding: '24px',
-                textAlign: 'center',
-                backgroundColor: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <AlertTriangle size={32} color="#ef4444" />
-                <span style={{ fontSize: '14px', fontWeight: '600', color: '#991b1b' }}>Failed to load project milestones</span>
-                <button
-                  onClick={onRetry}
-                  style={{
-                    padding: '6px 16px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Retry Loading
-                </button>
-              </div>
-            )}
+  const issuesStatusOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'var(--surface)',
+      borderColor: 'var(--border-strong)',
+      textStyle: { color: 'var(--text-primary)', fontSize: 12 }
+    },
+    grid: { left: 8, right: 12, top: 8, bottom: 8, containLabel: true },
+    xAxis: { type: 'value', axisLabel: { color: 'var(--text-secondary)', fontSize: 10 }, splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } }, axisLine: { show: false } },
+    yAxis: { type: 'category', data: Object.keys(issuesByStatus), axisLabel: { color: 'var(--text-secondary)', fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
+    series: [{
+      type: 'bar', barMaxWidth: 16,
+      itemStyle: { color: (p) => ['#ef4444','#f97316','#f59e0b','#3b82f6','#10b981'][p.dataIndex % 5], borderRadius: [0,4,4,0] },
+      label: { show: true, position: 'right', fontSize: 10, color: 'var(--text-secondary)' },
+      data: Object.values(issuesByStatus)
+    }]
+  }), [issuesByStatus]);
 
-            {/* Empty State */}
-            {!isDashboardLoading && !isDashboardError && milestones.length === 0 && (
-              <div style={{
-                padding: '40px 20px',
-                background: 'var(--surface)',
-                borderRadius: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px dashed var(--border-subtle)',
-                textAlign: 'center'
-              }}>
-                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.4 }}>
-                  <Calendar size={48} strokeWidth={1} />
-                </div>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                  No milestones configured yet
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '360px', lineHeight: 1.5 }}>
-                  Go to Project Master {'→'} Detailed View {'→'} Milestone Management tab to create and manage WBS schedules for this project.
-                </div>
-                <button
-                  onClick={() => navigate(`/dashboard/masters/project-master/${activeProject?.dbProjectId || activeProject?.id}`)}
-                  style={{
-                    padding: '8px 20px',
-                    backgroundColor: 'var(--accent)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
-                  }}
-                >
-                  Go to Milestone Management
-                </button>
-              </div>
-            )}
+  const budgetUtilizationOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}',
+      backgroundColor: 'var(--surface)',
+      borderColor: 'var(--border-strong)',
+      textStyle: { color: 'var(--text-primary)', fontSize: 12 }
+    },
+    legend: { show: false },
+    series: [{
+      type: 'pie', radius: ['52%', '76%'], center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      label: { show: false },
+      data: [
+        { value: budgetUtilized, name: 'Utilized',  itemStyle: { color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#3b82f6' } },
+        { value: Math.max(0, budgetApproved - budgetUtilized), name: 'Balance', itemStyle: { color: '#e2e8f0' } },
+      ].filter(d => d.value > 0)
+    }]
+  }), [budgetUtilized, budgetApproved, utilizationPct]);
 
-            {/* Normal State */}
-            {!isDashboardLoading && !isDashboardError && milestones.length > 0 && (
-              milestoneView === 'table' ? (
-                <div style={{ border: '1px solid var(--border-subtle)', borderRadius: '6px', overflow: 'hidden' }}>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: 'var(--elevated-card)', borderBottom: '1px solid var(--border-subtle)' }}>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)', width: '90px' }}>WBS</th>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)' }}>Activity / Milestone</th>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)', width: '110px' }}>Start Date</th>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)', width: '110px' }}>End Date</th>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)', width: '90px', textAlign: 'center' }}>Progress</th>
-                          <th style={{ padding: '10px 14px', fontWeight: '700', color: 'var(--text-secondary)', width: '120px', textAlign: 'center' }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {optimizedMilestones.map((task) => {
-                          const isPhase = task.item_type === 'Phase';
-                          const isMilestone = task.item_type === 'Milestone';
-                          const indent = (task.indent_level || 0) * 16;
-                          
-                          const formattedStart = task.start_date ? new Date(task.start_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-                          const formattedEnd = task.end_date ? new Date(task.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-                          
-                          const statusColors = {
-                            'Completed': { bg: 'var(--green-50)', text: 'var(--green-900)', border: 'var(--green-200)' },
-                            'In Progress': { bg: 'var(--blue-50)', text: 'var(--blue-900)', border: 'var(--blue-200)' },
-                            'Delayed': { bg: 'var(--red-50)', text: 'var(--red-900)', border: 'var(--red-200)' },
-                            'Upcoming': { bg: 'var(--indigo-50)', text: 'var(--indigo-900)', border: 'var(--indigo-200)' },
-                            'On Hold': { bg: 'var(--amber-50)', text: 'var(--amber-900)', border: 'var(--amber-200)' },
-                            'Not Started': { bg: 'var(--elevated-card)', text: 'var(--text-secondary)', border: 'var(--border-subtle)' },
-                            'Cancelled': { bg: 'var(--border-subtle)', text: 'var(--text-muted)', border: 'var(--border-subtle)' },
-                          };
-                          const statusVal = task.status || 'Not Started';
-                          const colorSet = statusColors[statusVal] || statusColors['Not Started'];
+  const budgetBarOption = useMemo(() => ({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      backgroundColor: 'var(--surface)', borderColor: 'var(--border-strong)',
+      textStyle: { color: 'var(--text-primary)', fontSize: 12 }
+    },
+    grid: { left: 8, right: 16, top: 16, bottom: 8, containLabel: true },
+    xAxis: { type: 'category', data: ['Approved', 'Utilized', 'Balance'], axisLabel: { color: 'var(--text-secondary)', fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { color: 'var(--text-secondary)', fontSize: 9, formatter: v => fmtMoney(v) }, splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } }, axisLine: { show: false } },
+    series: [{
+      type: 'bar', barMaxWidth: 40,
+      itemStyle: { borderRadius: [4, 4, 0, 0] },
+      data: [
+        { value: budgetApproved, itemStyle: { color: '#3b82f6' } },
+        { value: budgetUtilized, itemStyle: { color: utilizationPct > 90 ? '#ef4444' : '#10b981' } },
+        { value: budgetBalance,  itemStyle: { color: '#f59e0b' } },
+      ],
+      label: { show: true, position: 'top', fontSize: 10, formatter: p => fmtMoney(p.value), color: 'var(--text-secondary)' }
+    }]
+  }), [budgetApproved, budgetUtilized, budgetBalance, utilizationPct]);
 
-                          return (
-                            <tr key={task.id} style={{
-                              borderBottom: '1px solid var(--border-subtle)',
-                              backgroundColor: isPhase ? 'var(--elevated-card)' : 'transparent',
-                              fontWeight: isPhase ? '700' : '500'
-                            }}>
-                              <td style={{ padding: '10px 14px', color: isPhase ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                                {task.wbs_code}
-                              </td>
-                              <td style={{ padding: '10px 14px', paddingLeft: `${14 + indent}px` }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  {isMilestone && <span style={{ display: 'inline-block', width: '6px', height: '6px', transform: 'rotate(45deg)', backgroundColor: 'var(--accent)', flexShrink: 0 }} />}
-                                  <span style={{ color: isMilestone ? 'var(--accent)' : 'var(--text-primary)' }}>
-                                    {task.activity_name}
-                                  </span>
-                                </div>
-                              </td>
-                              <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{formattedStart}</td>
-                              <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>{formattedEnd}</td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                                  <div style={{ width: '40px', backgroundColor: 'var(--border-subtle)', height: '4px', borderRadius: '2px', overflow: 'hidden' }}>
-                                    <div style={{ width: `${task.complete_percent || 0}%`, backgroundColor: isPhase ? 'var(--accent)' : 'var(--blue)', height: '100%' }} />
-                                  </div>
-                                  <span style={{ fontSize: '11px', minWidth: '24px', textAlign: 'right' }}>{Math.round(task.complete_percent || 0)}%</span>
-                                </div>
-                              </td>
-                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                                <span style={{
-                                  backgroundColor: colorSet.bg,
-                                  color: colorSet.text,
-                                  border: `1px solid ${colorSet.border}`,
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontSize: '10px',
-                                  fontWeight: '700',
-                                  textTransform: 'uppercase',
-                                  display: 'inline-block',
-                                  minWidth: '90px'
-                                }}>
-                                  {statusVal}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  overflow: 'hidden',
-                  backgroundColor: 'var(--surface)',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  {/* ── GANTT FILTER BAR ── */}
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--elevated-card)',
-                    borderBottom: '1px solid var(--border-subtle)'
-                  }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: '800', color: 'var(--accent)' }}>
-                        <Filter size={14} />
-                        GANTT FILTER
-                      </div>
-                      
-                      {/* Dept Filter */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                        <Building2 size={13} color="var(--text-muted)" />
-                        <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Dept:</span>
-                        <select
-                          value={ganttDeptFilter}
-                          onChange={e => setGanttDeptFilter(e.target.value)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: 'var(--bg)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            outline: 'none'
-                          }}
-                        >
-                          <option value="All">All Departments</option>
-                          {departmentOptions.map(d => (
-                            <option key={d} value={d}>{d}</option>
-                          ))}
-                        </select>
-                      </div>
+  /* ─────────── Health chip ─────────── */
+  const health = dashboardData?.project_health || 'Unknown';
+  const healthStyle = health === 'Red'
+    ? { backgroundColor: '#fef2f2', color: '#991b1b', borderColor: '#fca5a5' }
+    : health === 'Yellow'
+    ? { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }
+    : health === 'Green'
+    ? { backgroundColor: 'var(--green-50)', color: 'var(--green-900)', borderColor: '#86efac' }
+    : { backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' };
 
-                      {/* Type Filter */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                        <ListTodo size={13} color="var(--text-muted)" />
-                        <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Type:</span>
-                        <select
-                          value={ganttTypeFilter}
-                          onChange={e => setGanttTypeFilter(e.target.value)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: 'var(--bg)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            outline: 'none'
-                          }}
-                        >
-                          <option value="All">All Types</option>
-                          {['Phase', 'Task', 'Sub Task', 'Milestone', 'Approval Gate'].map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
+  const healthLabel = health === 'Red' ? 'Critical' : health === 'Yellow' ? 'At Risk' : health === 'Green' ? 'On Track' : 'Unknown';
+  const projectInitials = (activeProject?.name || 'P').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
-                      {/* Status Filter */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                        <Activity size={13} color="var(--text-muted)" />
-                        <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Status:</span>
-                        <select
-                          value={ganttStatusFilter}
-                          onChange={e => setGanttStatusFilter(e.target.value)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: 'var(--bg)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            outline: 'none'
-                          }}
-                        >
-                          <option value="All">All Statuses</option>
-                          {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </div>
+  /* ─────────── Normalise issue status ─────────── */
+  const normalizeIssueStatus = (s) => {
+    if (!s) return 'Pending';
+    const l = s.toLowerCase();
+    if (['open', 'pending', 'in progress'].includes(l)) return 'Open';
+    if (['closed', 'done', 'resolved', 'complete'].includes(l)) return 'Resolved';
+    return s;
+  };
 
-                      {/* Zoom Controls */}
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-                        {[
-                          { lvl: 'Day', label: 'D' },
-                          { lvl: 'Week', label: 'W' },
-                          { lvl: 'Month', label: 'M' }
-                        ].map(z => (
-                          <button
-                            key={z.lvl}
-                            onClick={() => setZoomLevel(z.lvl)}
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: '10px',
-                              fontWeight: '700',
-                              borderRadius: '4px',
-                              border: 'none',
-                              cursor: 'pointer',
-                              backgroundColor: zoomLevel === z.lvl ? 'var(--accent)' : 'transparent',
-                              color: zoomLevel === z.lvl ? 'white' : 'var(--text-muted)',
-                              transition: 'all 0.15s'
-                            }}
-                          >
-                            {z.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+  /* ─────────── Optimized milestones for table ─────────── */
+  const tableMilestones = useMemo(() =>
+    (milestones || []).filter(t => t.item_type === 'Phase' || t.item_type === 'Milestone'),
+  [milestones]);
 
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>
-                      Showing <strong style={{ color: 'var(--text-primary)' }}>{ganttFilteredTasks.length}</strong> of {milestones.length} tasks
-                    </div>
-                  </div>
+  /* ══════════════════════════════════════════════════════════════════
+     TAB: OVERVIEW
+  ══════════════════════════════════════════════════════════════════ */
+  const renderOverviewTab = () => (
+    <div className="vppd-overview-grid">
 
-                  {/* ── GANTT TIMELINE CANVAS ── */}
-                  <div
-                    ref={ganttContainerRef}
-                    style={{
-                      flex: 1,
-                      overflow: 'auto',
-                      position: 'relative',
-                      maxHeight: '450px',
-                      minHeight: '320px',
-                      backgroundColor: 'var(--bg)'
-                    }}>
-                    {ganttFilteredTasks.length === 0 ? (
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '320px',
-                        color: 'var(--text-muted)',
-                        fontSize: '13px'
-                      }}>
-                        No tasks match the active Gantt filters.
-                      </div>
-                    ) : (
-                      <div style={{
-                        width: timelineWidth,
-                        height: ganttFilteredTasks.length * rowHeight + 52,
-                        position: 'relative',
-                        backgroundColor: 'var(--surface)'
-                      }}>
-                        {/* Headers */}
-                        <div style={{
-                          height: '52px',
-                          backgroundColor: 'var(--elevated-card)',
-                          borderBottom: '2px solid var(--border-subtle)',
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 20,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'end'
-                        }}>
-                          {/* Top month tier */}
-                          <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '26px',
-                            borderBottom: '1px solid var(--border-subtle)',
-                            display: 'flex',
-                            fontSize: '11px',
-                            fontWeight: '800',
-                            color: 'var(--text-primary)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            overflow: 'hidden'
-                          }}>
-                            {timelineHeaders.topHeaders.map(th => (
-                              <div
-                                key={th.key}
-                                style={{
-                                  position: 'absolute',
-                                  left: th.left,
-                                  width: th.width,
-                                  top: 0,
-                                  height: '100%',
-                                  borderRight: '1px solid var(--border-subtle)',
-                                  borderLeft: th.left === 0 ? '1px solid var(--border-subtle)' : 'none',
-                                  paddingLeft: '12px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <span style={{ color: 'var(--accent)', marginRight: '4px' }}>▶</span>
-                                {th.label}
-                              </div>
-                            ))}
-                          </div>
-                          
-                          {/* Bottom week tier */}
-                          <div style={{
-                            height: '26px',
-                            position: 'relative',
-                            display: 'flex',
-                            fontSize: '9px',
-                            fontWeight: '700',
-                            color: 'var(--text-secondary)',
-                            backgroundColor: 'var(--surface)'
-                          }}>
-                            {timelineHeaders.bottomHeaders.map(bh => (
-                              <div
-                                key={bh.key}
-                                style={{
-                                  position: 'absolute',
-                                  left: bh.left,
-                                  width: bh.width,
-                                  bottom: 0,
-                                  height: '100%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  paddingLeft: '4px',
-                                  borderLeft: '1px solid var(--border-subtle)'
-                                }}
-                                title={bh.title}
-                              >
-                                {bh.label}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Grid lines */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '52px',
-                          left: 0,
-                          width: '100%',
-                          height: `${ganttFilteredTasks.length * rowHeight}px`,
-                          pointerEvents: 'none'
-                        }}>
-                          {Array.from({ length: daysBetween }).map((_, i) => {
-                            const tickDate = new Date(timelineStart);
-                            tickDate.setDate(tickDate.getDate() + i);
-                            const isWeekend = tickDate.getDay() === 0 || tickDate.getDay() === 6;
-                            
-                            let showLine = true;
-                            let isMajorLine = false;
-                            let isMonthStart = false;
-
-                            if (zoomLevel === 'Day') {
-                              isMajorLine = tickDate.getDay() === 1;
-                              isMonthStart = tickDate.getDate() === 1;
-                            } else if (zoomLevel === 'Week') {
-                              showLine = tickDate.getDay() === 1;
-                              const prevMonday = new Date(tickDate);
-                              prevMonday.setDate(prevMonday.getDate() - 7);
-                              isMonthStart = tickDate.getMonth() !== prevMonday.getMonth();
-                              isMajorLine = isMonthStart;
-                            } else if (zoomLevel === 'Month') {
-                              showLine = tickDate.getDate() === 1;
-                              isMajorLine = tickDate.getMonth() === 0;
-                              isMonthStart = true;
-                            }
-
-                            if (!showLine) return null;
-
-                            return (
-                              <div 
-                                key={i} 
-                                style={{
-                                  position: 'absolute',
-                                  left: i * pxPerDay,
-                                  width: pxPerDay,
-                                  top: 0,
-                                  height: '100%',
-                                  borderLeft: isMonthStart ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
-                                  opacity: isMonthStart ? 0.3 : 0.15,
-                                  backgroundColor: zoomLevel === 'Day' && isWeekend ? 'rgba(100, 116, 139, 0.05)' : 'transparent'
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-
-                        {/* Row stripes background */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '52px',
-                          left: 0,
-                          width: '100%',
-                          height: `${ganttFilteredTasks.length * rowHeight}px`,
-                          pointerEvents: 'none'
-                        }}>
-                          {ganttFilteredTasks.map((t, i) => (
-                            <div 
-                              key={t.id}
-                              style={{
-                                position: 'absolute',
-                                top: i * rowHeight,
-                                height: rowHeight,
-                                left: 0,
-                                width: '100%',
-                                borderBottom: '1px solid var(--border-subtle)',
-                                opacity: 0.25,
-                                backgroundColor: i % 2 === 0 ? 'transparent' : 'rgba(100, 116, 139, 0.02)'
-                              }}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Today Line */}
-                        {ganttShowTodayLine && todayLeft !== null && (
-                          <div style={{
-                            position: 'absolute',
-                            left: todayLeft,
-                            top: '52px',
-                            bottom: 0,
-                            width: '2px',
-                            backgroundColor: 'red',
-                            zIndex: 15,
-                            pointerEvents: 'none',
-                            boxShadow: '0 0 6px rgba(239, 68, 68, 0.4)'
-                          }}>
-                            <div style={{
-                              position: 'absolute',
-                              top: '-4px',
-                              left: '-5px',
-                              width: '12px',
-                              height: '12px',
-                              borderRadius: '50%',
-                              backgroundColor: 'red'
-                            }} title={`Today: ${new Date().toLocaleDateString()}`} />
-                            <span style={{
-                              position: 'absolute',
-                              top: '-16px',
-                              left: '-16px',
-                              fontSize: '8px',
-                              fontWeight: '800',
-                              color: 'red',
-                              backgroundColor: 'var(--bg)',
-                              padding: '1px 3px',
-                              borderRadius: '4px',
-                              border: '1px solid red',
-                              whiteSpace: 'nowrap'
-                            }}>TODAY</span>
-                          </div>
-                        )}
-
-                        {/* Gantt Row Items */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '52px',
-                          left: 0,
-                          width: '100%',
-                          height: `${ganttFilteredTasks.length * rowHeight}px`
-                        }}>
-                          {ganttBars.map((bar, idx) => {
-                            if (!bar) return null;
-                            const color = bar.colors.fill;
-                            
-                            const isMilestone = bar.isMilestone;
-                            const isParent = bar.isParent;
-
-                            return (
-                              <div
-                                key={bar.id}
-                                style={{
-                                  position: 'absolute',
-                                  left: 0,
-                                  width: '100%',
-                                  top: idx * rowHeight,
-                                  height: rowHeight,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  borderBottom: '1px solid var(--border-subtle)',
-                                  backgroundColor: isParent ? 'rgba(100, 116, 139, 0.02)' : 'transparent',
-                                  cursor: 'pointer'
-                                }}
-                                onMouseEnter={(e) => {
-                                  setHoveredBar({
-                                    bar,
-                                    x: e.clientX + 14,
-                                    y: e.clientY + 14
-                                  });
-                                }}
-                                onMouseMove={(e) => {
-                                  setHoveredBar(prev => prev ? ({
-                                    ...prev,
-                                    x: e.clientX + 14,
-                                    y: e.clientY + 14
-                                  }) : null);
-                                }}
-                                onMouseLeave={() => setHoveredBar(null)}
-                              >
-                                {isMilestone ? (
-                                  <>
-                                    {/* Diamond */}
-                                    <div 
-                                      className="shadow-md"
-                                      style={{ 
-                                        position: 'absolute',
-                                        left: bar.plannedLeft - 5,
-                                        top: '22px',
-                                        width: '10px',
-                                        height: '10px',
-                                        transform: 'rotate(45deg)',
-                                        backgroundColor: color,
-                                        border: '1.5px solid #fff',
-                                        zIndex: 10
-                                      }}
-                                    />
-                                  </>
-                                ) : isParent ? (
-                                  <>
-                                    {/* Phase parent summary bar */}
-                                    <svg 
-                                      className="absolute overflow-visible pointer-events-none" 
-                                      style={{
-                                        position: 'absolute',
-                                        left: bar.plannedLeft - 2,
-                                        width: Math.max(8, bar.plannedWidth) + 4,
-                                        top: '22px',
-                                        height: '12px',
-                                        zIndex: 10
-                                      }}
-                                    >
-                                      <path d={`M 2 2 H ${bar.plannedWidth + 2} V 8 H 2 Z`} fill={color} />
-                                      <path d="M 2 2 L 6 8 L 6 2 Z" fill={color} />
-                                      <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 8 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
-                                    </svg>
-                                  </>
-                                ) : (
-                                  <>
-                                    {/* Standard task bar */}
-                                    <div 
-                                      style={{
-                                        position: 'absolute',
-                                        left: bar.plannedLeft,
-                                        width: bar.plannedWidth,
-                                        top: '22px',
-                                        height: '8px',
-                                        borderRadius: '4px',
-                                        backgroundColor: 'rgba(100, 116, 139, 0.15)',
-                                        border: '1px solid var(--border-subtle)',
-                                        overflow: 'hidden',
-                                        zIndex: 10
-                                      }}
-                                    >
-                                      <div 
-                                        style={{ 
-                                          width: `${bar.completePercent}%`,
-                                          backgroundColor: color,
-                                          height: '100%'
-                                        }} 
-                                      />
-                                    </div>
-                                  </>
-                                )}
-
-                                {/* Inline Text Label (above the bar) */}
-                                {(ganttShowTaskName || (ganttShowPercent && bar.completePercent > 0)) && (
-                                  <span
-                                    style={{
-                                      position: 'absolute',
-                                      left: isMilestone ? bar.plannedLeft + 12 : bar.plannedLeft,
-                                      top: '4px',
-                                      maxWidth: '420px',
-                                      fontSize: '10px',
-                                      fontWeight: '700',
-                                      color: 'var(--text-primary)',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      pointerEvents: 'none',
-                                      lineHeight: 'none'
-                                    }}
-                                  >
-                                    {ganttShowTaskName ? bar.activityName : ''}
-                                    {ganttShowPercent && bar.completePercent > 0 ? ` (${Math.round(bar.completePercent)}%)` : ''}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── GANTT HOVER TOOLTIP ── */}
-                    {hoveredBar && (() => {
-                      const { bar } = hoveredBar;
-                      const statusColorMap = {
-                        'Completed':   { bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
-                        'In Progress': { bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' },
-                        'Delayed':     { bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
-                        'Upcoming':    { bg: '#ede9fe', text: '#4c1d95', dot: '#8b5cf6' },
-                        'On Hold':     { bg: '#fef3c7', text: '#92400e', dot: '#f59e0b' },
-                        'Not Started': { bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' },
-                        'Cancelled':   { bg: '#f1f5f9', text: '#94a3b8', dot: '#cbd5e1' },
-                      };
-                      const sc = statusColorMap[bar.status] || statusColorMap['Not Started'];
-                      return (
-                        <div
-                          style={{
-                            position: 'fixed',
-                            left: hoveredBar.x,
-                            top: hoveredBar.y,
-                            zIndex: 9999,
-                            pointerEvents: 'none',
-                            backgroundColor: '#1e293b',
-                            border: '1px solid #334155',
-                            borderRadius: '10px',
-                            padding: '12px 14px',
-                            minWidth: '220px',
-                            maxWidth: '300px',
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-                            fontSize: '11px',
-                            color: '#f8fafc'
-                          }}
-                        >
-                          {/* Title */}
-                          <div style={{ fontWeight: '800', fontSize: '12px', color: bar.colors.fill, marginBottom: '8px', lineHeight: 1.3 }}>
-                            {bar.activityName}
-                          </div>
-
-                          {/* WBS + Type row */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            {bar.wbsCode && (
-                              <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#94a3b8', backgroundColor: '#0f172a', padding: '1px 6px', borderRadius: '4px', border: '1px solid #334155' }}>
-                                {bar.wbsCode}
-                              </span>
-                            )}
-                            <span style={{ fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', backgroundColor: '#0f172a', padding: '1px 6px', borderRadius: '4px', border: '1px solid #334155' }}>
-                              {bar.itemType || 'Task'}
-                            </span>
-                          </div>
-
-                          {/* Status badge */}
-                          <div style={{ marginBottom: '10px' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: sc.bg, color: sc.text, border: `1px solid ${sc.dot}40`, padding: '2px 8px', borderRadius: '999px', fontSize: '10px', fontWeight: '700' }}>
-                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: sc.dot, flexShrink: 0 }} />
-                              {bar.status || 'Not Started'}
-                            </span>
-                          </div>
-
-                          {/* Divider */}
-                          <div style={{ height: '1px', backgroundColor: '#334155', marginBottom: '8px' }} />
-
-                          {/* Dates */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: '8px' }}>
-                            <div>
-                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Start</div>
-                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.plannedStartStr}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>End</div>
-                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.plannedEndStr}</div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Duration</div>
-                              <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{bar.durationDays} day{bar.durationDays !== 1 ? 's' : ''}</div>
-                            </div>
-                            {bar.department && (
-                              <div>
-                                <div style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', marginBottom: '2px' }}>Dept</div>
-                                <div style={{ fontWeight: '600', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bar.department}</div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Progress */}
-                          {!bar.isMilestone && (
-                            <>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                <span style={{ fontSize: '9px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Progress</span>
-                                <span style={{ fontWeight: '800', color: bar.colors.fill }}>{Math.round(bar.completePercent)}%</span>
-                              </div>
-                              <div style={{ height: '5px', backgroundColor: '#334155', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${bar.completePercent}%`, height: '100%', backgroundColor: bar.colors.fill, borderRadius: '3px', transition: 'width 0.3s ease' }} />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        )}
-
-        {/* ── RESOURCE & QUALITY HEALTH CENTERS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
-          {visibleSections.resource && (
-            <ResourceManagementCenter
-              projectTeam={projectTeam}
-              employees={employees}
-              projectId={activeProject?.dbProjectId || activeProject?.id}
-              onRefresh={fetchTeamAndEmployees}
-            />
-          )}
-
-          {visibleSections.quality && (
-            <QualityHealthCenter
-              projectMilestones={milestones}
-              projectId={activeProject?.dbProjectId || activeProject?.id}
-              projectName={activeProject?.name}
-              onRefresh={onRetry}
-            />
-          )}
+      {/* ── Project Metrics Summary (KPIs only) ── */}
+      <div className="vppd-section">
+        <div className="vppd-section-header">
+          <h3 className="vppd-section-title">
+            <BarChart3 size={14} style={{ color: '#4f46e5' }} />
+            Project Metrics Summary
+          </h3>
         </div>
-
-        {/* ── MOM ISSUES ── */}
-        {visibleSections.criticalIssues && (
-          <div className="vppd-section full">
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              padding: '18px 24px', 
-              borderBottom: '1px solid var(--border-subtle)',
-              background: 'linear-gradient(to right, var(--elevated-card), var(--surface))'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-                  CRITICAL ISSUES
-                </span>
-                
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Total Pill */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  background: 'var(--elevated-card)', 
-                  border: '1px solid var(--border-subtle)', 
-                  borderRadius: '6px', 
-                  padding: '4px 10px',
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--text-secondary)'
-                }}>
-                  <ClipboardList size={12} color="var(--text-muted)" />
-                  TOTAL: <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.length}</span>
-                </div>
-                
-                {/* Pending Pill */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  background: 'var(--amber-50)', 
-                  border: '1px solid var(--amber-200)', 
-                  borderRadius: '6px', 
-                  padding: '4px 10px',
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--amber-900)'
-                }}>
-                  <AlertCircle size={12} color="var(--amber)" />
-                  PENDING: <span style={{ color: 'var(--amber-900)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.filter(i => i.status !== 'Closed' && i.status !== 'Resolved').length}</span>
-                </div>
-
-                {/* Resolved Pill */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '6px', 
-                  background: 'var(--green-50)', 
-                  border: '1px solid var(--green-200)', 
-                  borderRadius: '6px', 
-                  padding: '4px 10px',
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  color: 'var(--green-900)'
-                }}>
-                  <CheckCircle2 size={12} color="var(--green)" />
-                  RESOLVED: <span style={{ color: 'var(--green-900)', fontVariantNumeric: 'tabular-nums' }}>{filteredMomIssues.filter(i => i.status === 'Closed' || i.status === 'Resolved').length}</span>
-                </div>
-
-                {/* Vertical Divider */}
-                <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)', margin: '0 4px' }} />
-
-                {/* Premium Refresh Button */}
-                <button
-                  onClick={() => {
-                    fetchingRef.current = false;
-                    fetchMomIssues();
-                  }}
-                  disabled={loadingMom}
-                  style={{ 
-                    fontSize: '11px', 
-                    fontWeight: 700,
-                    color: 'var(--accent)', 
-                    background: 'var(--elevated-card)', 
-                    border: '1px solid var(--border-subtle)', 
-                    borderRadius: '6px',
-                    padding: '5px 12px',
-                    cursor: loadingMom ? 'default' : 'pointer', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  <RefreshCw size={12} style={{ animation: loadingMom ? 'spin 1s linear infinite' : 'none' }} />
-                  REFRESH
-                </button>
-              </div>
+        <div className="vppd-section-body">
+          <div className="vppd-kpi-strip">
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">Total Milestones</span>
+              <span className="vppd-kpi-value" style={{ color: 'var(--text-primary)' }}>{milestoneStats.total}</span>
             </div>
-            <div className="vppd-meeting-list" style={{ padding: '0px' }}>
-              {momIssues.length === 0 ? (
-                <div className="vppd-empty" style={{ padding: '60px 20px', background: 'var(--surface)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-subtle)' }}>
-                  <div style={{ marginBottom: '20px', color: 'var(--text-muted)', opacity: 0.5 }}>
-                    <FileText size={48} strokeWidth={1} />
-                  </div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>No meeting issues synced yet.</div>
-                  <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '320px', textAlign: 'center', lineHeight: 1.5 }}>
-                    Capture meeting minutes and sync your action items to track them here in the unified dashboard.
-                  </div>
-                  <button
-                    onClick={() => navigate('/dashboard/mom/capture')}
-                    style={{
-                      padding: '10px 24px', background: 'var(--accent)', color: 'white', border: 'none',
-                      borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                  >
-                    Capture New Meeting
-                  </button>
-                </div>
-              ) : (
-                <div className="vppd-mom-table-container animate-fadeIn">
-                  {/* Form Style Header */}
-                  <div className="vppd-mom-form-header" style={{ padding: '16px 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={16} color="var(--accent)" />
-                      <h2 className="vppd-mom-form-title" style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Minutes of Meeting (MOM Action Items)
-                      </h2>
-                    </div>
-                    <div className="vppd-mom-form-meta" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      FORM NO: MOM/DB/2026 <span className="mx-2" style={{ color: 'var(--border-subtle)' }}>|</span> REV: 0.1
-                    </div>
-                  </div>
-
-                  <div className="vppd-table-wrapper" style={{ border: '1px solid var(--border-subtle)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <table className="vppd-mom-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '50px' }}>S.No</th>
-                          <th style={{ width: '100px' }}>Function</th>
-                          <th style={{ width: '150px' }}>Project</th>
-                          <th style={{ width: '100px' }}>Criticality</th>
-                          <th>Action Points Discussed</th>
-                          <th style={{ width: '150px' }}>Responsibility</th>
-                          <th style={{ width: '100px' }}>Target</th>
-                          <th style={{ width: '120px' }}>Status</th>
-                          <th style={{ width: '180px' }}>Action Taken</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loadingMom ? (
-                          Array.from({ length: 5 }).map((_, rIdx) => (
-                            <tr key={`skeleton-${rIdx}`}>
-                              <td style={{ textAlign: 'center' }}><Skeleton className="h-4 w-4 mx-auto" /></td>
-                              <td><Skeleton className="h-4 w-16 mx-auto" /></td>
-                              <td><Skeleton className="h-4 w-24 mx-auto" /></td>
-                              <td><Skeleton className="h-5 w-16 rounded mx-auto" /></td>
-                              <td>
-                                <Skeleton className="h-4 w-32 mb-1" />
-                                <Skeleton className="h-3 w-48" />
-                              </td>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <Skeleton className="h-6 w-6 rounded-full" />
-                                  <Skeleton className="h-4 w-16" />
-                                </div>
-                              </td>
-                              <td><Skeleton className="h-4 w-12 mx-auto" /></td>
-                              <td><Skeleton className="h-5 w-16 rounded mx-auto" /></td>
-                              <td><Skeleton className="h-4 w-28" /></td>
-                            </tr>
-                          ))
-                        ) : (
-                          displayIssues.map((issue, idx) => {
-                            const priority = issue.priority || 'Medium';
-                            const critStyles = {
-                              'High': { bg: 'var(--red-50)', color: 'var(--red-900)', border: 'var(--red-200)' },
-                              'Medium': { bg: 'var(--amber-50)', color: 'var(--amber-900)', border: 'var(--amber-200)' },
-                              'Low': { bg: 'var(--green-50)', color: 'var(--green-900)', border: 'var(--green-200)' },
-                              'Critical': { bg: 'var(--red)', color: '#FFFFFF', border: 'var(--red-700)' },
-                            }[priority] || { bg: 'var(--elevated-card)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' };
-
-                            const normalizeStatus = (status) => {
-                              if (!status) return 'Pending';
-                              const s = status.toLowerCase();
-                              if (['open', 'pending', 'in progress'].includes(s)) return 'Pending';
-                              if (['closed', 'done', 'resolved', 'complete'].includes(s)) return 'Resolved';
-                              return status;
-                            };
-
-                            const isClosed = ['closed', 'done', 'resolved', 'complete'].includes(
-                              (issue.status || '').toLowerCase()
-                            );
-                            const displayStatus = normalizeStatus(issue.status);
-
-                            const statusBg = isClosed ? 'var(--green-50)' : (displayStatus === 'Pending' ? 'var(--amber-50)' : 'var(--elevated-card)');
-                            const statusColor = isClosed ? 'var(--green-900)' : (displayStatus === 'Pending' ? 'var(--amber-900)' : 'var(--text-secondary)');
-
-                            return (
-                              <tr key={issue.id}>
-                                <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{idx + 1}</td>
-                                <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{issue.department || 'General'}</td>
-                                <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{activeProject.name}</td>
-                                <td>
-                                  <div style={{
-                                    background: critStyles.bg, color: critStyles.color, border: `1px solid ${critStyles.border}`,
-                                    fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
-                                    textAlign: 'center', textTransform: 'uppercase'
-                                  }}>
-                                    {priority}
-                                  </div>
-                                </td>
-                                <td style={{ lineHeight: 1.5, color: 'var(--text-primary)' }}>
-                                  <div style={{ fontWeight: 600, marginBottom: '2px' }}>{issue.title}</div>
-                                  {issue.description && issue.description !== issue.title && (
-                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{issue.description}</div>
-                                  )}
-                                </td>
-                                <td>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{
-                                      width: '24px', height: '24px', borderRadius: '50%', background: 'var(--elevated-card)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, color: 'var(--text-secondary)', flexShrink: 0
-                                    }}>
-                                      {issue.owner?.charAt(0).toUpperCase() || '?'}
-                                    </div>
-                                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)' }}>{issue.owner}</span>
-                                  </div>
-                                </td>
-                                <td style={{ textAlign: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
-                                  {issue.due_date ? new Date(issue.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
-                                </td>
-                                <td>
-                                  <div style={{
-                                    background: statusBg, color: statusColor,
-                                    fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderRadius: '4px',
-                                    textAlign: 'center', textTransform: 'uppercase'
-                                  }}>
-                                    {displayStatus}
-                                  </div>
-                                </td>
-                                <td style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                  {(() => {
-                                    if (!issue.comments || issue.comments.length === 0) return '—';
-                                    const sorted = [...issue.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                                    return sorted[0].comment_text;
-                                  })()}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  {filteredMomIssues.length > displayIssues.length && (
-                    <div style={{ padding: '12px 24px', background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'center' }}>
-                      <button
-                        onClick={() => {
-                          setTempPinnedIds(pinnedIssueIds.length > 0 ? [...pinnedIssueIds] : displayIssues.map(i => i.id));
-                          setIsIssueModalOpen(true);
-                        }}
-                        style={{
-                          background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '6px',
-                          padding: '6px 16px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)',
-                          cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px'
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-                      >
-                        + {filteredMomIssues.length - displayIssues.length} more issues
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">Completed</span>
+              <span className="vppd-kpi-value" style={{ color: '#10b981' }}>{milestoneStats.completed}</span>
+              <span className="vppd-kpi-sub">{milestoneStats.total ? Math.round((milestoneStats.completed / milestoneStats.total) * 100) : 0}% done</span>
             </div>
-
-            {/* ── SECTION 2: Sync History ── */}
-            <div style={{ padding: '20px 20px 12px', borderTop: '1px solid var(--border-subtle)', marginTop: '24px' }}>
-              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Sync History</span>
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">Delayed</span>
+              <span className="vppd-kpi-value" style={{ color: '#ef4444' }}>{milestoneStats.delayed}</span>
+              <span className="vppd-kpi-sub">requires attention</span>
             </div>
-            {syncHistory.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ marginBottom: '16px', color: 'var(--text-muted)', opacity: 0.3 }}>
-                  <RefreshCw size={32} strokeWidth={1.5} />
-                </div>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>No sync history yet.</p>
-              </div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">In Progress</span>
+              <span className="vppd-kpi-value" style={{ color: '#3b82f6' }}>{milestoneStats.inProgress}</span>
+            </div>
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">Upcoming</span>
+              <span className="vppd-kpi-value" style={{ color: '#64748b' }}>{milestoneStats.upcoming}</span>
+            </div>
+            <div className="vppd-kpi-card">
+              <span className="vppd-kpi-label">Open Issues</span>
+              <span className="vppd-kpi-value" style={{ color: filteredMomIssues.length > 0 ? '#f97316' : '#10b981' }}>{filteredMomIssues.length}</span>
+              <span className="vppd-kpi-sub">from meetings</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Critical Issues (compact) ── */}
+      <div className="vppd-section">
+        <div className="vppd-section-header">
+          <h3 className="vppd-section-title">
+            <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+            Critical Issues
+            {filteredMomIssues.length > 0 && (
+              <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+            )}
+          </h3>
+          <span className="vppd-tab-count">{filteredMomIssues.length}</span>
+        </div>
+        <div className="vppd-section-body" style={{ padding: 0 }}>
+          {filteredMomIssues.length === 0 ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              <CheckCircle2 size={28} style={{ margin: '0 auto 8px', color: '#10b981' }} />
+              <div style={{ fontWeight: 600 }}>No open issues</div>
+            </div>
+          ) : (
+            <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="vppd-refined-table">
                 <thead>
                   <tr>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>#</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>Meeting Name</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>Date</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>Synced At</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>Issues</th>
-                    <th style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', fontWeight: 400, padding: '8px 16px', borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>Action</th>
+                    <th>Issue</th>
+                    <th>Priority</th>
+                    <th>Owner</th>
+                    <th>Due</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {syncHistory.map((h, idx) => {
-                    const parsedDate = h.date ? new Date(h.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-                    let parsedSyncedAt = '—';
-                    if (h.synced_at) {
-                      const sd = new Date(h.synced_at);
-                      const sDateStr = sd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                      const sTimeStr = sd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-                      parsedSyncedAt = `${sDateStr} · ${sTimeStr}`;
-                    }
+                  {filteredMomIssues.slice(0, 4).map(issue => {
+                    const ns = normalizeIssueStatus(issue.status);
                     return (
-                      <tr key={h.history_id || idx} style={{ borderBottom: '1px solid var(--border-subtle)', background: idx === 0 ? 'var(--blue-50)' : 'transparent' }}>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-muted)', fontWeight: 500 }}>{idx + 1}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                            <span style={{ fontSize: '13px', fontWeight: idx === 0 ? 600 : 400, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {h.meeting_name || 'Untitled Meeting'}
-                            </span>
-                            {idx === 0 && (
-                              <span style={{ fontSize: '10px', fontWeight: 700, background: 'var(--green-50)', color: 'var(--green-900)', border: '1px solid var(--green-200)', borderRadius: '99px', padding: '1px 6px', whiteSpace: 'nowrap' }}>
-                                latest
-                              </span>
-                            )}
-                          </div>
+                      <tr key={issue.id}>
+                        <td style={{ fontWeight: 600, maxWidth: 200 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</div>
                         </td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{parsedDate}</td>
-                        <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)', fontSize: '12px' }}>{parsedSyncedAt}</td>
-                        <td style={{ padding: '12px 16px' }}>
-                          {h.sync_id ? (
-                            <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>{h.row_count} issues</span>
-                          ) : (
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500, background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '1px 6px' }}>No record</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <button
-                            onClick={() => {
-                              if (h.sync_id) {
-                                navigate(`/dashboard/saved-moms?highlight=${h.sync_id}`);
-                              } else {
-                                toast.error('History not found', { duration: 3000 });
-                              }
-                            }}
-                            style={{
-                              fontSize: '12px',
-                              color: 'var(--accent)',
-                              background: 'var(--elevated-card)',
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '5px',
-                              cursor: 'pointer',
-                              padding: '3px 10px',
-                              fontWeight: 600,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              transition: 'all 0.15s',
-                            }}
-                            onMouseOver={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                            onMouseOut={e => { e.currentTarget.style.background = 'var(--elevated-card)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-                            title={h.sync_id ? 'View in Saved MOMs' : 'No saved record found'}
-                          >
-                            <ExternalLink size={11} />
-                            View
-                          </button>
-                        </td>
+                        <td><PriorityBadge priority={issue.priority || 'Medium'} /></td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{issue.owner || '—'}</td>
+                        <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}</td>
+                        <td><StatusBadge status={ns} /></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            )}
-
-          </div>
-        )}
-
-
-
-
+              {filteredMomIssues.length > 4 && (
+                <div style={{ padding: '8px 16px', textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)' }}>
+                  <button onClick={() => setActiveTab('issues')} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>
+                    + {filteredMomIssues.length - 4} more — View all issues →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── PINNED ISSUES MODAL ── */}
-      {isIssueModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: '24px',
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <div style={{
-            background: 'var(--surface)', borderRadius: '12px', width: '100%', maxWidth: '600px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
-            animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Select Critical Issues</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Pin exactly 5 issues to your project dashboard. ({tempPinnedIds.length}/5 selected)
-                </p>
+      {/* ── Milestones (compact table) ── */}
+      <div className="vppd-section">
+        <div className="vppd-section-header">
+          <h3 className="vppd-section-title">
+            <Calendar size={14} style={{ color: '#0ea5e9' }} />
+            Project Milestones &amp; Timeline
+          </h3>
+          <button onClick={() => setActiveTab('milestones')} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+            View full →
+          </button>
+        </div>
+        <div className="vppd-section-body" style={{ padding: 0 }}>
+          {isDashboardLoading ? (
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1,2,3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+            </div>
+          ) : tableMilestones.length === 0 ? (
+            <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              <Calendar size={28} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+              <div>No milestones configured yet</div>
+            </div>
+          ) : (
+            <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="vppd-refined-table">
+                <thead>
+                  <tr>
+                    <th>WBS</th>
+                    <th>Activity</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Progress</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableMilestones.slice(0, 6).map(task => {
+                    const isPhase = task.item_type === 'Phase';
+                    return (
+                      <tr key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
+                        <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</td>
+                        <td style={{ paddingLeft: `${16 + (task.indent_level || 0) * 14}px`, fontWeight: isPhase ? 700 : 500 }}>
+                          {task.item_type === 'Milestone' && <span style={{ display: 'inline-block', width: 6, height: 6, transform: 'rotate(45deg)', backgroundColor: 'var(--accent)', marginRight: 6 }} />}
+                          {task.activity_name}
+                        </td>
+                        <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date, { day: '2-digit', month: 'short' })}</td>
+                        <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date, { day: '2-digit', month: 'short' })}</td>
+                        <td style={{ minWidth: 90 }}>
+                          <MiniProgress pct={task.complete_percent} color={isPhase ? 'var(--accent)' : '#3b82f6'} />
+                        </td>
+                        <td><StatusBadge status={task.status || 'Not Started'} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Budget Summary (cards) ── */}
+      {visibleSections.budget && (
+        <div className="vppd-section">
+          <div className="vppd-section-header">
+            <h3 className="vppd-section-title">
+              <Wallet size={14} style={{ color: '#f59e0b' }} />
+              Budget Summary
+            </h3>
+            <button onClick={() => setActiveTab('budget')} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              Full view →
+            </button>
+          </div>
+          <div className="vppd-section-body">
+            {isBudgetLoading ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+                {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
               </div>
-              <button 
-                onClick={() => setIsIssueModalOpen(false)}
-                style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-              >
-                <X size={14} strokeWidth={2.5} />
+            ) : (
+              <div className="vppd-budget-summary-strip">
+                {[
+                  { label: 'Approved Budget', value: budgetApproved, color: '#3b82f6', bg: 'var(--blue-50)', icon: '🏦' },
+                  { label: 'Utilized',         value: budgetUtilized, color: '#10b981', bg: 'var(--green-50)', icon: '📊' },
+                  { label: 'Balance',          value: budgetBalance,  color: '#f59e0b', bg: '#fef3c7', icon: '💰' },
+                  { label: 'Utilization',      value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : '#64748b', bg: 'var(--elevated-card)', icon: '📈', raw: true },
+                ].map(c => (
+                  <div key={c.label} className="vppd-budget-card" style={{ background: c.bg }}>
+                    <span className="vppd-budget-card-label" style={{ color: c.color }}>{c.icon} {c.label}</span>
+                    <span className="vppd-budget-card-value" style={{ color: c.color }}>
+                      {c.raw ? c.value : `${budgetCurrencySymbol}${fmtMoney(c.value)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     TAB: PROJECT METRICS
+  ══════════════════════════════════════════════════════════════════ */
+  const renderMetricsTab = () => (
+    <div>
+      {metricsContent ? (
+        metricsContent
+      ) : (
+        <div className="vppd-empty">
+          <BarChart3 size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>No metrics configured</div>
+          <div style={{ fontSize: 12 }}>Configure chart axes in the dashboard settings to view analytics here.</div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     TAB: MILESTONES & TIMELINE
+  ══════════════════════════════════════════════════════════════════ */
+  const renderMilestonesTab = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Milestone table */}
+      <div className="vppd-section">
+        <div className="vppd-section-header">
+          <h3 className="vppd-section-title"><Calendar size={14} style={{ color: '#0ea5e9' }} /> Milestones</h3>
+          <div className="vppd-ctrl-group">
+            <button className={`vppd-ctrl-btn ${milestoneView === 'table' ? 'active' : ''}`} onClick={() => setMilestoneView('table')}>
+              <Table size={11} /> Table
+            </button>
+            <button className={`vppd-ctrl-btn ${milestoneView === 'chart' ? 'active' : ''}`} onClick={() => setMilestoneView('chart')}>
+              <BarChart3 size={11} /> Gantt
+            </button>
+          </div>
+        </div>
+        <div className="vppd-section-body" style={{ padding: 0 }}>
+          {isDashboardLoading ? (
+            <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+            </div>
+          ) : isDashboardError ? (
+            <div style={{ padding: 32, textAlign: 'center', color: '#ef4444' }}>
+              <AlertTriangle size={32} style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontWeight: 600, marginBottom: 12 }}>Failed to load milestones</div>
+              <button onClick={onRetry} style={{ padding: '6px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Retry</button>
+            </div>
+          ) : tableMilestones.length === 0 ? (
+            <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <Calendar size={40} style={{ margin: '0 auto 12px', opacity: 0.25 }} />
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>No milestones configured</div>
+              <div style={{ fontSize: 13, maxWidth: 360, margin: '0 auto 16px' }}>Go to Project Master → Detailed View → Milestone Management to add milestones.</div>
+              <button onClick={() => navigate(`/dashboard/masters/project-master/${activeProject?.dbProjectId || activeProject?.id}`)}
+                style={{ padding: '8px 20px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>
+                Go to Milestone Management
               </button>
             </div>
+          ) : (
+            <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="vppd-refined-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 80 }}>WBS</th>
+                    <th>Activity / Milestone</th>
+                    <th style={{ width: 110 }}>Start Date</th>
+                    <th style={{ width: 110 }}>End Date</th>
+                    <th style={{ width: 110 }}>Department</th>
+                    <th style={{ width: 100 }}>Progress</th>
+                    <th style={{ width: 130, textAlign: 'center' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableMilestones.map(task => {
+                    const isPhase = task.item_type === 'Phase';
+                    const isMilestone = task.item_type === 'Milestone';
+                    const indent = (task.indent_level || 0) * 14;
+                    return (
+                      <tr key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
+                        <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</td>
+                        <td style={{ paddingLeft: `${16 + indent}px` }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {isMilestone && <span style={{ width: 7, height: 7, transform: 'rotate(45deg)', backgroundColor: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />}
+                            <span style={{ color: isMilestone ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isPhase ? 700 : 500 }}>{task.activity_name}</span>
+                          </div>
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date)}</td>
+                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date)}</td>
+                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{task.department || '—'}</td>
+                        <td><MiniProgress pct={task.complete_percent} color={isPhase ? 'var(--accent)' : '#3b82f6'} /></td>
+                        <td style={{ textAlign: 'center' }}><StatusBadge status={task.status || 'Not Started'} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
 
-            {/* Modal Body (Scrollable) */}
-            <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {filteredMomIssues.map(issue => {
-                const isSelected = tempPinnedIds.includes(issue.id);
-                const isMaxReached = tempPinnedIds.length >= 5 && !isSelected;
-                return (
-                  <div 
-                    key={issue.id}
-                    onClick={() => {
-                      if (isSelected) {
-                        setTempPinnedIds(prev => prev.filter(id => id !== issue.id));
-                      } else if (!isMaxReached) {
-                        setTempPinnedIds(prev => [...prev, issue.id]);
-                      }
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '12px',
-                      padding: '12px 16px', borderRadius: '8px',
-                      background: isSelected ? 'var(--blue-50)' : 'var(--elevated-card)',
-                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border-subtle)'}`,
-                      cursor: isMaxReached ? 'not-allowed' : 'pointer',
-                      opacity: isMaxReached ? 0.6 : 1,
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{ 
-                      width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0, marginTop: '2px',
-                      border: `2px solid ${isSelected ? 'var(--accent)' : 'var(--text-muted)'}`,
-                      background: isSelected ? 'var(--accent)' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      opacity: isMaxReached ? 0.5 : 1
-                    }}>
-                      {isSelected && <CheckCircle2 size={12} color="#fff" strokeWidth={3} />}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        {issue.title}
+      {/* Gantt Chart */}
+      {!isDashboardLoading && !isDashboardError && milestones.length > 0 && (
+        <div className="vppd-section">
+          <div className="vppd-section-header">
+            <h3 className="vppd-section-title"><BarChart3 size={14} style={{ color: '#8b5cf6' }} /> Gantt Timeline</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Filters */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Dept:</span>
+                <select value={ganttDeptFilter} onChange={e => setGanttDeptFilter(e.target.value)}
+                  style={{ padding: '3px 8px', background: 'var(--bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 5, fontSize: 11, fontWeight: 600, outline: 'none' }}>
+                  <option value="All">All</option>
+                  {departmentOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Type:</span>
+                <select value={ganttTypeFilter} onChange={e => setGanttTypeFilter(e.target.value)}
+                  style={{ padding: '3px 8px', background: 'var(--bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 5, fontSize: 11, fontWeight: 600, outline: 'none' }}>
+                  <option value="All">All</option>
+                  {['Phase','Task','Sub Task','Milestone','Approval Gate'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Status:</span>
+                <select value={ganttStatusFilter} onChange={e => setGanttStatusFilter(e.target.value)}
+                  style={{ padding: '3px 8px', background: 'var(--bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 5, fontSize: 11, fontWeight: 600, outline: 'none' }}>
+                  <option value="All">All</option>
+                  {['Not Started','Upcoming','In Progress','Completed','Delayed','On Hold','Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              {/* Zoom */}
+              <div className="vppd-ctrl-group">
+                {[{ lvl: 'Day', l: 'D' }, { lvl: 'Week', l: 'W' }, { lvl: 'Month', l: 'M' }].map(z => (
+                  <button key={z.lvl} className={`vppd-ctrl-btn ${zoomLevel === z.lvl ? 'active' : ''}`}
+                    onClick={() => setZoomLevel(z.lvl)} style={{ padding: '4px 10px', fontSize: 10 }}>
+                    {z.l}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setIsGanttSettingsModalOpen(true)} className="vppd-ctrl-btn" style={{ padding: '4px 8px' }} title="Gantt settings">
+                <Settings size={12} />
+              </button>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                {ganttFilteredTasks.length}/{milestones.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Gantt Canvas */}
+          <div ref={ganttContainerRef} className="vppd-gantt-container" style={{ maxHeight: 520 }}>
+            {ganttFilteredTasks.length === 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: 'var(--text-muted)', fontSize: 13 }}>No tasks match filters.</div>
+            ) : (
+              <div style={{ width: timelineWidth, height: ganttFilteredTasks.length * ROW_HEIGHT + 52, position: 'relative', background: 'var(--surface)' }}>
+                {/* Headers */}
+                <div style={{ height: 52, background: 'var(--elevated-card)', borderBottom: '2px solid var(--border-subtle)', position: 'sticky', top: 0, zIndex: 20, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 26, borderBottom: '1px solid var(--border-subtle)', display: 'flex', fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', overflow: 'hidden' }}>
+                    {timelineHeaders.topHeaders.map(th => (
+                      <div key={th.key} style={{ position: 'absolute', left: th.left, width: th.width, top: 0, height: '100%', borderRight: '1px solid var(--border-subtle)', paddingLeft: 12, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: 'var(--accent)', marginRight: 4 }}>▶</span>{th.label}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <AlertTriangle size={10} color={issue.priority === 'High' || issue.priority === 'Critical' ? 'var(--red)' : 'var(--amber)'} />
-                          {issue.priority || 'Medium'}
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Users size={10} />
-                          {issue.owner || 'Unassigned'}
-                        </span>
-                        <span>{issue.status || 'Pending'}</span>
+                    ))}
+                  </div>
+                  <div style={{ height: 26, position: 'relative', display: 'flex', fontSize: 9, fontWeight: 700, color: 'var(--text-secondary)', background: 'var(--surface)' }}>
+                    {timelineHeaders.bottomHeaders.map(bh => (
+                      <div key={bh.key} style={{ position: 'absolute', left: bh.left, width: bh.width, bottom: 0, height: '100%', display: 'flex', alignItems: 'center', paddingLeft: 4, borderLeft: '1px solid var(--border-subtle)' }}>
+                        {bh.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grid lines */}
+                <div style={{ position: 'absolute', top: 52, left: 0, width: '100%', height: ganttFilteredTasks.length * ROW_HEIGHT, pointerEvents: 'none' }}>
+                  {timelineHeaders.bottomHeaders.map((bh, i) => (
+                    <div key={i} style={{ position: 'absolute', left: bh.left, width: bh.width, top: 0, height: '100%', borderLeft: '1px solid var(--border-subtle)', opacity: 0.15 }} />
+                  ))}
+                </div>
+
+                {/* Row stripes */}
+                {ganttFilteredTasks.map((t, i) => (
+                  <div key={t.id} style={{ position: 'absolute', top: 52 + i * ROW_HEIGHT, left: 0, height: ROW_HEIGHT, width: '100%', borderBottom: '1px solid var(--border-subtle)', opacity: 0.18, background: i % 2 === 0 ? 'transparent' : 'rgba(100,116,139,0.04)' }} />
+                ))}
+
+                {/* Today line */}
+                {ganttShowTodayLine && todayLeft !== null && (
+                  <div style={{ position: 'absolute', left: todayLeft, top: 52, bottom: 0, width: 2, background: '#ef4444', zIndex: 15, pointerEvents: 'none', boxShadow: '0 0 6px rgba(239,68,68,0.4)' }}>
+                    <div style={{ position: 'absolute', top: -4, left: -5, width: 12, height: 12, borderRadius: '50%', background: '#ef4444' }} title="Today" />
+                    <span style={{ position: 'absolute', top: -16, left: -16, fontSize: 8, fontWeight: 800, color: '#ef4444', background: 'var(--bg)', padding: '1px 3px', borderRadius: 4, border: '1px solid #ef4444', whiteSpace: 'nowrap' }}>TODAY</span>
+                  </div>
+                )}
+
+                {/* Gantt bars */}
+                <div style={{ position: 'absolute', top: 52, left: 0, width: '100%', height: ganttFilteredTasks.length * ROW_HEIGHT }}>
+                  {ganttBars.map((bar, idx) => {
+                    if (!bar) return null;
+                    const color = bar.colors.fill;
+                    return (
+                      <div key={bar.id} style={{ position: 'absolute', left: 0, width: '100%', top: idx * ROW_HEIGHT, height: ROW_HEIGHT, display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+                        onMouseEnter={e => setHoveredBar({ bar, x: e.clientX + 14, y: e.clientY + 14 })}
+                        onMouseMove={e => setHoveredBar(p => p ? { ...p, x: e.clientX + 14, y: e.clientY + 14 } : null)}
+                        onMouseLeave={() => setHoveredBar(null)}>
+                        {bar.isMilestone ? (
+                          <div style={{ position: 'absolute', left: bar.plannedLeft - 5, top: 22, width: 10, height: 10, transform: 'rotate(45deg)', background: color, border: '1.5px solid #fff', zIndex: 10 }} />
+                        ) : bar.isParent ? (
+                          <svg style={{ position: 'absolute', left: bar.plannedLeft - 2, width: Math.max(8, bar.plannedWidth) + 4, top: 22, height: 12, zIndex: 10, overflow: 'visible' }}>
+                            <path d={`M 2 2 H ${bar.plannedWidth + 2} V 8 H 2 Z`} fill={color} />
+                            <path d="M 2 2 L 6 8 L 6 2 Z" fill={color} />
+                            <path d={`M ${bar.plannedWidth + 2} 2 L ${bar.plannedWidth - 2} 8 L ${bar.plannedWidth - 2} 2 Z`} fill={color} />
+                          </svg>
+                        ) : (
+                          <div style={{ position: 'absolute', left: bar.plannedLeft, width: bar.plannedWidth, top: 22, height: 8, borderRadius: 4, background: 'rgba(100,116,139,0.15)', border: '1px solid var(--border-subtle)', overflow: 'hidden', zIndex: 10 }}>
+                            <div style={{ width: `${bar.completePercent}%`, background: color, height: '100%' }} />
+                          </div>
+                        )}
+                        {ganttShowTaskName && (
+                          <span style={{ position: 'absolute', left: bar.isMilestone ? bar.plannedLeft + 14 : bar.plannedLeft, top: 4, maxWidth: 420, fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', pointerEvents: 'none' }}>
+                            {bar.activityName}{ganttShowPercent && bar.completePercent > 0 ? ` (${Math.round(bar.completePercent)}%)` : ''}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hover Tooltip */}
+      {hoveredBar && (() => {
+        const { bar } = hoveredBar;
+        const sc = STATUS_COLORS[bar.status] || STATUS_COLORS['Not Started'];
+        return (
+          <div className="vppd-tooltip" style={{ left: hoveredBar.x, top: hoveredBar.y }}>
+            <div style={{ fontWeight: 800, fontSize: 12, color: bar.colors.fill, marginBottom: 8 }}>{bar.activityName}</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {bar.wbsCode && <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#94a3b8', background: '#0f172a', padding: '1px 6px', borderRadius: 4, border: '1px solid #334155' }}>{bar.wbsCode}</span>}
+              <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#64748b', background: '#0f172a', padding: '1px 6px', borderRadius: 4, border: '1px solid #334155' }}>{bar.itemType}</span>
+            </div>
+            <StatusBadge status={bar.status || 'Not Started'} />
+            <div style={{ height: 1, background: '#334155', margin: '8px 0' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+              {[['Start', bar.plannedStartStr], ['End', bar.plannedEndStr], ['Duration', `${bar.durationDays}d`], ['Dept', bar.department]].map(([l, v]) => v && (
+                <div key={l}>
+                  <div style={{ fontSize: 9, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: 2 }}>{l}</div>
+                  <div style={{ fontWeight: 600, color: '#e2e8f0', fontSize: 11 }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            {!bar.isMilestone && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Progress</span>
+                  <span style={{ fontWeight: 800, color: bar.colors.fill }}>{Math.round(bar.completePercent)}%</span>
+                </div>
+                <div style={{ height: 5, background: '#334155', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${bar.completePercent}%`, height: '100%', background: bar.colors.fill, borderRadius: 3 }} />
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     TAB: CRITICAL ISSUES
+  ══════════════════════════════════════════════════════════════════ */
+  const renderIssuesTab = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Issue Analytics */}
+      <div className="vppd-issues-analytics-grid">
+        {/* Priority Donut */}
+        <div className="vppd-section">
+          <div className="vppd-section-header">
+            <h3 className="vppd-section-title"><BarChart3 size={14} style={{ color: '#4f46e5' }} /> Issues by Priority</h3>
+          </div>
+          <div className="vppd-section-body" style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <ReactECharts option={issuesPriorityOption} style={{ height: 160, width: 160, flexShrink: 0 }} opts={{ renderer: 'svg' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { c: '#ef4444', l: 'Critical', v: issuesByPriority.Critical },
+                { c: '#f97316', l: 'High',     v: issuesByPriority.High },
+                { c: '#f59e0b', l: 'Medium',   v: issuesByPriority.Medium },
+                { c: '#10b981', l: 'Low',       v: issuesByPriority.Low },
+              ].map(i => (
+                <div key={i.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: i.c, flexShrink: 0 }} />
+                    {i.l}
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)', minWidth: 20, textAlign: 'right' }}>{i.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Status Bar */}
+        <div className="vppd-section">
+          <div className="vppd-section-header">
+            <h3 className="vppd-section-title"><Activity size={14} style={{ color: '#0891b2' }} /> Issues by Status</h3>
+          </div>
+          <div className="vppd-section-body">
+            {Object.keys(issuesByStatus).length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, padding: '24px 0' }}>No issue data</div>
+            ) : (
+              <ReactECharts option={issuesStatusOption} style={{ height: 180, width: '100%' }} opts={{ renderer: 'svg' }} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Full Issues Table */}
+      <div className="vppd-section">
+        <div className="vppd-section-header" style={{ background: 'linear-gradient(to right, var(--elevated-card), var(--surface))' }}>
+          <h3 className="vppd-section-title">
+            <ClipboardList size={14} style={{ color: '#ef4444' }} />
+            All Critical Issues
+            {filteredMomIssues.length > 0 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />}
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
+              <ClipboardList size={11} /> Total: {filteredMomIssues.length}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green-50)', border: '1px solid #86efac', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--green-900)' }}>
+              <CheckCircle2 size={11} /> Resolved: {filteredMomIssues.filter(i => ['closed','done','resolved','complete'].includes((i.status||'').toLowerCase())).length}
+            </span>
+            <button onClick={() => { fetchingRef.current = false; fetchMomIssues(); }} disabled={loadingMom}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 12px', cursor: loadingMom ? 'default' : 'pointer' }}>
+              <RefreshCw size={12} style={{ animation: loadingMom ? 'spin 1s linear infinite' : 'none' }} /> Refresh
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: 0 }}>
+          {momIssues.length === 0 ? (
+            <div style={{ padding: '56px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <FileText size={44} style={{ opacity: 0.25, color: 'var(--text-muted)' }} strokeWidth={1} />
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>No meeting issues synced yet</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320, lineHeight: 1.5, textAlign: 'center' }}>Capture meeting minutes and sync action items to track them here.</div>
+              <button onClick={() => navigate('/dashboard/mom/capture')}
+                style={{ padding: '10px 24px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Capture New Meeting
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* MOM Form Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <FileText size={16} style={{ color: 'var(--accent)' }} />
+                  <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+                    Minutes of Meeting — Action Items
+                  </h2>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>FORM NO: MOM/DB/2026 | REV: 0.1</span>
+              </div>
+              <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
+                <table className="vppd-mom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 48 }}>S.No</th>
+                      <th style={{ width: 100 }}>Function</th>
+                      <th style={{ width: 160 }}>Project</th>
+                      <th style={{ width: 100 }}>Criticality</th>
+                      <th>Action Points</th>
+                      <th style={{ width: 150 }}>Responsibility</th>
+                      <th style={{ width: 95 }}>Target</th>
+                      <th style={{ width: 110 }}>Status</th>
+                      <th style={{ width: 180 }}>Action Taken</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingMom
+                      ? Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i}>{Array.from({ length: 9 }).map((_, j) => <td key={j}><Skeleton className="h-4 w-full" /></td>)}</tr>
+                        ))
+                      : displayIssues.map((issue, idx) => {
+                          const priority = issue.priority || 'Medium';
+                          const crit = { Critical: { bg: '#fef2f2', c: '#991b1b', b: '#fca5a5' }, High: { bg: '#fef2f2', c: '#991b1b', b: '#fca5a5' }, Medium: { bg: '#fef3c7', c: '#92400e', b: '#fcd34d' }, Low: { bg: 'var(--green-50)', c: 'var(--green-900)', b: '#86efac' } }[priority] || { bg: 'var(--elevated-card)', c: 'var(--text-secondary)', b: 'var(--border-subtle)' };
+                          const ns = normalizeIssueStatus(issue.status);
+                          const isClosed = ['closed','done','resolved','complete'].includes((issue.status||'').toLowerCase());
+                          return (
+                            <tr key={issue.id}>
+                              <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
+                              <td style={{ textAlign: 'center', fontSize: 12 }}>{issue.department || 'General'}</td>
+                              <td style={{ fontWeight: 500 }}>{activeProject?.name}</td>
+                              <td>
+                                <div style={{ background: crit.bg, color: crit.c, border: `1px solid ${crit.b}`, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, textAlign: 'center', textTransform: 'uppercase' }}>{priority}</div>
+                              </td>
+                              <td>
+                                <div style={{ fontWeight: 600, marginBottom: 2 }}>{issue.title}</div>
+                                {issue.description && issue.description !== issue.title && (
+                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{issue.description}</div>
+                                )}
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--elevated-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                    {issue.owner?.charAt(0)?.toUpperCase() || '?'}
+                                  </div>
+                                  <span style={{ fontSize: 12 }}>{issue.owner || 'Unassigned'}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+                                {issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}
+                              </td>
+                              <td>
+                                <div style={{ background: isClosed ? 'var(--green-50)' : '#fef3c7', color: isClosed ? 'var(--green-900)' : '#92400e', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 4, textAlign: 'center', textTransform: 'uppercase' }}>
+                                  {isClosed ? 'Resolved' : ns}
+                                </div>
+                              </td>
+                              <td style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                {(() => {
+                                  if (!issue.comments?.length) return '—';
+                                  const sorted = [...issue.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                  return sorted[0].comment_text;
+                                })()}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                  </tbody>
+                </table>
+              </div>
+              {filteredMomIssues.length > displayIssues.length && (
+                <div style={{ padding: '10px 20px', textAlign: 'center', borderTop: '1px solid var(--border-subtle)' }}>
+                  <button onClick={() => { setTempPinnedIds(pinnedIssueIds.length > 0 ? [...pinnedIssueIds] : displayIssues.map(i => i.id)); setIsIssueModalOpen(true); }}
+                    style={{ background: 'none', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '6px 16px', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                    + {filteredMomIssues.length - displayIssues.length} more issues
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Sync History */}
+        {syncHistory.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '16px 20px' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>Sync History</div>
+            <table className="vppd-sync-history-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 40 }}>#</th>
+                  <th>Meeting</th>
+                  <th style={{ width: 110 }}>Date</th>
+                  <th style={{ width: 130 }}>Synced At</th>
+                  <th style={{ width: 80 }}>Issues</th>
+                  <th style={{ width: 80 }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {syncHistory.map((h, idx) => {
+                  const pd = h.date ? fmtDate(h.date) : '—';
+                  let sa = '—';
+                  if (h.synced_at) {
+                    const sd = new Date(h.synced_at);
+                    sa = `${fmtDate(sd, { day: '2-digit', month: 'short' })} · ${sd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`;
+                  }
+                  return (
+                    <tr key={h.history_id || idx} style={{ background: idx === 0 ? 'var(--blue-50)' : 'transparent' }}>
+                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: idx === 0 ? 600 : 400 }}>{h.meeting_name || 'Untitled Meeting'}</span>
+                          {idx === 0 && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--green-50)', color: 'var(--green-900)', border: '1px solid #86efac', borderRadius: 99, padding: '1px 6px' }}>latest</span>}
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{pd}</td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{sa}</td>
+                      <td style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>{h.sync_id ? `${h.row_count} issues` : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                      <td>
+                        <button onClick={() => h.sync_id ? navigate(`/dashboard/saved-moms?highlight=${h.sync_id}`) : toast.error('History not found')}
+                          style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 5, cursor: 'pointer', padding: '3px 10px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <ExternalLink size={10} /> View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     TAB: BUDGET SUMMARY
+  ══════════════════════════════════════════════════════════════════ */
+  const renderBudgetTab = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* KPI Cards */}
+      <div className="vppd-kpi-strip">
+        {[
+          { label: 'Approved Budget', value: `${budgetCurrencySymbol}${fmtMoney(budgetApproved)}`, color: '#3b82f6', icon: '🏦' },
+          { label: 'Utilized',        value: `${budgetCurrencySymbol}${fmtMoney(budgetUtilized)}`, color: utilizationPct > 90 ? '#ef4444' : '#10b981', icon: '📊' },
+          { label: 'Balance',         value: `${budgetCurrencySymbol}${fmtMoney(budgetBalance)}`,  color: '#f59e0b', icon: '💰' },
+          { label: 'Utilization %',   value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#10b981', icon: '📈' },
+          { label: 'Outlook',         value: `${budgetOutlook}%`,  color: '#8b5cf6', icon: '🔮' },
+        ].map(c => (
+          <div key={c.label} className="vppd-kpi-card">
+            <span className="vppd-kpi-label">{c.icon} {c.label}</span>
+            <span className="vppd-kpi-value" style={{ color: c.color }}>{c.value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Split: Table | Charts */}
+      <div className="vppd-budget-split">
+        {/* Left: Budget Table */}
+        <div className="vppd-section">
+          <div className="vppd-section-header">
+            <h3 className="vppd-section-title"><FileText size={14} style={{ color: '#3b82f6' }} /> Budget Detail Table</h3>
+          </div>
+          <div style={{ padding: 0 }}>
+            {isBudgetLoading ? (
+              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+              </div>
+            ) : renderBudgetTableContent ? (
+              renderBudgetTableContent()
+            ) : (
+              <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                No budget data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Charts */}
+        <div className="vppd-budget-chart-grid">
+          {/* Utilization Donut */}
+          <div className="vppd-section">
+            <div className="vppd-section-header">
+              <h3 className="vppd-section-title"><Activity size={14} style={{ color: '#3b82f6' }} /> Budget Utilization</h3>
+              <span style={{ fontSize: 11, fontWeight: 800, color: utilizationPct > 90 ? '#ef4444' : '#10b981' }}>{utilizationPct}%</span>
+            </div>
+            <div className="vppd-section-body" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <ReactECharts option={budgetUtilizationOption} style={{ height: 140, width: 140 }} opts={{ renderer: 'svg' }} />
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--text-primary)' }}>{utilizationPct}%</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>Used</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                {[
+                  { color: '#3b82f6', label: 'Approved', value: `${budgetCurrencySymbol}${fmtMoney(budgetApproved)}` },
+                  { color: utilizationPct > 90 ? '#ef4444' : '#10b981', label: 'Utilized', value: `${budgetCurrencySymbol}${fmtMoney(budgetUtilized)}` },
+                  { color: '#e2e8f0', label: 'Balance', value: `${budgetCurrencySymbol}${fmtMoney(budgetBalance)}` },
+                ].map(i => (
+                  <div key={i.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: i.color, flexShrink: 0 }} />{i.label}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: 12, color: 'var(--text-primary)' }}>{i.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Budget Bar */}
+          <div className="vppd-section">
+            <div className="vppd-section-header">
+              <h3 className="vppd-section-title"><BarChart3 size={14} style={{ color: '#8b5cf6' }} /> Approved vs Utilized vs Balance</h3>
+            </div>
+            <div className="vppd-section-body">
+              <ReactECharts option={budgetBarOption} style={{ height: 180, width: '100%' }} opts={{ renderer: 'svg' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ══════════════════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════════════════ */
+
+  const issueCount = filteredMomIssues.length;
+
+  return (
+    <div className="vppd-root">
+
+      {/* ── Project Heading ── */}
+      <div className="vppd-project-heading">
+        <div className="vppd-project-heading-badge">{projectInitials}</div>
+        <div>
+          <h1 className="vppd-project-title">{activeProject?.name} Dashboard</h1>
+          {activeProject?.project_manager && (
+            <p className="vppd-project-subtitle">PM: {activeProject.project_manager}</p>
+          )}
+        </div>
+        <span className="vppd-project-health-chip" style={healthStyle}>
+          {health === 'Red' ? '🔴' : health === 'Yellow' ? '🟡' : health === 'Green' ? '🟢' : '⚪'} {healthLabel}
+        </span>
+      </div>
+
+      {/* ── Tab Navigation ── */}
+      <nav className="vppd-tab-nav" role="tablist">
+        {TABS.map(tab => {
+          const isActive = activeTab === tab.id;
+          const showCount = tab.id === 'issues' && issueCount > 0;
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              className={`vppd-tab-btn ${isActive ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <tab.Icon size={14} className="vppd-tab-icon" />
+              {tab.label}
+              {showCount && <span className="vppd-tab-count">{issueCount}</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── Tab Content ── */}
+      <div className="vppd-tab-panel" role="tabpanel">
+        {activeTab === 'overview'   && renderOverviewTab()}
+        {activeTab === 'metrics'    && renderMetricsTab()}
+        {activeTab === 'milestones' && renderMilestonesTab()}
+        {activeTab === 'issues'     && renderIssuesTab()}
+        {activeTab === 'budget'     && renderBudgetTab()}
+
+        {/* Resource & Quality — appended at bottom of metrics/overview */}
+        {(activeTab === 'overview' || activeTab === 'metrics') && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20 }}>
+            {visibleSections.resource && (
+              <ResourceManagementCenter
+                projectTeam={projectTeam}
+                employees={employees}
+                projectId={activeProject?.dbProjectId || activeProject?.id}
+                onRefresh={fetchTeamAndEmployees}
+              />
+            )}
+            {visibleSections.quality && (
+              <QualityHealthCenter
+                projectMilestones={milestones}
+                projectId={activeProject?.dbProjectId || activeProject?.id}
+                projectName={activeProject?.name}
+                onRefresh={onRetry}
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Pinned Issues Modal ── */}
+      {isIssueModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24, animation: 'vppdFadeIn 0.2s ease-out' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 12, width: '100%', maxWidth: 600, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', maxHeight: '85vh', animation: 'vppdSlideUp 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>Select Critical Issues</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: 12, color: 'var(--text-muted)' }}>Pin up to 5 issues. ({tempPinnedIds.length}/5 selected)</p>
+              </div>
+              <button onClick={() => setIsIssueModalOpen(false)} style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {filteredMomIssues.map(issue => {
+                const isSel = tempPinnedIds.includes(issue.id);
+                const isMax = tempPinnedIds.length >= 5 && !isSel;
+                return (
+                  <div key={issue.id} onClick={() => { if (isSel) setTempPinnedIds(p => p.filter(id => id !== issue.id)); else if (!isMax) setTempPinnedIds(p => [...p, issue.id]); }}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderRadius: 8, background: isSel ? 'var(--blue-50)' : 'var(--elevated-card)', border: `1px solid ${isSel ? 'var(--accent)' : 'var(--border-subtle)'}`, cursor: isMax ? 'not-allowed' : 'pointer', opacity: isMax ? 0.6 : 1 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${isSel ? 'var(--accent)' : 'var(--text-muted)'}`, background: isSel ? 'var(--accent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                      {isSel && <CheckCircle2 size={12} color="#fff" strokeWidth={3} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{issue.title}</div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
+                        <span>{issue.priority || 'Medium'}</span>
+                        <span>{issue.owner || 'Unassigned'}</span>
+                        <span>{issue.status || 'Open'}</span>
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface)' }}>
-              <button 
-                onClick={() => setIsIssueModalOpen(false)}
-                style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: '6px', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  setPinnedIssueIds(tempPinnedIds);
-                  if (activeProject?.dbProjectId) {
-                    localStorage.setItem(`caldim_pinned_issues_${activeProject.dbProjectId}`, JSON.stringify(tempPinnedIds));
-                  }
-                  setIsIssueModalOpen(false);
-                }}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '16px 24px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button onClick={() => setIsIssueModalOpen(false)} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => { setPinnedIssueIds(tempPinnedIds); if (activeProject?.dbProjectId) localStorage.setItem(`caldim_pinned_issues_${activeProject.dbProjectId}`, JSON.stringify(tempPinnedIds)); setIsIssueModalOpen(false); }}
                 disabled={tempPinnedIds.length === 0}
-                style={{ 
-                  padding: '8px 20px', fontSize: '13px', fontWeight: 600, color: '#fff', 
-                  background: tempPinnedIds.length > 0 ? 'var(--accent)' : 'var(--border-subtle)', 
-                  border: 'none', borderRadius: '6px', 
-                  cursor: tempPinnedIds.length > 0 ? 'pointer' : 'not-allowed',
-                  boxShadow: tempPinnedIds.length > 0 ? '0 4px 12px rgba(79, 70, 229, 0.2)' : 'none'
-                }}
-              >
+                style={{ padding: '8px 20px', fontSize: 13, fontWeight: 600, color: '#fff', background: tempPinnedIds.length > 0 ? 'var(--accent)' : 'var(--border-subtle)', border: 'none', borderRadius: 6, cursor: tempPinnedIds.length > 0 ? 'pointer' : 'not-allowed' }}>
                 Save View
               </button>
             </div>
@@ -2052,95 +1473,42 @@ const VPProjectDashboard = ({
         </div>
       )}
 
-      {/* ── GANTT CHART SETTINGS MODAL ── */}
+      {/* ── Gantt Settings Modal ── */}
       {isGanttSettingsModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: '24px',
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <div style={{
-            background: 'var(--surface)', borderRadius: '12px', width: '100%', maxWidth: '400px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
-            animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            {/* Modal Header */}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 24, animation: 'vppdFadeIn 0.2s ease-out' }}>
+          <div style={{ background: 'var(--surface)', borderRadius: 12, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', animation: 'vppdSlideUp 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>Gantt Chart Settings</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                  Configure display settings for the Gantt view
-                </p>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Gantt Chart Settings</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Configure display settings</p>
               </div>
-              <button 
-                onClick={() => setIsGanttSettingsModalOpen(false)}
-                style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: '6px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-              >
-                <X size={14} strokeWidth={2.5} />
+              <button onClick={() => setIsGanttSettingsModalOpen(false)} style={{ background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={14} />
               </button>
             </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={ganttShowTaskName}
-                  onChange={e => setGanttShowTaskName(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Task Name</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display the name above the timeline bar</span>
-                </div>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={ganttShowPercent}
-                  onChange={e => setGanttShowPercent(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Progress Percentage</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display completion percentage next to the task name</span>
-                </div>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={ganttShowTodayLine}
-                  onChange={e => setGanttShowTodayLine(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Show Today Line</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Render a vertical red marker indicating the current date</span>
-                </div>
-              </label>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {[
+                { state: ganttShowTaskName, set: setGanttShowTaskName, label: 'Show Task Name', sub: 'Display name above timeline bar' },
+                { state: ganttShowPercent, set: setGanttShowPercent, label: 'Show Progress %', sub: 'Show completion percentage next to name' },
+                { state: ganttShowTodayLine, set: setGanttShowTodayLine, label: 'Show Today Line', sub: 'Render a vertical red marker for today' },
+              ].map(item => (
+                <label key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                  <input type="checkbox" checked={item.state} onChange={e => item.set(e.target.checked)} style={{ width: 16, height: 16 }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.sub}</div>
+                  </div>
+                </label>
+              ))}
             </div>
-
-            {/* Modal Footer */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface)', borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
-              <button 
-                onClick={() => setIsGanttSettingsModalOpen(false)}
-                style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 700, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: '6px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }}
-              >
-                Close
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 24px', borderTop: '1px solid var(--border-subtle)' }}>
+              <button onClick={() => setIsGanttSettingsModalOpen(false)} style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, color: '#fff', background: 'var(--accent)', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Close</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
+
 export default VPProjectDashboard;
