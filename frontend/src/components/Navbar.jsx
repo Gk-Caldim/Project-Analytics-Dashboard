@@ -1,197 +1,201 @@
-import { useState } from "react";
-import { ChevronDown, Menu, X, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Menu, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import Logo from "./Logo";
 
-const navItems = [
-  { label: "Solutions", hasDropdown: true },
-  { label: "Features", hasDropdown: true },
-  { label: "Pricing", hasDropdown: false },
-  { label: "Resources", hasDropdown: true },
-];
+const MENUS = {
+  Solutions: [
+    { label: "Engineering Governance", desc: "APQP / SOP phase-gate control", to: "#features" },
+    { label: "Program Analytics", desc: "Live variance & risk telemetry", to: "#ai" },
+    { label: "Manufacturing Programs", desc: "Built for automotive teams", to: "#customise" },
+  ],
+  Features: [
+    { label: "Excel Design Sync", desc: "Release-code sync engine", to: "#features" },
+    { label: "AI Voice MOM", desc: "Auto-captured meeting minutes", to: "#features" },
+    { label: "Budget Masters", desc: "Spend vs strategic targets", to: "#features" },
+    { label: "Team Calendar", desc: "Drag-and-drop program gates", to: "#features" },
+  ],
+  Resources: [
+    { label: "Documentation", desc: "Guides & API reference", inquiry: "Documentation Request" },
+    { label: "Case Studies", desc: "Atlas VX & more", inquiry: "Case Study Request" },
+    { label: "Webinars", desc: "Live product walkthroughs", inquiry: "Webinar Signup" },
+  ],
+};
 
-export function Navbar({ onSignIn, onRequestDemo, onAccessProjects }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeDropdown, setActiveDropdown] = useState(null);
+const scrollTo = (id) => {
+  const el = document.querySelector(id);
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+};
 
-  const toggleDropdown = (label) => {
-    if (activeDropdown === label) {
-      setActiveDropdown(null);
-    } else {
-      setActiveDropdown(label);
-    }
+export const Navbar = ({ onSignIn, onRequestDemo, onAccessProjects }) => {
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 12);
+    fn();
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  const handleItem = (item) => {
+    setOpen(null);
+    setMobile(false);
+    if (item.to) scrollTo(item.to);
+    else onRequestDemo(item.inquiry || "Learn More");
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-100 shadow-sm transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-2 flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.location.assign("/")}>
-            <div className="flex items-center gap-1">
-              <div className="grid grid-cols-2 gap-0.5 w-7 h-7">
-                <div className="bg-blue-600 rounded-sm animate-pulse" />
-                <div className="bg-red-500 rounded-sm" />
-                <div className="bg-yellow-400 rounded-sm" />
-                <div className="bg-green-500 rounded-sm" />
-              </div>
-            </div>
-            <div className="leading-tight">
-              <div className="text-[10px] text-gray-400 font-medium tracking-wide uppercase">CALDIM</div>
-              <div className="text-sm font-bold text-gray-900 -mt-0.5">Project Dashboard</div>
-            </div>
-          </div>
-
-          {/* Desktop Nav Items */}
-          <div className="hidden md:flex items-center gap-6">
-            {navItems.map((item) => (
-              <div key={item.label} className="relative">
-                {item.hasDropdown ? (
-                  <button
-                    onClick={() => toggleDropdown(item.label)}
-                    className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 focus:outline-none transition-colors"
-                  >
-                    {item.label}
-                    <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === item.label ? 'rotate-180' : ''}`} />
-                  </button>
-                ) : (
-                  <a
-                    href="#features"
-                    onClick={(e) => {
-                      if (item.label === "Pricing") {
-                        e.preventDefault();
-                        onRequestDemo && onRequestDemo("sales", "Pricing Inquiry");
-                      }
-                    }}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                )}
-
-                {/* Dropdown Menu */}
-                {item.hasDropdown && activeDropdown === item.label && (
-                  <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-gray-100 rounded-lg shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <button
-                      onClick={() => {
-                        setActiveDropdown(null);
-                        onRequestDemo && onRequestDemo("sales", `${item.label} Discussion`);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center justify-between"
-                    >
-                      <span>CALDIM {item.label}</span>
-                      <Zap className="w-3.5 h-3.5 text-yellow-500" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveDropdown(null);
-                        onRequestDemo && onRequestDemo("sales", `General ${item.label}`);
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50"
-                    >
-                      Enterprise Settings
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Right Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
-            <button
-              onClick={onSignIn}
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={onRequestDemo}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold transition-all hover:shadow-md cursor-pointer"
-            >
-              Request Demo
-            </button>
-          </div>
-
-          {/* Mobile Menu Toggler */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="text-gray-600 hover:text-gray-900 focus:outline-none"
-            >
-              {mobileOpen ? <X className="w-6 h-6 animate-in spin-in-90 duration-200" /> : <Menu className="w-6 h-6 animate-in fade-in duration-200" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Drawer */}
-      {mobileOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white py-4 px-6 space-y-4 shadow-lg animate-in slide-in-from-top duration-300">
-          <div className="space-y-3">
-            {navItems.map((item) => (
-              <div key={item.label} className="py-1">
-                <button
-                  onClick={() => {
-                    if (item.label === "Pricing") {
-                      setMobileOpen(false);
-                      onRequestDemo && onRequestDemo("sales", "Pricing Inquiry");
-                    } else {
-                      toggleDropdown(item.label);
-                    }
-                  }}
-                  className="w-full flex items-center justify-between text-left text-sm font-medium text-gray-600 hover:text-gray-900"
-                >
-                  <span>{item.label}</span>
-                  {item.hasDropdown && <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === item.label ? 'rotate-180' : ''}`} />}
-                </button>
-
-                {item.hasDropdown && activeDropdown === item.label && (
-                  <div className="pl-4 mt-2 space-y-2 border-l border-gray-100">
-                    <button
-                      onClick={() => {
-                        setMobileOpen(false);
-                        onRequestDemo && onRequestDemo("sales", `${item.label} Discussion`);
-                      }}
-                      className="block text-xs text-gray-500 hover:text-gray-900"
-                    >
-                      CALDIM {item.label}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMobileOpen(false);
-                        onRequestDemo && onRequestDemo("sales", `General ${item.label}`);
-                      }}
-                      className="block text-xs text-gray-500 hover:text-gray-900"
-                    >
-                      Enterprise Settings
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
-            <button
-              onClick={() => {
-                setMobileOpen(false);
-                onSignIn && onSignIn();
-              }}
-              className="w-full text-center py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-50"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => {
-                setMobileOpen(false);
-                onRequestDemo && onRequestDemo();
-              }}
-              className="w-full text-center py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
-            >
-              Request Demo
-            </button>
-          </div>
-        </div>
+    <header
+      data-testid="navbar"
+      className={cn(
+        "fixed top-0 inset-x-0 z-50 transition-all duration-300",
+        scrolled
+          ? "bg-white/80 backdrop-blur-xl border-b border-slate-200/70 shadow-sm"
+          : "bg-white/40 backdrop-blur-md border-b border-transparent"
       )}
-    </nav>
+    >
+      <nav className="max-w-7xl mx-auto px-6 md:px-12 h-[72px] flex items-center justify-between">
+        <Logo />
+
+        {/* Center links */}
+        <div className="hidden lg:flex items-center gap-1" onMouseLeave={() => setOpen(null)}>
+          {Object.keys(MENUS).map((key) => (
+            <div key={key} className="relative" onMouseEnter={() => setOpen(key)}>
+              <button
+                data-testid={`nav-${key.toLowerCase()}`}
+                className="flex items-center gap-1 px-4 py-2 text-[15px] font-semibold text-slate-700 hover:text-brand rounded-lg transition-colors cursor-pointer"
+              >
+                {key}
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    open === key && "rotate-180 text-brand"
+                  )}
+                />
+              </button>
+              <AnimatePresence>
+                {open === key && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.18 }}
+                    className="absolute left-0 top-full pt-3 w-[320px]"
+                  >
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/5 p-2">
+                      {MENUS[key].map((item) => (
+                        <button
+                          key={item.label}
+                          data-testid={`nav-item-${item.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
+                          onClick={() => handleItem(item)}
+                          className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors group cursor-pointer"
+                        >
+                          <span className="block text-[14px] font-semibold text-slate-900 group-hover:text-brand">
+                            {item.label}
+                          </span>
+                          <span className="block text-[12.5px] text-slate-500">{item.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ))}
+          <button
+            data-testid="nav-pricing"
+            onClick={() => onRequestDemo("Pricing Inquiry")}
+            className="px-4 py-2 text-[15px] font-semibold text-slate-700 hover:text-brand rounded-lg transition-colors cursor-pointer"
+          >
+            Pricing
+          </button>
+        </div>
+
+        {/* Right CTAs */}
+        <div className="hidden lg:flex items-center gap-2">
+          <button
+            data-testid="nav-signin"
+            onClick={onSignIn}
+            className="px-4 py-2 text-[15px] font-semibold text-slate-700 hover:text-brand transition-colors cursor-pointer"
+          >
+            Sign In
+          </button>
+          <button
+            data-testid="nav-request-demo"
+            onClick={() => onRequestDemo("Request Demo")}
+            className="px-5 py-2.5 text-[15px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-sm shadow-blue-600/20 transition-all hover:-translate-y-0.5 cursor-pointer"
+          >
+            Request Demo
+          </button>
+        </div>
+
+        {/* Mobile toggle */}
+        <button
+          data-testid="nav-mobile-toggle"
+          onClick={() => setMobile((m) => !m)}
+          className="lg:hidden p-2 rounded-lg text-slate-700 hover:bg-slate-100 cursor-pointer"
+          aria-label="Toggle menu"
+        >
+          {mobile ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
+      </nav>
+
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {mobile && (
+          <motion.div
+            data-testid="mobile-menu"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden overflow-hidden bg-white border-t border-slate-200"
+          >
+            <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              {Object.entries(MENUS).map(([key, items]) => (
+                <div key={key}>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">{key}</p>
+                  <div className="space-y-1">
+                    {items.map((item) => (
+                      <button
+                        key={item.label}
+                        onClick={() => handleItem(item)}
+                        className="block w-full text-left py-1.5 text-[15px] font-semibold text-slate-700 hover:text-brand cursor-pointer"
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => { setMobile(false); onRequestDemo("Pricing Inquiry"); }}
+                className="block w-full text-left py-1.5 text-[15px] font-semibold text-slate-700 cursor-pointer"
+              >
+                Pricing
+              </button>
+              <div className="pt-2 flex flex-col gap-2 border-t border-slate-100">
+                <button
+                  onClick={() => { setMobile(false); onSignIn(); }}
+                  className="w-full py-2.5 text-[15px] font-semibold text-slate-700 border border-slate-200 rounded-lg cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => { setMobile(false); onRequestDemo("Request Demo"); }}
+                  className="w-full py-2.5 text-[15px] font-semibold text-white bg-brand rounded-lg cursor-pointer"
+                >
+                  Request Demo
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </header>
   );
-}
+};
+
+export default Navbar;

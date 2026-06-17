@@ -1,167 +1,185 @@
-import { Sparkles, TrendingUp, MessageSquare, BarChart3, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { motion, useInView } from "framer-motion";
+import { Zap, MessagesSquare, LineChart, Sparkles, Send } from "lucide-react";
 
-const features = [
+const FEATURES = [
+  { icon: Zap,            title: "Maximize Productivity",    desc: "Let AI draft minutes, flag risks and prep your next gate review automatically." },
+  { icon: MessagesSquare, title: "Communicate Effectively",  desc: "Ask plain-language questions and get program answers sourced from live data." },
+  { icon: LineChart,      title: "Smart Analytics",          desc: "Surface variance, blockers and trends across every platform in seconds." },
+];
+
+const CHAT = [
+  { role: "user", text: "What are the top Atlas VX program risks right now?" },
   {
-    icon: TrendingUp,
-    label: "Maximize Productivity",
-    desc: "AI surfaces blockers before they delay milestones, so your teams stay ahead of program gates.",
-  },
-  {
-    icon: MessageSquare,
-    label: "Communicate Effectively",
-    desc: "Auto-generate status reports, meeting summaries, and stakeholder updates from your project data.",
-  },
-  {
-    icon: BarChart3,
-    label: "Smart Analytics",
-    desc: "Predictive risk scoring and resource utilization insights trained on automotive program patterns.",
+    role: "ai",
+    text: "3 active risks for Atlas VX:\n1. Cooling spec unfrozen (G3 in 9 days)\n2. Electrical budget +6% over target\n3. Wiring harness DR-1045 in drift state.",
   },
 ];
 
-function AIChatMockup() {
-  return (
-    <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-700 hover:border-blue-500/50 transition-all duration-300">
-      <div className="px-5 py-3 border-b border-gray-700 flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-yellow-400" />
-        <div className="text-sm font-semibold text-white">AI Assistant</div>
-        <div className="ml-auto text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">Active</div>
-      </div>
-      <div className="p-5 space-y-4">
-        {/* User message */}
-        <div className="flex justify-end">
-          <div className="bg-blue-600 text-white text-xs rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-xs">
-            Which tasks on Atlas VX are at risk of missing the Q4 gate?
-          </div>
-        </div>
+const QUICK = ["Show variance trend", "Draft a mitigation plan", "Notify owners"];
 
-        {/* AI response */}
-        <div className="flex items-start gap-3">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-          <div className="bg-gray-800 text-gray-200 text-xs rounded-2xl rounded-tl-sm px-4 py-3 max-w-sm leading-relaxed">
-            <div className="font-semibold text-white mb-2">3 tasks at risk for Q4 gate:</div>
-            <div className="space-y-1.5">
-              {[
-                { task: "SW Integration Testing", risk: "High", days: "-12d" },
-                { task: "Interior Trim Validation", risk: "Medium", days: "-5d" },
-                { task: "FMEA Sign-off", risk: "Medium", days: "-3d" },
-              ].map((item) => (
-                <div key={item.task} className="flex items-center gap-2">
-                  <div
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      item.risk === "High" ? "bg-red-400" : "bg-orange-400"
-                    }`}
-                  />
-                  <span>{item.task}</span>
-                  <span
-                    className={`ml-auto text-[10px] font-medium ${
-                      item.risk === "High" ? "text-red-400" : "text-orange-400"
-                    }`}
-                  >
-                    {item.days}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 pt-2 border-t border-gray-700 text-gray-400">
-              Recommend reassigning T. Ramirez from Horizon EV to unblock SW Integration. Want
-              me to draft the reallocation?
-            </div>
-          </div>
-        </div>
+const staggerChildren = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+};
 
-        {/* Suggested replies */}
-        <div className="flex flex-wrap gap-2 pl-10">
-          {["Draft reallocation", "View all risks", "Export report"].map((s) => (
-            <button
-              key={s}
-              className="text-[11px] border border-gray-600 text-gray-300 px-3 py-1.5 rounded-full hover:border-blue-500 hover:text-blue-400 transition-colors cursor-pointer"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
+const fadeSlide = {
+  hidden: { opacity: 0, y: 20 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+};
 
-      {/* Input */}
-      <div className="px-5 py-4 border-t border-gray-700">
-        <div className="flex items-center gap-2 bg-gray-800 rounded-xl px-4 py-2.5">
-          <input
-            className="flex-1 bg-transparent text-xs text-gray-300 placeholder-gray-600 outline-none"
-            placeholder="Ask about your programs..."
-            readOnly
-          />
-          <button className="text-blue-500 cursor-pointer">
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+export const AISection = ({ onRequestDemo }) => {
+  const chatRef = useRef(null);
+  const isInView = useInView(chatRef, { once: true, margin: "-100px" });
+  const [visibleMessages, setVisibleMessages] = useState([]);
 
-export function AISection() {
+  /* Stagger-reveal chat messages once section enters viewport */
+  useEffect(() => {
+    if (!isInView) return;
+    CHAT.forEach((msg, i) => {
+      setTimeout(() => {
+        setVisibleMessages((prev) => [...prev, msg]);
+      }, i * 700 + 200);
+    });
+  }, [isInView]);
+
   return (
     <section
-      className="py-24"
-      style={{
-        background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)",
-      }}
+      id="ai"
+      data-testid="ai-section"
+      className="relative py-24 md:py-32 overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e1b4b] text-white"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16 animate-in fade-in duration-300">
-          <div className="inline-flex items-center gap-2 text-purple-400 text-sm font-medium mb-4">
-            <Sparkles className="w-4 h-4" />
-            Powered by AI
-          </div>
-          <h2 className="text-4xl lg:text-5xl font-bold text-white mb-4 animate-in fade-in duration-500">
-            AI that works hand-in-hand
-            <br />
-            with your engineering team
-          </h2>
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-            Get more done with AI that fully understands the context of your automotive programs,
-            from APQP to SOP.
-          </p>
-        </div>
+      {/* Grain overlay */}
+      <div className="absolute inset-0 grain opacity-60" />
+      {/* Glow blobs */}
+      <div className="absolute top-10 right-10 h-80 w-80 rounded-full bg-brand-purple/20 blur-[130px]" />
+      <div className="absolute bottom-0 left-10 h-72 w-72 rounded-full bg-brand/20 blur-[120px]" />
 
-        <div className="flex flex-col lg:flex-row gap-16 items-center">
-          {/* Left — feature list */}
-          <div className="flex-1 space-y-8 animate-in fade-in duration-500">
-            {features.map((feat) => {
-              const Icon = feat.icon;
-              return (
-                <div
-                  key={feat.label}
-                  className="flex items-start gap-5 p-6 rounded-2xl border border-gray-700/50 hover:border-blue-500/50 transition-colors bg-white/5"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold mb-1.5">{feat.label}</div>
-                    <div className="text-gray-400 text-sm leading-relaxed">{feat.desc}</div>
-                  </div>
+      <div className="relative max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+
+        {/* ── Left ── */}
+        <motion.div
+          variants={staggerChildren}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+        >
+          <motion.span
+            variants={fadeSlide}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-[13px] font-semibold text-purple-200 mb-6"
+          >
+            <Sparkles className="h-4 w-4 text-brand-purple" /> CALDIM Intelligence
+          </motion.span>
+          <motion.h2
+            variants={fadeSlide}
+            className="font-heading font-extrabold tracking-tight text-3xl md:text-5xl leading-tight"
+          >
+            Your AI co-pilot for engineering programs
+          </motion.h2>
+          <motion.p variants={fadeSlide} className="mt-5 text-[15px] text-slate-300 max-w-lg">
+            CALDIM AI reads your synced data, meeting minutes and budgets to answer
+            anything about program health — instantly.
+          </motion.p>
+
+          <motion.div variants={staggerChildren} className="mt-9 space-y-6">
+            {FEATURES.map((f) => (
+              <motion.div key={f.title} variants={fadeSlide} className="flex gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/5 border border-white/10 text-brand-purple">
+                  <f.icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-heading font-bold text-[16px]">{f.title}</p>
+                  <p className="text-[14px] text-slate-400">{f.desc}</p>
                 </div>
-              );
-            })}
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
+
+        {/* ── Right — AI chat card ── */}
+        <motion.div
+          ref={chatRef}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="rounded-2xl bg-white/[0.04] backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden"
+        >
+          {/* Chat header with pulsing glow */}
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-white/10">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand-purple to-brand animate-glow-pulse">
+              <Sparkles className="h-4 w-4 text-white" />
+            </span>
+            <div>
+              <p className="text-[14px] font-bold">CALDIM Assistant</p>
+              <p className="flex items-center gap-1.5 text-[11px] text-emerald-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Online · context-aware
+              </p>
+            </div>
           </div>
 
-          {/* Right — AI chat mockup */}
-          <div className="flex-1 w-full max-w-lg mx-auto lg:mx-0 animate-in fade-in duration-500">
-            <AIChatMockup />
+          {/* Messages — stagger-revealed on viewport entry */}
+          <div className="p-5 space-y-4 min-h-[180px]">
+            {visibleMessages.map((m, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13.5px] whitespace-pre-line ${
+                    m.role === "user"
+                      ? "bg-brand text-white rounded-br-sm"
+                      : "bg-white/[0.06] border border-white/10 text-slate-100 rounded-bl-sm"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </motion.div>
+            ))}
           </div>
-        </div>
 
-        {/* Bottom label */}
-        <div className="mt-16 text-center">
-          <p className="text-gray-500 text-sm">
-            Connected Intelligence — AI insights across your entire program portfolio
-          </p>
-        </div>
+          {/* Quick replies */}
+          <div className="flex flex-wrap gap-2 px-5 pb-4">
+            {QUICK.map((q) => (
+              <button
+                key={q}
+                onClick={() => onRequestDemo && onRequestDemo(`AI Query: ${q}`)}
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-slate-300 hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Input field */}
+          <div className="p-4 border-t border-white/10 bg-white/[0.02] flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Ask CALDIM Assistant..."
+              className="flex-1 bg-transparent border-0 text-[13.5px] text-white placeholder-slate-500 focus:outline-none"
+              readOnly
+            />
+            <button
+              onClick={() => onRequestDemo && onRequestDemo("AI Query Inquiry")}
+              className="grid h-8 w-8 place-items-center rounded-lg bg-brand hover:bg-brand-hover text-white transition-colors cursor-pointer"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Bottom label */}
+      <div className="mt-16 text-center relative z-10">
+        <p className="text-slate-400 text-sm">
+          Connected Intelligence — AI insights across your entire program portfolio
+        </p>
       </div>
     </section>
   );
-}
+};
+
+export default AISection;

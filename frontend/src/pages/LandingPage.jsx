@@ -47,7 +47,9 @@ const LandingPage = () => {
           onRequestDemo={(mode, useCase) => openModal(mode || 'sales', useCase || 'Customization Request')}
         />
 
-        <AISection />
+        <AISection 
+          onRequestDemo={(useCase) => openModal('demo', useCase || 'AI Request')}
+        />
 
         <FAQSection />
 
