@@ -12,117 +12,533 @@
   --radius-lg: 16px;
 }
 
+/* ── Root Wrapper ── */
 .vppd-root {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 0;
   width: 100%;
+  flex: 1;
+  min-height: 0;
   padding: 0;
   font-family: 'Inter', system-ui, sans-serif;
   color: var(--text-main);
-  animation: fadeIn 0.4s ease-out;
+  animation: vppdFadeIn 0.35s ease-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes vppdFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── 1. Section Cards ── */
-.vppd-section {
+/* ── Project Header ── */
+.vppd-project-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px 0 24px;
+}
+
+.vppd-project-heading-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46e5 0%, #0891b2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.vppd-project-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.vppd-project-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.vppd-project-health-chip {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Tab Navigation ── */
+.vppd-tab-nav {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  padding: 16px 24px 0 24px;
+  border-bottom: 1px solid var(--border-subtle);
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 24px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.vppd-tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.vppd-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px 11px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  position: relative;
+  margin-bottom: -1px;
+  border-radius: 0;
+}
+
+.vppd-tab-btn:hover {
+  color: var(--text-primary);
+  background: var(--elevated-card);
+}
+
+.vppd-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 700;
+  background: transparent;
+}
+
+.vppd-tab-icon {
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.vppd-tab-btn.active .vppd-tab-icon,
+.vppd-tab-btn:hover .vppd-tab-icon {
+  opacity: 1;
+}
+
+.vppd-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--elevated-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.15s;
+}
+
+.vppd-tab-btn.active .vppd-tab-count {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+/* ── Tab Panel ── */
+.vppd-tab-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px 24px 24px;
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  gap: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.vppd-tab-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vppd-tab-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vppd-tab-panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+
+/* ── Section Cards ── */
+.vppd-section {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease;
   box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .vppd-section:hover {
   box-shadow: var(--shadow-md);
-  border-color: var(--accent);
-}
-
-.vppd-section.full {
-  width: 100%;
 }
 
 .vppd-section-header {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-main);
-  margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb, 79, 70, 229), 0.03) 0%, transparent 100%);
 }
 
-/* ── 2. Badges & Tags ── */
-.vppd-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
-  display: inline-flex;
+.vppd-section-title {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-primary);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+  margin: 0;
 }
 
-.vppd-badge.green { background: var(--green-50); color: var(--green-900); border: 1px solid var(--green-200); }
-.vppd-badge.yellow { background: var(--amber-50); color: var(--amber-900); border: 1px solid var(--amber-200); }
-.vppd-badge.red { background: var(--red-50); color: var(--red-900); border: 1px solid var(--red-200); }
-.vppd-badge.gray { background: var(--elevated-card); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+.vppd-section-body {
+  padding: 16px 20px;
+  flex: 1;
+}
 
-/* ── 3. Table System ── */
-.vppd-table-wrapper {
+/* ── Overview Grid ── */
+.vppd-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* ── KPI Strip ── */
+.vppd-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.vppd-kpi-card {
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.vppd-kpi-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.vppd-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.vppd-kpi-value {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.vppd-kpi-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Refined Table System ── */
+.vppd-refined-table-wrapper {
   overflow-x: auto;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   background: var(--surface);
 }
 
-.vppd-table {
+.vppd-refined-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  background: transparent;
+  font-size: 12.5px;
 }
 
-.vppd-table th {
-  padding: 14px 20px;
+.vppd-refined-table thead tr {
   background: var(--elevated-card);
-  font-size: 12px;
-  font-weight: 700;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.vppd-refined-table th {
+  padding: 11px 16px;
+  font-size: 10.5px;
+  font-weight: 800;
   color: var(--text-secondary);
   text-transform: uppercase;
-  border-bottom: 2px solid var(--border);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
 }
 
-.vppd-table td {
-  padding: 16px 20px;
-  font-size: 13px;
+.vppd-refined-table td {
+  padding: 12px 16px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-subtle);
   font-weight: 500;
-  transition: background 0.15s ease;
+  vertical-align: middle;
 }
 
-.vppd-table tr:hover td {
-  background: var(--table-hover);
-}
-
-.vppd-table tr:last-child td {
+.vppd-refined-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-/* ── 4. Empty States ── */
+.vppd-refined-table tbody tr:hover td {
+  background: var(--table-hover);
+}
+
+/* ── Status Badge ── */
+.vppd-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+}
+
+/* ── Priority Badge ── */
+.vppd-priority-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid;
+}
+
+/* ── Gantt styles ── */
+.vppd-gantt-container {
+  overflow: auto;
+  position: relative;
+  max-height: 480px;
+  min-height: 280px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+/* ── Chart card (Project Metrics Tab) ── */
+.vppd-chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.vppd-chart-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.vppd-chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--elevated-card);
+}
+
+.vppd-chart-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.vppd-chart-title-accent {
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: #4f46e5;
+  flex-shrink: 0;
+}
+
+.vppd-chart-body {
+  padding: 12px 16px;
+}
+
+.vppd-chart-split-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.vppd-ai-panel {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, transparent 100%);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.vppd-ai-panel-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vppd-ai-panel-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.vppd-freq-table-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.vppd-freq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.vppd-freq-table th {
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  background: var(--elevated-card);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.vppd-freq-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.vppd-freq-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vppd-freq-table tbody tr:hover td {
+  background: var(--table-hover);
+}
+
+/* ── Budget Split Layout ── */
+.vppd-budget-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .vppd-budget-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vppd-budget-chart-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Issues Analytics Grid ── */
+.vppd-issues-analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .vppd-issues-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Milestone phase row ── */
+.vppd-phase-row td {
+  background: var(--elevated-card) !important;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+/* ── Progress bar inline ── */
+.vppd-progress-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.vppd-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ── Empty state ── */
 .vppd-empty {
   text-align: center;
   padding: 48px 24px;
@@ -130,48 +546,143 @@
   font-size: 14px;
   background: var(--bg);
   border-radius: var(--radius-md);
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-subtle);
   font-weight: 500;
 }
 
-/* ── 5. Buttons ── */
-.vppd-btn {
+/* ── Overview section mini title ── */
+.vppd-overview-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 0 10px 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 7px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+/* ── Budget summary cards (Overview) ── */
+.vppd-budget-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.vppd-budget-card {
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.vppd-budget-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.vppd-budget-card-value {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+/* ── Badge Button Controls ── */
+.vppd-ctrl-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  transition: all 0.18s;
 }
 
-.vppd-btn-primary {
-  background: var(--primary);
-  color: white;
-  border: none;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.vppd-btn-primary:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-}
-
-.vppd-btn-secondary {
-  background: var(--surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-.vppd-btn-secondary:hover {
+.vppd-ctrl-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
   background: var(--elevated-card);
-  border-color: var(--border-strong);
 }
 
-/* ── 6. MOM Form Table Styles ── */
+.vppd-ctrl-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.vppd-ctrl-group {
+  display: flex;
+  gap: 4px;
+  background: var(--elevated-card);
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Tooltip ── */
+.vppd-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  font-size: 11px;
+  color: #f8fafc;
+}
+
+/* ── Sync History table ── */
+.vppd-sync-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.vppd-sync-history-table th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  background: var(--elevated-card);
+}
+
+.vppd-sync-history-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.vppd-sync-history-table tbody tr:hover td {
+  background: var(--table-hover);
+}
+
+.vppd-sync-history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Old form-based MOM table (kept for compat) ── */
 .vppd-mom-table-container {
   padding: 12px 0;
   display: flex;
@@ -214,9 +725,9 @@
 }
 
 .vppd-mom-table th {
-  padding: 12px 16px;
+  padding: 11px 14px;
   background: var(--elevated-card);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -231,8 +742,8 @@
 }
 
 .vppd-mom-table td {
-  padding: 12px 16px;
-  font-size: 13px;
+  padding: 11px 14px;
+  font-size: 12.5px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-subtle);
   border-right: 1px solid var(--border-subtle);
@@ -251,3 +762,8 @@
   border-bottom: none;
 }
 
+/* ── Modal animations ── */
+@keyframes vppdSlideUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
