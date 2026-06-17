@@ -105,10 +105,8 @@ def test_get_all_project_structures_with_caching(client, override_dependencies, 
     mock_upload.valid_row_count = 95
     mock_upload.invalid_row_count = 5
 
-    mock_db.query.return_value.all.side_effect = [
-        [mock_proj],     # First call (projects)
-        [mock_upload],   # First call (uploads)
-    ]
+    mock_db.query.return_value.all.return_value = [mock_proj]
+    mock_db.query.return_value.filter.return_value.all.return_value = [mock_upload]
     
     override_dependencies(get_db, lambda: mock_db)
     override_dependencies(get_current_user, lambda: {"employee_id": "EMP001", "role": "Admin"})

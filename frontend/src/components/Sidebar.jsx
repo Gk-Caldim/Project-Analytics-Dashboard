@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { slideInLeft } from '../utils/animations';
 import {
     Layout as LayoutIcon,
@@ -91,6 +92,8 @@ const Sidebar = ({
     hasAccess
 }) => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const location = useLocation();
     const {
         sidebarDashboardLimit = 10,
         sidebarDashboardMode = 'custom',
@@ -333,7 +336,7 @@ const Sidebar = ({
     };
 
     const renderUploadTrackersModule = () => {
-        const isActive = activeModule === 'upload-trackers';
+        const isActive = activeModule === 'upload-trackers' || activeModule === 'create-tracker';
         const isExpanded = expandedModules['upload-trackers'];
         const hasDynamicModules = uploadTrackerModules && uploadTrackerModules.length > 0;
 
@@ -342,13 +345,13 @@ const Sidebar = ({
                 <div
                     onClick={() => toggleModuleExpansion('upload-trackers')}
                     className={`sidebar-nav-item ${isActive ? 'sidebar-nav-item-active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
-                    title={sidebarCollapsed ? 'Uploads' : ''}
+                    title={sidebarCollapsed ? 'Manage Trackers' : ''}
                 >
                     <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center w-full' : 'flex-1'}`}>
                         <FileUp size={20} />
-                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Uploads</span>}
+                        {!sidebarCollapsed && <span className="text-[16px] font-medium tracking-tight">Manage Trackers</span>}
                     </div>
-                    {!sidebarCollapsed && hasDynamicModules && (
+                    {!sidebarCollapsed && (
                         <div>
                             {isExpanded ? <ChevronDown size={14} className="text-white/70" /> : <ChevronRight size={14} className="text-white/70" />}
                         </div>
@@ -369,7 +372,15 @@ const Sidebar = ({
                                     onClick={() => handleModuleClick('upload-trackers')}
                                     className={`sidebar-sub-item ${activeModule === 'upload-trackers' ? 'sidebar-sub-item-active' : ''}`}
                                 >
-                                    Manage Trackers
+                                    Upload Trackers
+                                </div>
+
+                                {/* Link to CreateTracker page */}
+                                <div
+                                    onClick={() => handleModuleClick('create-tracker')}
+                                    className={`sidebar-sub-item ${activeModule === 'create-tracker' ? 'sidebar-sub-item-active' : ''}`}
+                                >
+                                    Create Tracker
                                 </div>
 
                                 {/* Per-project tracker file items */}

@@ -103,8 +103,8 @@ const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState('');
 
   // Dynamic modules
-  const [uploadTrackerModules, setUploadTrackerModules] = useState([]);
-  const [projectDashboardModules, setProjectDashboardModules] = useState([]);
+  const [uploadTrackerModules, setUploadTrackerModules] = useState(() => sidebarManager.loadUploadTrackerModules());
+  const [projectDashboardModules, setProjectDashboardModules] = useState(() => sidebarManager.loadProjectDashboardModules());
   const [expandedProjects, setExpandedProjects] = useState({});
 
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -130,10 +130,11 @@ const Dashboard = () => {
   ], []);
 
   const uploadsSubmodules = useMemo(() => [
-    { id: 'upload-trackers', name: 'Trackers Upload', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
+    { id: 'upload-trackers', name: 'Upload Trackers', path: 'trackers', icon: <FileUp className="h-5 w-5" /> },
+    { id: 'create-tracker', name: 'Create Tracker', path: 'create-tracker', icon: <Plus className="h-5 w-5" /> },
   ], []);
   const uploadsModules = useMemo(() => [
-    { id: 'uploads-main', name: 'Uploads', path: 'trackers', icon: <FileUp className="h-5 w-5" /> }
+    { id: 'uploads-main', name: 'Manage Trackers', path: 'trackers', icon: <FileUp className="h-5 w-5" /> }
   ], []);
 
   const otherModules = useMemo(() => [
@@ -187,6 +188,7 @@ const Dashboard = () => {
       console.log('[Dashboard] dynamic modules processed:', structures.length);
 
       const dashProjectsMap = new Map();
+      const uploadProjectsMap = new Map();
 
       structures.forEach(struct => {
         if (!struct.project_id) return;
@@ -194,7 +196,7 @@ const Dashboard = () => {
         const projectName = capitalizeFirstLetter(struct.project_name || 'Uncategorized');
         const projectKey = struct.project_id;
 
-        const projectModule = {
+        const projectModuleDash = {
           id: projectKey,
           moduleId: `project-${projectKey}`,
           dbProjectId: projectKey,
@@ -205,19 +207,27 @@ const Dashboard = () => {
           submodules: []
         };
 
-        // Only show uploaded tracker FILE names in the sidebar.
-        // Do NOT use struct.modules — those contain row-level data (CCV, Intake, Exhaust, etc.)
-        // which are sub-modules inside the tracker file, not the file itself.
+        const projectModuleUpload = {
+          id: projectKey,
+          moduleId: `project-${projectKey}`,
+          dbProjectId: projectKey,
+          name: projectName,
+          projectName: projectName,
+          type: 'project',
+          context: 'upload-trackers',
+          submodules: []
+        };
+
         if (Array.isArray(struct.uploads)) {
           struct.uploads.forEach(u => {
             const fileName = u.file_name || 'Dataset';
-            // Strip file extension for display
             const trackerName = fileName.replace(/\.[^/.]+$/, '');
             const trackerId = u.upload_id;
+            const isManual = u.industry === 'MANUAL';
 
             // Avoid duplicates
-            if (!projectModule.submodules.some(s => s.trackerId === trackerId)) {
-              projectModule.submodules.push({
+            if (!projectModuleDash.submodules.some(s => s.trackerId === trackerId)) {
+              projectModuleDash.submodules.push({
                 id: `tracker-file-${trackerId}`,
                 trackerId: trackerId,
                 dbProjectId: projectKey,
@@ -228,19 +238,39 @@ const Dashboard = () => {
                 context: 'project-dashboard'
               });
             }
+
+            if (!isManual) {
+              if (!projectModuleUpload.submodules.some(s => s.trackerId === trackerId)) {
+                projectModuleUpload.submodules.push({
+                  id: `tracker-file-${trackerId}`,
+                  trackerId: trackerId,
+                  dbProjectId: projectKey,
+                  name: trackerName,
+                  displayName: trackerName,
+                  type: 'tracker',
+                  projectName: projectName,
+                  context: 'upload-trackers'
+                });
+              }
+            }
           });
         }
 
-
-        dashProjectsMap.set(projectKey, projectModule);
+        dashProjectsMap.set(projectKey, projectModuleDash);
+        if (projectModuleUpload.submodules.length > 0) {
+          uploadProjectsMap.set(projectKey, projectModuleUpload);
+        }
       });
 
-      const finalList = Array.from(dashProjectsMap.values());
+      const finalDashList = Array.from(dashProjectsMap.values());
+      const finalUploadList = Array.from(uploadProjectsMap.values());
 
       // Auto-expand loaded projects in both local state and Redux
       const initialExpanded = {};
-      finalList.forEach(p => {
+      finalDashList.forEach(p => {
         initialExpanded[`project-dashboard-${p.id}`] = true;
+      });
+      finalUploadList.forEach(p => {
         initialExpanded[`upload-trackers-${p.id}`] = true;
       });
       setExpandedProjects(prev => ({ ...prev, ...initialExpanded }));
@@ -249,11 +279,76 @@ const Dashboard = () => {
         dispatch(setExpandedModules(initialExpanded));
       }
 
-      setProjectDashboardModules(finalList);
-      setUploadTrackerModules(finalList);
+      // Self-healing synchronization: purge local storage cache items that are not in the DB
+      const dbTrackerIds = new Set();
+      finalDashList.forEach(p => {
+        if (Array.isArray(p.submodules)) {
+          p.submodules.forEach(s => {
+            if (s.trackerId) dbTrackerIds.add(Number(s.trackerId));
+          });
+        }
+      });
+
+      // Purge stale items from upload_tracker_modules in localStorage
+      let localUploadModules = [];
+      try {
+        const saved = localStorage.getItem('upload_tracker_modules');
+        localUploadModules = saved ? JSON.parse(saved) : [];
+      } catch (e) {}
+      
+      let uploadModified = false;
+      const cleanUploadModules = localUploadModules.map(pm => {
+        if (Array.isArray(pm.submodules)) {
+          const originalLen = pm.submodules.length;
+          const cleanSubs = pm.submodules.filter(file => {
+            const exists = dbTrackerIds.has(Number(file.trackerId));
+            if (!exists) uploadModified = true;
+            return exists;
+          });
+          if (cleanSubs.length !== originalLen) {
+            return { ...pm, submodules: cleanSubs, stats: { ...pm.stats, fileCount: cleanSubs.length } };
+          }
+        }
+        return pm;
+      }).filter(pm => pm.submodules && pm.submodules.length > 0);
+
+      if (uploadModified) {
+        localStorage.setItem('upload_tracker_modules', JSON.stringify(cleanUploadModules));
+      }
+
+      // Purge stale items from project_dashboard_modules in localStorage
+      let localProjectModules = [];
+      try {
+        const saved = localStorage.getItem('project_dashboard_modules');
+        localProjectModules = saved ? JSON.parse(saved) : [];
+      } catch (e) {}
+
+      let projectModified = false;
+      const cleanProjectModules = localProjectModules.map(pm => {
+        if (Array.isArray(pm.submodules)) {
+          const originalLen = pm.submodules.length;
+          const cleanSubs = pm.submodules.filter(file => {
+            const exists = dbTrackerIds.has(Number(file.trackerId));
+            if (!exists) projectModified = true;
+            return exists;
+          });
+          if (cleanSubs.length !== originalLen) {
+            return { ...pm, submodules: cleanSubs, projectStats: { ...pm.projectStats, totalFiles: cleanSubs.length } };
+          }
+        }
+        return pm;
+      }).filter(pm => pm.submodules && pm.submodules.length > 0);
+
+      if (projectModified) {
+        localStorage.setItem('project_dashboard_modules', JSON.stringify(cleanProjectModules));
+      }
+
+      setProjectDashboardModules(finalDashList);
+      setUploadTrackerModules(finalUploadList);
 
       // Cache to localStorage for faster initial load
-      localStorage.setItem('project_dashboard_modules', JSON.stringify(finalList));
+      localStorage.setItem('project_dashboard_modules', JSON.stringify(finalDashList));
+      localStorage.setItem('upload_tracker_modules', JSON.stringify(finalUploadList));
 
     } catch (error) {
       console.error('[Dashboard] Critical error in processing structuresData:', error);
@@ -673,7 +768,7 @@ const Dashboard = () => {
       if (!expandedModules['mom']) {
         dispatch(setExpandedModules({ 'mom': true }));
       }
-    } else if (moduleId === 'upload-trackers') {
+    } else if (moduleId === 'upload-trackers' || moduleId === 'create-tracker') {
       if (uploadTrackerModules.length > 0 && !expandedModules['upload-trackers']) {
         dispatch(setExpandedModules({ 'upload-trackers': true }));
       }
@@ -839,6 +934,8 @@ const Dashboard = () => {
           addCrumb(fileLabel, null, true);
         }
       }
+    } else if (path.includes('/dashboard/create-tracker')) {
+      addCrumb('Create Tracker', null, true);
     } else if (path.includes('/dashboard/trackers')) {
       const urlFileId = searchParams.get('file');
       addCrumb('Upload Trackers', '/dashboard/trackers', !urlFileId);

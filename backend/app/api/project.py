@@ -492,6 +492,7 @@ def get_project_structure(
             "row_count":         u.row_count,
             "valid_row_count":   u.valid_row_count,
             "invalid_row_count": u.invalid_row_count,
+            "industry":          getattr(u, "industry", None),
             "modules":           upload_modules,
         })
 
@@ -543,7 +544,9 @@ def get_all_project_structures(
             Upload.row_count,
             Upload.valid_row_count,
             Upload.invalid_row_count,
+            Upload.industry,
         )
+        .filter(Upload.status != "Draft")
         .all()
     )
 
@@ -571,6 +574,7 @@ def get_all_project_structures(
                 "row_count":         u.row_count,
                 "valid_row_count":   u.valid_row_count,
                 "invalid_row_count": u.invalid_row_count,
+                "industry":          u.industry,
                 "modules":           [],             # not needed for sidebar
             })
 
