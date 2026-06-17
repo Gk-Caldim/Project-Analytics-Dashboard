@@ -117,7 +117,12 @@ export const trackerSidebarManager = {
         employeeName: metadata.employeeName || null
       };
 
-      projectModule.submodules.push(fileModule);
+      if (!projectModule.stats) {
+        projectModule.stats = {
+          fileCount: 0,
+          lastUpload: null
+        };
+      }
       projectModule.stats.fileCount = projectModule.submodules.length;
       projectModule.stats.lastUpload = new Date().toISOString();
       projectModule.lastUpdated = new Date().toISOString();
@@ -142,6 +147,12 @@ export const trackerSidebarManager = {
 
       if (fileIndex !== -1) {
         projectModule.submodules.splice(fileIndex, 1);
+        if (!projectModule.stats) {
+          projectModule.stats = {
+            fileCount: 0,
+            lastUpload: null
+          };
+        }
         projectModule.stats.fileCount = projectModule.submodules.length;
         projectModule.lastUpdated = new Date().toISOString();
         removed = true;
@@ -277,6 +288,13 @@ export const trackerSidebarManager = {
         department: metadata.department || null
       };
 
+      if (!projectModule.projectStats) {
+        projectModule.projectStats = {
+          totalFiles: 0,
+          contributors: [],
+          lastActivity: null
+        };
+      }
       if (!projectModule.projectStats.contributors.includes(employeeName)) {
         projectModule.projectStats.contributors.push(employeeName);
       }
@@ -306,6 +324,13 @@ export const trackerSidebarManager = {
 
       if (fileIndex !== -1) {
         projectModule.submodules.splice(fileIndex, 1);
+        if (!projectModule.projectStats) {
+          projectModule.projectStats = {
+            totalFiles: 0,
+            contributors: [],
+            lastActivity: null
+          };
+        }
         projectModule.projectStats.totalFiles = projectModule.submodules.length;
         projectModule.projectStats.lastActivity = new Date().toISOString();
         projectModule.lastUpdated = new Date().toISOString();
