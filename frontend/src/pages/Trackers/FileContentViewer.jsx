@@ -861,7 +861,6 @@ const FileContentViewer = ({
       setSelectedRows([]);
       setSelectAll(false);
       setSortConfig({ key: null, direction: 'ascending' });
-      setIsEditing(false);
       setEditingRowIndex(null);
       showNotification('Data refreshed', 'success');
     }
