@@ -139,27 +139,49 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
             ingestion = db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).first()
             if ingestion and ingestion.data:
                 json_data = ingestion.data
-                if len(json_data) > 0:
-                    # Slice to first 1000 rows for preview matching dynamic tables
-                    preview_rows = json_data[:1000]
-                    headers = list(preview_rows[0].keys())
-                    rows = [[row.get(h, "") for h in headers] for row in preview_rows]
+                record_ids = []
+                if isinstance(json_data, dict):
+                    # Manual tracker format: {"schema": [...], "rows": [...]}
+                    schema = json_data.get("schema", [])
+                    headers = [col["column_name"] for col in schema]
+                    db_rows = json_data.get("rows", [])
+                    rows = [[row.get(h, "") for h in headers] for row in db_rows]
+                    
+                    # Ensure all records have a persistent _record_id
+                    for idx, row in enumerate(db_rows):
+                        r_id = row.get("_record_id")
+                        if not r_id:
+                            r_id = f"TRK-{str(idx + 1).zfill(3)}"
+                            row["_record_id"] = r_id
+                        record_ids.append(r_id)
                 else:
-                    headers = []
-                    rows = []
+                    # Uploaded tracker format: flat list of records
+                    if len(json_data) > 0:
+                        preview_rows = json_data[:1000]
+                        headers = list(preview_rows[0].keys())
+                        rows = [[row.get(h, "") for h in headers] for row in preview_rows]
+                        record_ids = [f"TRK-{str(idx + 1).zfill(3)}" for idx in range(len(preview_rows))]
+                    else:
+                        headers = []
+                        rows = []
+                    schema = [{"column_name": h, "data_type": "text"} for h in headers]
                 
                 result = {
                     "headers": headers,
                     "data": rows,
+                    "record_ids": record_ids,
+                    "schema": schema,
                     "fileData": {
                         "fileName": upload.file_name,
                         "headers": headers,
                         "data": rows,
-                        "sheets": [{"name": "Sheet1", "headers": headers, "data": rows}]
+                        "record_ids": record_ids,
+                        "sheets": [{"name": "Sheet1", "headers": headers, "data": rows, "record_ids": record_ids}]
                     }
                 }
                 global_dataset_cache.set(cache_key, result)
                 return result
+
 
             # Final fallback to physical file if no JSONB is found
             file_path = os.path.join("static", "uploads", "trackers", upload.file_name)
@@ -265,6 +287,8 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
     else:
         data = []
 
+    schema = [{"column_name": c.column_name, "data_type": c.data_type or "text"} for c in columns]
+
     result = {
         "id": dataset.id,
         "name": dataset.name,
@@ -272,6 +296,7 @@ def get_excel_view(dataset_id: int, db: Annotated[Session, Depends(get_db)]):
         "size": dataset.row_count,
         "date": dataset.created_at.strftime("%Y-%m-%d"),
         "uploadedBy": dataset.uploaded_by or "System",
+        "schema": schema,
         "fileData": {
             "sheets": [
                 {

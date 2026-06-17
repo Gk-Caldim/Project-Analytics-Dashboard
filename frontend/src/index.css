@@ -297,6 +297,7 @@
     @apply text-sm;
     border-collapse: separate;
     border-spacing: 0;
+    min-width: 100%;
     width: max-content;
   }
 

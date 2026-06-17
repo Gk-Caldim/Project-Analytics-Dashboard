@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, R
 from app.core.limiter import limiter
 
 from sqlalchemy.orm import Session, defer
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional, List
 from pydantic import BaseModel
 
@@ -64,6 +64,280 @@ def _resolve_project_id(db: Session, project_name: str | None) -> int | None:
         project_name,
     )
     return None
+
+
+class ManualTrackerCreateRequest(BaseModel):
+    project_id: int
+    tracker_name: str
+    status: Optional[str] = "Completed"
+
+
+class TrackerIngestionUpdateRequest(BaseModel):
+    schema: List[dict]
+    rows: List[dict]
+    status: Optional[str] = None
+
+
+def validate_tracker_rows(schema: List[dict], rows: List[dict]) -> List[str]:
+    errors = []
+    
+    def validate_phone(v):
+        v_str = str(v).strip()
+        return bool(re.match(r"^\+?\d{10,14}$", v_str))
+        
+    for r_idx, row in enumerate(rows):
+        for col in schema:
+            col_name = col.get("column_name")
+            data_type = col.get("data_type", "text").lower()
+            val = row.get(col_name)
+            
+            if val is None or val == "":
+                continue
+                
+            if data_type == "integer":
+                try:
+                    int(val)
+                except (ValueError, TypeError):
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be an integer (whole number)")
+            elif data_type == "decimal" or data_type == "currency":
+                try:
+                    float(val)
+                except (ValueError, TypeError):
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be a decimal (float)")
+            elif data_type == "email":
+                if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", str(val)):
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be a valid email address")
+            elif data_type == "phone":
+                if not validate_phone(val):
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be a valid phone number")
+            elif data_type == "date":
+                try:
+                    datetime.date.fromisoformat(str(val).split("T")[0])
+                except (ValueError, TypeError):
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be a valid ISO date (YYYY-MM-DD)")
+            elif data_type == "boolean":
+                if str(val).lower() not in ["true", "false", "1", "0", "yes", "no"]:
+                    errors.append(f"Row {r_idx + 1}: '{col_name}' must be true or false")
+                    
+    return errors
+
+
+@router.get("/trackers/manual")
+def get_manual_trackers(
+    db: Session = Depends(get_db)
+):
+    """List all manual trackers that are NOT drafts"""
+    uploads = db.query(Upload).filter(
+        Upload.industry == "MANUAL",
+        Upload.status != "Draft"
+    ).order_by(Upload.uploaded_at.desc()).all()
+    
+    projects = db.query(Project).all()
+    proj_map = {p.id: p.name for p in projects}
+    
+    return [
+        {
+            "id": u.id,
+            "upload_id": u.id,
+            "project_name": proj_map.get(u.project_id, "-"),
+            "project_id": u.project_id,
+            "tracker_name": u.file_name,
+            "department": u.department,
+            "uploaded_by": u.uploaded_by,
+            "uploaded_at": u.uploaded_at.strftime("%Y-%m-%d") if u.uploaded_at else None,
+            "status": u.status,
+            "row_count": u.row_count or 0
+        }
+        for u in uploads
+    ]
+
+
+@router.get("/trackers/manual/drafts")
+def get_draft_manual_trackers(
+    db: Session = Depends(get_db)
+):
+    """List all manual trackers in draft status"""
+    uploads = db.query(Upload).filter(
+        Upload.industry == "MANUAL",
+        Upload.status == "Draft"
+    ).order_by(Upload.uploaded_at.desc()).all()
+    
+    projects = db.query(Project).all()
+    proj_map = {p.id: p.name for p in projects}
+    
+    return [
+        {
+            "id": u.id,
+            "upload_id": u.id,
+            "project_name": proj_map.get(u.project_id, "-"),
+            "project_id": u.project_id,
+            "tracker_name": u.file_name,
+            "department": u.department,
+            "uploaded_by": u.uploaded_by,
+            "uploaded_at": u.uploaded_at.strftime("%Y-%m-%d") if u.uploaded_at else None,
+            "status": u.status,
+            "row_count": u.row_count or 0
+        }
+        for u in uploads
+    ]
+
+
+@router.post("/trackers/manual")
+def create_manual_tracker(
+    payload: ManualTrackerCreateRequest,
+    db: Session = Depends(get_db)
+):
+    project = db.query(Project).filter(Project.id == payload.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    existing = db.query(Upload).filter(
+        Upload.project_id == payload.project_id,
+        Upload.file_name == payload.tracker_name
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tracker with name '{payload.tracker_name}' already exists in this project."
+        )
+        
+    new_upload = Upload(
+        project_id=payload.project_id,
+        file_name=payload.tracker_name,
+        department=project.department or "Design Release",
+        uploaded_by=project.project_manager or "System",
+        status=payload.status or "Completed",
+        row_count=0,
+        valid_row_count=0,
+        invalid_row_count=0,
+        industry="MANUAL"
+    )
+    db.add(new_upload)
+    db.flush()
+    
+    new_ingestion = TrackerIngestion(
+        project_id=payload.project_id,
+        upload_id=new_upload.id,
+        file_name=payload.tracker_name,
+        data={"schema": [], "rows": []},
+        summary_data={"modules": {}},
+        uploaded_by=project.project_manager or "System"
+    )
+    db.add(new_ingestion)
+    
+    # Audit Log
+    from app.utils.audit import log_activity
+    action = "CREATE DRAFT" if payload.status == "Draft" else "CREATE TRACKER"
+    log_activity(
+        db=db,
+        user_id=project.project_manager or "System",
+        action=action,
+        module="Create Tracker",
+        entity_id=str(new_upload.id),
+        details={
+            "project_name": project.name,
+            "tracker_name": payload.tracker_name,
+            "summary": f"{action} for manual tracker '{payload.tracker_name}' in project '{project.name}'"
+        }
+    )
+    
+    db.commit()
+    db.refresh(new_upload)
+    
+    try:
+        from app.api.project import structure_cache
+        structure_cache.clear()
+    except Exception as cache_err:
+        logger.error(f"Failed to clear structure cache: {cache_err}")
+        
+    return {
+        "upload_id":     new_upload.id,
+        "id":            new_upload.id,
+        "project":       project.name,
+        "project_id":    new_upload.project_id,
+        "department":    new_upload.department,
+        "fileName":      new_upload.file_name,
+        "name":          new_upload.file_name,
+        "employeeName":  new_upload.uploaded_by,
+        "uploadedBy":    new_upload.uploaded_by,
+        "uploadDate":    new_upload.uploaded_at.strftime("%Y-%m-%d") if new_upload.uploaded_at else datetime.datetime.now().strftime("%Y-%m-%d"),
+        "fileType":      "MANUAL",
+        "status":        new_upload.status,
+        "total_rows":    0,
+        "valid_rows":    0,
+        "invalid_rows":  0,
+        "inserted_rows": 0,
+        "records":       0
+    }
+
+
+@router.patch("/tracker_ingestions/{tracker_id}")
+def update_tracker_ingestion(
+    tracker_id: int,
+    payload: TrackerIngestionUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    ingestion = db.query(TrackerIngestion).filter(
+        (TrackerIngestion.upload_id == tracker_id) | (TrackerIngestion.id == tracker_id)
+    ).first()
+    
+    if not ingestion:
+        raise HTTPException(status_code=404, detail="Tracker Ingestion not found")
+        
+    validation_errors = validate_tracker_rows(payload.schema, payload.rows)
+    if validation_errors:
+        raise HTTPException(status_code=422, detail="; ".join(validation_errors))
+        
+    ingestion.data = {
+        "schema": payload.schema,
+        "rows": payload.rows
+    }
+    
+    summary = compute_tracker_summary(payload.rows) or {}
+    summary["headers"] = [col["column_name"] for col in payload.schema]
+    summary["schema"] = payload.schema
+    ingestion.summary_data = summary
+    
+    upload = db.query(Upload).filter(Upload.id == ingestion.upload_id).first()
+    old_status = upload.status if upload else None
+    if upload:
+        upload.row_count = len(payload.rows)
+        upload.valid_row_count = len(payload.rows)
+        if payload.status:
+            upload.status = payload.status
+        
+    db.commit()
+    
+    # Audit Log
+    from app.utils.audit import log_activity
+    action = "UPDATE TRACKER"
+    if payload.status == "Completed" and old_status == "Draft":
+        action = "PUBLISH TRACKER"
+    log_activity(
+        db=db,
+        user_id=upload.uploaded_by if upload else "System",
+        action=action,
+        module="Create Tracker",
+        entity_id=str(ingestion.upload_id),
+        details={
+            "tracker_name": ingestion.file_name,
+            "summary": f"{action} for manual tracker '{ingestion.file_name}'"
+        }
+    )
+    
+    try:
+        from app.api.project import structure_cache
+        structure_cache.clear()
+    except Exception as cache_err:
+        logger.error(f"Failed to clear structure cache: {cache_err}")
+        
+    from app.api.datasets import global_dataset_cache
+    global_dataset_cache.invalidate(ingestion.upload_id)
+    if upload:
+        global_dataset_cache.invalidate(upload.id)
+        
+    return {"message": "Tracker updated successfully"}
+
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +438,10 @@ async def upload_tracker(
 
 @router.get("/uploads/{project_id}")
 async def get_uploads_by_project(project_id: int, db: Session = Depends(get_db)):
-    uploads = db.query(Upload).filter(Upload.project_id == project_id).order_by(Upload.uploaded_at.desc()).all()
+    uploads = db.query(Upload).filter(
+        Upload.project_id == project_id,
+        or_(Upload.industry == None, Upload.industry != "MANUAL")
+    ).order_by(Upload.uploaded_at.desc()).all()
     return [
         {
             "upload_id":       u.id,
@@ -186,7 +463,10 @@ async def get_uploads_by_project(project_id: int, db: Session = Depends(get_db))
 @router.get("/uploads")
 async def get_uploads(db: Session = Depends(get_db)):
     try:
-        uploads  = db.query(Upload).order_by(Upload.uploaded_at.desc()).all()
+        uploads  = db.query(Upload).filter(
+            Upload.status != "Draft",
+            or_(Upload.industry == None, Upload.industry != "MANUAL")
+        ).order_by(Upload.uploaded_at.desc()).all()
         projects = db.query(Project).all()
         proj_map = {p.id: p.name for p in projects}
 
@@ -365,6 +645,21 @@ async def delete_upload(id: int, db: Session = Depends(get_db)):
             db.delete(dataset)
 
     # 3. Cleanup TrackerIngestion system
+    # Audit Log
+    from app.utils.audit import log_activity
+    if upload:
+        log_activity(
+            db=db,
+            user_id=upload.uploaded_by or "System",
+            action="DELETE TRACKER",
+            module="Create Tracker",
+            entity_id=str(id),
+            details={
+                "tracker_name": upload.file_name,
+                "summary": f"Deleted manual tracker '{upload.file_name}'"
+            }
+        )
+
     db.query(TrackerIngestion).filter(TrackerIngestion.upload_id == upload.id).delete()
     db.query(ImportErrorModel).filter(ImportErrorModel.upload_id == upload.id).delete()
 
