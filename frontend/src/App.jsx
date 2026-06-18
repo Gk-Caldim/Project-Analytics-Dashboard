@@ -8,6 +8,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 
 const ProjectDashboard = React.lazy(() => import('./pages/ProjectDashboard'));
 const UploadTrackers = React.lazy(() => import('./pages/Trackers/UploadTrackers'));
+const CreateTracker = React.lazy(() => import('./pages/Trackers/CreateTracker'));
 const EmployeeMaster = React.lazy(() => import('./pages/Masters/EmployeeMaster'));
 const ProjectMaster = React.lazy(() => import('./pages/Masters/ProjectMaster'));
 
@@ -441,6 +442,7 @@ function AppContent() {
             <Route index element={<Navigate to="projects" replace />} />
             <Route path="projects" element={<ProjectDashboard />} />
             <Route path="trackers" element={<UploadTrackers />} />
+            <Route path="create-tracker" element={<CreateTracker />} />
             <Route path="budget-summary/:projectName" element={<BudgetSummaryView />} />
             
             <Route path="masters" element={<Navigate to="employees" replace />} />

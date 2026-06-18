@@ -266,6 +266,8 @@ const UploadTrackers = () => {
   const [selectedFileContent, setSelectedFileContent] = useState(null);
   const [selectedFileTrackerInfo, setSelectedFileTrackerInfo] = useState(null);
 
+
+
   // New state for checkboxes and selection
   const [selectedTrackers, setSelectedTrackers] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
@@ -353,10 +355,47 @@ const UploadTrackers = () => {
     }
   }, [selectedFileId, trackers, initialFileLoaded, selectedFileTrackerInfo]);
 
-  // Handle saving edited file data (Disabled - now server-side only)
-  const handleSaveFileData = (trackerId, updatedFileData) => {
-    showNotification('Editing is currently disabled for verified trackers.', 'info');
+  // Handle saving edited file data
+  const handleSaveFileData = async (trackerId, updatedFileData) => {
+    try {
+      setFetchingData(true);
+      
+      const headers = updatedFileData.headers || [];
+      const rowsAsDicts = (updatedFileData.data || []).map(rowArray => {
+        const rowObj = {};
+        headers.forEach((h, index) => {
+          rowObj[h] = rowArray[index] !== undefined ? rowArray[index] : '';
+        });
+        return rowObj;
+      });
+
+      const payload = {
+        schema: updatedFileData.columns_schema || [],
+        rows: rowsAsDicts
+      };
+      
+      await API.patch(`/tracker_ingestions/${trackerId}`, payload);
+      showNotification('Tracker saved successfully');
+      
+      // Update local state content
+      setSelectedFileContent(prev => ({
+        ...prev,
+        headers: updatedFileData.headers,
+        data: updatedFileData.data,
+        schema: updatedFileData.columns_schema
+      }));
+      
+      // Update the main trackers list counts
+      refetchUploads();
+    } catch (error) {
+      console.error('Error saving tracker data:', error);
+      const errMsg = error.response?.data?.detail || 'Failed to save tracker data';
+      showNotification(errMsg, 'error');
+    } finally {
+      setFetchingData(false);
+    }
   };
+
 
   // Get current date functions
   const getCurrentDate = () => {
@@ -583,6 +622,8 @@ const UploadTrackers = () => {
   };
 
   const cancelDelete = () => setShowDeletePrompt(null);
+
+
 
   // Upload functions
   const openUploadModal = () => {
@@ -1261,6 +1302,8 @@ const UploadTrackers = () => {
         </div>
       )}
 
+
+
       {/* Upload Form Modal */}
       {showUploadModal && (
         <div className="app-modal-overlay">
@@ -1466,8 +1509,8 @@ const UploadTrackers = () => {
 
             console.log('Back navigation complete - should show table view');
           }}
-          onSaveData={null}
-          viewOnly={true}
+          onSaveData={(updatedData) => handleSaveFileData(selectedFileTrackerInfo?.upload_id || selectedFileId, updatedData)}
+          viewOnly={!isAdmin}
           context="upload"
         />
       ) : (
@@ -1518,6 +1561,7 @@ const UploadTrackers = () => {
                     </div>
                   </div>
                 )}
+
               </div>
             </div>
           </PermissionGuard>

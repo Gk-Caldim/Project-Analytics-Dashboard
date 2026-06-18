@@ -43,6 +43,8 @@ import ResourceManagementCenter from '../components/dashboard/ResourceManagement
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 import ResourceLoads from '../components/dashboard/ResourceLoads';
 import ProjectTimelinePanel from '../components/dashboard/ProjectTimelinePanel';
+import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
+import CriticalIssuesCharts from '../components/dashboard/CriticalIssuesCharts';
 
 
 
@@ -837,6 +839,15 @@ const ProjectTitleDashboard = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: summaryAnalyticsData, refetch: refetchSummaryAnalytics } = useQuery({
+    queryKey: ['summaryAnalytics'],
+    queryFn: async () => {
+      const { getDashboardSummaryAnalytics } = await import('../api/dashboard');
+      return getDashboardSummaryAnalytics();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: commodityPricesData, refetch: refetchCommodityPrices } = useQuery({
     queryKey: ['commodityPrices'],
     queryFn: async () => {
@@ -873,6 +884,7 @@ const ProjectTitleDashboard = () => {
     refetchAllIssues();
     refetchCommodityPrices();
     refetchMeetings();
+    refetchSummaryAnalytics();
   };
 
   const handleMatrixAction = (action, payload) => {
@@ -4999,6 +5011,8 @@ const ProjectTitleDashboard = () => {
                           issuesMap={issuesMap}
                           budgetsMap={budgetsMap}
                           onActionClick={handleMatrixAction}
+                          analyticsData={summaryAnalyticsData}
+                          isPM={false}
                         />
                       </div>
                       <div className="sketch-cell" id="budget-governance-workspace">
@@ -5018,17 +5032,15 @@ const ProjectTitleDashboard = () => {
                       />
                     </div>
 
-                    {/* Row 3 — Resource Loads (narrow) | Supply Chain Risk Center (wide) */}
+                    {/* Row 3 — Resource Loads (narrow) | Critical Issues Charts (wide) */}
                     <div className="sketch-row-bottom">
                       <div className="sketch-cell" id="resource-loads">
                         <ResourceLoads employees={employeesData || allEmployees || []} />
                       </div>
                       <div className="sketch-cell" id="supply-chain-risk-center">
-                        <SupplyChainRiskCenter
-                          commodityPrices={commodityPricesData || {}}
-                          projects={mergedProjectsSummary}
-                          structures={structuresData || []}
-                          onRefresh={handleHomepageRefresh}
+                        <CriticalIssuesCharts
+                          issues={allIssuesData || []}
+                          projects={projects}
                         />
                       </div>
                     </div>
@@ -5060,6 +5072,7 @@ const ProjectTitleDashboard = () => {
                           issuesMap={issuesMap}
                           budgetsMap={budgetsMap}
                           onActionClick={handleMatrixAction}
+                          isPM={true}
                         />
                       </div>
                     </div>
@@ -5107,7 +5120,8 @@ const ProjectTitleDashboard = () => {
         ) : (
           /* Active Project Dashboard */
           <>
-            <section aria-label="Project Overview Content" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
+            <section aria-label="Project Overview Content" style={{ padding: '0', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+
               <VPProjectDashboard
                 activeProject={activeProject}
                 dashboardData={dashboardData}
@@ -5125,97 +5139,15 @@ const ProjectTitleDashboard = () => {
                 setGanttTypeFilter={setGanttTypeFilter}
                 ganttStatusFilter={ganttStatusFilter}
                 setGanttStatusFilter={setGanttStatusFilter}
+                budgetTableData={budgetTableData}
+                budgetSummaryData={summaryData}
+                isBudgetLoading={isBudgetLoading}
+                renderBudgetTableContent={renderBudgetTable}
+                budgetCurrencySymbol={symbol}
               />
-
-              {visibleSections.budget && (
-                <section aria-labelledby="budget-summary-title" style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', padding: '24px', border: '1px solid var(--border-strong)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                  <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                      <h4 id="budget-summary-title" style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget Summary</h4>
-
-                      <div style={{ display: 'flex', background: 'var(--bg)', padding: '3px', borderRadius: '8px' }}>
-                        <button
-                          onClick={() => setBudgetViewMode('simplified')}
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: '11px',
-                            fontWeight: '800',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            backgroundColor: budgetViewMode === 'simplified' ? 'var(--surface)' : 'transparent',
-                            color: budgetViewMode === 'simplified' ? 'var(--accent)' : 'var(--text-muted)',
-                            boxShadow: budgetViewMode === 'simplified' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          Simplified
-                        </button>
-                        <button
-                          onClick={() => setBudgetViewMode('table')}
-                          style={{
-                            padding: '4px 12px',
-                            fontSize: '11px',
-                            fontWeight: '800',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: 'pointer',
-                            backgroundColor: budgetViewMode === 'table' ? 'var(--surface)' : 'transparent',
-                            color: budgetViewMode === 'table' ? 'var(--accent)' : 'var(--text-muted)',
-                            boxShadow: budgetViewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            transition: 'all 0.2s'
-                          }}
-                        >
-                          Table View
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ backgroundColor: 'var(--blue-50)', color: 'var(--blue-900)', padding: '6px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: '800' }}>{symbol} Currency</div>
-                  </header>
-                  {isBudgetLoading ? (
-                    budgetViewMode === 'simplified' ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                        {Array.from({ length: 4 }).map((_, idx) => (
-                          <div key={`budget-card-skeleton-${idx}`} style={{ padding: '20px', backgroundColor: 'var(--elevated-card)', borderRadius: '12px', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <Skeleton className="h-3 w-16" />
-                            <Skeleton className="h-8 w-28" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <Skeleton className="h-10 w-full" />
-                        {Array.from({ length: 5 }).map((_, idx) => (
-                          <Skeleton key={`budget-table-row-skeleton-${idx}`} className="h-8 w-full" />
-                        ))}
-                      </div>
-                    )
-                  ) : budgetViewMode === 'simplified' ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Approved Budget</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--text-primary)' }}>{format(summaryData.budgetApproved, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--green-50)', borderRadius: '12px', border: '1px solid var(--green-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--green-900)', fontWeight: '800', textTransform: 'uppercase' }}>Utilised Budget</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--green)' }}>{format(summaryData.budgetUtilized, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--blue-50)', borderRadius: '12px', border: '1px solid var(--blue-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--blue-900)', fontWeight: '800', textTransform: 'uppercase' }}>Balance Budget</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--accent)' }}>{format(summaryData.budgetBalance, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                      </div>
-                      <div style={{ padding: '20px', backgroundColor: 'var(--purple-50)', borderRadius: '12px', border: '1px solid var(--purple-50)' }}>
-                        <p style={{ margin: '0 0 6px 0', fontSize: '10px', color: 'var(--purple-900)', fontWeight: '800', textTransform: 'uppercase' }}>Outlook Budget</p>
-                        <p style={{ margin: 0, fontSize: '24px', fontWeight: '900', color: 'var(--purple-900)' }}>{summaryData.budgetOutlook}%</p>
-                      </div>
-                    </div>
-                  ) : (
-                    renderBudgetTable()
-                  )}
-                </section>
-              )}
             </section>
             {/* End project-dashboard-main-content */}
+
 
             {showPdfPreview && (
               <React.Suspense fallback={<div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 backdrop-blur-sm"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div></div>}>
