@@ -4962,3 +4962,309 @@
 [data-theme='dark'] .mcp-capture-field .mcp-lp-label {
   color: var(--text-primary);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   BATCH WARNING MODAL  (mcp-bwm-*)
+   Appears when uploaded transcript has no timestamps or speaker names
+   ══════════════════════════════════════════════════════════════════ */
+
+.mcp-bwm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  animation: mcp-bwm-fade-in 180ms ease-out both;
+}
+
+@keyframes mcp-bwm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.mcp-bwm-card {
+  background: #ffffff;
+  border: 1px solid #E2E8F0;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.08);
+  width: 480px;
+  max-width: calc(100vw - 40px);
+  animation: mcp-bwm-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mcp-bwm-slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Header */
+.mcp-bwm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.mcp-bwm-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0;
+  flex: 1;
+}
+
+.mcp-bwm-close {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, background 0.15s;
+}
+.mcp-bwm-close:hover { color: #475569; background: #F1F5F9; }
+
+/* Body */
+.mcp-bwm-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mcp-bwm-desc {
+  font-size: 13px;
+  color: #475569;
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* File issue list */
+.mcp-bwm-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mcp-bwm-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  border-radius: 8px;
+}
+
+.mcp-bwm-fname {
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-bwm-chips {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.mcp-bwm-chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+.mcp-bwm-chip.ts  { background: #FEF3C7; color: #92400E; }
+.mcp-bwm-chip.spk { background: #EDE9FE; color: #5B21B6; }
+.mcp-bwm-chip.ok  { background: #ECFDF5; color: #065F46; }
+
+/* Resolution block */
+.mcp-bwm-how {
+  background: #F8FAFC;
+  border: 1px solid #F1F5F9;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-bwm-how-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  margin-bottom: 2px;
+}
+
+.mcp-bwm-how-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.55;
+}
+.mcp-bwm-how-row code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* Footer */
+.mcp-bwm-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.mcp-bwm-btn-cancel {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: #fff;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.mcp-bwm-btn-cancel:hover { background: #F8FAFC; border-color: #CBD5E1; }
+
+.mcp-bwm-btn-proceed {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 6px;
+  background: #0D9488;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.mcp-bwm-btn-proceed:hover {
+  background: #0F766E;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.28);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   SPEAKER MAPPING PANEL  (mcp-smp-*)
+   Shown inside the review pane when "Speaker N" speakers are detected
+   ══════════════════════════════════════════════════════════════════ */
+
+.mcp-smp-panel {
+  margin-bottom: 14px;
+  background: #F5F3FF;
+  border: 1px solid #DDD6FE;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.mcp-smp-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #EDE9FE;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5B21B6;
+}
+
+.mcp-smp-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 8px 12px 10px;
+}
+
+.mcp-smp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.mcp-smp-from {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6D28D9;
+  background: #EDE9FE;
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+}
+
+.mcp-smp-input {
+  flex: 1;
+  height: 30px;
+  border: 1px solid #DDD6FE;
+  border-radius: 5px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #1E293B;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+.mcp-smp-input:focus { border-color: #7C3AED; box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1); }
+.mcp-smp-input::placeholder { color: #C4B5FD; }
+
+.mcp-smp-apply {
+  height: 30px;
+  padding: 0 12px;
+  background: #7C3AED;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.mcp-smp-apply:hover:not(:disabled) { background: #6D28D9; }
+.mcp-smp-apply:disabled { background: #C4B5FD; cursor: not-allowed; }
+
+.mcp-smp-apply-all {
+  margin-top: 6px;
+  align-self: flex-end;
+  background: none;
+  border: 1px solid #A78BFA;
+  border-radius: 5px;
+  color: #6D28D9;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.mcp-smp-apply-all:hover { background: #EDE9FE; }

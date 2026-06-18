@@ -12,7 +12,7 @@ import {
   Play, Square, Pause, X, Plus, Edit2, Check,
   FileText, Loader, AlertCircle, CheckCircle, Clock,
   FileUp, Sparkles, Zap, GitBranch, Target, AlertTriangle,
-  Info, Trash2
+  Info, Trash2, Users
 } from 'lucide-react';
 import API from '../../utils/api';
 import {
@@ -78,68 +78,138 @@ const PLATFORM_NAMES = new Set([
   'google', 'zoom meeting', 'teams meeting'
 ]);
 
-// ── Transcript file parser ────────────────────────────────────────────────
+// ── Transcript file parser — multi-format, fault-tolerant ─────────────────────
+
+/**
+ * Returns true if a colon-prefix looks like a person's name.
+ * Guards against metadata headers, URLs, numeric tokens, and long phrases.
+ */
+function looksLikeSpeakerName(str) {
+  if (!str || str.length < 2 || str.length > 40) return false;
+  if (/\d/.test(str)) return false;              // no digits in names
+  if (/^https?:\/\//i.test(str)) return false;  // not a URL
+  if (/^[A-Z]{5,}$/.test(str)) return false;    // not an ALL-CAPS acronym
+  if (str.split(/\s+/).length > 4) return false; // max 4-word name
+  return true;
+}
+
+/**
+ * Parses transcript text into structured entries.
+ *
+ * Priority order of format detection:
+ *   1. [HH:MM:SS] Speaker: (header — text follows on next line)
+ *   2. [HH:MM:SS] Speaker: Dialogue (inline)
+ *   3. Speaker: Dialogue (no timestamp — colon-delimited fallback)
+ *   4. Plain paragraphs (split by blank lines → Speaker 1, Speaker 2…)
+ *
+ * Timestamps: always preserved as-is if present, always "00:00:00" if absent.
+ * Speaker names: always preserved if detected, always "Speaker N" if absent.
+ * Nothing is estimated or guessed.
+ */
 function parseTranscriptFile(rawText, defaultSpeaker = 'Unattributed') {
   const lines = rawText.split('\n').map(l => l.trim());
   const entries = [];
 
-  // Regex to match header-style: [00:00:00] Speaker Name:
-  const HEADER_RE = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+([^:]+):\s*$/;
-  // Regex to match inline-style: [00:00:00] Speaker Name: Dialogue
-  const INLINE_RE = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+([^:]+):\s*(.+)$/;
+  const HEADER_RE  = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+([^:]+):\s*$/;
+  const INLINE_RE  = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+([^:]+):\s*(.+)$/;
   const METADATA_RE = /^(MEETING TITLE|DATE|DURATION|PARTICIPANTS|START TIME|END TIME|PLATFORM)\s*:\s*(.+)$/i;
+  // Colon-delimited without timestamp: "Name: text"
+  const COLON_RE   = /^([A-Za-z][A-Za-z '.\-]{0,38}?):\s+(.+)$/;
+
+  const METADATA_FIELDS = new Set([
+    'meeting title', 'date', 'duration', 'participants',
+    'start time', 'end time', 'platform', 'location',
+    'agenda', 'attendees', 'note', 'notes',
+  ]);
 
   let currentDialogue = null;
 
+  // ── Pass 1: Try timestamped formats ───────────────────────────────────────
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line || line.startsWith('───')) continue;
 
-    // 1. Check Metadata
     const metaMatch = line.match(METADATA_RE);
     if (metaMatch) {
-      entries.push({
-        type: 'metadata',
-        field: metaMatch[1].toUpperCase(),
-        value: metaMatch[2].trim()
-      });
+      entries.push({ type: 'metadata', field: metaMatch[1].toUpperCase(), value: metaMatch[2].trim() });
       currentDialogue = null;
       continue;
     }
 
-    // 2. Check Header Style [00:00] Speaker:
     const headerMatch = line.match(HEADER_RE);
     if (headerMatch) {
-      currentDialogue = {
-        type: 'dialogue',
-        timestamp: headerMatch[1],
-        speaker: headerMatch[2].trim(),
-        text: ''
-      };
+      currentDialogue = { type: 'dialogue', timestamp: headerMatch[1], speaker: headerMatch[2].trim(), text: '' };
       entries.push(currentDialogue);
       continue;
     }
 
-    // 3. Check Inline Style [00:00] Speaker: Dialogue
     const inlineMatch = line.match(INLINE_RE);
     if (inlineMatch) {
-      currentDialogue = {
-        type: 'dialogue',
-        timestamp: inlineMatch[1],
-        speaker: inlineMatch[2].trim(),
-        text: inlineMatch[3].trim()
-      };
+      currentDialogue = { type: 'dialogue', timestamp: inlineMatch[1], speaker: inlineMatch[2].trim(), text: inlineMatch[3].trim() };
       entries.push(currentDialogue);
       continue;
     }
 
-    // 4. Append to existing dialogue if it's just a text line
     if (currentDialogue && currentDialogue.type === 'dialogue') {
       currentDialogue.text += (currentDialogue.text ? ' ' : '') + line;
     }
   }
 
+  // ── Pass 2: If nothing parsed, try colon-delimited (no timestamps) ────────
+  if (entries.filter(e => e.type === 'dialogue').length === 0) {
+    for (const line of lines) {
+      if (!line || line.startsWith('───')) continue;
+      const m = line.match(COLON_RE);
+      if (!m) continue;
+      const speaker = m[1].trim();
+      const text    = m[2].trim();
+      if (METADATA_FIELDS.has(speaker.toLowerCase())) continue;
+      if (!looksLikeSpeakerName(speaker)) continue;
+      entries.push({ type: 'dialogue', timestamp: '00:00:00', speaker, text });
+    }
+  }
+
+  // ── Pass 3: Plain paragraphs — split by blank lines ─────────────────────
+  if (entries.filter(e => e.type === 'dialogue').length === 0) {
+    const blocks = rawText.split(/\n\s*\n/).map(b => b.trim()).filter(b => b.length > 10);
+    blocks.forEach((block, i) => {
+      entries.push({
+        type: 'dialogue',
+        timestamp: '00:00:00',
+        speaker: `Speaker ${i + 1}`,
+        text: block.replace(/\n/g, ' ').trim(),
+      });
+    });
+  }
+
   return entries;
+}
+
+/**
+ * Analyses parsed entries and reports quality issues.
+ * Called after parseTranscriptFile — drives the batch warning modal decision.
+ */
+function detectTranscriptQuality(entries) {
+  const dialogues = entries.filter(e => e.type === 'dialogue');
+  if (dialogues.length === 0) {
+    return { totalTurns: 0, hasTimestamps: false, hasNamedSpeakers: false, unknownSpeakers: [], namedSpeakers: [] };
+  }
+  const hasTimestamps = dialogues.some(e => e.timestamp && e.timestamp !== '00:00:00');
+  const unknownSpeakers = [...new Set(
+    dialogues.filter(e => /^Speaker \d+$/i.test(e.speaker)).map(e => e.speaker)
+  )];
+  const namedSpeakers = [...new Set(
+    dialogues
+      .filter(e => e.speaker && !/^Speaker \d+$/i.test(e.speaker) && e.speaker !== 'Unattributed')
+      .map(e => e.speaker)
+  )];
+  return {
+    totalTurns: dialogues.length,
+    hasTimestamps,
+    hasNamedSpeakers: namedSpeakers.length > 0,
+    unknownSpeakers,
+    namedSpeakers,
+  };
 }
 
 // isNoiseLine — thin adapter over the shared FillerDetector module
@@ -273,6 +343,74 @@ function makeRowsFromEntries(entries, meta) {
   return generatedRows;
 }
 
+// ── Batch Upload Warning Modal ────────────────────────────────────────────────────
+const BatchWarningModal = ({ warning, onProceed, onCancel }) => {
+  if (!warning) return null;
+  const { issues, hasTimestampIssue, hasSpeakerIssue } = warning;
+  return (
+    <div className="mcp-bwm-overlay" onClick={onCancel}>
+      <div className="mcp-bwm-card" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="mcp-bwm-header">
+          <AlertTriangle size={18} color="#F59E0B" />
+          <h2 className="mcp-bwm-title">Transcript Format Notice</h2>
+          <button className="mcp-bwm-close" onClick={onCancel}><X size={16} /></button>
+        </div>
+
+        {/* Body */}
+        <div className="mcp-bwm-body">
+          <p className="mcp-bwm-desc">
+            {issues.length === 1
+              ? 'We detected a format issue in your transcript.'
+              : `We detected format issues in ${issues.length} transcripts.`}
+            {' '}Here’s how we’ll handle it:
+          </p>
+
+          {/* Per-file issue list */}
+          <div className="mcp-bwm-issues">
+            {issues.map((issue, i) => (
+              <div key={i} className="mcp-bwm-file-row">
+                <FileText size={13} color="#64748B" style={{ flexShrink: 0 }} />
+                <span className="mcp-bwm-fname">{issue.fileName}</span>
+                <div className="mcp-bwm-chips">
+                  {!issue.hasTimestamps     && <span className="mcp-bwm-chip ts">No timestamps</span>}
+                  {!issue.hasNamedSpeakers  && <span className="mcp-bwm-chip spk">No speaker names</span>}
+                  {issue.hasTimestamps && issue.hasNamedSpeakers && <span className="mcp-bwm-chip ok">✓ OK</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Resolution explanation */}
+          <div className="mcp-bwm-how">
+            <div className="mcp-bwm-how-title">What we’ll do</div>
+            {hasSpeakerIssue && (
+              <div className="mcp-bwm-how-row">
+                <Users size={13} color="#6366F1" style={{ flexShrink: 0 }} />
+                <span>Speakers auto-labeled as <code>Speaker 1, Speaker 2…</code> You can rename them before confirming.</span>
+              </div>
+            )}
+            {hasTimestampIssue && (
+              <div className="mcp-bwm-how-row">
+                <Clock size={13} color="#0D9488" style={{ flexShrink: 0 }} />
+                <span>Missing timestamps set to <code>00:00:00</code> — a deterministic default, nothing estimated.</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mcp-bwm-footer">
+          <button className="mcp-bwm-btn-cancel" onClick={onCancel}>Cancel Upload</button>
+          <button className="mcp-bwm-btn-proceed" onClick={onProceed}>
+            <CheckCircle size={14} /> Proceed with Auto-fix
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const MeetingCapturePage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -393,6 +531,12 @@ const MeetingCapturePage = () => {
   const genProgressRef = useRef(null);
   // protectedIds: keyed by entry id, scoped to active transcript review
   const [protectedIds, setProtectedIds] = useState(() => new Set());
+
+  // ── Transcript parse-quality state ────────────────────────────────────
+  // batchWarning: shown when any uploaded file has missing timestamps or speakers
+  const [batchWarning, setBatchWarning] = useState(null);
+  // speakerMappings: { 'Speaker 1': 'Pradeep', 'Speaker 2': 'Goku' }
+  const [speakerMappings, setSpeakerMappings] = useState({});
 
   const getSpeakerColor = useCallback((name) => {
     if (speakerColorMapRef.current[name] === undefined) {
@@ -618,11 +762,12 @@ const MeetingCapturePage = () => {
   };
 
   // ── TranscriptDoc factory ────────────────────────────────────────────────
-  const makeTranscriptDoc = useCallback((rawText, fileName, fileSize) => {
+  // preParsed: pass already-parsed entries to avoid double-parsing
+  const makeTranscriptDoc = useCallback((rawText, fileName, fileSize, preParsed = null) => {
     const signature = `${fileName}_${fileSize}_${rawText.slice(0, 400)}`;
     const isDup = sigSetRef.current.has(signature);
 
-    const parsed = parseTranscriptFile(rawText, currentUser.name);
+    const parsed = preParsed || parseTranscriptFile(rawText, currentUser.name);
     if (!isDup) {
       parsed.forEach(p => {
         if (p.type === 'metadata' && p.field.toLowerCase() === 'meeting title')
@@ -659,25 +804,35 @@ const MeetingCapturePage = () => {
     setUploadingLabel(fileList.length === 1 ? fileList[0].name : `${fileList.length} transcripts`);
 
     const tick = setInterval(() => setUploadProgress(p => { const n = p + Math.random() * 18 + 6; if (n >= 90) { clearInterval(tick); return 90; } return n; }), 110);
+    const collectedResults = [];
     let done = 0;
 
     fileList.forEach(file => {
       const reader = new FileReader();
       reader.onload = ev => {
-        const doc = makeTranscriptDoc(ev.target.result, file.name, file.size);
-        setTranscripts(prev => {
-          const next = [...prev, doc];
-          // Auto-activate first reviewing doc
-          if (doc.status === 'reviewing' && !prev.some(t => t.status === 'reviewing'))
-            setActiveTranscriptId(doc.id);
-          return next;
-        });
-        if (doc.status === 'duplicate')
-          toast(`"${file.name}" already uploaded — shown as duplicate`, { icon: '⚠️' });
+        const rawText  = ev.target.result;
+        const parsed   = parseTranscriptFile(rawText, currentUser.name);
+        const quality  = detectTranscriptQuality(parsed);
+        collectedResults.push({ rawText, fileName: file.name, fileSize: file.size, quality, parsed });
         done++;
+
         if (done === fileList.length) {
-          clearInterval(tick); setUploadProgress(100);
+          clearInterval(tick);
+          setUploadProgress(100);
           setTimeout(() => setIsUploading(false), 250);
+
+          // If ANY file has issues, show the warning modal for the whole batch
+          const hasIssues = collectedResults.some(r => !r.quality.hasTimestamps || !r.quality.hasNamedSpeakers);
+          if (hasIssues) {
+            setBatchWarning({
+              issues:           collectedResults.map(r => ({ fileName: r.fileName, ...r.quality })),
+              pendingResults:   collectedResults,
+              hasTimestampIssue: collectedResults.some(r => !r.quality.hasTimestamps),
+              hasSpeakerIssue:  collectedResults.some(r => !r.quality.hasNamedSpeakers),
+            });
+          } else {
+            addResultsToQueue(collectedResults);
+          }
         }
       };
       reader.readAsText(file);
@@ -861,6 +1016,52 @@ const MeetingCapturePage = () => {
     }));
     setProtectedIds(new Set());
   };
+
+  // ── Queue & speaker-mapping helpers ─────────────────────────────────────────
+
+  // Adds already-parsed file results to the transcript queue (no re-parsing)
+  const addResultsToQueue = useCallback((results) => {
+    results.forEach(({ rawText, fileName, fileSize, parsed }) => {
+      const doc = makeTranscriptDoc(rawText, fileName, fileSize, parsed);
+      setTranscripts(prev => {
+        const next = [...prev, doc];
+        if (doc.status === 'reviewing' && !prev.some(t => t.status === 'reviewing'))
+          setActiveTranscriptId(doc.id);
+        return next;
+      });
+      if (doc.status === 'duplicate')
+        toast(`"${fileName}" already uploaded — shown as duplicate`, { icon: '⚠️' });
+    });
+  }, [makeTranscriptDoc]);
+
+  // Rename a single unknown speaker in the active transcript
+  const applyOneSpeakerMapping = useCallback((fromName, toName) => {
+    const mapped = toName?.trim();
+    if (!mapped || !activeTranscriptId) return;
+    setTranscripts(prev => prev.map(t =>
+      t.id === activeTranscriptId
+        ? { ...t, entries: t.entries.map(e => e.speaker === fromName ? { ...e, speaker: mapped, ...getSpeakerColor(mapped) } : e) }
+        : t
+    ));
+    setSpeakerMappings(prev => { const next = { ...prev }; delete next[fromName]; return next; });
+    toast.success(`Renamed “${fromName}” → “${mapped}”`);
+  }, [activeTranscriptId, getSpeakerColor]);
+
+  // Apply all filled-in speaker mappings at once
+  const applyAllSpeakerMappings = useCallback(() => {
+    const valid = Object.entries(speakerMappings).filter(([, v]) => v?.trim());
+    if (!valid.length || !activeTranscriptId) return;
+    setTranscripts(prev => prev.map(t =>
+      t.id === activeTranscriptId
+        ? { ...t, entries: t.entries.map(e => {
+            const mapped = speakerMappings[e.speaker]?.trim();
+            return mapped ? { ...e, speaker: mapped, ...getSpeakerColor(mapped) } : e;
+          }) }
+        : t
+    ));
+    setSpeakerMappings({});
+    toast.success(`Applied ${valid.length} speaker mapping${valid.length !== 1 ? 's' : ''}`);
+  }, [speakerMappings, activeTranscriptId, getSpeakerColor]);
 
   if (loading) {
     return (
@@ -1271,6 +1472,49 @@ const MeetingCapturePage = () => {
                 )
               ) : (
                 <>
+                  {/* ── Speaker Mapping Panel — auto-shown for unknown speakers ── */}
+                  {(() => {
+                    const dialogues = activeTranscript.entries.filter(e => e.type === 'dialogue');
+                    const unknownSpks = [...new Set(dialogues.filter(e => /^Speaker \d+$/i.test(e.speaker)).map(e => e.speaker))];
+                    if (unknownSpks.length === 0) return null;
+                    return (
+                      <div className="mcp-smp-panel">
+                        <div className="mcp-smp-header">
+                          <Users size={14} color="#6366F1" />
+                          <span>Unrecognized speakers — map to real names before confirming</span>
+                        </div>
+                        <div className="mcp-smp-rows">
+                          {unknownSpks.map(spk => (
+                            <div key={spk} className="mcp-smp-row">
+                              <span className="mcp-smp-from">{spk}</span>
+                              <ChevronRight size={11} color="#CBD5E1" />
+                              <input
+                                className="mcp-smp-input"
+                                placeholder="Real name…"
+                                value={speakerMappings[spk] || ''}
+                                onChange={e => setSpeakerMappings(prev => ({ ...prev, [spk]: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && speakerMappings[spk]?.trim())
+                                    applyOneSpeakerMapping(spk, speakerMappings[spk]);
+                                }}
+                              />
+                              <button
+                                className="mcp-smp-apply"
+                                disabled={!speakerMappings[spk]?.trim()}
+                                onClick={() => applyOneSpeakerMapping(spk, speakerMappings[spk])}
+                              >Apply</button>
+                            </div>
+                          ))}
+                          {unknownSpks.length > 1 && (
+                            <button className="mcp-smp-apply-all" onClick={applyAllSpeakerMappings}>
+                              Apply All Mappings
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Metadata rows */}
                   {activeTranscript.entries.filter(e => e.type === 'metadata').length > 0 && (
                     <div className="mcp-metadata-block">
@@ -1409,6 +1653,17 @@ const MeetingCapturePage = () => {
           </div>
         </div>
       )}
+
+      {/* ── Batch Parse Warning Modal ── */}
+      <BatchWarningModal
+        warning={batchWarning}
+        onProceed={() => {
+          const results = batchWarning.pendingResults;
+          setBatchWarning(null);
+          addResultsToQueue(results);
+        }}
+        onCancel={() => setBatchWarning(null)}
+      />
 
       {/* ── Rename Speaker Modal ── */}
       {renamingSpeaker && (
