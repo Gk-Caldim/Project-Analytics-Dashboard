@@ -1,17 +1,17 @@
 /* Shared CSS for the 4 Module Inner Pages */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap');
 
 :root {
-  --brand-red: #C8341A;
-  --red-hover: #A0280F;
-  --red-light-bg: #FAECE7;
-  --navy: #0D1B2A;
-  --muted-text: #6B7280;
-  --surface: #F7F6F3;
-  --border: rgba(13, 27, 42, 0.12);
-  --font-serif: 'Playfair Display', serif;
-  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --brand-red: #2563EB;
+  --red-hover: #1D4ED8;
+  --red-light-bg: #EFF6FF;
+  --navy: #0F172A;
+  --muted-text: #475569;
+  --surface: #F8FAFC;
+  --border: rgba(15, 23, 42, 0.08);
+  --font-serif: 'Outfit', sans-serif;
+  --font-sans: 'Inter', sans-serif;
 }
 
 .module-page-root {

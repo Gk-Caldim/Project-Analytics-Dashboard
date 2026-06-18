@@ -1,25 +1,26 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import Logo from "./Logo";
 
 const MENUS = {
   Solutions: [
-    { label: "Engineering Governance", desc: "APQP / SOP phase-gate control", to: "#features" },
-    { label: "Program Analytics", desc: "Live variance & risk telemetry", to: "#ai" },
-    { label: "Manufacturing Programs", desc: "Built for automotive teams", to: "#customise" },
+    { label: "Engineering Governance", desc: "APQP / SOP phase-gate control", path: "/governance" },
+    { label: "Program Analytics", desc: "Live variance & risk telemetry", path: "/analytics" },
+    { label: "Manufacturing Programs", desc: "Built for automotive teams", path: "/enterprise" },
   ],
   Features: [
-    { label: "Excel Design Sync", desc: "Release-code sync engine", to: "#features" },
-    { label: "AI Voice MOM", desc: "Auto-captured meeting minutes", to: "#features" },
-    { label: "Budget Masters", desc: "Spend vs strategic targets", to: "#features" },
-    { label: "Team Calendar", desc: "Drag-and-drop program gates", to: "#features" },
+    { label: "Excel Design Sync", desc: "Release-code sync engine", path: "/analytics" },
+    { label: "AI Voice MOM", desc: "Auto-captured meeting minutes", path: "/meetings" },
+    { label: "Budget Masters", desc: "Spend vs strategic targets", path: "/budget" },
+    { label: "Team Calendar", desc: "Drag-and-drop program gates", path: "/governance" },
   ],
   Resources: [
-    { label: "Documentation", desc: "Guides & API reference", inquiry: "Documentation Request" },
-    { label: "Case Studies", desc: "Atlas VX & more", inquiry: "Case Study Request" },
-    { label: "Webinars", desc: "Live product walkthroughs", inquiry: "Webinar Signup" },
+    { label: "Documentation", desc: "Guides & API reference", path: "/info/documentation" },
+    { label: "Case Studies", desc: "Atlas VX & more", path: "/customers" },
+    { label: "Webinars", desc: "Live product walkthroughs", path: "/info/webinars" },
   ],
 };
 
@@ -29,6 +30,8 @@ const scrollTo = (id) => {
 };
 
 export const Navbar = ({ onSignIn, onRequestDemo, onAccessProjects }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(null);
   const [mobile, setMobile] = useState(false);
@@ -43,8 +46,19 @@ export const Navbar = ({ onSignIn, onRequestDemo, onAccessProjects }) => {
   const handleItem = (item) => {
     setOpen(null);
     setMobile(false);
-    if (item.to) scrollTo(item.to);
-    else onRequestDemo(item.inquiry || "Learn More");
+    if (item.path) {
+      navigate(item.path);
+    } else if (item.to) {
+      if (location.pathname === '/') {
+        scrollTo(item.to);
+      } else {
+        navigate('/');
+        // Delay to allow page load before scroll
+        setTimeout(() => scrollTo(item.to), 200);
+      }
+    } else {
+      onRequestDemo(item.inquiry || "Learn More");
+    }
   };
 
   return (
@@ -107,7 +121,7 @@ export const Navbar = ({ onSignIn, onRequestDemo, onAccessProjects }) => {
           ))}
           <button
             data-testid="nav-pricing"
-            onClick={() => onRequestDemo("Pricing Inquiry")}
+            onClick={() => navigate('/pricing')}
             className="px-4 py-2 text-[15px] font-semibold text-slate-700 hover:text-blue-600 transition-colors cursor-pointer"
           >
             Pricing
@@ -171,7 +185,7 @@ export const Navbar = ({ onSignIn, onRequestDemo, onAccessProjects }) => {
                 </div>
               ))}
               <button
-                onClick={() => { setMobile(false); onRequestDemo("Pricing Inquiry"); }}
+                onClick={() => { setMobile(false); navigate('/pricing'); }}
                 className="block w-full text-left py-1.5 text-[15px] font-semibold text-slate-700 hover:text-blue-600 cursor-pointer"
               >
                 Pricing

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Globe, Lock, Cpu, BarChart3, Users, Zap } from 'lucide-react';
-import PublicNavbar from '../components/PublicNavbar';
+import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
 import './modules/ModulePages.css';
 
@@ -20,7 +21,11 @@ const EnterprisePage = () => {
   return (
     <div className="module-page-root">
       
-      <PublicNavbar />
+      <Navbar
+        onSignIn={() => navigate('/login')}
+        onRequestDemo={() => openModal('demo')}
+        onAccessProjects={() => navigate('/login')}
+      />
 
       <LeadModal 
         isOpen={isModalOpen} 
@@ -31,7 +36,7 @@ const EnterprisePage = () => {
 
       {/* ── HERO ── */}
       <section className="mod-hero">
-        <div className="mod-hero-inner" style={{ paddingTop: '100px' }}>
+        <div className="mod-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="mod-hero-content">
             <div className="mod-breadcrumb"><span>Enterprise</span> Grade</div>
             <h1 className="mod-hero-title">Operational clarity at global scale.</h1>
@@ -40,8 +45,8 @@ const EnterprisePage = () => {
               Deploy across thousands of units with millisecond precision.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => openModal('sales')}>Contact Sales</button>
-              <button className="mod-btn-ghost" onClick={() => openModal('demo')}>Request Demo</button>
+              <button className="mod-btn-primary" onClick={() => openModal('sales')} style={{ cursor: 'pointer' }}>Contact Sales</button>
+              <button className="mod-btn-ghost" onClick={() => openModal('demo')} style={{ cursor: 'pointer' }}>Request Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -135,7 +140,7 @@ const EnterprisePage = () => {
       <section className="mod-testimonial" style={{backgroundColor: '#fff'}}>
         <div className="mod-test-inner">
           <h3 className="mod-test-author" style={{marginBottom: '40px', fontSize: '14px', letterSpacing: '0.1em'}}>COMPLIANCE STANDARDS</h3>
-          <div style={{display: 'flex', gap: '64px', opacity: 0.5, filter: 'grayscale(100%)'}}>
+          <div style={{display: 'flex', gap: '64px', opacity: 0.5, filter: 'grayscale(100%)', flexWrap: 'wrap', justifyContent: 'center'}}>
              <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700'}}>ISO 27001</div>
              <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700'}}>SOC 2 TYPE II</div>
              <div style={{display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700'}}>HIPAA</div>
@@ -148,20 +153,11 @@ const EnterprisePage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner" style={{ padding: '80px 0' }}>
           <h2 className="mod-bottom-title">Consolidate your operations today.</h2>
-          <button className="mod-btn-white" onClick={() => openModal('pilot')}>Request Enterprise Pilot</button>
+          <button className="mod-btn-white" onClick={() => openModal('pilot')} style={{ cursor: 'pointer' }}>Request Enterprise Pilot</button>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="mod-footer">
-        <div className="mod-footer-inner">
-          <div className="mod-logo-area">
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <span className="mod-footer-text">© 2026 Corporation. All rights reserved.</span>
-        </div>
-      </footer>
+      <Footer onRequestDemo={(mode) => openModal(mode || 'sales')} />
     </div>
   );
 };

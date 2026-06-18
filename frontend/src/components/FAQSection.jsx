@@ -3,32 +3,32 @@ import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
-    q: "What is CALDIM Project Dashboard?",
-    a: "CALDIM Project Dashboard is a project governance and engineering analytics platform designed specifically for manufacturing, automotive, and engineering teams. It helps you sync design release spreadsheets, record and transcribe AI-powered Minutes of Meetings, manage multi-currency budgets, and coordinate cross-plant operations.",
+    q: "What is the CALDIM Project Dashboard?",
+    a: "CALDIM is a project management and tracking platform built for engineering and manufacturing teams. It consolidates spreadsheet data, automatically summarizes meeting minutes, tracks project costs, and keeps cross-functional teams aligned.",
   },
   {
-    q: "How is CALDIM different from generic project management tools?",
-    a: "CALDIM is built with actual engineering files and workflows in mind. Unlike generic task list applications, CALDIM features direct Excel sheet cell synchronization, built-in browser-based voice recorders with automatic AI transcription for meeting records, and detailed budget master currency controls.",
+    q: "How does CALDIM compare to general project management tools?",
+    a: "Unlike general-purpose task managers, CALDIM is designed specifically for engineering workflows. It offers direct spreadsheet synchronization, automated action-item extraction from meetings, and structured cost-tracking systems.",
   },
   {
-    q: "Can I sync multiple Excel sheets simultaneously?",
-    a: "Yes. CALDIM supports importing and parsing multiple design release Excel workbooks simultaneously, giving you a unified web-based tabular view with instant cell search, advanced column filters, and team status logs.",
+    q: "Can I import multiple spreadsheets at once?",
+    a: "Yes, CALDIM supports importing multiple project spreadsheets, combining them into a single, searchable web view with filters, status flags, and update histories.",
   },
   {
-    q: "Does CALDIM include AI transcription for meetings?",
-    a: "Absolutely. The Minutes of Meetings (MOM) module allows you to record meetings directly in-app or view generated transcript files. The system automatically transcribes audio, structures transcripts by speaker, and generates action logs.",
+    q: "How does the automated meeting notes feature work?",
+    a: "You can record meetings directly on the platform or upload audio files. The system transcribes the conversation, identifies key discussion points, and highlights assigned action items for your team.",
   },
   {
-    q: "Is CALDIM Project Dashboard secure enough for confidential engineering data?",
-    a: "Absolutely. CALDIM is built with enterprise-grade security: end-to-end encryption, granular role-based access controls (RBAC), secure activity logs, and secure database backends protecting your program IP.",
+    q: "Is project data secure on the platform?",
+    a: "Yes, CALDIM uses standard security protocols including encrypted data storage, role-based access controls, and detailed audit logs to ensure your project files remain secure.",
   },
   {
-    q: "What kind of budget controls are available?",
-    a: "The Budget Master module supports setting program allocations, managing multi-currency exchange rates, tracking employee expenditure records, and issuing automated budget variance alerts before programs exceed thresholds.",
+    q: "What cost-tracking features are available?",
+    a: "The platform lets you set project budget limits, log team expenses, monitor cost updates, and receive alerts when project spend nears or exceeds targets.",
   },
   {
-    q: "Is there a free trial available?",
-    a: "Yes. You can start a 30-day free trial with no credit card required. Our onboarding team will help you configure your database and map your existing Excel sheets to ensure a smooth transition.",
+    q: "Is there a trial available?",
+    a: "Yes, we offer a 30-day trial to help you evaluate the platform. Our team is available to assist with onboarding and setting up your initial spreadsheets.",
   },
 ];
 
@@ -39,7 +39,7 @@ export function FAQSection() {
     <section className="py-24 zoho-section-white zoho-font-sans">
       <div className="max-w-3xl mx-auto px-6 lg:px-8">
         <h2 className="zoho-h2 text-center mb-16">
-          Project Management Software FAQs
+          Frequently Asked Questions
         </h2>
 
         <div className="space-y-3">

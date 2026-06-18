@@ -3,9 +3,9 @@ import { Sliders, GitBranch, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BULLETS = [
-  { title: "Map APQP / SOP phase-gates", desc: "Model every gate from kickoff to job-one with custom fields." },
-  { title: "Configurable program fields", desc: "Add platform, risk and date attributes without code." },
-  { title: "Governance guardrails",     desc: "Lock approvals so gates can't be skipped under pressure." },
+  { title: "Define project phases", desc: "Track every stage from kick-off to completion with custom milestones." },
+  { title: "Custom fields and attributes", desc: "Add tags, risk levels, and date fields relevant to your team." },
+  { title: "Structured approval steps",     desc: "Set up gates that require manager sign-offs before proceeding." },
 ];
 
 const GATES = [
@@ -56,11 +56,11 @@ export const Customise = ({ onRequestDemo }) => {
             CUSTOMISE
           </motion.p>
           <motion.h2 variants={fadeSlide} className="zoho-h2 text-3xl md:text-5xl">
-            Shape CALDIM around your program governance
+            Adapt the workspace to your project standards
           </motion.h2>
           <motion.p variants={fadeSlide} className="mt-5 zoho-body text-[15px] leading-relaxed max-w-lg">
-            Map automotive phase-gates, add the fields your PMO actually tracks,
-            and enforce the approval flow your quality system demands.
+            Set up custom workflows, configure fields specific to your industry,
+            and define approval processes that match your organization's standards.
           </motion.p>
 
           <motion.div variants={staggerContainer} className="mt-8 space-y-6">
@@ -81,16 +81,16 @@ export const Customise = ({ onRequestDemo }) => {
             className="mt-9 rounded-xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm"
           >
             <div className="flex items-center gap-2 text-blue-600 font-bold text-[14.5px]">
-              <span>🚀</span> Now open for Early Access
+              <span>🚀</span> Early Access Program
             </div>
             <p className="mt-2 text-[14px] text-slate-600 leading-relaxed font-sans">
-              We are offering priority launch seats for Tier-1 automotive and manufacturing PMO teams.
+              We are accepting partner inquiries from engineering and manufacturing organizations.
             </p>
             <button
               onClick={() => onRequestDemo && onRequestDemo("Early Access Inquiry")}
               className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
             >
-              Apply for partner program <span className="text-base leading-none">→</span>
+              Contact us to learn more <span className="text-base leading-none">→</span>
             </button>
           </motion.div>
         </motion.div>
@@ -132,7 +132,7 @@ export const Customise = ({ onRequestDemo }) => {
 
             {/* APQP phase-gate timeline */}
             <div className="rounded-xl border border-slate-155 p-4 bg-white">
-              <p className="text-[12px] font-bold text-slate-600 mb-4 font-heading">APQP Phase-Gates</p>
+              <p className="text-[12px] font-bold text-slate-600 mb-4 font-heading">Project Phase-Gates</p>
               <div className="relative flex justify-between">
                 <div className="absolute left-0 right-0 top-2.5 h-0.5 bg-slate-100" />
                 <div className="absolute left-0 top-2.5 h-0.5 bg-blue-600" style={{ width: "62%" }} />
@@ -156,7 +156,7 @@ export const Customise = ({ onRequestDemo }) => {
               onClick={() => onRequestDemo && onRequestDemo("Customise Inquiry")}
               className="zoho-btn-red w-full justify-center text-center cursor-pointer shadow-md"
             >
-              Configure Program Workspace
+              Configure Workspace
             </button>
           </div>
         </motion.div>

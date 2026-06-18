@@ -7,32 +7,32 @@ import { cn } from "@/lib/utils";
 import AppShellMockup from "./AppShellMockup";
 
 const TABS = [
-  { id: "excel",    label: "Excel Sync",       icon: FileSpreadsheet },
-  { id: "mom",      label: "MOM Capture",       icon: Mic },
-  { id: "budget",   label: "Budget Governance", icon: Wallet },
-  { id: "calendar", label: "Team Calendar",     icon: CalendarDays },
+  { id: "excel",    label: "Spreadsheet Sync", icon: FileSpreadsheet },
+  { id: "mom",      label: "Meeting Notes",     icon: Mic },
+  { id: "budget",   label: "Budget Tracking",   icon: Wallet },
+  { id: "calendar", label: "Milestone Calendar",icon: CalendarDays },
 ];
 
 const COPY = {
   excel: {
-    title: "Excel design release sync, finally automated",
-    desc: "Connect engineering spreadsheets and CALDIM mirrors every release code in real time — no more version drift between teams.",
-    points: ["Two-way cell-level sync", "Status pills per release code", "Engineer ownership mapping"],
+    title: "Keep design releases and spreadsheet data aligned",
+    desc: "Link your engineering sheets to keep release statuses, part lists, and timelines updated without manual entry or version conflicts.",
+    points: ["Bi-directional updates", "Clear status indicators", "Owner assignments"],
   },
   mom: {
-    title: "AI voice capture for every program review",
-    desc: "Record meetings and CALDIM transcribes, sorts by speaker, and auto-assigns action tasks the moment the call ends.",
-    points: ["Speaker-sorted transcripts", "Auto-extracted action items", "Searchable meeting archive"],
+    title: "Automated notes and action items for project reviews",
+    desc: "Document your status meetings effortlessly. The platform transcribes discussion points, identifies speakers, and highlights pending tasks.",
+    points: ["Structured summaries", "Automatic task assignments", "Centralized meeting history"],
   },
   budget: {
-    title: "Govern budgets against strategic targets",
-    desc: "Map spend to master budgets and instantly see positive or negative variance on every program line.",
-    points: ["Budget masters per platform", "Live variance indicators", "Drill-down spend trails"],
+    title: "Track program budgets and cost changes",
+    desc: "Align project spend with your overall budget and monitor variations across departments in real time.",
+    points: ["Centralized budget allocations", "Real-time cost variance updates", "Detailed spend history"],
   },
   calendar: {
-    title: "Plan SOP gates on a living calendar",
-    desc: "Week and month views with colored event blocks, time-slot scheduling, and drag-and-drop rescheduling — built for program teams.",
-    points: ["Week / Month / Day views", "Color-coded event categories", "Drag-and-drop rescheduling"],
+    title: "Coordinate key milestones on a shared calendar",
+    desc: "Plan and adjust project gates, deadlines, and review sessions on a clear calendar view designed for cross-functional teams.",
+    points: ["Flexible calendar views", "Color-coded project categories", "Simple drag-and-drop adjustments"],
   },
 };
 
@@ -250,25 +250,25 @@ const CalendarMockup = () => {
 
 const TESTIMONIALS = {
   excel: {
-    quote: "“By automating design release sync from Excel to CALDIM, we eliminated 100% of our manual tracking errors. Our engineering team and PMO are finally on the same page.”",
+    quote: "“Connecting our spreadsheets to CALDIM reduced manual tracking errors and helped align our engineering teams and PMO on release statuses.”",
     author: "Sanjay Iyer",
     role: "Lead Systems Engineer",
     company: "Mahindra Electric"
   },
   mom: {
-    quote: "“The voice capture is pure magic. It captures every action item from our SOP reviews and assigns it instantly. No more typing up minutes after meetings.”",
+    quote: "“The automated meeting notes save hours of administrative work. Action items are summarized and assigned immediately after our reviews.”",
     author: "Ravi Voss",
     role: "Program Manager",
     company: "Bosch Automotive"
   },
   budget: {
-    quote: "“CALDIM's budget variance tracking gave us clear visibility into cost overruns on body tooling. We caught a 6% deviation before it became a crisis.”",
+    quote: "“The budget tracking features give us clear visibility into project spend and help us identify cost variances before they impact the schedule.”",
     author: "Preeti Nair",
     role: "PMO Director",
     company: "Tata Motors"
   },
   calendar: {
-    quote: "“We run our entire vehicle launch schedule off the CALDIM calendar. Drag-and-drop SOP gate changes make tracking shifts easy for the team.”",
+    quote: "“We track our entire program schedule using this calendar. Making adjustments and communicating timeline shifts to the team is straightforward.”",
     author: "Kemi Adeyemi",
     role: "Operations Head",
     company: "Volvo Trucks"
@@ -327,9 +327,9 @@ export const Features = ({ onRequestDemo }) => {
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-blue-600 mb-3">Platform</p>
+          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-blue-600 mb-3">Unified Workspace</p>
           <h2 className="zoho-h2 text-3xl md:text-5xl">
-            Every program discipline in one workspace
+            Manage every aspect of your program in one place
           </h2>
         </motion.div>
 

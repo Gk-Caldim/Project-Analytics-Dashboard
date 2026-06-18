@@ -4,20 +4,20 @@ import { Sparkles, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
-  { title: "Maximize Productivity",    desc: "Let AI draft minutes, flag risks and prep your next gate review automatically." },
-  { title: "Communicate Effectively",  desc: "Ask plain-language questions and get program answers sourced from live data." },
-  { title: "Smart Analytics",          desc: "Surface variance, blockers and trends across every platform in seconds." },
+  { title: "Save review time",        desc: "Draft project summaries, outline risk areas, and prepare milestone status reports automatically." },
+  { title: "Ask in plain language",   desc: "Query your dashboard using natural search questions to locate specific project details." },
+  { title: "Identify potential issues", desc: "Analyze budget trends and project delays across your entire portfolio." },
 ];
 
 const CHAT = [
-  { role: "user", text: "What are the top Atlas VX program risks right now?" },
+  { role: "user", text: "What are the key project risks for the Atlas program?" },
   {
     role: "ai",
-    text: "3 active risks for Atlas VX:\n1. Cooling spec unfrozen (G3 in 9 days)\n2. Electrical budget +6% over target\n3. Wiring harness DR-1045 in drift state.",
+    text: "There are currently 3 items marked for attention:\n1. Cooling specification pending approval (Milestone G3 in 9 days)\n2. Electrical budget is 6% above target\n3. Wiring harness design (DR-1045) is currently in drift state.",
   },
 ];
 
-const QUICK = ["Show variance trend", "Draft a mitigation plan", "Notify owners"];
+const QUICK = ["Check cost trends", "Outline mitigation plan", "Notify team members"];
 
 const staggerChildren = {
   hidden: {},
@@ -80,11 +80,11 @@ export const AISection = ({ onRequestDemo }) => {
             variants={fadeSlide}
             className="zoho-h2 text-3xl md:text-[48px] leading-[1.1]"
           >
-            Your AI co-pilot for engineering programs
+            AI-assisted project insights
           </motion.h2>
           <motion.p variants={fadeSlide} className="mt-5 zoho-body text-[15.5px] leading-relaxed max-w-lg">
-            CALDIM AI reads your synced data, meeting minutes and budgets to answer
-            anything about program health — instantly.
+            Get instant summaries and updates on project status, meeting decisions,
+            and budget alerts using natural language search.
           </motion.p>
 
           <motion.div variants={staggerChildren} className="mt-9 space-y-6">
@@ -177,7 +177,7 @@ export const AISection = ({ onRequestDemo }) => {
       {/* Bottom label */}
       <div className="mt-16 text-center relative z-10">
         <p className="text-blue-600 font-mono text-[11px] uppercase tracking-[0.2em] font-semibold">
-          Connected Intelligence — AI insights across your entire program portfolio
+          Connected Insights — Access real-time analysis across your project portfolio
         </p>
       </div>
     </section>

@@ -5,16 +5,16 @@ import AppShellMockup from "./AppShellMockup";
 
 /* ── Rotating headline phrases (Zoho pattern) ── */
 const HERO_PHRASES = [
-  "automotive programs",
-  "real-time oversight",
-  "every SOP gate",
-  "your team",
+  "engineering programs",
+  "product development",
+  "cross-functional teams",
+  "milestone tracking",
 ];
 
 const VALUE_PROPS = [
-  "Excel Design Release Sync",
-  "AI Voice MOM Capture",
-  "Budget Masters & Variance",
+  "Automated spreadsheet sync",
+  "AI-assisted meeting summaries",
+  "Real-time budget tracking",
 ];
 
 const fadeUp = {
@@ -146,14 +146,14 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/80 px-3.5 py-1.5 text-[13px] font-semibold text-blue-600 mb-6"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
-            Engineering analytics for automotive programs
+            Project tracking and analytics for engineering programs
           </motion.div>
 
           <motion.h1
             variants={fadeUp} initial="hidden" animate="show" custom={1}
             className="zoho-h1 text-4xl sm:text-5xl lg:text-[56px] tracking-tight leading-[1.15] mb-6"
           >
-            Real-time governance{" "}
+            Project governance{" "}
             <br className="hidden sm:block" />
             built for{" "}
             <span className="inline-block overflow-hidden align-bottom">
@@ -176,8 +176,8 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             variants={fadeUp} initial="hidden" animate="show" custom={2}
             className="mt-6 zoho-body text-lg leading-relaxed max-w-2xl mx-auto font-normal"
           >
-            One cloud workspace to sync design releases, capture meeting minutes
-            with AI voice, and govern program budgets across every SOP gate.
+            A unified workspace that connects your spreadsheets, captures action items automatically,
+            and monitors project costs across every release gate.
           </motion.p>
 
           <motion.ul
@@ -220,7 +220,7 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             <div className="flex flex-col items-center text-center">
               <div className="font-heading font-extrabold text-[17px] text-[#0F172A] tracking-widest uppercase mb-2">Forbes</div>
               <p className="zoho-body text-[14.5px] italic text-slate-650 leading-relaxed font-sans max-w-xl">
-                "CALDIM is one of the easiest-to-use project analytics and engineering governance applications with a lot of built-in features."
+                "CALDIM provides a highly structured and accessible platform for engineering project tracking and governance."
               </p>
             </div>
           </motion.div>
