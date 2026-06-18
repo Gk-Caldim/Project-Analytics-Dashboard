@@ -11,6 +11,7 @@ import autoTable from 'jspdf-autotable';
 import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
+import ReactECharts from 'echarts-for-react';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
 const READONLY_COLS = ['Estimated', 'Total utilization', 'Balance'];
@@ -1118,286 +1119,231 @@ const BudgetMaster = () => {
                 </div>
               </div>
 
-              {/* ── 2. PROGRAM HEALTH STRIP ──────────────────────────────────────── */}
-              {selectedProject && (() => {
-                const budget = parseFloat(overallBudget) || 0;
-                const consumption = budget > 0 ? (totalUtilization / budget) * 100 : 0;
-                const budgetRag = consumption > 100 ? 'red' : consumption >= 80 ? 'amber' : 'green';
-                const healthItems = [
-                  { label: 'Budget Health',   rag: budgetRag,  detail: `${Math.round(consumption)}% consumed` },
-                  { label: 'Schedule Health', rag: 'amber',    detail: 'Review required' },
-                  { label: 'Quality Health',  rag: 'green',    detail: 'Within targets' },
-                  { label: 'Customer Health', rag: 'green',    detail: 'On track' },
-                ];
-                const ragDot = { green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' };
-                const ragText = { green: 'text-emerald-700 dark:text-emerald-300', amber: 'text-amber-700 dark:text-amber-300', red: 'text-red-700 dark:text-red-300' };
-                const ragBg   = { green: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/15 dark:border-emerald-800', amber: 'bg-amber-50 border-amber-200 dark:bg-amber-900/15 dark:border-amber-800', red: 'bg-red-50 border-red-200 dark:bg-red-900/15 dark:border-red-800' };
-                const ragLabel = { green: 'Healthy', amber: 'At Risk', red: 'Critical' };
-                return (
-                  <div className="flex flex-wrap gap-3 p-4 bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <p className="w-full text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Program Health — {selectedProject}</p>
-                    {healthItems.map(h => (
-                      <div key={h.label} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border flex-1 min-w-[160px] ${ragBg[h.rag]}`}>
-                        <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 animate-pulse ${ragDot[h.rag]}`} />
-                        <div>
-                          <p className={`text-[10px] font-black uppercase tracking-wider ${ragText[h.rag]}`}>{h.label}</p>
-                          <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{ragLabel[h.rag]} · {h.detail}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-
-              {/* ── 3. BUDGET EXCEPTION PANEL ────────────────────────────────────── */}
+              {/* ── CHARTS SECTION ────────────────────────────────────────────────── */}
               {selectedProject && tableData.length > 0 && (() => {
-                const budget = parseFloat(overallBudget) || 0;
-                const exceptions = [];
+                const isDark = document.documentElement.classList.contains('dark');
+                const textColor = isDark ? '#cbd5e1' : '#334155';
+                const labelColor = isDark ? '#94a3b8' : '#64748b';
+                const splitLineColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)';
 
-                // Over-budget categories
-                const catTotals = tableData.reduce((acc, r) => {
-                  const cat = r['Category'] || 'Uncategorised';
-                  if (!acc[cat]) acc[cat] = { estimated: 0, utilization: 0 };
-                  acc[cat].estimated   += parseFloat(r['Estimated'])         || 0;
-                  acc[cat].utilization += parseFloat(r['Total utilization']) || 0;
+                // 1. Group tableData by Category
+                const categorySummary = tableData.reduce((acc, r) => {
+                  const cat = r['Category'] || 'Other';
+                  if (!acc[cat]) {
+                    acc[cat] = { estimated: 0, forecast: 0 };
+                  }
+                  acc[cat].estimated += parseFloat(r['Estimated']) || 0;
+                  acc[cat].forecast += parseFloat(r['Total utilization']) || 0;
                   return acc;
                 }, {});
 
-                Object.entries(catTotals).forEach(([cat, vals]) => {
-                  const pct = vals.estimated > 0 ? (vals.utilization / vals.estimated) * 100 : 0;
-                  if (vals.utilization > vals.estimated) {
-                    exceptions.push({ severity: 'critical', icon: ShieldAlert, label: `${cat} — Over Budget`, detail: `Forecast ${format(vals.utilization)} exceeds budget ${format(vals.estimated)} by ${format(vals.utilization - vals.estimated)}` });
-                  } else if (pct >= 85) {
-                    exceptions.push({ severity: 'warning', icon: TrendingUp, label: `${cat} — High Utilisation (${Math.round(pct)}%)`, detail: `${format(vals.estimated - vals.utilization)} remaining of ${format(vals.estimated)}` });
+                const sortedCategories = Object.entries(categorySummary)
+                  .map(([name, vals]) => ({ name, ...vals }))
+                  .sort((a, b) => b.estimated - a.estimated);
+
+                let displayedCategories = [];
+                let displayedEstimated = [];
+                let displayedForecast = [];
+
+                if (sortedCategories.length > 6) {
+                  const top = sortedCategories.slice(0, 5);
+                  const rest = sortedCategories.slice(5);
+                  const restEst = rest.reduce((sum, item) => sum + item.estimated, 0);
+                  const restForecast = rest.reduce((sum, item) => sum + item.forecast, 0);
+
+                  displayedCategories = [...top.map(t => t.name), 'Other'];
+                  displayedEstimated = [...top.map(t => t.estimated), restEst];
+                  displayedForecast = [...top.map(t => t.forecast), restForecast];
+                } else {
+                  displayedCategories = sortedCategories.map(t => t.name);
+                  displayedEstimated = sortedCategories.map(t => t.estimated);
+                  displayedForecast = sortedCategories.map(t => t.forecast);
+                }
+
+                // Reverse arrays to display the largest budget category at the top of a horizontal bar chart
+                const displayedCategoriesReversed = [...displayedCategories].reverse();
+                const displayedEstimatedReversed = [...displayedEstimated].reverse();
+                const displayedForecastReversed = [...displayedForecast].reverse();
+
+                // 2. Prepare Donut Chart data
+                const budget = parseFloat(overallBudget) || 0;
+                const utilized = totalUtilized;
+                const commitment = totalCommitment;
+                const forecast = totalUtilization;
+                const remaining = budget > forecast ? budget - forecast : 0;
+                const overrun = forecast > budget ? forecast - budget : 0;
+
+                const donutData = [
+                  { value: utilized, name: 'Actual Spent', itemStyle: { color: '#10b981' } },
+                  { value: commitment, name: 'Open Commitment', itemStyle: { color: '#f59e0b' } }
+                ];
+                if (budget > 0) {
+                  if (remaining > 0) {
+                    donutData.push({ value: remaining, name: 'Available Balance', itemStyle: { color: '#3b82f6' } });
                   }
-                });
-
-                // High commitment items (financial risk)
-                const highCommitRows = tableData.filter(r => (parseFloat(r['Commitment']) || 0) > 0);
-                if (highCommitRows.length > 0) {
-                  const totalCommit = highCommitRows.reduce((s, r) => s + (parseFloat(r['Commitment']) || 0), 0);
-                  exceptions.push({ severity: 'info', icon: ClipboardList, label: `${highCommitRows.length} Open Commitment${highCommitRows.length > 1 ? 's' : ''} Pending`, detail: `Total commitment exposure: ${format(totalCommit)} — requires management review` });
+                  if (overrun > 0) {
+                    donutData.push({ value: overrun, name: 'Budget Overrun', itemStyle: { color: '#ef4444' } });
+                  }
                 }
 
-                // Overall over-budget
-                if (isOverBudget) {
-                  exceptions.unshift({ severity: 'critical', icon: ShieldAlert, label: 'Project Forecast Exceeds Approved Budget', detail: `Overrun of ${format(totalUtilization - budget)} · Approved: ${format(budget)} · Forecast: ${format(totalUtilization)}` });
-                }
+                // 3. ECharts option configurations
+                const categoryBarOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    borderColor: isDark ? '#475569' : '#e2e8f0',
+                    borderWidth: 1,
+                    textStyle: { color: textColor, fontFamily: 'Inter, sans-serif' },
+                    formatter: (params) => {
+                      let html = `<div style="font-weight: bold; margin-bottom: 4px;">${params[0].name}</div>`;
+                      params.forEach(p => {
+                        html += `<div style="display: flex; justify-content: space-between; gap: 16px;">
+                          <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${p.color};margin-right:6px;"></span>${p.seriesName}</span>
+                          <span style="font-weight:bold;">${format(p.value)}</span>
+                        </div>`;
+                      });
+                      return html;
+                    }
+                  },
+                  legend: {
+                    data: ['Approved Budget', 'Forecast at Completion'],
+                    textStyle: { color: labelColor, fontFamily: 'Inter, sans-serif', fontSize: 10 },
+                    bottom: '0%',
+                    left: 'center',
+                    icon: 'circle',
+                    itemGap: 16
+                  },
+                  grid: { left: '3%', right: '5%', top: '8%', bottom: '15%', containLabel: true },
+                  xAxis: {
+                    type: 'value',
+                    axisLabel: {
+                      color: labelColor,
+                      fontFamily: 'Inter, sans-serif',
+                      formatter: (val) => format(val, true, { notation: 'compact' })
+                    },
+                    splitLine: { lineStyle: { color: splitLineColor, type: 'dashed' } }
+                  },
+                  yAxis: {
+                    type: 'category',
+                    data: displayedCategoriesReversed,
+                    axisLabel: { color: labelColor, fontFamily: 'Inter, sans-serif', width: 100, overflow: 'truncate' },
+                    axisLine: { show: false },
+                    axisTick: { show: false }
+                  },
+                  series: [
+                    {
+                      name: 'Approved Budget',
+                      type: 'bar',
+                      barMaxWidth: 12,
+                      itemStyle: {
+                        color: '#3b82f6',
+                        borderRadius: [0, 4, 4, 0]
+                      },
+                      data: displayedEstimatedReversed
+                    },
+                    {
+                      name: 'Forecast at Completion',
+                      type: 'bar',
+                      barMaxWidth: 12,
+                      itemStyle: {
+                        color: '#10b981',
+                        borderRadius: [0, 4, 4, 0]
+                      },
+                      data: displayedForecastReversed
+                    }
+                  ]
+                };
 
-                if (exceptions.length === 0) return null;
-
-                const sevCfg = {
-                  critical: { bar: 'bg-red-500',    badge: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300',    icon: 'text-red-500',    label: 'Critical' },
-                  warning:  { bar: 'bg-amber-500',  badge: 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300', icon: 'text-amber-500', label: 'Warning' },
-                  info:     { bar: 'bg-blue-400',   badge: 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300',   icon: 'text-blue-400',   label: 'Attention' },
+                const overallDonutOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                    trigger: 'item',
+                    backgroundColor: isDark ? '#1e293b' : '#ffffff',
+                    borderColor: isDark ? '#475569' : '#e2e8f0',
+                    borderWidth: 1,
+                    textStyle: { color: textColor, fontFamily: 'Inter, sans-serif' },
+                    formatter: (params) => {
+                      return `<div style="padding: 4px;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">${params.name}</div>
+                        <div style="display: flex; justify-content: space-between; gap: 16px;">
+                          <span>Amount:</span>
+                          <span style="font-weight: bold;">${format(params.value)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; gap: 16px;">
+                          <span>Share:</span>
+                          <span style="font-weight: bold;">${params.percent.toFixed(1)}%</span>
+                        </div>
+                      </div>`;
+                    }
+                  },
+                  legend: {
+                    orient: 'horizontal',
+                    bottom: '0%',
+                    left: 'center',
+                    textStyle: { color: labelColor, fontFamily: 'Inter, sans-serif', fontSize: 10 },
+                    icon: 'circle',
+                    itemGap: 16
+                  },
+                  title: budget > 0 ? {
+                    text: format(budget, true, { notation: 'compact' }),
+                    subtext: 'Approved Budget',
+                    left: '49%',
+                    top: '41%',
+                    textAlign: 'center',
+                    textStyle: {
+                      fontSize: 18,
+                      fontWeight: '900',
+                      color: textColor,
+                      fontFamily: 'Inter, sans-serif'
+                    },
+                    subtextStyle: {
+                      fontSize: 10,
+                      fontWeight: 'bold',
+                      color: labelColor,
+                      fontFamily: 'Inter, sans-serif'
+                    }
+                  } : undefined,
+                  series: [
+                    {
+                      type: 'pie',
+                      radius: ['60%', '80%'],
+                      center: ['50%', '48%'],
+                      avoidLabelOverlap: true,
+                      label: {
+                        show: false
+                      },
+                      emphasis: {
+                        label: {
+                          show: false
+                        }
+                      },
+                      data: donutData
+                    }
+                  ]
                 };
 
                 return (
-                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                      <div className="flex items-center gap-2">
-                        <ShieldAlert className="w-4 h-4 text-red-500" />
-                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Budget Exception Panel</p>
-                        <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[9px] font-black rounded-full border border-red-200 dark:border-red-800">{exceptions.length} Alert{exceptions.length > 1 ? 's' : ''}</span>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Chart 1: Cost Center Allocation & Forecast */}
+                    <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+                      <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest mb-6">
+                        Budget Allocation & Forecast by Cost Center
+                      </h3>
+                      <div style={{ height: '350px', width: '100%' }}>
+                        <ReactECharts option={categoryBarOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
                       </div>
-                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Requires Management Review</p>
                     </div>
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {exceptions.map((ex, i) => {
-                        const cfg = sevCfg[ex.severity];
-                        const ExIcon = ex.icon;
-                        return (
-                          <div key={i} className="flex items-start gap-4 px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors relative">
-                            <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${cfg.bar}`} />
-                            <div className={`p-2 rounded-lg border flex-shrink-0 ${cfg.badge}`}>
-                              <ExIcon className={`w-3.5 h-3.5 ${cfg.icon}`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{ex.label}</p>
-                                <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black ${cfg.badge}`}>{cfg.label}</span>
-                              </div>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ex.detail}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
 
-              {/* ── 1. BUDGET HEALTH KPI CARDS ───────────────────────────────────── */}
-              {(selectedProject || tableData.length > 0) && (() => {
-                const budget      = parseFloat(overallBudget) || 0;
-                const fac         = totalUtilization;          // Forecast at Completion
-                const variance    = budget - fac;
-                const consumption = budget > 0 ? (fac / budget) * 100 : 0;
-                const remaining   = budget - fac;
-
-                const consRag = consumption > 100 ? 'red' : consumption >= 80 ? 'amber' : 'green';
-                const varRag  = variance < 0 ? 'red' : variance < budget * 0.1 ? 'amber' : 'green';
-
-                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-                return (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <BudgetHealthCard
-                      label="Approved Budget"
-                      value={budget}
-                      subLabel={`${tableData.length} line items · Mgr: ${managerName || 'Unassigned'}`}
-                      ragStatus="neutral"
-                      icon={Target}
-                      formatFn={fmt}
-                    />
-                    <BudgetHealthCard
-                      label="Forecast at Completion"
-                      value={fac}
-                      subLabel="Actual + Commitment"
-                      ragStatus={fac > budget ? 'red' : fac > budget * 0.9 ? 'amber' : 'green'}
-                      trend={fac > budget ? 'up' : 'down'}
-                      icon={TrendingUp}
-                      formatFn={fmt}
-                    />
-                    <BudgetHealthCard
-                      label="Budget Variance"
-                      value={Math.abs(variance)}
-                      subLabel={variance < 0 ? `Over by ${fmt(Math.abs(variance))}` : `Headroom remaining`}
-                      ragStatus={varRag}
-                      trend={variance < 0 ? 'up' : 'down'}
-                      icon={variance < 0 ? ArrowUpRight : ArrowDownRight}
-                      formatFn={(v) => (variance < 0 ? '−' : '+') + fmt(v)}
-                    />
-                    <BudgetHealthCard
-                      label="Consumption %"
-                      value={`${Math.min(999, Math.round(consumption))}%`}
-                      subLabel={`${fmt(fac)} of ${fmt(budget)}`}
-                      ragStatus={consRag}
-                      trend={consumption > 80 ? 'up' : null}
-                      icon={PieChart}
-                      showBar
-                      barValue={consumption}
-                    />
-                    <BudgetHealthCard
-                      label="Remaining Budget"
-                      value={remaining}
-                      subLabel={remaining < 0 ? 'Budget exhausted' : 'Available to spend'}
-                      ragStatus={remaining < 0 ? 'red' : remaining < budget * 0.15 ? 'amber' : 'green'}
-                      trend={remaining < 0 ? 'up' : null}
-                      icon={remaining < 0 ? ArrowUpRight : ArrowDownRight}
-                      formatFn={fmt}
-                    />
-                  </div>
-                );
-              })()}
-
-              {/* ── 4. CATEGORY COST BREAKDOWN ───────────────────────────────────── */}
-              {selectedProject && tableData.length > 0 && (() => {
-                const catData = Object.entries(
-                  tableData.reduce((acc, r) => {
-                    const cat = r['Category'] || 'Uncategorised';
-                    if (!acc[cat]) acc[cat] = { estimated: 0, actual: 0, commitment: 0 };
-                    acc[cat].estimated   += parseFloat(r['Estimated'])         || 0;
-                    acc[cat].actual      += parseFloat(r['Utilized'])          || 0;
-                    acc[cat].commitment  += parseFloat(r['Commitment'])        || 0;
-                    return acc;
-                  }, {})
-                )
-                  .map(([cat, v]) => ({ cat, ...v, forecast: v.actual + v.commitment, pct: v.estimated > 0 ? ((v.actual + v.commitment) / v.estimated) * 100 : 0 }))
-                  .sort((a, b) => b.estimated - a.estimated)
-                  .slice(0, 6);
-
-                if (catData.length === 0) return null;
-
-                const totalEst = catData.reduce((s, c) => s + c.estimated, 0);
-                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-                return (
-                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-                      <div>
-                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Category Cost Breakdown</p>
-                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Budget allocation by cost center</p>
+                    {/* Chart 2: Overall Budget Composition */}
+                    <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
+                      <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest mb-6">
+                        Overall Budget Composition & Risk Exposure
+                      </h3>
+                      <div style={{ height: '350px', width: '100%' }}>
+                        <ReactECharts option={overallDonutOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
                       </div>
-                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{catData.length} Categories</span>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-0 divide-x divide-y divide-slate-100 dark:divide-slate-800">
-                      {catData.map(c => {
-                        const barRag = c.pct > 100 ? 'bg-red-500' : c.pct >= 80 ? 'bg-amber-500' : 'bg-blue-500';
-                        const shareOfTotal = totalEst > 0 ? (c.estimated / totalEst) * 100 : 0;
-                        return (
-                          <div key={c.cat} className="px-5 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-xs font-black text-slate-700 dark:text-slate-200 truncate max-w-[140px]">{c.cat}</p>
-                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{Math.round(shareOfTotal)}% of total</span>
-                            </div>
-                            <p className="text-base font-black text-slate-900 dark:text-slate-100">{fmt(c.estimated)}</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mb-2">Budget · Forecast: {fmt(c.forecast)}</p>
-                            <div className="h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                              <div className={`h-full rounded-full ${barRag} transition-all duration-700`} style={{ width: `${Math.min(100, c.pct)}%` }} />
-                            </div>
-                            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1">{Math.round(c.pct)}% utilized</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* ── 5. TOP COST DRIVERS ──────────────────────────────────────────── */}
-              {selectedProject && tableData.length > 0 && (() => {
-                const topItems = [...tableData]
-                  .filter(r => (parseFloat(r['Estimated']) || 0) > 0)
-                  .sort((a, b) => (parseFloat(b['Estimated']) || 0) - (parseFloat(a['Estimated']) || 0))
-                  .slice(0, 5);
-
-                if (topItems.length === 0) return null;
-                const maxEst = parseFloat(topItems[0]['Estimated']) || 1;
-                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-                return (
-                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-                      <div>
-                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Top Cost Drivers</p>
-                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Highest budget-consuming line items</p>
-                      </div>
-                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Top 5 Items</span>
-                    </div>
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {topItems.map((row, idx) => {
-                        const est  = parseFloat(row['Estimated'])         || 0;
-                        const util = parseFloat(row['Total utilization']) || 0;
-                        const pct  = est > 0 ? (util / est) * 100 : 0;
-                        const barW = (est / maxEst) * 100;
-                        const barRag = pct > 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-blue-500';
-                        return (
-                          <div key={row.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
-                            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${
-                              idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
-                              idx === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' :
-                              idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                              'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>#{idx + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{row['Item Name'] || '—'}</p>
-                                {row['Category'] && (
-                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-black rounded flex-shrink-0">{row['Category']}</span>
-                                )}
-                              </div>
-                              <div className="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" style={{ width: `${barW}%` }}>
-                                <div className={`h-full rounded-full ${barRag}`} />
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmt(est)}</p>
-                              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">{Math.round(pct)}% forecast</p>
-                            </div>
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 );

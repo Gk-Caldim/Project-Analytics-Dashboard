@@ -119,187 +119,338 @@
 
 ---
 
-## PHASE 2: PREDICTIVE ANALYTICS + CUSTOMER ISSUES (Weeks 5-8)
+## PHASE 2A: CRITICAL BLOCKERS (Weeks 1-3) 🔴 **START IMMEDIATELY**
 
-**Goal:** ML models + 3 critical missing dashboards  
-**New Priority:** Customer Issues Dashboard (HIGH ROI)
-
-### Week 5: Customer Issues Dashboard (NEW PRIORITY) 🔴 CRITICAL
-
-#### Frontend Components
-- [ ] Create `frontend/src/components/dashboard/CustomerIssuesDashboard.jsx` (main container)
-  - [ ] Issue summary cards (Open, Critical, Overdue)
-  - [ ] Issue list table with filters
-  - [ ] Sentiment distribution widget
-- [ ] Create `frontend/src/components/customer/IssueDetailModal.jsx`
-  - [ ] Issue details
-  - [ ] 8D report viewer
-  - [ ] Escalation timeline
-  - [ ] Sentiment badge
-- [ ] Create `frontend/src/components/customer/EightDReportPanel.jsx`
-  - [ ] 8D problem-solving format
-  - [ ] Root cause analysis section
-  - [ ] Corrective actions tracking
-- [ ] Create `frontend/src/components/customer/SentimentBadge.jsx`
-  - [ ] Color-coded sentiment indicator
-  - [ ] Sentiment score display
-  - [ ] Emotion label (angry, frustrated, neutral, satisfied)
-- [ ] Create `frontend/src/api/customer.js`
-  - [ ] API calls for customer issues
-  - [ ] Sentiment trend requests
-
-#### Backend Tasks
-- [ ] Create API endpoints
-  - [ ] POST `/api/customer/complaints/{project_id}` - Log complaint
-  - [ ] GET `/api/customer/complaints/{project_id}` - Get complaint list
-  - [ ] GET `/api/customer/complaint/{complaint_id}` - Get detail
-  - [ ] GET `/api/customer/sentiment-trend/{project_id}` - Trend data
-  - [ ] GET `/api/customer/8d-status/{project_id}` - 8D metrics
-- [ ] Create service layer
-- [ ] Unit & integration tests
-- [ ] Add to sidebar/navigation
-
-#### Deliverables
-- ✓ Customer Issues Dashboard fully functional
-- ✓ 8D report tracking working
-- ✓ Sentiment field initialized (placeholder)
-- ✓ Add to Dashboard sidebar
-
-**Effort:** 5 days | **Owner:** Frontend Lead + Backend Dev
+**Goal:** Fix 5 blockers preventing Phase 2 progress  
+**Critical Path:** ML services must be done FIRST, then batch jobs, then UIs  
+**Owner:** ML Engineer + 2 Backend Devs + Frontend Dev  
+**Timeline:** 3 weeks max
 
 ---
 
-### Week 5-6: Risk Scoring Service
+### Week 1: ML Prediction Services (5 Days) - BLOCKING EVERYTHING
+
+**Owner:** ML Engineer + 1 Backend Dev
 
 #### Backend Tasks
 - [ ] Create `backend/app/services/risk_prediction_service.py`
-  - [ ] Weighted risk formula
-  - [ ] Milestone delay probability
-  - [ ] Budget overrun probability
-  - [ ] Quality risk scoring
-  - [ ] Supply chain risk factors
-- [ ] Create endpoint
+  - [ ] Implement weighted formula: 0.3×delay + 0.25×budget + 0.25×quality + 0.2×supply
+  - [ ] Query ProjectMilestone, BudgetRevision, QualityKPI tables
+  - [ ] Query SupplierPerformance for supply chain risk
+  - [ ] Save results to RiskScore table
+  - [ ] Return risk_score (0-100) + confidence
+  - [ ] Unit tests with sample data
+  
+- [ ] Create `backend/app/services/delay_prediction_service.py`
+  - [ ] Analyze task duration variance from TaskLog historical data
+  - [ ] Calculate baseline + standard deviation
+  - [ ] Factor in task dependencies
+  - [ ] Return predicted_days_late + confidence
+  - [ ] Unit tests
+  
+- [ ] Create `backend/app/services/quality_prediction_service.py`
+  - [ ] Time-series trend analysis of QualityKPI data
+  - [ ] Calculate moving average (14-day window)
+  - [ ] Extrapolate 30-day forecast
+  - [ ] Predict DPPM + FPY values
+  - [ ] Handle missing data gracefully
+  - [ ] Unit tests
+
+- [ ] Wire all 3 services into predictions_api.py
   - [ ] GET `/api/predictions/project/{project_id}/risk-score`
-- [ ] Integrate with Celery task
-  - [ ] Run nightly for all projects
-  - [ ] Populate RiskScore model
-- [ ] Unit tests
-- [ ] Performance benchmark (<500ms per project)
+  - [ ] GET `/api/predictions/milestone/{milestone_id}/delay`
+  - [ ] GET `/api/predictions/project/{project_id}/quality-forecast`
+  - [ ] Test with sample data from database
 
-**Deliverables:**
-- ✓ Risk scoring algorithm working
-- ✓ Risk scores computed nightly
-- ✓ Endpoint returning valid data
+#### Validation Checklist
+- [ ] All 3 services computing REAL predictions (not defaults)
+- [ ] APIs returning actual forecast values
+- [ ] Unit tests passing (>80% coverage)
+- [ ] Performance <500ms per prediction
 
-**Effort:** 3 days | **Owner:** ML Engineer
+**Deliverable:** 3 prediction services operational + API endpoints returning real data
 
 ---
 
-### Week 6-7: Risk Management Dashboard (HIGH PRIORITY) 🔴 CRITICAL
+### Week 2: Celery Batch Jobs Setup (3-5 Days)
 
-#### Frontend Components
-- [ ] Create `frontend/src/components/dashboard/RiskManagementDashboard.jsx` (main container)
-  - [ ] Overall risk score card
-  - [ ] Risk heatmap (probability vs impact)
-  - [ ] Top 5 risks widget
-- [ ] Create `frontend/src/components/risk/RiskHeatmap.jsx`
-  - [ ] 5x5 probability-impact matrix
-  - [ ] Risk indicators (color-coded)
-  - [ ] Clickable cells for drill-down
-- [ ] Create `frontend/src/components/risk/RiskRegister.jsx`
-  - [ ] Risk list with scores
-  - [ ] Mitigation status
-  - [ ] Owner assignment
-- [ ] Create `frontend/src/components/risk/MitigationTracker.jsx`
-  - [ ] Mitigation actions
-  - [ ] Status tracking
-  - [ ] Responsible parties
-- [ ] Create `frontend/src/api/risks.js`
-  - [ ] API calls for risk data
+**Owner:** Backend Developer
 
 #### Backend Tasks
-- [ ] Create API endpoints
-  - [ ] GET `/api/predictions/project/{project_id}/risk-score` - Already done
-  - [ ] GET `/api/risks/project/{project_id}` - Risk register
-  - [ ] POST `/api/risks/project/{project_id}` - Log risk
-  - [ ] PUT `/api/risks/{risk_id}/mitigation` - Update mitigation
-- [ ] Integrate with RiskScore model
-- [ ] Unit & integration tests
-- [ ] Add to sidebar navigation
+- [ ] Create `backend/tasks/celery_tasks.py`
+  - [ ] Define @celery.task for `compute_daily_predictions()`
+  - [ ] Loop through all projects
+  - [ ] Call risk_prediction_service.compute_project_health_score()
+  - [ ] Loop through milestones, call delay_prediction_service.predict_milestone_delay()
+  - [ ] Call quality_prediction_service.predict_quality_metrics()
+  - [ ] Log all results + any errors
+  - [ ] Retry logic (3 attempts with exponential backoff)
+  - [ ] Timeout: 30 minutes max
 
-#### Deliverables
-- ✓ Risk Management Dashboard fully functional
-- ✓ Risk heatmap displaying correctly
-- ✓ Risk register tracking working
-- ✓ Add to main sidebar
+- [ ] Configure Redis broker
+  - [ ] Add redis service to docker-compose.yml
+  - [ ] Set CELERY_BROKER_URL in .env
+  - [ ] Verify Redis connection on startup
 
-**Effort:** 5 days | **Owner:** Frontend Lead + Backend Dev
+- [ ] Setup task scheduling (Celery Beat)
+  - [ ] Create schedule definition (daily 2 AM)
+  - [ ] Start Celery beat daemon
+  - [ ] Add to docker-compose.yml
+  - [ ] Add logging for each scheduled run
+
+- [ ] Add monitoring + alerting
+  - [ ] Log start/end of task
+  - [ ] Log number of predictions computed
+  - [ ] Alert if task fails 3 times
+
+#### Validation Checklist
+- [ ] Manual task execution works (test locally)
+- [ ] Task creates RiskScore entries in database
+- [ ] Task creates DelayPrediction entries in database
+- [ ] Task creates DefectPrediction entries in database
+- [ ] Scheduled task runs nightly (verify in logs)
+- [ ] Performance: <30 minutes for all projects
+
+**Deliverable:** Nightly batch jobs running, populating all prediction tables
 
 ---
 
-### Week 7-8: Advanced Quality KPIs + Other ML Services
+### Week 3: Dashboard UIs (5-7 Days)
 
-#### Week 7: Quality Enhancements
-- [ ] Enhance `frontend/src/components/dashboard/QualityHealthCenter.jsx`
-  - [ ] Add KPI cards (FPY, DPPM, Reject Rate, Rework Rate)
-  - [ ] Add Pareto chart component
-  - [ ] Add line-wise heatmap component
-- [ ] Create `frontend/src/components/quality/DefectPareto.jsx`
-  - [ ] Pareto chart (80/20 rule)
-  - [ ] Category breakdown
+**Owner:** Frontend Developer
+
+#### Component 1: CustomerIssuesDashboard.jsx
+- [ ] Create main container component
+  - [ ] Issue summary cards (Open, Critical, Overdue) - metric display
+  - [ ] Issue list table with sorting/filtering
+    - [ ] Columns: IssueID, Project, Customer, Severity, Status, Sentiment, Days Open
+    - [ ] Sort by severity, date, sentiment
+    - [ ] Filter by project, status, sentiment
+  - [ ] Sentiment distribution widget (pie/bar chart)
+  - [ ] Connect to `/api/customer/complaints/{project_id}` API
+  - [ ] Add to sidebar navigation (Dashboard section)
+  - [ ] Add refresh button + auto-refresh (5 min)
+
+- [ ] Create supporting components
+  - [ ] IssueDetailModal.jsx - Show issue details + 8D status
+  - [ ] SentimentBadge.jsx - Color-coded sentiment display
+
+**Validation:** Dashboard displays real data from API
+
+#### Component 2: RiskManagementDashboard.jsx
+- [ ] Create main container component
+  - [ ] Overall risk score card (0-100, color-coded)
+  - [ ] Risk heatmap (5×5 probability vs impact matrix)
+    - [ ] 5 rows (probability): Very Low to Very High
+    - [ ] 5 columns (impact): Minimal to Catastrophic
+    - [ ] Color scale: Green (low) to Red (critical)
+    - [ ] Show number of risks in each cell
+  - [ ] Top 5 risks by score + mitigation status
+  - [ ] Risk register table (optional, can be separate page)
+  - [ ] Connect to `/api/predictions/project/{project_id}/risk-score` API
+  - [ ] Add to sidebar as main section
+  - [ ] Add refresh button + auto-refresh (5 min)
+
+- [ ] Create supporting components
+  - [ ] RiskHeatmap.jsx - Interactive 5×5 matrix
+  - [ ] RiskRegister.jsx - Sortable risk table
+  - [ ] MitigationTracker.jsx - Show mitigation actions
+
+**Validation:** Risk score displays, heatmap renders correctly
+
+#### Component 3: Enhance QualityHealthCenter.jsx
+- [ ] Add KPI cards section (top of page)
+  - [ ] FPY card (First Pass Yield %) - display metric + trend
+  - [ ] DPPM card (Defects Per Million) - display metric + trend
+  - [ ] Reject Rate card (%) - display metric + trend
+  - [ ] Rework Rate card (%) - display metric + trend
+
+- [ ] Add Pareto chart
+  - [ ] X-axis: Defect categories (sorted by frequency)
+  - [ ] Y-axis: Frequency + cumulative %
+  - [ ] Show 80/20 line
   - [ ] Drill-down capability
-- [ ] Create `frontend/src/components/quality/QualityHeatmap.jsx`
-  - [ ] Line-wise quality grid
-  - [ ] Color-coded health status
-  - [ ] Hover details (KPI values)
-- [ ] Create `frontend/src/components/quality/KPICards.jsx`
-  - [ ] FPY card
-  - [ ] DPPM card
-  - [ ] Reject Rate card
-  - [ ] Rework Rate card
-  - [ ] Trend indicators (up/down)
 
-#### Week 7-8: Other ML Services
-- [ ] Schedule Delay Prediction
-  - [ ] Create service
-  - [ ] Train XGBoost model
-  - [ ] Create endpoint: GET `/api/predictions/milestone/{milestone_id}/delay`
-- [ ] Quality Prediction
-  - [ ] Create service (ARIMA/Prophet)
-  - [ ] Create endpoint: GET `/api/predictions/project/{project_id}/quality-forecast`
-- [ ] Cost Anomaly Detection
-  - [ ] Create service (Isolation Forest)
-  - [ ] Create endpoint: GET `/api/anomalies/budget/{project_id}`
-- [ ] Failure Pattern Discovery
-  - [ ] Create service (K-means clustering)
-  - [ ] Create endpoint: GET `/api/quality/defect-analysis/patterns`
-- [ ] Recommendation Engine (v1: Rule-based)
-  - [ ] Create service
-  - [ ] Create endpoint: GET `/api/ai-assistant/recommendations/{project_id}`
+- [ ] Add Quality heatmap (line-wise grid)
+  - [ ] Rows: Production lines
+  - [ ] Columns: Quality metrics (KPI names)
+  - [ ] Color: Green (good) to Red (poor)
+  - [ ] Hover: Show exact metric value
 
-#### Deliverables
-- ✓ Quality Dashboard enhanced with Pareto + heatmap + KPIs
-- ✓ Delay prediction model (>75% accuracy)
-- ✓ Quality forecasting (>0.7 R²)
-- ✓ Cost anomaly detection (>80% precision)
-- ✓ Failure patterns discovered
-- ✓ Recommendation engine v1 working
+- [ ] Add trend visualization
+  - [ ] Chart showing 30-day KPI trend
+  - [ ] Connect to `/api/predictions/project/{project_id}/quality-forecast` API
 
-**Effort:** 4 days | **Owner:** ML Engineer + Frontend Dev
+**Validation:** All 4 KPI cards display, charts render with real data
+
+#### All Dashboards
+- [ ] Add to sidebar navigation
+- [ ] Test with real data from database
+- [ ] Responsive design (mobile-friendly)
+- [ ] Add loading states + error handling
+
+**Deliverable:** 3 dashboards fully functional + live + in sidebar navigation
 
 ---
 
-### Phase 2 Sign-Off ✅
-- [ ] Customer Issues Dashboard deployed & tested ✓
-- [ ] Risk Management Dashboard deployed & tested ✓
-- [ ] Advanced Quality KPIs working ✓
-- [ ] Risk scoring algorithm (>75% accuracy) ✓
-- [ ] Delay prediction model (>75% accuracy) ✓
-- [ ] Quality forecasting (>0.7 R²) ✓
-- [ ] Cost anomaly detection (>80% precision) ✓
-- [ ] Failure pattern discovery ✓
-- [ ] Recommendation engine v1 ✓
-- [ ] All batch jobs running nightly ✓
+### Phase 2A Sign-Off (End of Week 3) ✅ **REQUIRED BEFORE MOVING TO 2B**
+
+**Approval Criteria:**
+- [ ] All 3 ML services computing REAL predictions (not defaults)
+- [ ] Celery batch jobs running nightly (verified in logs)
+- [ ] RiskScore table has entries from batch job
+- [ ] DelayPrediction table has entries from batch job
+- [ ] DefectPrediction table has entries from batch job
+- [ ] CustomerIssuesDashboard deployed + showing real data
+- [ ] RiskManagementDashboard deployed + showing real risk scores
+- [ ] QualityHealthCenter enhanced + all KPIs displaying
+- [ ] All 3 dashboards in sidebar navigation
+- [ ] All APIs returning valid JSON (not errors)
+- [ ] Performance acceptable (<2s dashboard load)
+
+**Sign-Off Required From:**
+- [ ] Tech Lead - All code reviewed + tests passing
+- [ ] ML Engineer - Predictions accuracy acceptable
+- [ ] Frontend Lead - UIs complete + responsive
+- [ ] Project Manager - Scope met, no blockers
+
+**Next Action:** Only after sign-off, proceed to Phase 2B
+
+---
+
+## PHASE 2B: ML ENHANCEMENT + ADVANCED FEATURES (Weeks 4-8)
+
+**Goal:** Advanced ML + Real-time features + Performance optimization  
+**ONLY STARTS AFTER Phase 2A COMPLETE**
+
+### Week 4: Sentiment Analysis + WebSocket Integration (5-7 Days)
+
+**Owner:** ML Engineer + Full Stack Dev
+
+#### Sentiment Analysis Service
+- [ ] Create `backend/app/services/sentiment_service.py`
+  - [ ] Load HuggingFace DistilBERT model
+  - [ ] Pipeline: complaint_text → sentiment_score, emotion, keywords
+  - [ ] Cache model in memory
+  - [ ] Handle edge cases (empty text, special chars, etc.)
+  - [ ] Test with 50+ sample complaints
+
+- [ ] Integration with complaint creation
+  - [ ] Hook: On CustomerComplaint creation
+  - [ ] Run sentiment analysis asynchronously (Celery)
+  - [ ] Update SentimentAnalysis table with results
+  - [ ] Map sentiment to urgency_level
+
+#### WebSocket Real-Time Integration
+- [ ] Create WebSocket handler for risk/anomaly events
+  - [ ] Subscribe to "risk_alerts" channel
+  - [ ] Subscribe to "anomaly_alerts" channel
+  - [ ] Broadcast when new high-risk project detected
+  - [ ] Broadcast when cost anomaly found
+
+- [ ] Frontend WebSocket client
+  - [ ] Create useWebSocket hook
+  - [ ] Connect to `/ws/alerts` endpoint
+  - [ ] Update UI in real-time when alerts received
+  - [ ] Add notification badge for new alerts
+
+**Deliverable:** Real-time sentiment badges + WebSocket alerts working
+
+---
+
+### Week 5-6: Recommendation Engine + Defect Clustering (6-8 Days)
+
+**Owner:** ML Engineer + Backend Dev
+
+#### Recommendation Engine (v1: Rule-based)
+- [ ] Create `backend/app/services/recommendation_service.py`
+  - [ ] Rule 1: If risk > 70, suggest "Increase monitoring"
+  - [ ] Rule 2: If cost variance > 15%, suggest "Cost control review"
+  - [ ] Rule 3: If quality declining, suggest "Quality audit"
+  - [ ] Rule 4: If delays increasing, suggest "Timeline review"
+  - [ ] Prioritize recommendations by impact
+  - [ ] Return top 3 recommendations + reasoning
+
+- [ ] Create API endpoint
+  - [ ] GET `/api/ai-assistant/recommendations/{project_id}`
+  - [ ] Returns prioritized recommendations
+
+#### Defect Clustering (K-means)
+- [ ] Create `backend/app/services/defect_clustering_service.py`
+  - [ ] Collect all defects (last 90 days)
+  - [ ] Feature engineering: defect_type, root_cause, severity, line
+  - [ ] K-means clustering (k=5 initially)
+  - [ ] Identify failure patterns (cluster centroids)
+  - [ ] Save patterns to FailurePattern table
+
+- [ ] Generate Pareto data
+  - [ ] Sort clusters by frequency
+  - [ ] Calculate cumulative %
+  - [ ] Identify 80/20 split point
+
+**Deliverable:** AI recommendations live + defect patterns discovered
+
+---
+
+### Week 7-8: Redis Caching + API Docs + Tests + Performance (8-10 Days)
+
+**Owner:** Full Backend Team
+
+#### Redis Caching
+- [ ] Cache strategy
+  - [ ] Risk scores: 1-hour TTL
+  - [ ] Quality KPIs: 30-minute TTL
+  - [ ] Quality forecasts: 6-hour TTL
+  - [ ] Recommendations: 24-hour TTL
+
+- [ ] Implementation
+  - [ ] Add caching decorators to service methods
+  - [ ] Cache invalidation on new data
+  - [ ] Monitor cache hit rate
+
+- [ ] Performance target
+  - [ ] Dashboard load time: <2s (from 3-4s)
+
+#### API Documentation (Swagger/OpenAPI)
+- [ ] Document all 36+ endpoints
+  - [ ] Request/response schemas
+  - [ ] Error codes + meanings
+  - [ ] Example requests
+  - [ ] Rate limits
+
+- [ ] Auto-generate docs from code
+  - [ ] Use FastAPI autodocs
+
+#### Unit Tests
+- [ ] Test all 3 ML services (>80% coverage)
+- [ ] Test all predictions (accuracy checks)
+- [ ] Test API endpoints (happy path + errors)
+- [ ] Test batch jobs (success + failure scenarios)
+
+#### Performance Optimization
+- [ ] Add database indexes on:
+  - [ ] ProjectMilestone.project_id
+  - [ ] QualityKPI.project_id
+  - [ ] TaskLog.milestone_id
+  - [ ] CustomerComplaint.project_id
+
+- [ ] Materialized views (optional)
+  - [ ] RiskScore aggregated by project
+  - [ ] Quality metrics by line
+
+**Deliverable:** Optimized, documented, tested system
+
+---
+
+### Phase 2B Sign-Off ✅
+- [ ] Sentiment Analysis working end-to-end ✓
+- [ ] WebSocket real-time alerts working ✓
+- [ ] Recommendations generated ✓
+- [ ] Defect clustering patterns discovered ✓
+- [ ] Redis caching operational ✓
+- [ ] API documentation complete ✓
+- [ ] >80% test coverage ✓
+- [ ] Dashboard load time <2s ✓
 - [ ] **READY TO START PHASE 3** ✓
 
 ---
