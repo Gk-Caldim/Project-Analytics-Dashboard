@@ -52,7 +52,7 @@ export const Customise = ({ onRequestDemo }) => {
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
         >
-          <motion.p variants={fadeSlide} className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#d97706] mb-3 font-mono">
+          <motion.p variants={fadeSlide} className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-600 mb-3 font-mono">
             CUSTOMISE
           </motion.p>
           <motion.h2 variants={fadeSlide} className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
@@ -66,7 +66,7 @@ export const Customise = ({ onRequestDemo }) => {
           <motion.div variants={staggerContainer} className="mt-8 space-y-6">
             {BULLETS.map((b) => (
               <motion.div key={b.title} variants={fadeSlide} className="flex gap-4">
-                <span className="h-2 w-2 rounded-full bg-[#F59E0B] mt-2 shrink-0" />
+                <span className="h-2 w-2 rounded-full bg-blue-600 mt-2 shrink-0" />
                 <div>
                   <p className="font-heading font-bold text-slate-900 text-[15.5px]">{b.title}</p>
                   <p className="text-[14px] text-slate-500 leading-relaxed font-sans">{b.desc}</p>
@@ -80,7 +80,7 @@ export const Customise = ({ onRequestDemo }) => {
             variants={fadeSlide}
             className="mt-9 rounded-xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm"
           >
-            <div className="flex items-center gap-2 text-[#d97706] font-bold text-[14.5px]">
+            <div className="flex items-center gap-2 text-blue-600 font-bold text-[14.5px]">
               <span>🚀</span> Now open for Early Access
             </div>
             <p className="mt-2 text-[14px] text-slate-600 leading-relaxed font-sans">
@@ -88,7 +88,7 @@ export const Customise = ({ onRequestDemo }) => {
             </p>
             <button
               onClick={() => onRequestDemo && onRequestDemo("Early Access Inquiry")}
-              className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#d97706] hover:text-[#92400e] transition-colors cursor-pointer"
+              className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
             >
               Apply for partner program <span className="text-base leading-none">→</span>
             </button>
@@ -125,22 +125,22 @@ export const Customise = ({ onRequestDemo }) => {
             
             <div className="rounded-xl border border-slate-150 p-3 bg-slate-50/50 flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono">Risk Level</p>
-              <span className="rounded-md bg-amber-50 border border-amber-200/30 px-2.5 py-0.5 text-[11px] font-bold text-[#d97706] uppercase tracking-wide">
+              <span className="rounded-md bg-blue-50 border border-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 uppercase tracking-wide">
                 Medium · Review
               </span>
             </div>
 
             {/* APQP phase-gate timeline */}
-            <div className="rounded-xl border border-slate-150 p-4 bg-white">
+            <div className="rounded-xl border border-slate-155 p-4 bg-white">
               <p className="text-[12px] font-bold text-slate-600 mb-4 font-heading">APQP Phase-Gates</p>
               <div className="relative flex justify-between">
                 <div className="absolute left-0 right-0 top-2.5 h-0.5 bg-slate-100" />
-                <div className="absolute left-0 top-2.5 h-0.5 bg-brand" style={{ width: "62%" }} />
+                <div className="absolute left-0 top-2.5 h-0.5 bg-blue-600" style={{ width: "62%" }} />
                 {GATES.map((g) => (
                   <div key={g.g} className="relative flex flex-col items-center gap-2 w-1/4">
                     <span className={cn(
                       "h-5 w-5 rounded-full grid place-items-center text-[9px] font-bold ring-4 ring-white",
-                      g.done ? "bg-brand text-white" : g.active ? "bg-[#F59E0B] text-white animate-pulse" : "bg-slate-200 text-slate-500"
+                      g.done ? "bg-blue-600 text-white" : g.active ? "bg-amber-500 text-white animate-pulse" : "bg-slate-200 text-slate-500"
                     )}>
                       {g.done ? "✓" : ""}
                     </span>
@@ -154,7 +154,7 @@ export const Customise = ({ onRequestDemo }) => {
             <button
               data-testid="customise-cta"
               onClick={() => onRequestDemo && onRequestDemo("Customise Inquiry")}
-              className="w-full rounded-xl bg-brand py-3 text-[14px] font-bold text-white hover:bg-brand-hover transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
+              className="w-full rounded-lg bg-blue-600 py-3 text-[14px] font-bold text-white hover:bg-blue-700 transition-all cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20"
             >
               Configure Program Workspace
             </button>

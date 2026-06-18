@@ -36,33 +36,47 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section className="py-20 bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+    <section className="py-24 bg-slate-50/50 border-t border-slate-100">
+      <div className="max-w-3xl mx-auto px-6 lg:px-8">
+        <h2 className="text-3xl md:text-4xl font-heading font-extrabold text-slate-900 text-center mb-16 tracking-tight">
           Project Management Software FAQs
         </h2>
 
-        <div className="space-y-2">
-          {faqs.map((faq, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-              <button
-                className="w-full flex items-center justify-between px-6 py-4 text-left cursor-pointer transition-colors hover:bg-gray-50/50"
-                onClick={() => setOpenIndex(openIndex === i ? null : i)}
+        <div className="space-y-3">
+          {faqs.map((faq, i) => {
+            const isOpen = openIndex === i;
+            return (
+              <div
+                key={i}
+                className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
+                  isOpen
+                    ? "border-slate-200/80 shadow-md shadow-slate-100"
+                    : "border-slate-100 hover:border-slate-200 shadow-sm"
+                }`}
               >
-                <span className="text-sm font-semibold text-gray-800 pr-4">{faq.q}</span>
-                <ChevronDown
-                  className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform duration-300 ${
-                    openIndex === i ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-              {openIndex === i && (
-                <div className="px-6 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3 animate-in fade-in duration-200">
-                  {faq.a}
-                </div>
-              )}
-            </div>
-          ))}
+                <button
+                  className="group w-full flex items-center justify-between px-6 py-4.5 text-left cursor-pointer transition-colors hover:bg-slate-50/40"
+                  onClick={() => setOpenIndex(isOpen ? null : i)}
+                >
+                  <span className={`text-[15px] font-bold transition-colors pr-4 ${
+                    isOpen ? "text-blue-600" : "text-slate-800 group-hover:text-blue-600"
+                  }`}>
+                    {faq.q}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-400 group-hover:text-blue-600 flex-shrink-0 transition-transform duration-350 ${
+                      isOpen ? "rotate-180 text-blue-600" : ""
+                    }`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-6 pb-5 text-[14px] text-slate-650 leading-relaxed border-t border-slate-50 pt-3.5 animate-in fade-in slide-in-from-top-2 duration-250">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

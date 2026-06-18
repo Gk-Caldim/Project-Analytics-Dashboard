@@ -132,9 +132,9 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             variants={fadeUp} initial="hidden" animate="show" custom={0}
-            className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-1.5 text-[13px] font-semibold text-brand mb-6"
+            className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/80 px-3.5 py-1.5 text-[13px] font-semibold text-blue-600 mb-6"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-brand animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
             Engineering analytics for automotive programs
           </motion.div>
 
@@ -153,7 +153,7 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -24 }}
                   transition={{ duration: 0.38, ease: "easeInOut" }}
-                  className="block text-brand"
+                  className="block text-blue-600"
                 >
                   {HERO_PHRASES[phraseIdx]}
                 </motion.span>
@@ -188,14 +188,14 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             <button
               data-testid="hero-access-btn"
               onClick={handleAccess}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-[15px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-[15px] font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 transition-all hover:-translate-y-0.5 cursor-pointer"
             >
               Access Workspace <ArrowRight className="h-4 w-4" />
             </button>
             <button
               data-testid="hero-demo-btn"
               onClick={() => onRequestDemo("Request Demo")}
-              className="inline-flex items-center justify-center px-6 py-3.5 text-[15px] font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg transition-all cursor-pointer"
+              className="inline-flex items-center justify-center px-6 py-3.5 text-[15px] font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-350 rounded-lg hover:bg-slate-50 transition-all cursor-pointer animate-in duration-200"
             >
               Request Demo
             </button>
