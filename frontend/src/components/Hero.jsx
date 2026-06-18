@@ -5,16 +5,16 @@ import AppShellMockup from "./AppShellMockup";
 
 /* ── Rotating headline phrases (Zoho pattern) ── */
 const HERO_PHRASES = [
-  "automotive programs",
-  "real-time oversight",
-  "every SOP gate",
-  "your team",
+  "engineering programs",
+  "product development",
+  "cross-functional teams",
+  "milestone tracking",
 ];
 
 const VALUE_PROPS = [
-  "Excel Design Release Sync",
-  "AI Voice MOM Capture",
-  "Budget Masters & Variance",
+  "Automated spreadsheet sync",
+  "AI-assisted meeting summaries",
+  "Real-time budget tracking",
 ];
 
 const fadeUp = {
@@ -121,28 +121,39 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
     <section
       id="top"
       data-testid="hero"
-      className="relative pt-32 pb-12 md:pt-36 md:pb-16 overflow-hidden"
+      className="relative pt-32 pb-24 md:pt-36 md:pb-28 overflow-hidden zoho-hero-bg zoho-font-sans"
     >
-      {/* Subtle background */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,#eff6ff_0%,#ffffff_60%)]" />
+      {/* Floating Gantt Bars */}
+      <div className="zoho-float-bar g0 left-[10%] top-[40%] hidden xl:flex">
+        <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[9px] font-bold grid place-items-center">✓</span>
+        <span>Concept Freeze</span>
+      </div>
+      <div className="zoho-float-bar g1 right-[12%] top-[35%] hidden xl:flex" style={{ animationDelay: '1s' }}>
+        <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[9px] font-bold grid place-items-center">⚡</span>
+        <span>Design Release</span>
+      </div>
+      <div className="zoho-float-bar g2 right-[15%] bottom-[45%] hidden xl:flex" style={{ animationDelay: '2s' }}>
+        <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center">!</span>
+        <span>Harness Routing</span>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-12">
+      <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
 
         {/* ── Centered headline block ── */}
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             variants={fadeUp} initial="hidden" animate="show" custom={0}
-            className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3.5 py-1.5 text-[13px] font-semibold text-brand mb-6"
+            className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/80 px-3.5 py-1.5 text-[13px] font-semibold text-blue-600 mb-6"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-brand animate-pulse" />
-            Engineering analytics for automotive programs
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
+            Project tracking and analytics for engineering programs
           </motion.div>
 
           <motion.h1
             variants={fadeUp} initial="hidden" animate="show" custom={1}
-            className="font-heading font-extrabold tracking-tight text-slate-900 text-4xl sm:text-5xl lg:text-[56px] leading-[1.08]"
+            className="zoho-h1 text-4xl sm:text-5xl lg:text-[56px] tracking-tight leading-[1.15] mb-6"
           >
-            Real-time governance{" "}
+            Project governance{" "}
             <br className="hidden sm:block" />
             built for{" "}
             <span className="inline-block overflow-hidden align-bottom">
@@ -153,7 +164,7 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -24 }}
                   transition={{ duration: 0.38, ease: "easeInOut" }}
-                  className="block text-brand"
+                  className="block zoho-text-blue"
                 >
                   {HERO_PHRASES[phraseIdx]}
                 </motion.span>
@@ -163,19 +174,19 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
 
           <motion.p
             variants={fadeUp} initial="hidden" animate="show" custom={2}
-            className="mt-5 text-lg text-slate-500 max-w-2xl mx-auto"
+            className="mt-6 zoho-body text-lg leading-relaxed max-w-2xl mx-auto font-normal"
           >
-            One cloud workspace to sync design releases, capture meeting minutes
-            with AI voice, and govern program budgets across every SOP gate.
+            A unified workspace that connects your spreadsheets, captures action items automatically,
+            and monitors project costs across every release gate.
           </motion.p>
 
           <motion.ul
             variants={fadeUp} initial="hidden" animate="show" custom={3}
-            className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2"
+            className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2"
           >
             {VALUE_PROPS.map((v) => (
-              <li key={v} className="flex items-center gap-2 text-[14px] font-semibold text-slate-600">
-                <CheckCircle2 className="h-4 w-4 text-brand-emerald shrink-0" />
+              <li key={v} className="flex items-center gap-2 zoho-body-sm text-[15px] font-semibold text-slate-700">
+                <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
                 {v}
               </li>
             ))}
@@ -188,17 +199,30 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             <button
               data-testid="hero-access-btn"
               onClick={handleAccess}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-[15px] font-semibold text-white bg-brand hover:bg-brand-hover rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 cursor-pointer"
+              className="zoho-btn-red inline-flex items-center gap-2 cursor-pointer shadow-md"
             >
-              Access Workspace <ArrowRight className="h-4 w-4" />
+              SIGN UP NOW <ArrowRight className="h-4 w-4" />
             </button>
             <button
               data-testid="hero-demo-btn"
               onClick={() => onRequestDemo("Request Demo")}
-              className="inline-flex items-center justify-center px-6 py-3.5 text-[15px] font-semibold text-slate-700 bg-white border border-slate-200 hover:border-slate-300 rounded-lg transition-all cursor-pointer"
+              className="zoho-btn-outline inline-flex items-center cursor-pointer"
             >
-              Request Demo
+              REQUEST DEMO
             </button>
+          </motion.div>
+
+          {/* Wreath Quote Card (Forbes citation matching Zoho Projects) */}
+          <motion.div
+            variants={fadeUp} initial="hidden" animate="show" custom={5}
+            className="zoho-quote-card"
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="font-heading font-extrabold text-[17px] text-[#0F172A] tracking-widest uppercase mb-2">Forbes</div>
+              <p className="zoho-body text-[14.5px] italic text-slate-650 leading-relaxed font-sans max-w-xl">
+                "CALDIM provides a highly structured and accessible platform for engineering project tracking and governance."
+              </p>
+            </div>
           </motion.div>
         </div>
 

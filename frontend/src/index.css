@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap');
 
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
@@ -12,6 +12,10 @@
   --color-slate-550: #55657e;
   --color-slate-750: #293548;
   --color-slate-850: #172237;
+
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-heading: 'Outfit', 'DM Sans', 'Inter', sans-serif;
+  --font-mono: 'DM Mono', monospace;
 }
 
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
-import PublicNavbar from '../components/PublicNavbar';
+import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
 import './PricingPage.css';
 
@@ -94,7 +95,11 @@ const PricingPage = () => {
   return (
     <div className="pricing-root">
       
-      <PublicNavbar />
+      <Navbar
+        onSignIn={() => navigate('/login')}
+        onRequestDemo={() => openModal('demo')}
+        onAccessProjects={() => navigate('/login')}
+      />
 
       <LeadModal 
         isOpen={isModalOpen} 
@@ -105,7 +110,7 @@ const PricingPage = () => {
 
       {/* ── HERO SECTION ── */}
       <section className="pricing-hero">
-        <div className="pricing-hero-inner" style={{ paddingTop: '120px' }}>
+        <div className="pricing-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="pricing-badge-wrapper text-center">
             <span className="pricing-badge">Simple, transparent pricing</span>
           </div>
@@ -149,14 +154,14 @@ const PricingPage = () => {
                 <p className="plan-desc">For growing teams getting serious about operations</p>
               </div>
               <div className="card-features">
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Up to 25 users</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Analytics module (read-only)</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Minutes & Meetings (50/mo)</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Email support</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> 5GB data storage</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Standard integrations</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Up to 25 users</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Analytics module (read-only)</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Minutes & Meetings (50/mo)</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Email support</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> 5GB data storage</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Standard integrations</div>
               </div>
-              <button className="card-btn ghost" onClick={() => handleCheckout('starter')}>Start Free Trial</button>
+              <button className="card-btn ghost animate-all" onClick={() => handleCheckout('starter')}>Start Free Trial</button>
             </div>
 
             {/* CARD 2 — BUSINESS */}
@@ -177,16 +182,16 @@ const PricingPage = () => {
                 <p className="plan-desc">For organizations running serious portfolio operations</p>
               </div>
               <div className="card-features">
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Up to 200 users</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Full Analytics with drill-down</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Unlimited meetings + auto tracking</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Budget Intelligence module</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Priority email + chat support</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> 50GB data storage</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Advanced integrations + API</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Role-based access control</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Up to 200 users</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Full Analytics with drill-down</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Unlimited meetings + auto tracking</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Budget Intelligence module</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Priority email + chat support</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> 50GB data storage</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Advanced integrations + API</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Role-based access control</div>
               </div>
-              <button className="card-btn primary" onClick={() => handleCheckout('business')}>Get Started</button>
+              <button className="card-btn primary animate-all" onClick={() => handleCheckout('business')}>Get Started</button>
             </div>
 
             {/* CARD 3 — ENTERPRISE */}
@@ -199,16 +204,16 @@ const PricingPage = () => {
                 <p className="plan-desc">For conglomerates, listed companies, and regulated industries</p>
               </div>
               <div className="card-features">
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Unlimited users</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> All 4 modules fully unlocked</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Dedicated customer success manager</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> SSO + Active Directory sync</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> SOC 2 & ISO 27001 reporting</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> Custom data retention policies</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> 99.9% uptime guarantee</div>
-                <div className="feat-item"><Check size={16} className="text-brand-red" /> On-premise deployment</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Unlimited users</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> All 4 modules fully unlocked</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Dedicated customer success manager</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> SSO + Active Directory sync</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> SOC 2 & ISO 27001 reporting</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Custom data retention policies</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> 99.9% uptime guarantee</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> On-premise deployment</div>
               </div>
-              <button className="card-btn ghost" onClick={() => openModal('enterprise')}>Talk to Enterprise Sales</button>
+              <button className="card-btn ghost animate-all" onClick={() => openModal('enterprise')}>Talk to Enterprise Sales</button>
               <p className="onboarding-text">Typical onboarding in under 2 weeks</p>
             </div>
 
@@ -217,7 +222,7 @@ const PricingPage = () => {
       </section>
 
       {/* ── COMPARISON TABLE ── */}
-      <section className="comparison-section">
+      <section className="comparison-section border-t border-slate-100 bg-white">
         <div className="comparison-inner">
           <h2 className="comparison-title text-center">Compare plans in detail</h2>
           
@@ -260,7 +265,7 @@ const PricingPage = () => {
       </section>
 
       {/* ── FAQ SECTION ── */}
-      <section className="faq-section">
+      <section className="faq-section border-t border-slate-100 bg-slate-50/50">
         <div className="faq-inner">
           <h2 className="faq-title text-center">Common questions</h2>
           <div className="faq-list">
@@ -278,30 +283,18 @@ const PricingPage = () => {
       </section>
 
       {/* ── BOTTOM CTA ── */}
-      <section className="bottom-cta-section">
+      <section className="bottom-cta-section border-t border-slate-100 bg-white">
         <div className="bottom-cta-box">
           <h2 className="bottom-cta-title">Not sure which plan fits? Let's figure it out together.</h2>
-          <p className="bottom-cta-desc">Our enterprise team has helped 200+ companies choose the right tier.</p>
+          <p className="bottom-cta-desc font-normal">Our enterprise team has helped 200+ companies choose the right tier.</p>
           <div className="bottom-cta-actions">
-            <button className="cta-btn-white" onClick={() => navigate('/login')}>Start Free Trial</button>
-            <button className="cta-btn-ghost" onClick={() => openModal('sales')}>Talk to Sales</button>
+            <button className="cta-btn-white" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>Start Free Trial</button>
+            <button className="cta-btn-ghost font-semibold border-white text-white hover:bg-white hover:text-blue-600 transition-all" onClick={() => openModal('sales')} style={{ cursor: 'pointer' }}>Talk to Sales</button>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="zoho-footer">
-        <div className="zoho-footer-inner">
-          <div className="zoho-logo-area">
-            <div className="zoho-logo-box"></div>
-            <span className="zoho-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="zoho-footer-links">
-            <span className="zoho-footer-text">© {new Date().getFullYear()} Corporation All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
-
+      <Footer onRequestDemo={(mode) => openModal(mode || 'sales')} />
     </div>
   );
 };

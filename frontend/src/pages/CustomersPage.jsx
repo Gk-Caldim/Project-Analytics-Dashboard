@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Building2, Landmark, Factory, Truck, Layers, Quote } from 'lucide-react';
-import PublicNavbar from '../components/PublicNavbar';
+import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
 import './modules/ModulePages.css';
 
@@ -23,38 +24,43 @@ const CustomersPage = () => {
       sector: 'Manufacturing',
       stat: '22%',
       desc: 'Reduction in operational variance across 14 global plants.',
-      color: '#C8341A'
+      color: '#2563EB'
     },
     {
       company: 'Heritage Bank',
       sector: 'Finance',
       stat: '4,500',
       desc: 'Meetings automated and audited monthly for compliance.',
-      color: '#0D1B2A'
+      color: '#0F172A'
     },
     {
       company: 'SkyRoute Logistics',
       sector: 'Supply Chain',
       stat: '₹14Cr',
       desc: 'Budget leakage identified and recovered in Q1 2026.',
-      color: '#059669'
+      color: '#10B981'
     }
   ];
 
   return (
     <div className="module-page-root">
 
-      <PublicNavbar />
+      <Navbar
+        onSignIn={() => navigate('/login')}
+        onRequestDemo={() => openModal('demo')}
+        onAccessProjects={() => navigate('/login')}
+      />
 
       <LeadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         initialUseCase={modalUseCase}
+        mode={modalMode}
       />
 
       {/* ── HERO ── */}
-      <section className="mod-hero" style={{ paddingBottom: '40px', paddingTop: '120px' }}>
-        <div className="mod-hero-inner">
+      <section className="mod-hero" style={{ paddingBottom: '40px' }}>
+        <div className="mod-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="mod-hero-content">
             <div className="mod-breadcrumb"><span>Global</span> Reach</div>
             <h1 className="mod-hero-title">Powers the world's most critical teams.</h1>
@@ -139,20 +145,11 @@ const CustomersPage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner" style={{ padding: '80px 0' }}>
           <h2 className="mod-bottom-title">Join the enterprise elite.</h2>
-          <button className="mod-btn-white" onClick={() => openModal('sales')}>Request a Case Study</button>
+          <button className="mod-btn-white" onClick={() => openModal('sales')} style={{ cursor: 'pointer' }}>Request a Case Study</button>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="mod-footer">
-        <div className="mod-footer-inner">
-          <div className="mod-logo-area">
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <span className="mod-footer-text">© 2026 Corporation. All rights reserved.</span>
-        </div>
-      </footer>
+      <Footer onRequestDemo={(mode) => openModal(mode || 'sales')} />
     </div>
   );
 };

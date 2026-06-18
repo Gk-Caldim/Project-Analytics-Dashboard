@@ -1,34 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Navbar } from '../../components/Navbar';
+import { Footer } from '../../components/Footer';
+import { LeadModal } from '../../components/LeadModal';
 import './ModulePages.css';
 
 const GovernancePage = () => {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('sales');
+
+  const openModal = (mode = 'sales') => {
+    setModalMode(mode);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="module-page-root">
       
-      {/* ── NAVBAR ── */}
-      <nav className="mod-nav">
-        <div className="mod-nav-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-nav-right">
-            <a href="#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Products</a>
-            <a href="#customers" className="mod-nav-link">Customers</a>
-            <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise_v1.html" className="mod-nav-link">Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar
+        onSignIn={() => navigate('/login')}
+        onRequestDemo={() => openModal('demo')}
+        onAccessProjects={() => navigate('/login')}
+      />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase="Team governance"
+        mode={modalMode}
+      />
 
       {/* ── HERO ── */}
       <section className="mod-hero">
-        <div className="mod-hero-inner">
+        <div className="mod-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="mod-hero-content">
             <div className="mod-breadcrumb">Platform <span>→</span> Team Governance</div>
             <h1 className="mod-hero-title">Control who sees what. Know who did what.</h1>
@@ -36,8 +41,8 @@ const GovernancePage = () => {
               Role-based access, complete audit trails, and compliance-ready logging for enterprise governance requirements.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => navigate('/login')}>Start Free Trial</button>
-              <button className="mod-btn-ghost" onClick={() => navigate('/login')}>Watch Demo</button>
+              <button className="mod-btn-primary" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>Start Free Trial</button>
+              <button className="mod-btn-ghost" onClick={() => openModal('demo')} style={{ cursor: 'pointer' }}>Watch Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -55,10 +60,10 @@ const GovernancePage = () => {
                 </div>
                 <div className="mock-gv-table">
                   <div className="mock-gv-tr">
-                    <div className="mock-gv-th">Name</div>
-                    <div className="mock-gv-th">Department</div>
-                    <div className="mock-gv-th">Access</div>
-                    <div className="mock-gv-th" style={{textAlign:'right'}}>Status</div>
+                     <div className="mock-gv-th">Name</div>
+                     <div className="mock-gv-th">Department</div>
+                     <div className="mock-gv-th">Access</div>
+                     <div className="mock-gv-th" style={{textAlign:'right'}}>Status</div>
                   </div>
                   <div className="mock-gv-tr">
                     <div className="mock-gv-td" style={{fontWeight:600}}>Raj Patel</div>
@@ -135,7 +140,6 @@ const GovernancePage = () => {
           <h2 className="mod-test-quote">"Our security audit passed with zero findings for the first time."</h2>
           <div className="mod-test-author">Anand Kumar</div>
           <div className="mod-test-role">CISO, Airbus India</div>
-          <img className="mod-test-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Airbus_Logo.svg/300px-Airbus_Logo.svg.png" alt="Airbus Placeholder" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       </section>
 
@@ -143,22 +147,11 @@ const GovernancePage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner">
           <h2 className="mod-bottom-title">Ready to activate Team Governance?</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/login')}>Get Started</button>
+          <button className="mod-btn-white" onClick={() => openModal('demo')} style={{ cursor: 'pointer' }}>Get Started</button>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="mod-footer">
-        <div className="mod-footer-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-footer-links">
-            <span className="mod-footer-text">© {new Date().getFullYear()} Corporation All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
+      <Footer onRequestDemo={(mode) => openModal(mode || 'sales')} />
     </div>
   );
 };

@@ -1,34 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Navbar } from '../../components/Navbar';
+import { Footer } from '../../components/Footer';
+import { LeadModal } from '../../components/LeadModal';
 import './ModulePages.css';
 
 const MeetingsPage = () => {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState('sales');
+
+  const openModal = (mode = 'sales') => {
+    setModalMode(mode);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="module-page-root">
       
-      {/* ── NAVBAR ── */}
-      <nav className="mod-nav">
-        <div className="mod-nav-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-nav-right">
-            <a href="#products" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/'); }}>Products</a>
-            <a href="#customers" className="mod-nav-link">Customers</a>
-            <a href="/pricing" className="mod-nav-link" onClick={(e) => { e.preventDefault(); navigate('/pricing'); }}>Pricing</a>
-            <a href="/enterprise_v1.html" className="mod-nav-link">Enterprise</a>
-            <button className="mod-nav-login" onClick={() => navigate('/login')}>Sign In</button>
-            <button className="mod-btn-primary" onClick={() => navigate('/login')}>Access Workspace</button>
-          </div>
-        </div>
-      </nav>
+      <Navbar
+        onSignIn={() => navigate('/login')}
+        onRequestDemo={() => openModal('demo')}
+        onAccessProjects={() => navigate('/login')}
+      />
+
+      <LeadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        initialUseCase="Meeting workflow"
+        mode={modalMode}
+      />
 
       {/* ── HERO ── */}
       <section className="mod-hero">
-        <div className="mod-hero-inner">
+        <div className="mod-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="mod-hero-content">
             <div className="mod-breadcrumb">Platform <span>→</span> Minutes & Meetings</div>
             <h1 className="mod-hero-title">Every meeting. Captured, actioned, closed.</h1>
@@ -36,8 +41,8 @@ const MeetingsPage = () => {
               Auto-transcription, smart action item extraction, and follow-up tracking so nothing falls through.
             </p>
             <div className="mod-hero-actions">
-              <button className="mod-btn-primary" onClick={() => navigate('/login')}>Start Free Trial</button>
-              <button className="mod-btn-ghost" onClick={() => navigate('/login')}>Watch Demo</button>
+              <button className="mod-btn-primary" onClick={() => navigate('/login')} style={{ cursor: 'pointer' }}>Start Free Trial</button>
+              <button className="mod-btn-ghost" onClick={() => openModal('demo')} style={{ cursor: 'pointer' }}>Watch Demo</button>
             </div>
           </div>
           <div className="mod-hero-visual">
@@ -143,7 +148,6 @@ const MeetingsPage = () => {
           <h2 className="mod-test-quote">"Our follow-through rate went from 60% to 94% in one quarter."</h2>
           <div className="mod-test-author">Priya Nair</div>
           <div className="mod-test-role">COO, Tata Advanced Systems</div>
-          <img className="mod-test-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tata_logo.svg/300px-Tata_logo.svg.png" alt="Tata Placeholder" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       </section>
 
@@ -151,22 +155,11 @@ const MeetingsPage = () => {
       <section className="mod-bottom-cta">
         <div className="mod-bottom-inner">
           <h2 className="mod-bottom-title">Ready to activate Minutes & Meetings?</h2>
-          <button className="mod-btn-white" onClick={() => navigate('/login')}>Get Started</button>
+          <button className="mod-btn-white" onClick={() => openModal('demo')} style={{ cursor: 'pointer' }}>Get Started</button>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="mod-footer">
-        <div className="mod-footer-inner">
-          <div className="mod-logo-area" onClick={() => navigate('/')}>
-            <div className="mod-logo-box"></div>
-            <span className="mod-logo-text">Industrial Analytics Workspace</span>
-          </div>
-          <div className="mod-footer-links">
-            <span className="mod-footer-text">© {new Date().getFullYear()} Corporation All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
+      <Footer onRequestDemo={(mode) => openModal(mode || 'sales')} />
     </div>
   );
 };

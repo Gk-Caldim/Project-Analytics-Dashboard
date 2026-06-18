@@ -24,6 +24,7 @@ const SystemSettings = React.lazy(() => import('./pages/Settings/SystemSettings'
 const BudgetSummaryView = React.lazy(() => import('./pages/Budget/BudgetSummaryView'));
 const ProjectDetail = React.lazy(() => import('./pages/ProjectDetail'));
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
+const InfoPage = React.lazy(() => import('./pages/InfoPage'));
 
 const AnalyticsPage = React.lazy(() => import('./pages/modules/AnalyticsPage'));
 const MeetingsPage = React.lazy(() => import('./pages/modules/MeetingsPage'));
@@ -375,7 +376,12 @@ function AppContent() {
   const isPublicRoute = location.pathname === '/' || 
                         location.pathname === '/pricing' || 
                         location.pathname === '/enterprise' || 
-                        location.pathname === '/customers';
+                        location.pathname === '/customers' ||
+                        location.pathname === '/analytics' ||
+                        location.pathname === '/meetings' ||
+                        location.pathname === '/budget' ||
+                        location.pathname === '/governance' ||
+                        location.pathname.startsWith('/info/');
   const showOfflineScreen = isServerOnline === false && !isPublicRoute;
 
   if (showOfflineScreen) {
@@ -474,6 +480,7 @@ function AppContent() {
           <Route path="/budget" element={<BudgetPage />} />
           <Route path="/governance" element={<GovernancePage />} />
 
+          <Route path="/info/:slug" element={<InfoPage />} />
           <Route path="/" element={<LandingPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
