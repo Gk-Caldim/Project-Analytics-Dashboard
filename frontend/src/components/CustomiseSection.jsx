@@ -1,175 +1,169 @@
-import { useState } from "react";
-import { ArrowRight, Settings2, Tag } from "lucide-react";
+import { motion } from "framer-motion";
+import { Sliders, GitBranch, ShieldCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const customizeOptions = [
-  { label: "Customize projects", active: true },
-  { label: "Automate workflows", active: false },
+const BULLETS = [
+  { title: "Map APQP / SOP phase-gates", desc: "Model every gate from kickoff to job-one with custom fields." },
+  { title: "Configurable program fields", desc: "Add platform, risk and date attributes without code." },
+  { title: "Governance guardrails",     desc: "Lock approvals so gates can't be skipped under pressure." },
 ];
 
-function CustomFieldsMockup() {
-  const fields = [
-    { name: "Vehicle Platform", type: "Text", value: "Atlas EV-3" },
-    { name: "Program Phase", type: "Dropdown", value: "Engineering Validation" },
-    { name: "Target SOP Date", type: "Date", value: "2025-Q4" },
-    { name: "Budget (USD)", type: "Currency", value: "$4.2M" },
-    { name: "Risk Level", type: "Status", value: "Medium" },
-    { name: "Lead Engineer", type: "User", value: "T. Ramirez" },
-  ];
+const GATES = [
+  { l: "Concept Freeze",  g: "G0", done: true },
+  { l: "Design Release",  g: "G1", done: true },
+  { l: "Proto Build",     g: "G2", active: true },
+  { l: "SOP Gate",        g: "G3" },
+];
 
-  const typeColors = {
-    Text: "bg-gray-100 text-gray-600",
-    Dropdown: "bg-purple-100 text-purple-600",
-    Date: "bg-blue-100 text-blue-600",
-    Currency: "bg-green-100 text-green-600",
-    Status: "bg-orange-100 text-orange-600",
-    User: "bg-pink-100 text-pink-600",
-  };
+const staggerContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
+};
 
+const fadeSlide = {
+  hidden: { opacity: 0, y: 24 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
+export const Customise = ({ onRequestDemo }) => {
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden hover:shadow-2xl transition-shadow duration-500">
-      <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex items-center justify-between">
-        <div className="text-sm font-semibold text-gray-700">Program Custom Fields</div>
-        <button className="flex items-center gap-1.5 text-xs text-blue-600 font-medium cursor-pointer">
-          <Settings2 className="w-3.5 h-3.5" />
-          Edit Fields
-        </button>
-      </div>
-      <div className="p-5 space-y-3">
-        {fields.map((field) => (
-          <div key={field.name} className="flex items-center gap-4">
-            <div className="w-36 text-xs text-gray-500 flex-shrink-0">{field.name}</div>
-            <div
-              className={`text-[10px] px-2 py-0.5 rounded ${typeColors[field.type] || "bg-gray-100 text-gray-500"} flex-shrink-0`}
-            >
-              {field.type}
-            </div>
-            <div className="flex-1 text-xs text-gray-800 font-medium">{field.value}</div>
-          </div>
-        ))}
-        <div className="pt-2 border-t border-dashed border-gray-200">
-          <button className="flex items-center gap-1.5 text-xs text-blue-500 cursor-pointer">
-            <span className="text-lg leading-none">+</span> Add custom field
-          </button>
-        </div>
-      </div>
+    <section
+      id="customise"
+      data-testid="customise"
+      className="relative py-24 md:py-32 overflow-hidden bg-white border-t border-slate-100"
+    >
+      {/* Subtle dot grid overlay in amber/navy tones */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: "radial-gradient(circle, #F59E0B 1px, transparent 1px)",
+          backgroundSize: "28px 28px"
+        }}
+      />
+      {/* Soft amber glow top-right */}
+      <div className="absolute -top-24 right-0 h-[460px] w-[460px] rounded-full bg-[#F59E0B]/3 blur-[120px] pointer-events-none" />
 
-      {/* Status builder */}
-      <div className="border-t border-gray-100 p-5">
-        <div className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-1.5">
-          <Tag className="w-3.5 h-3.5" /> Custom Statuses
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { label: "Concept", color: "bg-gray-200 text-gray-700" },
-            { label: "Engineering", color: "bg-blue-100 text-blue-700" },
-            { label: "Prototype", color: "bg-purple-100 text-purple-700" },
-            { label: "Validation", color: "bg-orange-100 text-orange-700" },
-            { label: "SOP Ready", color: "bg-green-100 text-green-700" },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className={`text-[11px] px-3 py-1 rounded-full font-medium ${s.color}`}
-            >
-              {s.label}
-            </div>
-          ))}
-          <div className="text-[11px] px-3 py-1 rounded-full border border-dashed border-gray-300 text-gray-400 cursor-pointer">
-            + Add status
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+      <div className="relative max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 items-center">
 
-export function CustomizeSection({ onRequestDemo }) {
-  const [activeOption, setActiveOption] = useState(0);
+        {/* Left Column */}
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+        >
+          <motion.p variants={fadeSlide} className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#d97706] mb-3 font-mono">
+            CUSTOMISE
+          </motion.p>
+          <motion.h2 variants={fadeSlide} className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
+            Shape CALDIM around your program governance
+          </motion.h2>
+          <motion.p variants={fadeSlide} className="mt-5 text-[15px] text-slate-600 leading-relaxed max-w-lg font-sans">
+            Map automotive phase-gates, add the fields your PMO actually tracks,
+            and enforce the approval flow your quality system demands.
+          </motion.p>
 
-  const handleLearnMore = (e) => {
-    e.preventDefault();
-    if (onRequestDemo) {
-      onRequestDemo("sales", "Project Customization Inquiry");
-    }
-  };
-
-  return (
-    <section className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Tab toggle */}
-        <div className="flex justify-center mb-12 animate-in fade-in duration-300">
-          <div className="inline-flex bg-gray-100 rounded-lg p-1">
-            {customizeOptions.map((opt, i) => (
-              <button
-                key={opt.label}
-                onClick={() => setActiveOption(i)}
-                className={`px-5 py-2.5 rounded-md text-sm font-medium transition-all cursor-pointer ${
-                  activeOption === i
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {opt.label}
-              </button>
+          <motion.div variants={staggerContainer} className="mt-8 space-y-6">
+            {BULLETS.map((b) => (
+              <motion.div key={b.title} variants={fadeSlide} className="flex gap-4">
+                <span className="h-2 w-2 rounded-full bg-[#F59E0B] mt-2 shrink-0" />
+                <div>
+                  <p className="font-heading font-bold text-slate-900 text-[15.5px]">{b.title}</p>
+                  <p className="text-[14px] text-slate-500 leading-relaxed font-sans">{b.desc}</p>
+                </div>
+              </motion.div>
             ))}
-          </div>
-        </div>
+          </motion.div>
 
-        <div className="flex flex-col lg:flex-row gap-16 items-center">
-          {/* Left — text */}
-          <div className="flex-1 max-w-md animate-in fade-in duration-300">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Customize your
-              <br />
-              experience
-            </h2>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              Build your projects from end-to-end to capture unique automotive requirements.
-              Create custom fields, statuses, and workflows to manage and track industry-specific
-              milestones, budget gates, and phase reviews — all tailored to how your engineering
-              teams actually work.
+          {/* Testimonial / Early Access CTA card */}
+          <motion.div
+            variants={fadeSlide}
+            className="mt-9 rounded-xl border border-slate-200 bg-slate-50/50 p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2 text-[#d97706] font-bold text-[14.5px]">
+              <span>🚀</span> Now open for Early Access
+            </div>
+            <p className="mt-2 text-[14px] text-slate-600 leading-relaxed font-sans">
+              We are offering priority launch seats for Tier-1 automotive and manufacturing PMO teams.
             </p>
-            <a
-              href="#"
-              onClick={handleLearnMore}
-              className="flex items-center gap-1.5 text-blue-600 text-sm font-medium hover:gap-2.5 transition-all mb-8"
+            <button
+              onClick={() => onRequestDemo && onRequestDemo("Early Access Inquiry")}
+              className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#d97706] hover:text-[#92400e] transition-colors cursor-pointer"
             >
-              Learn more about project customization <ArrowRight className="w-4 h-4" />
-            </a>
+              Apply for partner program <span className="text-base leading-none">→</span>
+            </button>
+          </motion.div>
+        </motion.div>
 
-            {/* Feature bullets */}
-            <div className="space-y-3">
+        {/* Right Column: Custom Field Mockup Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.65, ease: "easeOut" }}
+          className="rounded-2xl bg-white shadow-2xl shadow-slate-200/50 border border-slate-200/80 overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50">
+            <span className="text-[13px] font-bold text-slate-700">Program: Atlas VX</span>
+            <span className="rounded-md bg-slate-100 border border-slate-200/60 px-2.5 py-0.5 text-[11px] font-bold text-slate-800 tracking-wide font-mono">
+              CUSTOM FIELDS
+            </span>
+          </div>
+
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               {[
-                "Custom fields for every automotive program attribute",
-                "Phase-gate status workflows built for OEM processes",
-                "Role-based views for engineering, finance, and management",
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <div className="w-2 h-2 rounded-full bg-blue-600" />
-                  </div>
-                  <div className="text-sm text-gray-600">{item}</div>
+                ["Vehicle Platform", "VX-EV / Skateboard"],
+                ["SOP Date",         "14 Mar 2027"],
+              ].map(([l, v]) => (
+                <div key={l} className="rounded-xl border border-slate-150 p-3 bg-slate-50/50">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono">{l}</p>
+                  <p className="mt-1 text-[13px] font-bold text-slate-800 font-mono">{v}</p>
                 </div>
               ))}
             </div>
+            
+            <div className="rounded-xl border border-slate-150 p-3 bg-slate-50/50 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-450 font-mono">Risk Level</p>
+              <span className="rounded-md bg-amber-50 border border-amber-200/30 px-2.5 py-0.5 text-[11px] font-bold text-[#d97706] uppercase tracking-wide">
+                Medium · Review
+              </span>
+            </div>
 
-            {/* Quote */}
-            <div className="mt-8 p-5 bg-gray-50 rounded-xl border-l-4 border-blue-600">
-              <p className="text-sm text-gray-600 italic leading-relaxed">
-                "We mapped our entire APQP phase-gate process directly into CALDIM. The flexibility
-                to add custom fields for PPAP tracking was exactly what we needed."
-              </p>
-              <div className="mt-3 text-xs text-gray-500">
-                — Quality Engineering Lead, Early Access Partner
+            {/* APQP phase-gate timeline */}
+            <div className="rounded-xl border border-slate-150 p-4 bg-white">
+              <p className="text-[12px] font-bold text-slate-600 mb-4 font-heading">APQP Phase-Gates</p>
+              <div className="relative flex justify-between">
+                <div className="absolute left-0 right-0 top-2.5 h-0.5 bg-slate-100" />
+                <div className="absolute left-0 top-2.5 h-0.5 bg-brand" style={{ width: "62%" }} />
+                {GATES.map((g) => (
+                  <div key={g.g} className="relative flex flex-col items-center gap-2 w-1/4">
+                    <span className={cn(
+                      "h-5 w-5 rounded-full grid place-items-center text-[9px] font-bold ring-4 ring-white",
+                      g.done ? "bg-brand text-white" : g.active ? "bg-[#F59E0B] text-white animate-pulse" : "bg-slate-200 text-slate-500"
+                    )}>
+                      {g.done ? "✓" : ""}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 font-mono">{g.g}</span>
+                    <span className="text-[9.5px] text-slate-400 text-center leading-tight font-medium">{g.l}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Right — mockup */}
-          <div className="flex-1 w-full animate-in fade-in duration-500">
-            <CustomFieldsMockup />
+            <button
+              data-testid="customise-cta"
+              onClick={() => onRequestDemo && onRequestDemo("Customise Inquiry")}
+              className="w-full rounded-xl bg-brand py-3 text-[14px] font-bold text-white hover:bg-brand-hover transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
+            >
+              Configure Program Workspace
+            </button>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
-}
+};
+
+export const CustomizeSection = Customise;
+export default Customise;

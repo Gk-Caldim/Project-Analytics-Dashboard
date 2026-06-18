@@ -1,290 +1,464 @@
-import { useState } from "react";
-import { ArrowRight, FileSpreadsheet, Mic, DollarSign, Calendar } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FileSpreadsheet, Mic, Wallet, CalendarDays, CheckCircle2, ArrowRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import AppShellMockup from "./AppShellMockup";
 
-function ExcelMockup() {
-  const releases = [
-    { code: "CR-102", name: "Chassis Mount Design v3", status: "Synced", engineer: "Pradeep K.", date: "17-Jun" },
-    { code: "TR-890", name: "Powertrain Thermal Spec", status: "Review", engineer: "Anoop M.", date: "16-Jun" },
-    { code: "EL-542", name: "Battery Pack Cable Layout", status: "Synced", engineer: "Srinivas R.", date: "15-Jun" },
-    { code: "BD-098", name: "Door Panel Gap Specs", status: "Draft", engineer: "Pradeep K.", date: "15-Jun" },
-  ];
+const TABS = [
+  { id: "excel",    label: "Excel Sync",       icon: FileSpreadsheet },
+  { id: "mom",      label: "MOM Capture",       icon: Mic },
+  { id: "budget",   label: "Budget Governance", icon: Wallet },
+  { id: "calendar", label: "Team Calendar",     icon: CalendarDays },
+];
 
+const COPY = {
+  excel: {
+    title: "Excel design release sync, finally automated",
+    desc: "Connect engineering spreadsheets and CALDIM mirrors every release code in real time — no more version drift between teams.",
+    points: ["Two-way cell-level sync", "Status pills per release code", "Engineer ownership mapping"],
+  },
+  mom: {
+    title: "AI voice capture for every program review",
+    desc: "Record meetings and CALDIM transcribes, sorts by speaker, and auto-assigns action tasks the moment the call ends.",
+    points: ["Speaker-sorted transcripts", "Auto-extracted action items", "Searchable meeting archive"],
+  },
+  budget: {
+    title: "Govern budgets against strategic targets",
+    desc: "Map spend to master budgets and instantly see positive or negative variance on every program line.",
+    points: ["Budget masters per platform", "Live variance indicators", "Drill-down spend trails"],
+  },
+  calendar: {
+    title: "Plan SOP gates on a living calendar",
+    desc: "Week and month views with colored event blocks, time-slot scheduling, and drag-and-drop rescheduling — built for program teams.",
+    points: ["Week / Month / Day views", "Color-coded event categories", "Drag-and-drop rescheduling"],
+  },
+};
+
+/* ════════════════════════════════════════════════════════════════════
+   Mockup Components — Faithful replicas of actual CALDIM UI modules.
+   Same column names, same status chips, same color palette.
+   ════════════════════════════════════════════════════════════════════ */
+
+const StatusPill = ({ s }) => {
+  const map = {
+    Synced: "bg-emerald-50 text-brand-emerald",
+    Review: "bg-amber-50 text-brand-amber",
+    Drift:  "bg-red-50 text-red-500",
+  };
   return (
-    <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300">
-      <div className="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="text-xs font-bold text-gray-700">Design_Release_Expanded.xlsx</div>
-        <div className="flex gap-2">
-          <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded font-semibold">Active Filter</span>
-        </div>
+    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold", map[s])}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" /> {s}
+    </span>
+  );
+};
+
+/* ── Excel Design Release Table (mirrors ExcelTableViewer) ── */
+const ExcelMockup = () => {
+  const rows = [
+    ["DR-1042", "Front Subframe",   "Synced", "A. Mehta"],
+    ["DR-1043", "Battery Tray",     "Review", "L. Ortega"],
+    ["DR-1044", "Cooling Duct",     "Synced", "S. Iyer"],
+    ["DR-1045", "Wiring Harness",   "Drift",  "R. Voss"],
+    ["DR-1046", "Door Module",      "Synced", "K. Adeyemi"],
+  ];
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+      <div className="grid grid-cols-[90px_1fr_90px_90px] bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
+        {["Code", "Release Item", "Status", "Owner"].map((h) => (
+          <div key={h} className="px-3 py-2.5 border-r border-slate-200 last:border-0">{h}</div>
+        ))}
       </div>
-      <div className="p-4">
-        <table className="w-full text-left text-[11px]">
-          <thead>
-            <tr className="text-gray-400 border-b border-gray-100">
-              <th className="pb-2 font-medium">Code</th>
-              <th className="pb-2 font-medium">Sheet Row Item</th>
-              <th className="pb-2 font-medium">Status</th>
-              <th className="pb-2 font-medium">Engineer</th>
-              <th className="pb-2 font-medium text-right">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {releases.map((row) => (
-              <tr key={row.code} className="border-b border-gray-50 hover:bg-gray-50/50">
-                <td className="py-2.5 font-mono text-gray-500">{row.code}</td>
-                <td className="py-2.5 font-medium text-gray-800 truncate max-w-[140px]">{row.name}</td>
-                <td className="py-2.5">
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-semibold ${row.status === "Synced" ? "bg-emerald-50 text-emerald-600" : row.status === "Review" ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-600"}`}>
-                    {row.status}
-                  </span>
-                </td>
-                <td className="py-2.5 text-gray-600">{row.engineer}</td>
-                <td className="py-2.5 text-gray-400 text-right">{row.date}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {rows.map((r, i) => (
+        <div key={i} className="grid grid-cols-[90px_1fr_90px_90px] border-b border-slate-100 last:border-0 text-[12.5px]">
+          <div className="px-3 py-2.5 font-mono font-semibold text-brand border-r border-slate-100">{r[0]}</div>
+          <div className="px-3 py-2.5 text-slate-700 border-r border-slate-100">{r[1]}</div>
+          <div className="px-3 py-2.5 border-r border-slate-100"><StatusPill s={r[2]} /></div>
+          <div className="px-3 py-2.5 text-slate-500 text-[11px] font-semibold flex items-center">{r[3]}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── MOM Table (mirrors actual MOM table — S.No, Function, Discussion, Status columns) ── */
+const MomMockup = () => {
+  const rows = [
+    { sno: 1, fn: "Engineering", disc: "Freeze cooling spec before G3 gate.", who: "S. Iyer",    status: "pending" },
+    { sno: 2, fn: "Quality",     disc: "Validate harness routing — DR-1045.",  who: "R. Voss",    status: "in-progress" },
+    { sno: 3, fn: "PMO",         disc: "Update timeline for SOP validation.",  who: "P. Nair",    status: "completed" },
+    { sno: 4, fn: "Production",  disc: "Confirm tooling lead time for G4.",    who: "K. Adeyemi", status: "pending" },
+  ];
+  const statusMap = {
+    "pending":     { label: "Pending",     c: "bg-yellow-100 text-yellow-800" },
+    "in-progress": { label: "In Progress", c: "bg-blue-100 text-blue-800" },
+    "completed":   { label: "Completed",   c: "bg-green-100 text-green-800" },
+  };
+  return (
+    <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Meeting Minutes — Atlas VX Review</span>
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-brand-purple">
+          <Mic className="h-3 w-3" /> AI Captured
+        </span>
+      </div>
+      <div className="grid grid-cols-[36px_80px_1fr_78px_88px] bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+        {["#", "Function", "Discussion Point", "Owner", "Status"].map((h) => (
+          <div key={h} className="px-2 py-2 border-r border-slate-200 last:border-0">{h}</div>
+        ))}
+      </div>
+      {rows.map((r) => (
+        <div key={r.sno} className="grid grid-cols-[36px_80px_1fr_78px_88px] border-b border-slate-100 last:border-0 text-[11.5px]">
+          <div className="px-2 py-2 font-mono text-slate-400 border-r border-slate-100">{r.sno}</div>
+          <div className="px-2 py-2 text-slate-600 font-semibold border-r border-slate-100 text-[10px]">{r.fn}</div>
+          <div className="px-2 py-2 text-slate-700 border-r border-slate-100">{r.disc}</div>
+          <div className="px-2 py-2 text-slate-500 text-[10px] font-semibold border-r border-slate-100">{r.who}</div>
+          <div className="px-2 py-2">
+            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold", statusMap[r.status].c)}>
+              {statusMap[r.status].label}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── Budget Variance View (mirrors BudgetSummaryView) ── */
+const BudgetMockup = () => {
+  const rows = [
+    { l: "Body & Trim",  spent: 78, target: 70, v: "+8%",  neg: true },
+    { l: "Powertrain",   spent: 54, target: 65, v: "-11%", neg: false },
+    { l: "Electrical",   spent: 91, target: 85, v: "+6%",  neg: true },
+    { l: "Tooling",      spent: 40, target: 60, v: "-20%", neg: false },
+  ];
+  return (
+    <div className="space-y-4">
+      {rows.map((r) => (
+        <div key={r.l}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[13px] font-semibold text-slate-700">{r.l}</span>
+            <span className={cn(
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
+              r.neg ? "bg-red-50 text-red-500" : "bg-emerald-50 text-brand-emerald"
+            )}>
+              {r.v} variance
+            </span>
+          </div>
+          <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className={cn("absolute inset-y-0 left-0 rounded-full", r.neg ? "bg-red-400" : "bg-brand-emerald")}
+              style={{ width: `${r.spent}%` }}
+            />
+            <div className="absolute inset-y-0 w-0.5 bg-slate-900" style={{ left: `${r.target}%` }} title="target" />
+          </div>
+          <div className="mt-1 flex justify-between text-[10.5px] font-mono text-slate-400">
+            <span>Spent {r.spent}%</span><span>Target {r.target}%</span>
+          </div>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 text-[11px] text-slate-400">
+        <span className="h-2 w-0.5 bg-slate-900 inline-block" /> Strategic target marker
       </div>
     </div>
   );
-}
+};
 
-function MOMMockup() {
-  return (
-    <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-          <Mic className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-          AI Meeting Transcription
-        </div>
-        <div className="text-[10px] bg-red-50 text-red-500 px-2 py-0.5 rounded font-semibold animate-pulse">02:34:18 Recording</div>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
-          <div className="flex justify-between text-[10px] text-gray-400 mb-1.5 font-medium">
-            <span>Speaker: Anoop M. (MOM Lead)</span>
-            <span>11:15 AM</span>
-          </div>
-          <p className="text-xs text-gray-700 leading-relaxed italic">
-            "We will lock the Chassis Mount design by Thursday. Srinivas, please ensure the battery pack cable layouts are verified before the SOP review."
-          </p>
-        </div>
-        <div className="border-t border-dashed border-gray-100 pt-3 space-y-2">
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">AI Generated Action Items</div>
-          <div className="flex items-center gap-2 text-xs text-gray-600 bg-emerald-50/40 p-2 rounded border border-emerald-500/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span>Verify battery layouts (Assign to Srinivas R.)</span>
-            <span className="ml-auto text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">Auto-Assigned</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* ── Week Calendar (mirrors actual CalendarGrid week view) ── */
+const CalendarMockup = () => {
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const DATES = [16, 17, 18, 19, 20];
+  const HOURS = ["9 am", "10 am", "11 am", "12 pm", "1 pm", "2 pm"];
 
-function BudgetMockup() {
-  const projects = [
-    { name: "Atlas EV-3 Platform", budget: "₹48.2Cr", spent: "68%", variance: "+2.4%" },
-    { name: "Horizon Thermal", budget: "₹12.5Cr", spent: "82%", variance: "-1.2%" },
-    { name: "Safety Validation", budget: "₹6.8Cr", spent: "45%", variance: "+4.1%" },
+  /* Events positioned in the grid — mirrors actual CalendarGrid colored blocks */
+  const events = [
+    { day: 0, start: 0, span: 1.5, title: "Atlas VX Sync",     color: "#2563EB" },
+    { day: 1, start: 1, span: 1,   title: "Budget Review",     color: "#F59E0B" },
+    { day: 2, start: 0, span: 2,   title: "G3 Gate Review",    color: "#8B5CF6" },
+    { day: 2, start: 3, span: 1,   title: "Harness Routing",   color: "#EF4444" },
+    { day: 3, start: 2, span: 1.5, title: "Design Freeze",     color: "#10B981" },
+    { day: 4, start: 0, span: 1,   title: "Sprint Planning",   color: "#06B6D4" },
+    { day: 4, start: 3, span: 2,   title: "SOP Validation",    color: "#2563EB" },
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="text-xs font-bold text-gray-700">Budget Master Overview</div>
-        <div className="text-[10px] text-blue-600 font-semibold cursor-pointer">Currency: INR (₹)</div>
-      </div>
-      <div className="p-4 space-y-3">
-        {projects.map((p) => (
-          <div key={p.name} className="border border-gray-50 p-2.5 rounded-lg hover:bg-gray-50/50 transition-colors">
-            <div className="flex justify-between text-xs font-semibold text-gray-800 mb-1.5">
-              <span>{p.name}</span>
-              <span>{p.budget}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full rounded-full" style={{ width: p.spent }} />
-              </div>
-              <span className="text-[10px] text-gray-500 w-8 text-right font-medium">{p.spent}</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${p.variance.startsWith("+") ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-                {p.variance}
+    <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+      {/* Day header — mirrors CalendarGrid .day-column-header */}
+      <div className="grid grid-cols-[48px_repeat(5,1fr)] border-b border-slate-200 bg-slate-50">
+        <div className="px-1 py-2 text-[8px] font-bold text-slate-400 uppercase text-center border-r border-slate-200">
+          GMT+5:30
+        </div>
+        {DAYS.map((d, i) => {
+          const isToday = i === 2;
+          return (
+            <div key={d} className={cn("px-2 py-2 text-center border-r border-slate-200 last:border-0", isToday && "bg-blue-50")}>
+              <span className="block text-[9px] font-bold text-slate-400 uppercase">{d}</span>
+              <span className={cn(
+                "inline-block mt-0.5 text-[13px] font-bold",
+                isToday ? "bg-brand text-white h-6 w-6 rounded-full leading-6 text-center" : "text-slate-700"
+              )}>
+                {DATES[i]}
               </span>
             </div>
+          );
+        })}
+      </div>
+
+      {/* Time grid — mirrors CalendarGrid scrollable time body */}
+      <div className="grid grid-cols-[48px_repeat(5,1fr)]">
+        {HOURS.map((h, hourIdx) => (
+          <div key={h} className="contents">
+            {/* Time gutter label */}
+            <div className="px-1 py-0 border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-0.5">
+              <span className="text-[9px] font-medium text-slate-400">{h}</span>
+            </div>
+            {/* Day columns */}
+            {DAYS.map((d, dayIdx) => {
+              const evt = events.find((e) => e.day === dayIdx && e.start === hourIdx);
+              return (
+                <div
+                  key={`${d}-${h}`}
+                  className={cn(
+                    "relative border-r border-b border-slate-50 last:border-r-0",
+                    dayIdx === 2 && "bg-blue-50/30"
+                  )}
+                  style={{ height: 36 }}
+                >
+                  {evt && (
+                    <div
+                      className="absolute inset-x-[3px] rounded-md px-1.5 py-1 text-[9px] font-bold text-white leading-tight overflow-hidden z-10"
+                      style={{
+                        top: 2,
+                        height: `${evt.span * 36 - 4}px`,
+                        backgroundColor: evt.color,
+                        opacity: 0.92,
+                      }}
+                    >
+                      {evt.title}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
     </div>
   );
-}
+};
 
-function CalendarMockup() {
-  return (
-    <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gray-50 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <div className="text-xs font-bold text-gray-700">Team Planner Calendar</div>
-        <div className="text-[10px] text-gray-400 font-medium">Drag-and-Drop Enabled</div>
-      </div>
-      <div className="p-4">
-        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] text-gray-400 font-bold mb-2">
-          {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-            <div key={i}>{d}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {Array.from({ length: 14 }).map((_, i) => {
-            const dayNum = i + 14;
-            const hasTask = dayNum === 16 || dayNum === 17 || dayNum === 18;
-            return (
-              <div key={i} className="aspect-square bg-gray-50 border border-gray-100 rounded p-1 flex flex-col justify-between relative hover:border-blue-400 transition-colors cursor-grab">
-                <span className="text-[9px] text-gray-400 font-bold leading-none">{dayNum}</span>
-                {hasTask && dayNum === 16 && (
-                  <div className="absolute inset-x-1 bottom-1 bg-blue-500 text-white rounded text-[7px] p-0.5 font-bold truncate leading-none z-10">
-                    SOP Gate
-                  </div>
-                )}
-                {hasTask && dayNum === 17 && (
-                  <div className="absolute inset-x-1 bottom-1 bg-emerald-500 text-white rounded text-[7px] p-0.5 font-bold truncate leading-none z-10">
-                    Excel Sync
-                  </div>
-                )}
-                {hasTask && dayNum === 18 && (
-                  <div className="absolute inset-x-1 bottom-1 bg-purple-500 text-white rounded text-[7px] p-0.5 font-bold truncate leading-none z-10">
-                    MOM Lock
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
+const TESTIMONIALS = {
+  excel: {
+    quote: "“By automating design release sync from Excel to CALDIM, we eliminated 100% of our manual tracking errors. Our engineering team and PMO are finally on the same page.”",
+    author: "Sanjay Iyer",
+    role: "Lead Systems Engineer",
+    company: "Mahindra Electric"
+  },
+  mom: {
+    quote: "“The voice capture is pure magic. It captures every action item from our SOP reviews and assigns it instantly. No more typing up minutes after meetings.”",
+    author: "Ravi Voss",
+    role: "Program Manager",
+    company: "Bosch Automotive"
+  },
+  budget: {
+    quote: "“CALDIM's budget variance tracking gave us clear visibility into cost overruns on body tooling. We caught a 6% deviation before it became a crisis.”",
+    author: "Preeti Nair",
+    role: "PMO Director",
+    company: "Tata Motors"
+  },
+  calendar: {
+    quote: "“We run our entire vehicle launch schedule off the CALDIM calendar. Drag-and-drop SOP gate changes make tracking shifts easy for the team.”",
+    author: "Kemi Adeyemi",
+    role: "Operations Head",
+    company: "Volvo Trucks"
+  }
+};
 
-const tabs = [
-  {
-    id: "excel",
-    label: "Excel Sync",
-    icon: FileSpreadsheet,
-    headline: "Import and sync Design Releases instantly",
-    body: "Interact with your Design Release Sheets and Excel trackers directly inside the browser. CALDIM Project Dashboard offers inline sorting, advanced column filters, and telemetry charts mapped to your actual cells.",
-    link: "Explore design release tracker",
-    mockup: <ExcelMockup />,
-  },
-  {
-    id: "mom",
-    label: "Minutes of Meetings (MOM)",
-    icon: Mic,
-    headline: "AI-powered Minutes of Meetings",
-    body: "Record audio meetings directly in your browser. Our integrated transcription engine converts voice to text, highlights critical project logs, automatically creates task allocations, and logs the history.",
-    link: "Learn more about minutes & meetings",
-    mockup: <MOMMockup />,
-  },
-  {
-    id: "budget",
-    label: "Budget Governance",
-    icon: DollarSign,
-    headline: "Control global program expenditures",
-    body: "Track budgets against strategic programs with automatic variance alerts. Manage multiple currency conversions, employee pay records, and allocate resources efficiently across engineering projects.",
-    link: "Learn more about budget master",
-    mockup: <BudgetMockup />,
-  },
-  {
-    id: "calendar",
-    label: "Team Calendar",
-    icon: Calendar,
-    headline: "Interactive calendar with drag-and-drop tiles",
-    body: "Coordinate cross-plant deadlines easily. Resize, drag, extend, and shrink task tiles directly on the timeline view. Your team schedules, holidays, and milestones sync in real-time.",
-    link: "Learn more about interactive calendar",
-    mockup: <CalendarMockup />,
-  },
-];
+const MOCK_CONFIGS = {
+  excel:    { path: "/excel",    icon: "excel" },
+  mom:      { path: "/mom",      icon: "mom" },
+  budget:   { path: "/budget",   icon: "budget" },
+  calendar: { path: "/calendar", icon: "calendar" },
+};
 
-export function FeaturesSection({ onRequestDemo }) {
-  const [activeTab, setActiveTab] = useState("excel");
-  const active = tabs.find((t) => t.id === activeTab);
+const MOCKS = { excel: ExcelMockup, mom: MomMockup, budget: BudgetMockup, calendar: CalendarMockup };
+const TAB_IDS = TABS.map((t) => t.id);
+const AUTO_INTERVAL = 5000;
 
-  const handleLinkClick = (e, label) => {
-    e.preventDefault();
-    if (onRequestDemo) {
-      onRequestDemo("sales", `Inquiry: ${label}`);
-    }
+/* ════════════════════════════════════════════════════════════════════
+   Section Component
+   ════════════════════════════════════════════════════════════════════ */
+
+export const Features = ({ onRequestDemo }) => {
+  const [active, setActive] = useState("excel");
+  const [progressKey, setProgressKey] = useState(0);
+  const paused = useRef(false);
+
+  const copy = COPY[active];
+  const Mock = MOCKS[active];
+
+  const advance = () => {
+    if (paused.current) return;
+    setActive((cur) => {
+      const idx = TAB_IDS.indexOf(cur);
+      return TAB_IDS[(idx + 1) % TAB_IDS.length];
+    });
+    setProgressKey((k) => k + 1);
+  };
+
+  useEffect(() => {
+    const id = setInterval(advance, AUTO_INTERVAL);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTabClick = (id) => {
+    setActive(id);
+    setProgressKey((k) => k + 1);
   };
 
   return (
-    <section id="features" className="py-20 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Tab nav */}
-        <div className="flex flex-wrap gap-2 border-b border-gray-200 mb-12">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
+    <section id="features" data-testid="features" className="py-24 md:py-32 bg-[#f8fafc] border-y border-slate-100">
+      <div className="max-w-7xl mx-auto px-6 md:px-12">
+        <motion.div
+          className="max-w-2xl mb-12"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand mb-3">Platform</p>
+          <h2 className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
+            Every program discipline in one workspace
+          </h2>
+        </motion.div>
+
+        {/* ── Tabs with auto-progress ── */}
+        <div
+          className="flex flex-wrap gap-2 mb-10"
+          onMouseEnter={() => { paused.current = true; }}
+          onMouseLeave={() => { paused.current = false; }}
+        >
+          {TABS.map((t) => {
+            const on = active === t.id;
             return (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? "border-blue-600 text-blue-600 font-bold"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
-                }`}
+                key={t.id}
+                data-testid={`tab-${t.id}`}
+                onClick={() => handleTabClick(t.id)}
+                className={cn(
+                  "relative flex flex-col items-start gap-0 rounded-xl px-4 pt-2.5 pb-1.5 text-[13.5px] font-semibold transition-colors cursor-pointer overflow-hidden",
+                  on ? "text-white" : "text-slate-600 bg-white border border-slate-200 hover:border-slate-300"
+                )}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
+                {on && (
+                  <motion.span
+                    layoutId="tab-pill"
+                    className="absolute inset-0 rounded-xl bg-brand"
+                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                  />
+                )}
+                <span className="relative flex items-center gap-2">
+                  <t.icon className="h-4 w-4" />
+                  {t.label}
+                </span>
+                {on && (
+                  <span className="relative w-full mt-1.5 h-0.5 rounded-full bg-white/30 overflow-hidden">
+                    <motion.span
+                      key={progressKey}
+                      className="absolute inset-y-0 left-0 rounded-full bg-white"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: AUTO_INTERVAL / 1000, ease: "linear" }}
+                    />
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-12 items-center min-h-[360px]">
-          {/* Left — description */}
-          <div className="flex-1 max-w-md animate-in fade-in duration-300">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">{active.headline}</h2>
-            <p className="text-gray-600 leading-relaxed mb-6">{active.body}</p>
-            <a
-              href="#"
-              onClick={(e) => handleLinkClick(e, active.label)}
-              className="flex items-center gap-1.5 text-blue-600 text-sm font-medium hover:gap-2.5 transition-all"
+        {/* ── Content grid ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active + "-copy"}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="lg:sticky lg:top-28"
             >
-              {active.link} <ArrowRight className="w-4 h-4" />
-            </a>
+              <h3 className="font-heading font-bold text-slate-900 text-2xl md:text-3xl leading-snug">{copy.title}</h3>
+              <p className="mt-4 text-[15px] text-slate-500">{copy.desc}</p>
+              <ul className="mt-6 space-y-3">
+                {copy.points.map((p, i) => (
+                  <motion.li
+                    key={p}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06, duration: 0.25 }}
+                    className="flex items-center gap-3 text-[14.5px] font-semibold text-slate-700"
+                  >
+                    <CheckCircle2 className="h-5 w-5 text-brand-emerald shrink-0" /> {p}
+                  </motion.li>
+                ))}
+              </ul>
+              <button
+                data-testid="features-learn-more"
+                onClick={() => onRequestDemo && onRequestDemo("sales", `Learn More: ${active}`)}
+                className="mt-7 inline-flex items-center gap-2 text-[14.5px] font-semibold text-brand hover:gap-3 transition-all cursor-pointer"
+              >
+                Learn more <ArrowRight className="h-4 w-4" />
+              </button>
 
-            {/* Stats */}
-            <div className="mt-10 grid grid-cols-2 gap-6">
-              <div>
-                <div className="text-3xl font-bold text-gray-900">40%</div>
-                <div className="text-sm text-gray-500 mt-1">faster program delivery</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-gray-900">3×</div>
-                <div className="text-sm text-gray-500 mt-1">better cross-team visibility</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right — mockup */}
-          <div className="flex-1 w-full animate-in fade-in duration-500">{active.mockup}</div>
-        </div>
-
-        {/* Trusted by bar */}
-        <div className="mt-20 text-center">
-          <p className="text-sm text-gray-400 mb-6 uppercase tracking-widest text-[11px] font-bold">
-            Trusted by engineering teams across
-          </p>
-          <div className="flex flex-wrap justify-center gap-8 items-center opacity-50 grayscale hover:opacity-75 transition-opacity">
-            {["OEM Programs", "Tier 1 Suppliers", "R&D Labs", "EV Startups", "Defense & Aero"].map(
-              (label) => (
-                <div
-                  key={label}
-                  className="text-xs font-bold text-gray-600 border border-gray-300 px-4 py-2 rounded"
-                >
-                  {label}
+              {/* Dynamic testimonial block matching Zoho Projects pattern */}
+              <div className="mt-8 pt-6 border-t border-slate-100">
+                <p className="text-[13.5px] italic text-slate-600 leading-relaxed font-sans">
+                  {TESTIMONIALS[active].quote}
+                </p>
+                <div className="mt-3 flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-full bg-blue-50 text-brand text-[10px] font-bold grid place-items-center uppercase border border-blue-100">
+                    {TESTIMONIALS[active].author.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-[11.5px] font-bold text-slate-800 leading-none">{TESTIMONIALS[active].author}</p>
+                    <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5">
+                      {TESTIMONIALS[active].role} &middot; {TESTIMONIALS[active].company}
+                    </p>
+                  </div>
                 </div>
-              )
-            )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Static AppShellMockup wrapping dynamic views */}
+          <div className="w-full">
+            <AppShellMockup
+              activePath={MOCK_CONFIGS[active].path}
+              activeIcon={MOCK_CONFIGS[active].icon}
+            >
+              <div className="min-h-[350px] flex flex-col justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={active}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="p-5"
+                  >
+                    <Mock />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </AppShellMockup>
           </div>
         </div>
       </div>
     </section>
   );
-}
+};
+
+export const FeaturesSection = Features;
+export default Features;
