@@ -18,6 +18,7 @@ import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 import ValidationDashboard from '../components/dashboard/ValidationDashboard';
 import CustomerIssuesDashboard from '../components/dashboard/CustomerIssuesDashboard';
 import RiskManagementDashboard from '../components/dashboard/RiskManagementDashboard';
+import { useTheme } from '../contexts/ThemeContext';
 
 
 /* ─────────────────────────────── helpers ──────────────────────────── */
@@ -137,6 +138,7 @@ const VPProjectDashboard = ({
   budgetCurrencySymbol = '$',
 }) => {
   const navigate = useNavigate();
+  const { themeSettings } = useTheme();
   const [activeTab, setActiveTab] = useState('overview');
 
   /* ── Milestone view (table | chart) ── */
@@ -320,12 +322,12 @@ const VPProjectDashboard = ({
       if (t?.item_type === 'Phase') { phaseName = t.activity_name; break; }
     }
     const name = phaseName.toLowerCase();
-    if (name.includes('contracts') || name.includes('proposal'))   return { fill: '#0ea5e9' };
-    if (name.includes('design') || name.includes('engineering'))   return { fill: '#3b82f6' };
-    if (name.includes('procurement'))                               return { fill: '#8b5cf6' };
-    if (name.includes('construction') || name.includes('manufacturing')) return { fill: '#f97316' };
-    if (name.includes('closing') || name.includes('handover'))     return { fill: '#10b981' };
-    return { fill: '#14b8a6' };
+    if (name.includes('contracts') || name.includes('proposal'))   return { fill: '#5899da' };
+    if (name.includes('design') || name.includes('engineering'))   return { fill: '#0a6ed1' };
+    if (name.includes('procurement'))                               return { fill: '#8a3af0' };
+    if (name.includes('construction') || name.includes('manufacturing')) return { fill: '#e9730c' };
+    if (name.includes('closing') || name.includes('handover'))     return { fill: '#1a7e44' };
+    return { fill: '#007a87' };
   }, [milestones]);
 
   const ganttBars = useMemo(() => ganttFilteredTasks.map((t, idx) => {
@@ -456,6 +458,9 @@ const VPProjectDashboard = ({
   /* ─────────── ECharts options ─────────── */
   const issuesPriorityOption = useMemo(() => ({
     backgroundColor: 'transparent',
+    animationDuration: 1000,
+    animationDurationUpdate: 800,
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)',
@@ -467,19 +472,32 @@ const VPProjectDashboard = ({
     series: [{
       type: 'pie', radius: ['48%', '72%'], center: ['50%', '50%'],
       avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 4,
+        borderColor: 'var(--surface)',
+        borderWidth: 2
+      },
       label: { show: true, position: 'inside', formatter: p => p.percent > 10 ? `${p.percent.toFixed(0)}%` : '', fontSize: 10, fontWeight: 700, color: '#fff' },
       labelLine: { show: false },
+      emphasis: {
+        focus: 'self',
+        scale: true,
+        scaleSize: 6
+      },
       data: [
-        { value: issuesByPriority.Critical, name: 'Critical', itemStyle: { color: '#ef4444' } },
-        { value: issuesByPriority.High,     name: 'High',     itemStyle: { color: '#f97316' } },
+        { value: issuesByPriority.Critical, name: 'Critical', itemStyle: { color: '#bb0000' } },
+        { value: issuesByPriority.High,     name: 'High',     itemStyle: { color: '#e9730c' } },
         { value: issuesByPriority.Medium,   name: 'Medium',   itemStyle: { color: '#f59e0b' } },
-        { value: issuesByPriority.Low,      name: 'Low',      itemStyle: { color: '#10b981' } },
+        { value: issuesByPriority.Low,      name: 'Low',      itemStyle: { color: '#1a7e44' } },
       ].filter(d => d.value > 0)
     }]
   }), [issuesByPriority]);
 
   const issuesStatusOption = useMemo(() => ({
     backgroundColor: 'transparent',
+    animationDuration: 1000,
+    animationDurationUpdate: 800,
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -492,7 +510,8 @@ const VPProjectDashboard = ({
     yAxis: { type: 'category', data: Object.keys(issuesByStatus), axisLabel: { color: 'var(--text-secondary)', fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
     series: [{
       type: 'bar', barMaxWidth: 16,
-      itemStyle: { color: (p) => ['#ef4444','#f97316','#f59e0b','#3b82f6','#10b981'][p.dataIndex % 5], borderRadius: [0,4,4,0] },
+      emphasis: { focus: 'self' },
+      itemStyle: { color: (p) => ['#bb0000','#e9730c','#f59e0b','#0a6ed1','#1a7e44'][p.dataIndex % 5], borderRadius: [0,4,4,0] },
       label: { show: true, position: 'right', fontSize: 10, color: 'var(--text-secondary)' },
       data: Object.values(issuesByStatus)
     }]
@@ -500,6 +519,9 @@ const VPProjectDashboard = ({
 
   const budgetUtilizationOption = useMemo(() => ({
     backgroundColor: 'transparent',
+    animationDuration: 1000,
+    animationDurationUpdate: 800,
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c}',
@@ -511,16 +533,29 @@ const VPProjectDashboard = ({
     series: [{
       type: 'pie', radius: ['52%', '76%'], center: ['50%', '50%'],
       avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 4,
+        borderColor: 'var(--surface)',
+        borderWidth: 2
+      },
       label: { show: false },
+      emphasis: {
+        focus: 'self',
+        scale: true,
+        scaleSize: 6
+      },
       data: [
-        { value: budgetUtilized, name: 'Utilized',  itemStyle: { color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#3b82f6' } },
-        { value: Math.max(0, budgetApproved - budgetUtilized), name: 'Balance', itemStyle: { color: '#e2e8f0' } },
+        { value: budgetUtilized, name: 'Utilized',  itemStyle: { color: utilizationPct > 90 ? '#bb0000' : utilizationPct > 70 ? '#e9730c' : '#0a6ed1' } },
+        { value: Math.max(0, budgetApproved - budgetUtilized), name: 'Balance', itemStyle: { color: themeSettings?.displayMode === 'dark' ? '#2f3b4c' : '#e2e8f0' } },
       ].filter(d => d.value > 0)
     }]
-  }), [budgetUtilized, budgetApproved, utilizationPct]);
+  }), [budgetUtilized, budgetApproved, utilizationPct, themeSettings?.displayMode]);
 
   const budgetBarOption = useMemo(() => ({
     backgroundColor: 'transparent',
+    animationDuration: 1000,
+    animationDurationUpdate: 800,
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'axis', axisPointer: { type: 'shadow' },
       backgroundColor: 'var(--surface)', borderColor: 'var(--border-strong)',
@@ -531,11 +566,12 @@ const VPProjectDashboard = ({
     yAxis: { type: 'value', axisLabel: { color: 'var(--text-secondary)', fontSize: 9, formatter: v => fmtMoney(v) }, splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } }, axisLine: { show: false } },
     series: [{
       type: 'bar', barMaxWidth: 40,
+      emphasis: { focus: 'series' },
       itemStyle: { borderRadius: [4, 4, 0, 0] },
       data: [
-        { value: budgetApproved, itemStyle: { color: '#3b82f6' } },
-        { value: budgetUtilized, itemStyle: { color: utilizationPct > 90 ? '#ef4444' : '#10b981' } },
-        { value: budgetBalance,  itemStyle: { color: '#f59e0b' } },
+        { value: budgetApproved, itemStyle: { color: '#0a6ed1' } },
+        { value: budgetUtilized, itemStyle: { color: utilizationPct > 90 ? '#bb0000' : '#1a7e44' } },
+        { value: budgetBalance,  itemStyle: { color: '#e9730c' } },
       ],
       label: { show: true, position: 'top', fontSize: 10, formatter: p => fmtMoney(p.value), color: 'var(--text-secondary)' }
     }]
@@ -1367,19 +1403,39 @@ const VPProjectDashboard = ({
   return (
     <div className="vppd-root">
 
-      {/* ── Project Heading ── */}
-      <div className="vppd-project-heading">
+      {/* ── SAP Object Page Header ── */}
+      <div className="vppd-project-heading" style={{ paddingBottom: 14, borderBottom: '1px solid var(--border-subtle)' }}>
+        {/* Project avatar */}
         <div className="vppd-project-heading-badge">{projectInitials}</div>
-        <div>
-          <h1 className="vppd-project-title">{activeProject?.name} Dashboard</h1>
+        <div style={{ flex: 1 }}>
+          {/* SAP Object Page eyebrow (breadcrumb equivalent) */}
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.09em',
+            marginBottom: 3,
+          }}>
+            PROJECT DASHBOARD
+          </div>
+          <h1 className="vppd-project-title">{activeProject?.name}</h1>
           {activeProject?.project_manager && (
-            <p className="vppd-project-subtitle">PM: {activeProject.project_manager}</p>
+            <p className="vppd-project-subtitle">Project Manager: {activeProject.project_manager}</p>
           )}
         </div>
-        <span className="vppd-project-health-chip" style={healthStyle}>
-          {health === 'Red' ? '🔴' : health === 'Yellow' ? '🟡' : health === 'Green' ? '🟢' : '⚪'} {healthLabel}
-        </span>
+        {/* SAP Object Status chip */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <span className="vppd-project-health-chip" style={healthStyle}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: healthStyle.color, display: 'inline-block', flexShrink: 0 }} />
+            {healthLabel}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
+            Health Status
+          </span>
+        </div>
       </div>
+
 
       {/* ── Tab Navigation ── */}
       <nav className="vppd-tab-nav" role="tablist">

@@ -214,10 +214,10 @@ export default function OverviewTab({
 
   return (
     <div className="ah-fade-up">
-      {/* ── Section Header ── */}
-      <div className="ah-section-header">
-        <span className="ah-section-eyebrow">PORTFOLIO COMMAND</span>
-        <h2 className="ah-section-title">Overview Dashboard</h2>
+      {/* ── SAP Object Page Section Header ── */}
+      <div className="ah-section-header" style={{ marginBottom: 16 }}>
+        <span className="ah-section-eyebrow" style={{ color: '#0a6ed1', letterSpacing: '0.10em' }}>ANALYTICS HUB</span>
+        <h2 className="ah-section-title">Portfolio Overview</h2>
       </div>
 
       {/* ── KPI Grid (5 cards) ── */}
@@ -338,22 +338,16 @@ export default function OverviewTab({
         </div>
       ) : null}
 
-      {/* ── Portfolio Health Matrix ── */}
-      <div className="ah-card" style={{ marginBottom: 16 }}>
-        <div className="ah-card-header">
-          <h3 className="ah-card-title">Portfolio Health Matrix</h3>
-          <span className="ah-card-meta">Real-time · auto-refreshes every 30s</span>
-        </div>
-        <PortfolioHealthMatrix
-          projectsSummary={projectsSummary}
-          structures={structures}
-          onProjectSelect={onProjectSelect}
-          issuesMap={issuesMap}
-          budgetsMap={budgetsMap}
-          analyticsData={analyticsData}
-          isPM={false}
-        />
-      </div>
+      {/* ── Portfolio Health Matrix (rendered inline — has its own SAP Fiori card header) ── */}
+      <PortfolioHealthMatrix
+        projectsSummary={projectsSummary}
+        structures={structures}
+        onProjectSelect={onProjectSelect}
+        issuesMap={issuesMap}
+        budgetsMap={budgetsMap}
+        analyticsData={analyticsData}
+        isPM={false}
+      />
     </div>
   );
 }

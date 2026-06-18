@@ -13,6 +13,7 @@ from cachetools import TTLCache
 dashboard_cache = TTLCache(maxsize=100, ttl=300) # 5 mins cache
 
 
+# pyrefly: ignore [bad-function-definition]
 def clear_dashboard_cache(project_id: int = None):
     """Clear all keys or specific keys for a project from the cache."""
     if project_id is None:
@@ -209,13 +210,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
                 .all()
             )
             for t in milestone_rows:
-                try:
-                    m_dict = MilestoneResponse.model_validate(t).model_dump(mode="json")
-                except AttributeError:
-                    m_dict = MilestoneResponse.from_orm(t).dict()
-                    for k, v in m_dict.items():
-                        if isinstance(v, datetime):
-                            m_dict[k] = v.isoformat()
+                m_dict = MilestoneResponse.model_validate(t).model_dump(mode="json")
                 milestones.append(m_dict)
 
     # Map to frontend output list format (omitting delay internals)

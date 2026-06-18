@@ -34,6 +34,9 @@ const PortfolioHealthMatrix = ({
 
   const healthDonutOption = useMemo(() => ({
     backgroundColor: 'transparent',
+    animationDuration: 1000,
+    animationDurationUpdate: 800,
+    animationEasingUpdate: 'cubicOut',
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} projects ({d}%)',
@@ -47,6 +50,11 @@ const PortfolioHealthMatrix = ({
       radius: ['52%', '78%'],
       center: ['50%', '48%'],
       avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 4,
+        borderColor: 'var(--surface)',
+        borderWidth: 2
+      },
       label: {
         show: true,
         position: 'inside',
@@ -58,6 +66,9 @@ const PortfolioHealthMatrix = ({
       },
       labelLine: { show: false },
       emphasis: {
+        focus: 'self',
+        scale: true,
+        scaleSize: 6,
         label: {
           show: true,
           fontSize: 12,
@@ -67,17 +78,20 @@ const PortfolioHealthMatrix = ({
         }
       },
       data: [
-        { value: healthCounts.Red, name: 'Critical', itemStyle: { color: '#ef4444' } },
-        { value: healthCounts.Yellow, name: 'At Risk', itemStyle: { color: '#f59e0b' } },
-        { value: healthCounts.Green, name: 'On Track', itemStyle: { color: '#10b981' } },
+        { value: healthCounts.Red, name: 'Critical', itemStyle: { color: '#bb0000' } },
+        { value: healthCounts.Yellow, name: 'At Risk', itemStyle: { color: '#e9730c' } },
+        { value: healthCounts.Green, name: 'On Track', itemStyle: { color: '#1a7e44' } },
       ].filter(d => d.value > 0)
     }]
   }), [healthCounts]);
-
+ 
   const delayBarOption = useMemo(() => {
     const sorted = [...projectsSummary].sort((a, b) => (b.delayed || 0) - (a.delayed || 0)).slice(0, 8);
     return {
       backgroundColor: 'transparent',
+      animationDuration: 1000,
+      animationDurationUpdate: 800,
+      animationEasingUpdate: 'cubicOut',
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
@@ -108,6 +122,9 @@ const PortfolioHealthMatrix = ({
         name: 'Delayed Milestones',
         type: 'bar',
         barMaxWidth: 14,
+        emphasis: {
+          focus: 'self'
+        },
         label: {
           show: true,
           position: 'right',
@@ -119,18 +136,21 @@ const PortfolioHealthMatrix = ({
         data: sorted.map(p => ({
           value: p.delayed || 0,
           itemStyle: {
-            color: (p.delayed || 0) > 5 ? '#ef4444' : (p.delayed || 0) > 2 ? '#f59e0b' : '#6366f1',
+            color: (p.delayed || 0) > 5 ? '#bb0000' : (p.delayed || 0) > 2 ? '#e9730c' : '#0a6ed1',
             borderRadius: [0, 3, 3, 0]
           }
         }))
       }]
     };
   }, [projectsSummary]);
-
+ 
   const scheduleStackOption = useMemo(() => {
     const projects = [...projectsSummary].slice(0, 8);
     return {
       backgroundColor: 'transparent',
+      animationDuration: 1000,
+      animationDurationUpdate: 800,
+      animationEasingUpdate: 'cubicOut',
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
@@ -161,9 +181,9 @@ const PortfolioHealthMatrix = ({
         axisLine: { show: false }
       },
       series: [
-        { name: 'On Track', type: 'bar', stack: 'total', barMaxWidth: 22, itemStyle: { color: '#10b981', borderRadius: 0 }, data: projects.map(p => Math.round(p.on_track_pct || 0)) },
-        { name: 'Delayed', type: 'bar', stack: 'total', barMaxWidth: 22, itemStyle: { color: '#ef4444', borderRadius: 0 }, data: projects.map(p => Math.round(p.delay_pct || 0)) },
-        { name: 'Pending', type: 'bar', stack: 'total', barMaxWidth: 22, itemStyle: { color: '#64748b', borderRadius: [3, 3, 0, 0] }, data: projects.map(p => Math.max(0, 100 - Math.round(p.on_track_pct || 0) - Math.round(p.delay_pct || 0))) },
+        { name: 'On Track', type: 'bar', stack: 'total', barMaxWidth: 22, emphasis: { focus: 'self' }, itemStyle: { color: '#1a7e44', borderRadius: 0 }, data: projects.map(p => Math.round(p.on_track_pct || 0)) },
+        { name: 'Delayed', type: 'bar', stack: 'total', barMaxWidth: 22, emphasis: { focus: 'self' }, itemStyle: { color: '#bb0000', borderRadius: 0 }, data: projects.map(p => Math.round(p.delay_pct || 0)) },
+        { name: 'Pending', type: 'bar', stack: 'total', barMaxWidth: 22, emphasis: { focus: 'self' }, itemStyle: { color: '#64748b', borderRadius: [3, 3, 0, 0] }, data: projects.map(p => Math.max(0, 100 - Math.round(p.on_track_pct || 0) - Math.round(p.delay_pct || 0))) },
       ]
     };
   }, [projectsSummary]);
@@ -179,22 +199,25 @@ const PortfolioHealthMatrix = ({
     if (!analyticsData || !analyticsData.project_status_summary) return {};
     const list = analyticsData.project_status_summary;
     const statusColors = {
-      'In Progress': '#3b82f6',
+      'In Progress': '#0a6ed1',
       'Planning': '#64748b',
-      'Completed': '#10b981',
-      'Delayed': '#ef4444',
-      'On Hold': '#f59e0b',
+      'Completed': '#1a7e44',
+      'Delayed': '#bb0000',
+      'On Hold': '#e9730c',
       'Cancelled': '#94a3b8'
     };
-
+ 
     const chartData = list.map(item => ({
       value: item.count,
       name: item.status,
       itemStyle: { color: statusColors[item.status] || '#94a3b8' }
     }));
-
+ 
     return {
       backgroundColor: 'transparent',
+      animationDuration: 1000,
+      animationDurationUpdate: 800,
+      animationEasingUpdate: 'cubicOut',
       tooltip: {
         trigger: 'item',
         formatter: '{b}: {c} projects ({d}%)',
@@ -208,6 +231,11 @@ const PortfolioHealthMatrix = ({
         radius: ['52%', '78%'],
         center: ['50%', '48%'],
         avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 4,
+          borderColor: 'var(--surface)',
+          borderWidth: 2
+        },
         label: {
           show: true,
           position: 'inside',
@@ -219,6 +247,9 @@ const PortfolioHealthMatrix = ({
         },
         labelLine: { show: false },
         emphasis: {
+          focus: 'self',
+          scale: true,
+          scaleSize: 6,
           label: {
             show: true,
             fontSize: 12,
@@ -231,32 +262,36 @@ const PortfolioHealthMatrix = ({
       }]
     };
   }, [analyticsData]);
-
+ 
   const deptBreakdownOption = useMemo(() => {
     if (!analyticsData || !analyticsData.department_breakdown) return {};
     const db = analyticsData.department_breakdown;
     const depts = Object.keys(db);
     const statuses = ['Completed', 'In Progress', 'Delayed', 'Not Started', 'Pending', 'Open'];
     const statusColors = {
-      'Completed': '#10b981',
-      'In Progress': '#3b82f6',
-      'Delayed': '#ef4444',
+      'Completed': '#1a7e44',
+      'In Progress': '#0a6ed1',
+      'Delayed': '#bb0000',
       'Not Started': '#64748b',
-      'Pending': '#f59e0b',
-      'Open': '#a855f7'
+      'Pending': '#e9730c',
+      'Open': '#8a3af0'
     };
-
+ 
     const series = statuses.map(status => ({
       name: status,
       type: 'bar',
       stack: 'status',
       barMaxWidth: 18,
+      emphasis: { focus: 'series' },
       itemStyle: { color: statusColors[status] || '#94a3b8' },
       data: depts.map(d => db[d][status] || 0)
     }));
-
+ 
     return {
       backgroundColor: 'transparent',
+      animationDuration: 1000,
+      animationDurationUpdate: 800,
+      animationEasingUpdate: 'cubicOut',
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
@@ -290,16 +325,19 @@ const PortfolioHealthMatrix = ({
       series
     };
   }, [analyticsData]);
-
+ 
   const resourceUtilOption = useMemo(() => {
     if (!analyticsData || !analyticsData.resource_utilization) return {};
     const list = analyticsData.resource_utilization;
     const names = list.map(r => r.name);
     const avail = list.map(r => r.availability);
     const util = list.map(r => r.utilization);
-
+ 
     return {
       backgroundColor: 'transparent',
+      animationDuration: 1000,
+      animationDurationUpdate: 800,
+      animationEasingUpdate: 'cubicOut',
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
@@ -332,8 +370,8 @@ const PortfolioHealthMatrix = ({
         axisLine: { show: false }
       },
       series: [
-        { name: 'Availability', type: 'bar', data: avail, itemStyle: { color: '#10b981', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 },
-        { name: 'Utilization', type: 'bar', data: util, itemStyle: { color: '#6366f1', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 }
+        { name: 'Availability', type: 'bar', data: avail, emphasis: { focus: 'series' }, itemStyle: { color: '#1a7e44', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 },
+        { name: 'Utilization', type: 'bar', data: util, emphasis: { focus: 'series' }, itemStyle: { color: '#0a6ed1', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 }
       ]
     };
   }, [analyticsData]);
@@ -346,34 +384,34 @@ const PortfolioHealthMatrix = ({
     const avgDelay = totalProjects > 0
       ? (projectsSummary.reduce((a, p) => a + (p.avg_delay_days || 0), 0) / totalProjects).toFixed(1)
       : 0;
-
+ 
     if (totalProjects === 0) {
       return <div className="text-center text-[var(--text-muted)] py-10 italic text-xs">No project data available</div>;
     }
-
+ 
     return (
       <div className="p-3 flex flex-col gap-3">
         {/* KPI Summary Row — 12px labels, right-aligned numbers */}
         <div className="grid grid-cols-4 gap-2">
           {[
             { label: 'Total Projects', value: totalProjects, unit: '', color: 'text-[var(--text-primary)]' },
-            { label: 'Critical (Red)', value: redCount, unit: '', color: 'text-rose-500' },
-            { label: 'At Risk (Yellow)', value: yellowCount, unit: '', color: 'text-amber-500' },
+            { label: 'Critical (Red)', value: redCount, unit: '', color: 'text-[#bb0000]' },
+            { label: 'At Risk (Yellow)', value: yellowCount, unit: '', color: 'text-[#e9730c]' },
             { label: 'Avg Delay', value: `${avgDelay}d`, unit: '', color: 'text-[var(--text-secondary)]' },
           ].map(kpi => (
-            <div key={kpi.label} className="bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col gap-1">
+            <div key={kpi.label} className="bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col gap-1">
               <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)]">{kpi.label}</span>
               <span className={`text-xl font-black leading-none ${kpi.color}`}>{kpi.value}</span>
             </div>
           ))}
         </div>
-
+ 
         {/* Charts Row */}
         <div className="grid grid-cols-12 gap-3">
           {isPM ? (
             <>
               {/* Health Donut */}
-              <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-3 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Health Distribution</span>
                 <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 140 }}>
                   <ReactECharts option={healthDonutOption} style={{ height: 140, width: '100%' }} opts={{ renderer: 'svg' }} />
@@ -385,9 +423,9 @@ const PortfolioHealthMatrix = ({
                 {/* Legend */}
                 <div className="flex flex-col gap-1 mt-2">
                   {[
-                    { c: '#ef4444', l: 'Critical', v: redCount },
-                    { c: '#f59e0b', l: 'At Risk', v: yellowCount },
-                    { c: '#10b981', l: 'On Track', v: greenCount }
+                    { c: '#bb0000', l: 'Critical', v: redCount },
+                    { c: '#e9730c', l: 'At Risk', v: yellowCount },
+                    { c: '#1a7e44', l: 'On Track', v: greenCount }
                   ].map(i => (
                     <div key={i.l} className="flex items-center justify-between text-[10px]">
                       <span className="flex items-center gap-1.5">
@@ -399,15 +437,15 @@ const PortfolioHealthMatrix = ({
                   ))}
                 </div>
               </div>
-
+ 
               {/* Delay Ranking Bar */}
-              <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-4 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Delayed Milestones by Project</span>
                 <ReactECharts option={delayBarOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
               </div>
-
+ 
               {/* Schedule Stack */}
-              <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-5 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Schedule Status Distribution (%)</span>
                 <ReactECharts option={scheduleStackOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
               </div>
@@ -415,7 +453,7 @@ const PortfolioHealthMatrix = ({
           ) : (
             <>
               {/* Project Status Summary Donut */}
-              <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-3 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Project Status Summary</span>
                 <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 140 }}>
                   <ReactECharts option={statusPieOption} style={{ height: 140, width: '100%' }} opts={{ renderer: 'svg' }} />
@@ -428,11 +466,11 @@ const PortfolioHealthMatrix = ({
                 <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2 justify-center">
                   {analyticsData?.project_status_summary?.map(item => {
                     const statusColors = {
-                      'In Progress': '#3b82f6',
+                      'In Progress': '#0a6ed1',
                       'Planning': '#64748b',
-                      'Completed': '#10b981',
-                      'Delayed': '#ef4444',
-                      'On Hold': '#f59e0b',
+                      'Completed': '#1a7e44',
+                      'Delayed': '#bb0000',
+                      'On Hold': '#e9730c',
                       'Cancelled': '#94a3b8'
                     };
                     return (
@@ -445,15 +483,15 @@ const PortfolioHealthMatrix = ({
                   })}
                 </div>
               </div>
-
+ 
               {/* Department wise task breakdown of milestones */}
-              <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-4 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Department wise task breakdown of milestones</span>
                 <ReactECharts option={deptBreakdownOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
               </div>
-
+ 
               {/* Resource availability Vs Utilization of milestone */}
-              <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+              <div className="col-span-5 bg-[var(--surface)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
                 <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Resource availability Vs Utilization of milestone</span>
                 <ReactECharts option={resourceUtilOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
               </div>
@@ -518,9 +556,9 @@ const PortfolioHealthMatrix = ({
 
   const getHealthColor = (health) => {
     switch (health) {
-      case 'Red': return 'bg-rose-500/10 text-rose-500 border-rose-500/20 dark:text-rose-400';
-      case 'Yellow': return 'bg-amber-500/10 text-amber-500 border-amber-500/20 dark:text-amber-400';
-      case 'Green': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:text-emerald-400';
+      case 'Red': return 'bg-[#fef2f2] text-[#bb0000] border-[#fca5a5] dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-800/40';
+      case 'Yellow': return 'bg-[#fef3c7] text-[#e9730c] border-[#fcd34d] dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-800/40';
+      case 'Green': return 'bg-[#eaf5ea] text-[#1a7e44] border-[#86efac] dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/40';
       default: return 'bg-[var(--border-subtle)] text-[var(--text-secondary)] border-[var(--border-subtle)]';
     }
   };
@@ -828,33 +866,79 @@ const PortfolioHealthMatrix = ({
   };
 
   return (
-    <div className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg overflow-hidden mb-6 shadow-sm">
-      <div className="px-4 py-2.5 border-b border-[var(--border-subtle)] bg-[var(--surface)] flex justify-between items-center gap-4">
-        <h3 className="m-0 text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Portfolio Health Matrix</h3>
-        <div className="flex border border-[var(--border-subtle)] rounded overflow-hidden">
-          <button
-            onClick={() => setViewMode('analytics')}
-            className={`px-3 py-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 outline-none transition-colors ${viewMode === 'analytics' ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--table-hover)]'}`}
-          >
-            <BarChart3 size={11} />
-            Analytics
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`px-3 py-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 outline-none transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--table-hover)]'}`}
-          >
-            <TableProperties size={11} />
-            Table
-          </button>
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`px-3 py-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 outline-none transition-colors ${viewMode === 'cards' ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--table-hover)]'}`}
-          >
-            <LayoutGrid size={11} />
-            Cards
-          </button>
+    <div style={{
+      width: '100%',
+      background: 'var(--surface)',
+      border: '1px solid #d9d9d9',
+      borderRadius: 8,
+      overflow: 'hidden',
+      marginBottom: 24,
+      boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.05)',
+    }}>
+      {/* SAP Object Header for the widget */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '10px 16px',
+        borderBottom: '1px solid #d9d9d9',
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.015) 0%, transparent 100%)',
+        backgroundColor: 'var(--elevated-card)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 3,
+            height: 16,
+            borderRadius: 2,
+            background: '#0a6ed1',
+            flexShrink: 0,
+          }} />
+          <h3 style={{
+            margin: 0,
+            fontSize: 10,
+            fontWeight: 700,
+            color: 'var(--text-secondary)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.07em',
+          }}>Portfolio Health Matrix</h3>
+        </div>
+
+        {/* SAP Segmented Button */}
+        <div style={{ display: 'flex', overflow: 'hidden', borderRadius: 4 }}>
+          {[
+            { id: 'analytics', Icon: BarChart3, label: 'Analytics' },
+            { id: 'table',     Icon: TableProperties, label: 'Table' },
+            { id: 'cards',     Icon: LayoutGrid, label: 'Cards' },
+          ].map(({ id, Icon, label }, i, arr) => (
+            <button
+              key={id}
+              onClick={() => setViewMode(id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 12px',
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                border: '1px solid #d9d9d9',
+                borderLeft: i > 0 ? 'none' : '1px solid #d9d9d9',
+                outline: 'none',
+                transition: 'background 0.12s, color 0.12s',
+                background: viewMode === id ? '#0a6ed1' : 'var(--surface)',
+                color: viewMode === id ? '#fff' : 'var(--text-secondary)',
+                fontFamily: 'inherit',
+              }}
+            >
+              <Icon size={11} />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
+
       {viewMode === 'analytics' ? renderAnalyticsMode() : viewMode === 'table' ? renderTableMode() : renderCardsMode()}
     </div>
   );
