@@ -71,7 +71,7 @@ export function Footer({ onRequestDemo }) {
   };
 
   return (
-    <footer className="bg-white border-t border-gray-100">
+    <footer className="zoho-section-white zoho-font-sans">
       {/* CTA bar */}
       <div className="bg-slate-900 py-6 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-6 md:px-12 flex flex-col sm:flex-row items-center justify-between gap-4">

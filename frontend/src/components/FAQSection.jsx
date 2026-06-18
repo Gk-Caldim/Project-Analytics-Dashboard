@@ -36,9 +36,9 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState(0);
 
   return (
-    <section className="py-24 bg-slate-50/50 border-t border-slate-100">
+    <section className="py-24 zoho-section-white zoho-font-sans">
       <div className="max-w-3xl mx-auto px-6 lg:px-8">
-        <h2 className="text-3xl md:text-4xl font-heading font-extrabold text-slate-900 text-center mb-16 tracking-tight">
+        <h2 className="zoho-h2 text-center mb-16">
           Project Management Software FAQs
         </h2>
 
@@ -70,7 +70,7 @@ export function FAQSection() {
                   />
                 </button>
                 {isOpen && (
-                  <div className="px-6 pb-5 text-[14px] text-slate-650 leading-relaxed border-t border-slate-50 pt-3.5 animate-in fade-in slide-in-from-top-2 duration-250">
+                  <div className="px-6 pb-5 text-[14.5px] zoho-body leading-relaxed border-t border-slate-50 pt-3.5 animate-in fade-in slide-in-from-top-2 duration-250">
                     {faq.a}
                   </div>
                 )}

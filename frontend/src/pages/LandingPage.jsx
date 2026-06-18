@@ -10,6 +10,7 @@ import { FAQSection } from '../components/FAQSection';
 import { CTASection } from '../components/CTASection';
 import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
+import './LandingPage.css';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const LandingPage = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
 
   return (
-    <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-blue-500 selection:text-white">
+    <div className="zoho-font-sans bg-white min-h-screen text-[#0F172A] antialiased selection:bg-blue-500 selection:text-white">
       <Navbar
         onSignIn={() => navigate('/login')}
         onRequestDemo={() => openModal('demo', 'Navbar Demo Request')}

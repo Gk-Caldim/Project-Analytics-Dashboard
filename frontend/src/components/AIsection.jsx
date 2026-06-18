@@ -48,7 +48,7 @@ export const AISection = ({ onRequestDemo }) => {
     <section
       id="ai"
       data-testid="ai-section"
-      className="relative py-24 md:py-32 overflow-hidden bg-white text-slate-800 border-t border-slate-100"
+      className="relative py-24 md:py-32 overflow-hidden zoho-section-slate zoho-font-sans text-slate-800"
     >
       {/* Repeating diagonal line texture */}
       <div 
@@ -74,15 +74,15 @@ export const AISection = ({ onRequestDemo }) => {
             className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/80 px-3.5 py-1.5 text-[13px] font-semibold mb-6 text-blue-600"
           >
             <Sparkles className="h-4 w-4 text-blue-600" />
-            <span className="text-blue-650 font-mono text-[11px] uppercase tracking-wider">CALDIM Intelligence</span>
+            <span className="text-blue-655 font-mono text-[11px] uppercase tracking-wider">CALDIM Intelligence</span>
           </motion.span>
           <motion.h2
             variants={fadeSlide}
-            className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-[48px] leading-[1.1]"
+            className="zoho-h2 text-3xl md:text-[48px] leading-[1.1]"
           >
             Your AI co-pilot for engineering programs
           </motion.h2>
-          <motion.p variants={fadeSlide} className="mt-5 text-[15.5px] text-slate-600 leading-relaxed max-w-lg font-sans">
+          <motion.p variants={fadeSlide} className="mt-5 zoho-body text-[15.5px] leading-relaxed max-w-lg">
             CALDIM AI reads your synced data, meeting minutes and budgets to answer
             anything about program health — instantly.
           </motion.p>
@@ -90,8 +90,8 @@ export const AISection = ({ onRequestDemo }) => {
           <motion.div variants={staggerChildren} className="mt-9 space-y-6">
             {FEATURES.map((f) => (
               <motion.div key={f.title} variants={fadeSlide} className="border-l-3 border-blue-600 pl-4">
-                <p className="font-heading font-bold text-[16.5px] text-slate-900">{f.title}</p>
-                <p className="text-[14px] text-slate-500 mt-1 leading-relaxed font-sans">{f.desc}</p>
+                <p className="font-bold text-[16.5px] text-slate-900">{f.title}</p>
+                <p className="zoho-body text-[14px] mt-1 leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </motion.div>

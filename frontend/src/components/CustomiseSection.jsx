@@ -30,7 +30,7 @@ export const Customise = ({ onRequestDemo }) => {
     <section
       id="customise"
       data-testid="customise"
-      className="relative py-24 md:py-32 overflow-hidden bg-white border-t border-slate-100"
+      className="relative py-24 md:py-32 overflow-hidden zoho-section-white zoho-font-sans"
     >
       {/* Subtle dot grid overlay in amber/navy tones */}
       <div
@@ -55,10 +55,10 @@ export const Customise = ({ onRequestDemo }) => {
           <motion.p variants={fadeSlide} className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-600 mb-3 font-mono">
             CUSTOMISE
           </motion.p>
-          <motion.h2 variants={fadeSlide} className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
+          <motion.h2 variants={fadeSlide} className="zoho-h2 text-3xl md:text-5xl">
             Shape CALDIM around your program governance
           </motion.h2>
-          <motion.p variants={fadeSlide} className="mt-5 text-[15px] text-slate-600 leading-relaxed max-w-lg font-sans">
+          <motion.p variants={fadeSlide} className="mt-5 zoho-body text-[15px] leading-relaxed max-w-lg">
             Map automotive phase-gates, add the fields your PMO actually tracks,
             and enforce the approval flow your quality system demands.
           </motion.p>
@@ -68,8 +68,8 @@ export const Customise = ({ onRequestDemo }) => {
               <motion.div key={b.title} variants={fadeSlide} className="flex gap-4">
                 <span className="h-2 w-2 rounded-full bg-blue-600 mt-2 shrink-0" />
                 <div>
-                  <p className="font-heading font-bold text-slate-900 text-[15.5px]">{b.title}</p>
-                  <p className="text-[14px] text-slate-500 leading-relaxed font-sans">{b.desc}</p>
+                  <p className="font-bold text-slate-900 text-[15.5px]">{b.title}</p>
+                  <p className="zoho-body text-[14px] leading-relaxed">{b.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -154,7 +154,7 @@ export const Customise = ({ onRequestDemo }) => {
             <button
               data-testid="customise-cta"
               onClick={() => onRequestDemo && onRequestDemo("Customise Inquiry")}
-              className="w-full rounded-lg bg-blue-600 py-3 text-[14px] font-bold text-white hover:bg-blue-700 transition-all cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20"
+              className="zoho-btn-red w-full justify-center text-center cursor-pointer shadow-md"
             >
               Configure Program Workspace
             </button>

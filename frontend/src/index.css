@@ -12,6 +12,10 @@
   --color-slate-550: #55657e;
   --color-slate-750: #293548;
   --color-slate-850: #172237;
+
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-heading: 'Outfit', 'DM Sans', 'Inter', sans-serif;
+  --font-mono: 'DM Mono', monospace;
 }
 
 

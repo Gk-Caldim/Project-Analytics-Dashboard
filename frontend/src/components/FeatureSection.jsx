@@ -318,7 +318,7 @@ export const Features = ({ onRequestDemo }) => {
   };
 
   return (
-    <section id="features" data-testid="features" className="py-24 md:py-32 bg-[#f8fafc] border-y border-slate-100">
+    <section id="features" data-testid="features" className="py-24 md:py-32 zoho-section-slate zoho-font-sans">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <motion.div
           className="max-w-2xl mb-12"
@@ -328,7 +328,7 @@ export const Features = ({ onRequestDemo }) => {
           transition={{ duration: 0.5 }}
         >
           <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-blue-600 mb-3">Platform</p>
-          <h2 className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
+          <h2 className="zoho-h2 text-3xl md:text-5xl">
             Every program discipline in one workspace
           </h2>
         </motion.div>
@@ -389,8 +389,8 @@ export const Features = ({ onRequestDemo }) => {
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="lg:sticky lg:top-28"
             >
-              <h3 className="font-heading font-bold text-slate-900 text-2xl md:text-3xl leading-snug">{copy.title}</h3>
-              <p className="mt-4 text-[15px] text-slate-500">{copy.desc}</p>
+              <h3 className="zoho-h3 text-2xl md:text-3xl leading-snug">{copy.title}</h3>
+              <p className="mt-4 zoho-body text-[15px] leading-relaxed max-w-lg font-normal">{copy.desc}</p>
               <ul className="mt-6 space-y-3">
                 {copy.points.map((p, i) => (
                   <motion.li
@@ -398,7 +398,7 @@ export const Features = ({ onRequestDemo }) => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.06, duration: 0.25 }}
-                    className="flex items-center gap-3 text-[14.5px] font-semibold text-slate-700"
+                    className="flex items-center gap-3 zoho-body-sm text-[14.5px] font-semibold text-slate-700"
                   >
                     <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" /> {p}
                   </motion.li>
@@ -407,7 +407,7 @@ export const Features = ({ onRequestDemo }) => {
               <button
                 data-testid="features-learn-more"
                 onClick={() => onRequestDemo && onRequestDemo("sales", `Learn More: ${active}`)}
-                className="mt-7 inline-flex items-center gap-2 text-[14.5px] font-semibold text-blue-600 hover:text-blue-700 hover:gap-3 transition-all cursor-pointer"
+                className="mt-7 inline-flex items-center gap-2 text-[14.5px] font-bold zoho-text-blue hover:gap-3 transition-all cursor-pointer"
               >
                 Learn more <ArrowRight className="h-4 w-4" />
               </button>
