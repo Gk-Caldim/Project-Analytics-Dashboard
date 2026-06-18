@@ -115,6 +115,16 @@ def migrate():
             print(f"  Error updating meetings: {e}")
             conn.rollback()
 
+        # 5. Update customer_complaint
+        print("Updating customer_complaint...")
+        try:
+            conn.execute(text("ALTER TABLE customer_complaint ADD COLUMN IF NOT EXISTS eight_d_report JSON;"))
+            conn.commit()
+            print("  customer_complaint updated.")
+        except Exception as e:
+            print(f"  Error updating customer_complaint: {e}")
+            conn.rollback()
+
     print("Migration finished.")
 
 if __name__ == "__main__":

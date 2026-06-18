@@ -16,6 +16,23 @@ const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', '
 const READONLY_COLS = ['Estimated', 'Total utilization', 'Balance'];
 const NUMERIC_COLS = ['Unit count', 'Per unit cost', 'Utilized', 'Commitment'];
 
+// ─── Cost-Control Terminology Map (display only — data keys unchanged) ──────
+const COST_LABEL_MAP = {
+  'Category':          'Cost Center',
+  'Item Name':         'Commodity',
+  'Unit Type':         'Unit Type',
+  'Unit count':        'Qty',
+  'Per unit cost':     'Unit Rate',
+  'Estimated':         'Budget',
+  'Utilized':          'Actual',
+  'Commitment':        'Commitment',
+  'Total utilization': 'Forecast',
+  'Balance':           'Variance',
+  'Status':            'Budget Status',
+  'Comments':          'Remarks',
+  'Sno':               '#',
+};
+
 const initialColumns = [
   { id: 'sno', label: 'Sno', visible: true, type: 'text' },
   { id: 'category', label: 'Category', visible: true, type: 'text' },
@@ -35,16 +52,26 @@ const initialColumns = [
 const isMonetary = (label) => MONETARY_COLS.includes(label);
 const isReadonly = (label) => READONLY_COLS.includes(label);
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ─── Status Badge (extended for cost-control statuses) ────────────────────────
 const StatusBadge = ({ value }) => {
   const cfg = {
-    'In Progress': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
-    'On Hold': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    'Cancelled': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
+    // Cost-control statuses
+    'Within Budget':  { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800', dot: 'bg-emerald-500' },
+    'Watchlist':      { cls: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800', dot: 'bg-amber-500' },
+    'Over Budget':    { cls: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800', dot: 'bg-red-500' },
+    'Closed':         { cls: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700', dot: 'bg-slate-400' },
+    // Legacy workflow statuses
+    'In Progress':    { cls: 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800', dot: 'bg-blue-500' },
+    'Completed':      { cls: 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800', dot: 'bg-emerald-500' },
+    'On Hold':        { cls: 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800', dot: 'bg-amber-400' },
+    'Cancelled':      { cls: 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800', dot: 'bg-red-500' },
   };
+  const found = cfg[value];
   return (
-    <span className={`px-3 py-1.5 rounded-md border text-[10px] font-bold ${cfg[value] || 'bg-app-bg dark:bg-slate-800/50 text-slate-700 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-[10px] font-bold ${
+      found ? found.cls : 'bg-app-bg dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+    }`}>
+      <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${found ? found.dot : 'bg-slate-400'}`} />
       {value || 'Pending'}
     </span>
   );
@@ -69,45 +96,56 @@ const RevisionBadge = ({ status }) => {
 };
 
 
-// ─── Summary Card (Static Aggregate View) ───────────────────────────────────
-const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
+// ─── Budget Health KPI Card (Decision-focused metric) ────────────────────────
+const BudgetHealthCard = ({ label, value, subLabel, trend, ragStatus, showBar, barValue, icon: Icon, formatFn }) => {
+  const ragConfig = {
+    green:  { bg: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800', accent: 'bg-emerald-500', label: 'Healthy' },
+    amber:  { bg: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400',   badge: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800',   accent: 'bg-amber-500',   label: 'At Risk' },
+    red:    { bg: 'bg-red-500',     text: 'text-red-600 dark:text-red-400',       badge: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800',             accent: 'bg-red-500',     label: 'Critical' },
+    neutral:{ bg: 'bg-slate-400',   text: 'text-slate-700 dark:text-slate-200',   badge: 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',   accent: 'bg-slate-400',   label: '' },
+  };
+  const rag = ragConfig[ragStatus] || ragConfig.neutral;
+  const TrendIcon = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : null;
+
   return (
-    <div className="bg-app-surface dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
-      {/* Decorative vertical accent */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 ${color === 'red' ? 'bg-red-500' :
-          color === 'blue' ? 'bg-blue-500' :
-            'bg-emerald-500'
-        } opacity-20`}></div>
+    <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+      {/* Accent bar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${rag.accent} opacity-70 rounded-l-xl`} />
 
-      <div className="flex-1">
-        <div className="flex flex-col mb-6">
-          <p className="text-xs font-black text-slate-400 dark:text-slate-100 uppercase tracking-[0.2em] mb-1">{label}</p>
-          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 italic uppercase tracking-wider">{subLabel}</p>
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {Icon && <div className={`p-1.5 rounded-lg ${rag.badge} border`}><Icon className="w-3.5 h-3.5" /></div>}
+          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</p>
         </div>
-        <p className={`text-3xl font-black tracking-tighter ${color === 'red' ? 'text-red-600 dark:text-red-400' :
-            color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-              color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
-                'text-slate-900 dark:text-slate-100'
-          }`}>
-          {format(value)}
-        </p>
-      </div>
-
-      {/* Right Side Metadata - Clean & Functional Context */}
-      <div className="pl-10 ml-6 border-l border-slate-100 dark:border-slate-800 dark:border-slate-800/50 flex flex-col gap-5 text-right min-w-[140px]">
-        {extraStat && (
-          <div>
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">{extraStat.label}</p>
-            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-100'}`}>
-              {extraStat.value}
-            </p>
-          </div>
+        {ragStatus !== 'neutral' && (
+          <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${rag.badge}`}>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${rag.bg}`} />
+            {rag.label}
+          </span>
         )}
-        <div>
-          <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Items Processed</p>
-          <p className="text-xs font-black text-slate-500 dark:text-slate-100 tracking-tight">{count} Rows</p>
-        </div>
       </div>
+
+      <div className="flex items-end justify-between">
+        <div>
+          <p className={`text-2xl font-black tracking-tighter ${rag.text}`}>{formatFn ? formatFn(value) : value}</p>
+          <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">{subLabel}</p>
+        </div>
+        {TrendIcon && (
+          <TrendIcon className={`w-5 h-5 mb-1 ${ragStatus === 'red' ? 'text-red-400' : ragStatus === 'amber' ? 'text-amber-400' : 'text-emerald-400'}`} />
+        )}
+      </div>
+
+      {showBar && barValue !== undefined && (
+        <div className="mt-3">
+          <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${rag.bg}`}
+              style={{ width: `${Math.min(100, Math.max(0, barValue))}%` }}
+            />
+          </div>
+          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1 text-right">{Math.round(barValue)}% consumed</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -1080,58 +1118,341 @@ const BudgetMaster = () => {
                 </div>
               </div>
 
-              {/* Over-budget Warning */}
-              {selectedProject && isOverBudget && (
-                <div className="px-8 py-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start gap-4">
-                  <div>
-                    <p className="text-base font-bold text-red-800 dark:text-red-400">Project is Over Budget</p>
-                    <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                      Total utilization <strong>{format(totalUtilization, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> exceeds budget <strong>{format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>
-                    </p>
+              {/* ── 2. PROGRAM HEALTH STRIP ──────────────────────────────────────── */}
+              {selectedProject && (() => {
+                const budget = parseFloat(overallBudget) || 0;
+                const consumption = budget > 0 ? (totalUtilization / budget) * 100 : 0;
+                const budgetRag = consumption > 100 ? 'red' : consumption >= 80 ? 'amber' : 'green';
+                const healthItems = [
+                  { label: 'Budget Health',   rag: budgetRag,  detail: `${Math.round(consumption)}% consumed` },
+                  { label: 'Schedule Health', rag: 'amber',    detail: 'Review required' },
+                  { label: 'Quality Health',  rag: 'green',    detail: 'Within targets' },
+                  { label: 'Customer Health', rag: 'green',    detail: 'On track' },
+                ];
+                const ragDot = { green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' };
+                const ragText = { green: 'text-emerald-700 dark:text-emerald-300', amber: 'text-amber-700 dark:text-amber-300', red: 'text-red-700 dark:text-red-300' };
+                const ragBg   = { green: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/15 dark:border-emerald-800', amber: 'bg-amber-50 border-amber-200 dark:bg-amber-900/15 dark:border-amber-800', red: 'bg-red-50 border-red-200 dark:bg-red-900/15 dark:border-red-800' };
+                const ragLabel = { green: 'Healthy', amber: 'At Risk', red: 'Critical' };
+                return (
+                  <div className="flex flex-wrap gap-3 p-4 bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <p className="w-full text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Program Health — {selectedProject}</p>
+                    {healthItems.map(h => (
+                      <div key={h.label} className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg border flex-1 min-w-[160px] ${ragBg[h.rag]}`}>
+                        <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 animate-pulse ${ragDot[h.rag]}`} />
+                        <div>
+                          <p className={`text-[10px] font-black uppercase tracking-wider ${ragText[h.rag]}`}>{h.label}</p>
+                          <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{ragLabel[h.rag]} · {h.detail}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
-              {/* Summary Cards */}
-              {(selectedProject || tableData.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <SummaryCard
-                    label="Estimated Budget"
-                    value={totalEstimated}
-                    color="blue"
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of Estimated Values"
-                    count={tableData.length}
-                    extraStat={{ label: 'Project Lead', value: managerName || 'Unassigned' }}
-                  />
-                  <SummaryCard
-                    label="Utilised Budget"
-                    value={totalUtilization}
-                    color={isOverBudget ? 'red' : 'emerald'}
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of (Utilized + Commitment)"
-                    count={tableData.length}
-                    extraStat={{
-                      label: 'Approved Budget',
-                      value: format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
-                      color: isOverBudget ? 'text-red-500' : 'text-slate-500 dark:text-slate-300'
-                    }}
-                  />
-                  <SummaryCard
-                    label="Balance Budget"
-                    value={totalBalance}
-                    color={totalBalance < 0 ? 'red' : 'emerald'}
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of Balance Remaining"
-                    count={tableData.length}
-                    extraStat={{
-                      label: 'Approved Revisions',
-                      value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
-                      color: 'text-slate-500 dark:text-slate-300 dark:text-slate-100'
-                    }}
-                  />
-                </div>
-              )}
+              {/* ── 3. BUDGET EXCEPTION PANEL ────────────────────────────────────── */}
+              {selectedProject && tableData.length > 0 && (() => {
+                const budget = parseFloat(overallBudget) || 0;
+                const exceptions = [];
+
+                // Over-budget categories
+                const catTotals = tableData.reduce((acc, r) => {
+                  const cat = r['Category'] || 'Uncategorised';
+                  if (!acc[cat]) acc[cat] = { estimated: 0, utilization: 0 };
+                  acc[cat].estimated   += parseFloat(r['Estimated'])         || 0;
+                  acc[cat].utilization += parseFloat(r['Total utilization']) || 0;
+                  return acc;
+                }, {});
+
+                Object.entries(catTotals).forEach(([cat, vals]) => {
+                  const pct = vals.estimated > 0 ? (vals.utilization / vals.estimated) * 100 : 0;
+                  if (vals.utilization > vals.estimated) {
+                    exceptions.push({ severity: 'critical', icon: ShieldAlert, label: `${cat} — Over Budget`, detail: `Forecast ${format(vals.utilization)} exceeds budget ${format(vals.estimated)} by ${format(vals.utilization - vals.estimated)}` });
+                  } else if (pct >= 85) {
+                    exceptions.push({ severity: 'warning', icon: TrendingUp, label: `${cat} — High Utilisation (${Math.round(pct)}%)`, detail: `${format(vals.estimated - vals.utilization)} remaining of ${format(vals.estimated)}` });
+                  }
+                });
+
+                // High commitment items (financial risk)
+                const highCommitRows = tableData.filter(r => (parseFloat(r['Commitment']) || 0) > 0);
+                if (highCommitRows.length > 0) {
+                  const totalCommit = highCommitRows.reduce((s, r) => s + (parseFloat(r['Commitment']) || 0), 0);
+                  exceptions.push({ severity: 'info', icon: ClipboardList, label: `${highCommitRows.length} Open Commitment${highCommitRows.length > 1 ? 's' : ''} Pending`, detail: `Total commitment exposure: ${format(totalCommit)} — requires management review` });
+                }
+
+                // Overall over-budget
+                if (isOverBudget) {
+                  exceptions.unshift({ severity: 'critical', icon: ShieldAlert, label: 'Project Forecast Exceeds Approved Budget', detail: `Overrun of ${format(totalUtilization - budget)} · Approved: ${format(budget)} · Forecast: ${format(totalUtilization)}` });
+                }
+
+                if (exceptions.length === 0) return null;
+
+                const sevCfg = {
+                  critical: { bar: 'bg-red-500',    badge: 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300',    icon: 'text-red-500',    label: 'Critical' },
+                  warning:  { bar: 'bg-amber-500',  badge: 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300', icon: 'text-amber-500', label: 'Warning' },
+                  info:     { bar: 'bg-blue-400',   badge: 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300',   icon: 'text-blue-400',   label: 'Attention' },
+                };
+
+                return (
+                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert className="w-4 h-4 text-red-500" />
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Budget Exception Panel</p>
+                        <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-[9px] font-black rounded-full border border-red-200 dark:border-red-800">{exceptions.length} Alert{exceptions.length > 1 ? 's' : ''}</span>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Requires Management Review</p>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {exceptions.map((ex, i) => {
+                        const cfg = sevCfg[ex.severity];
+                        const ExIcon = ex.icon;
+                        return (
+                          <div key={i} className="flex items-start gap-4 px-6 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors relative">
+                            <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${cfg.bar}`} />
+                            <div className={`p-2 rounded-lg border flex-shrink-0 ${cfg.badge}`}>
+                              <ExIcon className={`w-3.5 h-3.5 ${cfg.icon}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{ex.label}</p>
+                                <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black ${cfg.badge}`}>{cfg.label}</span>
+                              </div>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{ex.detail}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 1. BUDGET HEALTH KPI CARDS ───────────────────────────────────── */}
+              {(selectedProject || tableData.length > 0) && (() => {
+                const budget      = parseFloat(overallBudget) || 0;
+                const fac         = totalUtilization;          // Forecast at Completion
+                const variance    = budget - fac;
+                const consumption = budget > 0 ? (fac / budget) * 100 : 0;
+                const remaining   = budget - fac;
+
+                const consRag = consumption > 100 ? 'red' : consumption >= 80 ? 'amber' : 'green';
+                const varRag  = variance < 0 ? 'red' : variance < budget * 0.1 ? 'amber' : 'green';
+
+                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <BudgetHealthCard
+                      label="Approved Budget"
+                      value={budget}
+                      subLabel={`${tableData.length} line items · Mgr: ${managerName || 'Unassigned'}`}
+                      ragStatus="neutral"
+                      icon={Target}
+                      formatFn={fmt}
+                    />
+                    <BudgetHealthCard
+                      label="Forecast at Completion"
+                      value={fac}
+                      subLabel="Actual + Commitment"
+                      ragStatus={fac > budget ? 'red' : fac > budget * 0.9 ? 'amber' : 'green'}
+                      trend={fac > budget ? 'up' : 'down'}
+                      icon={TrendingUp}
+                      formatFn={fmt}
+                    />
+                    <BudgetHealthCard
+                      label="Budget Variance"
+                      value={Math.abs(variance)}
+                      subLabel={variance < 0 ? `Over by ${fmt(Math.abs(variance))}` : `Headroom remaining`}
+                      ragStatus={varRag}
+                      trend={variance < 0 ? 'up' : 'down'}
+                      icon={variance < 0 ? ArrowUpRight : ArrowDownRight}
+                      formatFn={(v) => (variance < 0 ? '−' : '+') + fmt(v)}
+                    />
+                    <BudgetHealthCard
+                      label="Consumption %"
+                      value={`${Math.min(999, Math.round(consumption))}%`}
+                      subLabel={`${fmt(fac)} of ${fmt(budget)}`}
+                      ragStatus={consRag}
+                      trend={consumption > 80 ? 'up' : null}
+                      icon={PieChart}
+                      showBar
+                      barValue={consumption}
+                    />
+                    <BudgetHealthCard
+                      label="Remaining Budget"
+                      value={remaining}
+                      subLabel={remaining < 0 ? 'Budget exhausted' : 'Available to spend'}
+                      ragStatus={remaining < 0 ? 'red' : remaining < budget * 0.15 ? 'amber' : 'green'}
+                      trend={remaining < 0 ? 'up' : null}
+                      icon={remaining < 0 ? ArrowUpRight : ArrowDownRight}
+                      formatFn={fmt}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* ── 4. CATEGORY COST BREAKDOWN ───────────────────────────────────── */}
+              {selectedProject && tableData.length > 0 && (() => {
+                const catData = Object.entries(
+                  tableData.reduce((acc, r) => {
+                    const cat = r['Category'] || 'Uncategorised';
+                    if (!acc[cat]) acc[cat] = { estimated: 0, actual: 0, commitment: 0 };
+                    acc[cat].estimated   += parseFloat(r['Estimated'])         || 0;
+                    acc[cat].actual      += parseFloat(r['Utilized'])          || 0;
+                    acc[cat].commitment  += parseFloat(r['Commitment'])        || 0;
+                    return acc;
+                  }, {})
+                )
+                  .map(([cat, v]) => ({ cat, ...v, forecast: v.actual + v.commitment, pct: v.estimated > 0 ? ((v.actual + v.commitment) / v.estimated) * 100 : 0 }))
+                  .sort((a, b) => b.estimated - a.estimated)
+                  .slice(0, 6);
+
+                if (catData.length === 0) return null;
+
+                const totalEst = catData.reduce((s, c) => s + c.estimated, 0);
+                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                return (
+                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Category Cost Breakdown</p>
+                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Budget allocation by cost center</p>
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{catData.length} Categories</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-0 divide-x divide-y divide-slate-100 dark:divide-slate-800">
+                      {catData.map(c => {
+                        const barRag = c.pct > 100 ? 'bg-red-500' : c.pct >= 80 ? 'bg-amber-500' : 'bg-blue-500';
+                        const shareOfTotal = totalEst > 0 ? (c.estimated / totalEst) * 100 : 0;
+                        return (
+                          <div key={c.cat} className="px-5 py-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-black text-slate-700 dark:text-slate-200 truncate max-w-[140px]">{c.cat}</p>
+                              <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{Math.round(shareOfTotal)}% of total</span>
+                            </div>
+                            <p className="text-base font-black text-slate-900 dark:text-slate-100">{fmt(c.estimated)}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mb-2">Budget · Forecast: {fmt(c.forecast)}</p>
+                            <div className="h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                              <div className={`h-full rounded-full ${barRag} transition-all duration-700`} style={{ width: `${Math.min(100, c.pct)}%` }} />
+                            </div>
+                            <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-1">{Math.round(c.pct)}% utilized</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 5. TOP COST DRIVERS ──────────────────────────────────────────── */}
+              {selectedProject && tableData.length > 0 && (() => {
+                const topItems = [...tableData]
+                  .filter(r => (parseFloat(r['Estimated']) || 0) > 0)
+                  .sort((a, b) => (parseFloat(b['Estimated']) || 0) - (parseFloat(a['Estimated']) || 0))
+                  .slice(0, 5);
+
+                if (topItems.length === 0) return null;
+                const maxEst = parseFloat(topItems[0]['Estimated']) || 1;
+                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                return (
+                  <div className="bg-app-surface dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Top Cost Drivers</p>
+                        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Highest budget-consuming line items</p>
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Top 5 Items</span>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {topItems.map((row, idx) => {
+                        const est  = parseFloat(row['Estimated'])         || 0;
+                        const util = parseFloat(row['Total utilization']) || 0;
+                        const pct  = est > 0 ? (util / est) * 100 : 0;
+                        const barW = (est / maxEst) * 100;
+                        const barRag = pct > 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-blue-500';
+                        return (
+                          <div key={row.id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 ${
+                              idx === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                              idx === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' :
+                              idx === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                              'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                            }`}>#{idx + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{row['Item Name'] || '—'}</p>
+                                {row['Category'] && (
+                                  <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-black rounded flex-shrink-0">{row['Category']}</span>
+                                )}
+                              </div>
+                              <div className="mt-1.5 h-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" style={{ width: `${barW}%` }}>
+                                <div className={`h-full rounded-full ${barRag}`} />
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{fmt(est)}</p>
+                              <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">{Math.round(pct)}% forecast</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── 6. BUDGET REVISION VISIBILITY STRIP ─────────────────────────── */}
+              {selectedProject && (() => {
+                const projRevisions = revisions.filter(r => r.project_name === selectedProject);
+                const pendingRevs   = projRevisions.filter(r => ['Pending Head', 'Pending Finance', 'In Waiting Period'].includes(r.status));
+                const approvedRevs  = projRevisions.filter(r => r.status === 'Approved');
+                const lastApproved  = approvedRevs.sort((a, b) => new Date(b.approved_at || b.updated_at) - new Date(a.approved_at || a.updated_at))[0];
+                const latestRev     = projRevisions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+                const revImpact = approvedRevs.length > 0
+                  ? approvedRevs.reduce((sum, r) => sum + ((r.revised_budget || 0) - (r.previous_budget || 0)), 0)
+                  : 0;
+
+                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                return (
+                  <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-900 dark:to-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-indigo-500" />
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-100">Budget Revision Status</p>
+                      </div>
+                      <button
+                        onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
+                        className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 hover:underline uppercase tracking-wider"
+                      >
+                        Manage Revisions →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-0 divide-x divide-slate-100 dark:divide-slate-800">
+                      {[
+                        { label: 'Total Revisions',    value: projRevisions.length.toString(),       sub: 'submitted' },
+                        { label: 'Pending Review',     value: pendingRevs.length.toString(),         sub: pendingRevs.length > 0 ? 'Awaiting approval' : 'None pending', highlight: pendingRevs.length > 0 },
+                        { label: 'Last Approved',      value: lastApproved ? new Date(lastApproved.approved_at || lastApproved.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—', sub: lastApproved ? `Rev #${lastApproved.id}` : 'No approvals yet' },
+                        { label: 'Cumulative Impact',  value: revImpact !== 0 ? (revImpact > 0 ? '+' : '') + fmt(revImpact) : '—', sub: 'from approved revisions', highlight: revImpact > 0 },
+                        { label: 'Approval Status',    value: latestRev ? latestRev.status : 'No Revisions', sub: latestRev ? `Rev #${latestRev.id}` : 'Submit a revision request', isStatus: true, rev: latestRev },
+                      ].map((item, i) => (
+                        <div key={i} className="px-5 py-4 flex flex-col gap-1">
+                          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
+                          {item.isStatus && item.rev ? (
+                            <RevisionBadge status={item.rev.status} />
+                          ) : (
+                            <p className={`text-base font-black ${item.highlight ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-100'}`}>{item.value}</p>
+                          )}
+                          <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500">{item.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Table Toolbar */}
               <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
@@ -1309,7 +1630,7 @@ const BudgetMaster = () => {
                             className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
                             onClick={() => handleSort(col.label)}>
                             <div className="flex items-center gap-1">
-                              {col.label}
+                              {COST_LABEL_MAP[col.label] || col.label}
                               {sortConfig.key === col.label && (
                                 sortConfig.direction === 'ascending'
                                   ? <ChevronUp className="h-3 w-3" />
@@ -1375,7 +1696,12 @@ const BudgetMaster = () => {
                                       <select value={val || ''}
                                         onChange={e => handleEditChange(col.label, e.target.value)}
                                         className="w-full px-3 py-2 text-sm bg-app-surface dark:bg-slate-800 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
-                                        {['In Progress', 'Completed', 'On Hold', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+                                        <optgroup label="Cost Control">
+                                          {['Within Budget', 'Watchlist', 'Over Budget', 'Closed'].map(s => <option key={s}>{s}</option>)}
+                                        </optgroup>
+                                        <optgroup label="Workflow">
+                                          {['In Progress', 'Completed', 'On Hold', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+                                        </optgroup>
                                       </select>
                                     ) : (
                                       <input
@@ -1406,8 +1732,23 @@ const BudgetMaster = () => {
                                     } ${num ? 'text-right font-semibold' : ''}`}>
                                   {col.label === 'Status'
                                     ? <StatusBadge value={val} />
-                                    : col.label === 'Balance' && parseFloat(val) < 0
-                                      ? <span className="text-red-600 dark:text-red-400 font-bold">{display}</span>
+                                    : col.label === 'Balance'
+                                      ? (() => {
+                                          const balNum = parseFloat(val);
+                                          const estNum = parseFloat(row['Estimated']) || 0;
+                                          const varPct = estNum > 0 && !isNaN(balNum) ? ((balNum / estNum) * 100).toFixed(1) : null;
+                                          const isNeg = !isNaN(balNum) && balNum < 0;
+                                          return (
+                                            <span className={`inline-flex items-center gap-1.5 ${isNeg ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'} font-bold`}>
+                                              {display}
+                                              {varPct !== null && (
+                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${isNeg ? 'bg-red-50 dark:bg-red-900/30' : 'bg-emerald-50 dark:bg-emerald-900/30'}`}>
+                                                  {isNeg ? '' : '+'}{varPct}%
+                                                </span>
+                                              )}
+                                            </span>
+                                          );
+                                        })()
                                       : display
                                   }
                                 </td>
@@ -1450,22 +1791,50 @@ const BudgetMaster = () => {
                       })}
                     </tbody>
 
-                    {/* Summary footer */}
+                    {/* Summary footer - Variance analysis */}
                     {tableData.length > 0 && (
                       <tfoot>
                         <tr className="bg-app-bg dark:bg-slate-800/80 border-t-4 border-slate-200 dark:border-slate-700">
                           {visibleColumns.map((col, idx) => {
                             let cell = null;
-                            if (idx === 0) cell = <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">Total</span>;
-                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated)}</span>;
-                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>;
-                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{format(totalBalance)}</span>;
+                            const budget = parseFloat(overallBudget) || 0;
+                            if (idx === 0) cell = (
+                              <div>
+                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-wider">Project Total</span>
+                                {budget > 0 && (
+                                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">Approved: {format(budget)}</p>
+                                )}
+                              </div>
+                            );
+                            if (col.label === 'Estimated') cell = (
+                              <div className="text-right">
+                                <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated)}</span>
+                                <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500">Budget</p>
+                              </div>
+                            );
+                            if (col.label === 'Total utilization') cell = (
+                              <div className="text-right">
+                                <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>
+                                {budget > 0 && <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500">{Math.round((totalUtilization / budget) * 100)}% of approved</p>}
+                              </div>
+                            );
+                            if (col.label === 'Balance') {
+                              const varPct = totalEstimated > 0 ? ((totalBalance / totalEstimated) * 100).toFixed(1) : null;
+                              cell = (
+                                <div className="text-right">
+                                  <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{format(totalBalance)}</span>
+                                  {varPct && (
+                                    <p className={`text-[9px] font-black ${totalBalance < 0 ? 'text-red-400' : 'text-emerald-500'}`}>{totalBalance < 0 ? '' : '+'}{varPct}% variance</p>
+                                  )}
+                                </div>
+                              );
+                            }
                             const num = isMonetary(col.label) || col.label === 'Unit count';
                             return (
-                              <td key={col.id} className={`py-6 px-6 ${num ? 'text-right' : ''}`}>{cell}</td>
+                              <td key={col.id} className={`py-5 px-6 ${num ? 'text-right' : ''}`}>{cell}</td>
                             );
                           })}
-                          <td className="py-6 px-6 sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700" />
+                          <td className="py-5 px-6 sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700" />
                         </tr>
                       </tfoot>
                     )}

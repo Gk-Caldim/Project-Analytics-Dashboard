@@ -77,39 +77,31 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     import time
     start_q1_q2 = time.perf_counter()
     
-    subq_merged = db.query(
-        TrackerIngestion.file_name,
-        func.max(TrackerIngestion.created_at).label('max_created')
-    ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
-    
-    results = (
-        db.query(Project, TrackerIngestion)
-        .select_from(Project)
-        .options(defer(TrackerIngestion.data))  # Defer loading the large JSONB records
-        .outerjoin(
-            subq_merged,
-            Project.id == Project.id
-        )
-        .outerjoin(
-            TrackerIngestion,
-            (TrackerIngestion.project_id == Project.id) &
-            (TrackerIngestion.file_name == subq_merged.c.file_name) &
-            (TrackerIngestion.created_at == subq_merged.c.max_created)
-        )
-        .filter(Project.id == project_id)
-        .all()
-    )
-    
-    q1_q2_duration = (time.perf_counter() - start_q1_q2) * 1000
-    print(f"Project + Ingestion merged query: {q1_q2_duration:.2f}ms")
-    
-    if not results:
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
         project_name = f"Project {project_id}"
         ingestions = []
     else:
-        project = results[0][0]
-        project_name = project.name if project else f"Project {project_id}"
-        ingestions = [row[1] for row in results if row[1] is not None]
+        project_name = project.name
+        subq_merged = db.query(
+            TrackerIngestion.file_name,
+            func.max(TrackerIngestion.created_at).label('max_created')
+        ).filter(TrackerIngestion.project_id == project_id).group_by(TrackerIngestion.file_name).subquery()
+
+        ingestions = (
+            db.query(TrackerIngestion)
+            .options(defer(TrackerIngestion.data))
+            .filter(TrackerIngestion.project_id == project_id)
+            .join(
+                subq_merged,
+                (TrackerIngestion.file_name == subq_merged.c.file_name) &
+                (TrackerIngestion.created_at == subq_merged.c.max_created)
+            )
+            .all()
+        )
+    
+    q1_q2_duration = (time.perf_counter() - start_q1_q2) * 1000
+    print(f"Project + Ingestion merged query: {q1_q2_duration:.2f}ms")
 
     # Merge precomputed module summaries from all active files
     merged_modules = {}
@@ -204,8 +196,7 @@ def get_dashboard_data(db: Session, project_id: int, module_filter: str | None =
     pending_pct        = _safe_pct(pending,   total)
 
     milestones = []
-    if results and results[0][0]:
-        project = results[0][0]
+    if project:
         if project.project_id:
             from app.models.project_milestone import ProjectMilestone
             from app.schemas.project_milestone import MilestoneResponse

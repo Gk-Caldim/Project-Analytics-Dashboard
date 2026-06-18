@@ -14,3 +14,11 @@ from app.models.chat_history import ChatHistory
 from app.models.tracker_ingestion import TrackerIngestion
 from app.models.project_sub_category import ProjectSubCategory
 from app.models.upload import Upload
+
+# ── New Phase 1 Models ──────────────────────────────────────────────────────
+from app.models.validation import ValidationChecklist, PPAPStage, DVResult, QualityKPI  # noqa: F401
+from app.models.defect import Defect, FailurePattern  # noqa: F401
+from app.models.customer_feedback import CustomerComplaint, SentimentAnalysis  # noqa: F401
+from app.models.cost_analysis import CostAnomaly, ShouldCostBenchmark  # noqa: F401
+from app.models.predictions import RiskScore, DelayPrediction, DefectPrediction, Risk  # noqa: F401
+from app.models.line_quality import LineQualityMetric  # noqa: F401

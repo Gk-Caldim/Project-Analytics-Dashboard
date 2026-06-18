@@ -4,7 +4,8 @@ import {
   LayoutDashboard, BarChart3, Calendar, AlertTriangle, Wallet,
   Settings, Mail, CheckCircle2, RefreshCw, FileText, X, ExternalLink,
   Table, Filter, Building2, ListTodo, Activity, Sparkles,
-  TrendingUp, TrendingDown, AlertCircle, Zap, ClipboardList, Users
+  TrendingUp, TrendingDown, AlertCircle, Zap, ClipboardList, Users,
+  Shield, MessageSquare, ShieldAlert
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ReactECharts from 'echarts-for-react';
@@ -14,6 +15,9 @@ import { listIssues } from '../api/issues';
 import './VPProjectDashboard.css';
 import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
+import ValidationDashboard from '../components/dashboard/ValidationDashboard';
+import CustomerIssuesDashboard from '../components/dashboard/CustomerIssuesDashboard';
+import RiskManagementDashboard from '../components/dashboard/RiskManagementDashboard';
 
 
 /* ─────────────────────────────── helpers ──────────────────────────── */
@@ -103,6 +107,9 @@ const TABS = [
   { id: 'milestones',       label: 'Milestones & Timeline',       Icon: Calendar        },
   { id: 'issues',           label: 'Critical Issues',             Icon: AlertTriangle   },
   { id: 'budget',           label: 'Budget Summary',              Icon: Wallet          },
+  { id: 'validation',       label: 'Validation Gates',            Icon: Shield          },
+  { id: 'customer-issues',  label: 'Customer Issues',             Icon: MessageSquare   },
+  { id: 'risk-management',  label: 'Risk Management',             Icon: ShieldAlert     },
 ];
 
 const VPProjectDashboard = ({
@@ -1402,6 +1409,22 @@ const VPProjectDashboard = ({
         {activeTab === 'milestones' && renderMilestonesTab()}
         {activeTab === 'issues'     && renderIssuesTab()}
         {activeTab === 'budget'     && renderBudgetTab()}
+        {activeTab === 'validation' && (
+          <ValidationDashboard
+            projectId={activeProject?.dbProjectId || activeProject?.id}
+            projectName={activeProject?.name}
+          />
+        )}
+        {activeTab === 'customer-issues' && (
+          <CustomerIssuesDashboard
+            projectId={activeProject?.dbProjectId || activeProject?.id}
+          />
+        )}
+        {activeTab === 'risk-management' && (
+          <RiskManagementDashboard
+            projectId={activeProject?.dbProjectId || activeProject?.id}
+          />
+        )}
 
         {/* Resource & Quality — appended at bottom of metrics/overview */}
         {(activeTab === 'overview' || activeTab === 'metrics') && (

@@ -127,8 +127,6 @@ const ResourceLoads = ({ employees = [] }) => {
           fontFamily: 'Inter, sans-serif',
           width: 90,
           overflow: 'truncate',
-          // Visually distinguish "Not assigned"
-          rich: {},
           formatter: (val) => val === NOT_ASSIGNED_LABEL ? `{muted|${val}}` : val,
           rich: {
             muted: { color: '#94a3b8', fontStyle: 'italic', fontSize: 9 }

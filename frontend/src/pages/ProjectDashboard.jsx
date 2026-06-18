@@ -45,6 +45,7 @@ import ResourceLoads from '../components/dashboard/ResourceLoads';
 import ProjectTimelinePanel from '../components/dashboard/ProjectTimelinePanel';
 import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
 import CriticalIssuesCharts from '../components/dashboard/CriticalIssuesCharts';
+import AIAssistantPanel from '../components/AIAssistantPanel';
 
 
 
@@ -5147,6 +5148,7 @@ const ProjectTitleDashboard = () => {
               />
             </section>
             {/* End project-dashboard-main-content */}
+            <AIAssistantPanel projectId={activeProject?.dbProjectId || activeProject?.id} />
 
 
             {showPdfPreview && (
