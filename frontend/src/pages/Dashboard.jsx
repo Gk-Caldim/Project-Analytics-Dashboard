@@ -138,7 +138,8 @@ const Dashboard = () => {
   ], []);
 
   const otherModules = useMemo(() => [
-    { id: 'system-settings', name: 'Settings', path: 'settings', icon: <Settings className="h-4 w-4" /> },
+    { id: 'analytics-hub',   name: 'Analytics Hub', path: 'analytics-hub', icon: <BarChart3 className="h-4 w-4" /> },
+    { id: 'system-settings', name: 'Settings',      path: 'settings',      icon: <Settings className="h-4 w-4" /> },
   ], []);
 
 
@@ -677,6 +678,7 @@ const Dashboard = () => {
 
   const getActiveModuleName = () => {
     if (activeModule === 'project-dashboard') return 'Project Dashboard';
+    if (activeModule === 'analytics-hub') return 'Analytics Hub';
     if (activeModule === 'masters-main') return 'Master';
     if (activeModule === 'mom-module') {
       // Distinguish between MOM creation entry and the output/view table

@@ -34,6 +34,7 @@ import WelcomePanel from '../components/project/WelcomePanel';
 import ProjectsPanel from '../components/project/ProjectsPanel';
 import ModulesPanel from '../components/project/ModulesPanel';
 
+import AnalyticsHubShell from '../components/dashboard/AnalyticsHubShell';
 import TodayPrioritiesStrip from '../components/dashboard/TodayPrioritiesStrip';
 import PortfolioHealthMatrix from '../components/dashboard/PortfolioHealthMatrix';
 import OperationsCommandCenter from '../components/dashboard/OperationsCommandCenter';
@@ -4969,147 +4970,12 @@ const ProjectTitleDashboard = () => {
         {/* Projects List or Dashboard Content */}
         {!activeProject ? (
           /* Home / Projects Overview View */
-          <DashboardHomeLayout>
-            <div className="dashboard-header-title-section">
-              <h1 className="dashboard-title">Project Command Center</h1>
-              <p className="dashboard-subtitle">Enterprise-level project health, budget governance, and resource analytics overview.</p>
-            </div>
-            <TodayPrioritiesStrip
-              escalationsCount={escalationsCount}
-              criticalPathDelaysCount={criticalPathDelaysCount}
-              revisionsCount={revisionsCount}
-              commodityAlertsCount={commodityAlertsCount}
-              onAlertClick={(type) => {
-                const elementId = type === 'escalations' ? 'operations-command-center' :
-                                  type === 'delays' ? 'portfolio-health-matrix' :
-                                  type === 'revisions' ? 'budget-governance-workspace' :
-                                  type === 'commodity' ? 'supply-chain-risk-center' : null;
-                if (elementId) {
-                  const el = document.getElementById(elementId);
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }
-              }}
-            />
-
-            {(() => {
-              const role = (user?.role || 'Admin').trim();
-              const isExecOrAdmin = ['Admin', 'Super Admin', 'Finance', 'Head'].includes(role);
-              const isPM = role === 'Project Manager';
-
-              if (isExecOrAdmin) {
-                return (
-                  <div className="sketch-dashboard">
-                    {/* Row 1 — Portfolio Health Matrix | Budget Governance Workspace */}
-                    <div className="sketch-row-top">
-                      <div className="sketch-cell" id="portfolio-health-matrix">
-                        <PortfolioHealthMatrix
-                          projectsSummary={mergedProjectsSummary}
-                          structures={structuresData || []}
-                          onProjectSelect={(proj) => {
-                            const found = projects.find(p => String(p.dbProjectId) === String(proj.project_id));
-                            if (found) handleProjectSelect(found.id);
-                          }}
-                          issuesMap={issuesMap}
-                          budgetsMap={budgetsMap}
-                          onActionClick={handleMatrixAction}
-                          analyticsData={summaryAnalyticsData}
-                          isPM={false}
-                        />
-                      </div>
-                      <div className="sketch-cell" id="budget-governance-workspace">
-                        <BudgetGovernanceWorkspace
-                          revisions={allRevisionsData || []}
-                          onRefresh={handleHomepageRefresh}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 2 — Project Timeline (full width, tabbed) */}
-                    <div className="sketch-row-timeline" id="project-timeline">
-                      <ProjectTimelinePanel
-                        projects={mergedProjectsSummary}
-                        uploads={allUploads}
-                        revisions={allRevisionsData || []}
-                      />
-                    </div>
-
-                    {/* Row 3 — Resource Loads (narrow) | Critical Issues Charts (wide) */}
-                    <div className="sketch-row-bottom">
-                      <div className="sketch-cell" id="resource-loads">
-                        <ResourceLoads employees={employeesData || allEmployees || []} />
-                      </div>
-                      <div className="sketch-cell" id="supply-chain-risk-center">
-                        <CriticalIssuesCharts
-                          issues={allIssuesData || []}
-                          projects={projects}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              } else if (isPM) {
-                return (
-                  <div className="dash-layout-main-sidebar">
-                    {/* Main content column */}
-                    <div className="flex flex-col gap-3 min-w-0">
-                      <div id="operations-command-center">
-                        <OperationsCommandCenter
-                          escalations={escalations}
-                          delays={delays}
-                          revisions={allRevisionsData || []}
-                          commodityAlerts={commodityAlerts}
-                          momActions={momActions}
-                          onRefresh={handleHomepageRefresh}
-                        />
-                      </div>
-                      <div id="portfolio-health-matrix">
-                        <PortfolioHealthMatrix
-                          projectsSummary={mergedProjectsSummary}
-                          structures={structuresData || []}
-                          onProjectSelect={(proj) => {
-                            const found = projects.find(p => String(p.dbProjectId) === String(proj.project_id));
-                            if (found) handleProjectSelect(found.id);
-                          }}
-                          issuesMap={issuesMap}
-                          budgetsMap={budgetsMap}
-                          onActionClick={handleMatrixAction}
-                          isPM={true}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Fixed sidebar — Activity Stream */}
-                    <div className="dash-sidebar-sticky">
-                      <OperationalActivityStream
-                        uploads={allUploads}
-                        meetings={meetingsData || []}
-                        revisions={allRevisionsData || []}
-                        milestones={allMilestonesFromSummary}
-                      />
-                    </div>
-                  </div>
-                );
-              } else {
-                // Team Lead / Engineer / Employee
-                return (
-                  <div className="dash-layout-main-sidebar">
-                    <div className="flex flex-col gap-3 min-w-0">
-                      {renderMyTasksChecklist()}
-                      {renderIngestionTrackerLogs()}
-                    </div>
-                    <div className="dash-sidebar-sticky">
-                      <OperationalActivityStream
-                        uploads={allUploads}
-                        meetings={meetingsData || []}
-                        revisions={allRevisionsData || []}
-                        milestones={allMilestonesFromSummary}
-                      />
-                    </div>
-                  </div>
-                );
-              }
-            })()}
-          </DashboardHomeLayout>
+          <AnalyticsHubShell
+            onProjectSelect={(proj) => {
+              const found = projects.find(p => String(p.dbProjectId) === String(proj.project_id));
+              if (found) handleProjectSelect(found.id);
+            }}
+          />
         ) : selectedSubmodule ? (
           /* Submodule Detail View */
           <div style={{ padding: '12px 16px 16px 16px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
