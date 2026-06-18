@@ -43,6 +43,7 @@ import ResourceManagementCenter from '../components/dashboard/ResourceManagement
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 import ResourceLoads from '../components/dashboard/ResourceLoads';
 import ProjectTimelinePanel from '../components/dashboard/ProjectTimelinePanel';
+import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
 
 
 
