@@ -17,10 +17,16 @@ import {
   getEmployees,
   getAllIssues,
   getBudgetRevisions,
+  getOverviewKpis,
+  getSupplyChainAnalytics,
+  getEnrichedIssues,
+  getTrackersAnalytics,
+  getWorkforceEnriched,
 } from '../api/dashboard';
 
 const REFETCH_INTERVAL = 30_000; // 30 s — same as app health check
 const STALE_TIME      = 0;       // always treat as stale so data is fresh on tab switch
+const SLOW_INTERVAL   = 60_000;  // 60 s for heavier queries
 
 export function useRealtimeAnalytics() {
   const queryClient = useQueryClient();
@@ -54,7 +60,7 @@ export function useRealtimeAnalytics() {
     retry: 2,
   });
 
-  // ── 3. Project Structures (site operations tab) ──
+  // ── 3. Project Structures (used by overview budget map) ──
   const {
     data: structures = [],
     isLoading: structuresLoading,
@@ -68,7 +74,7 @@ export function useRealtimeAnalytics() {
     retry: 2,
   });
 
-  // ── 4. Employees (workforce tab) ──
+  // ── 4. Employees (workforce tab — legacy, kept for compatibility) ──
   const {
     data: employees = [],
     isLoading: employeesLoading,
@@ -78,11 +84,11 @@ export function useRealtimeAnalytics() {
     queryKey: ['ah_employees'],
     queryFn: getEmployees,
     staleTime: STALE_TIME,
-    refetchInterval: 60_000, // employees change less often
+    refetchInterval: SLOW_INTERVAL,
     retry: 2,
   });
 
-  // ── 5. All Issues (issues & NCR tab + compliance) ──
+  // ── 5. Enriched Issues (real project names via DB join) ──
   const {
     data: allIssues = [],
     isLoading: issuesLoading,
@@ -90,7 +96,7 @@ export function useRealtimeAnalytics() {
     refetch: refetchIssues,
   } = useQuery({
     queryKey: ['ah_allIssues'],
-    queryFn: () => getAllIssues(),
+    queryFn: getEnrichedIssues,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
     retry: 2,
@@ -106,20 +112,77 @@ export function useRealtimeAnalytics() {
     queryKey: ['ah_budgetRevisions'],
     queryFn: getBudgetRevisions,
     staleTime: STALE_TIME,
-    refetchInterval: 60_000,
+    refetchInterval: SLOW_INTERVAL,
+    retry: 2,
+  });
+
+  // ── 7. Overview KPIs (5 real metrics) ──
+  const {
+    data: overviewKpis = null,
+    isLoading: overviewKpisLoading,
+    isError: overviewKpisError,
+    refetch: refetchOverviewKpis,
+  } = useQuery({
+    queryKey: ['ah_overviewKpis'],
+    queryFn: getOverviewKpis,
+    staleTime: STALE_TIME,
+    refetchInterval: REFETCH_INTERVAL,
+    retry: 2,
+  });
+
+  // ── 8. Supply Chain Analytics (from budget JSONB) ──
+  const {
+    data: supplyChainData = null,
+    isLoading: supplyChainLoading,
+    isError: supplyChainError,
+    refetch: refetchSupplyChain,
+  } = useQuery({
+    queryKey: ['ah_supplyChain'],
+    queryFn: getSupplyChainAnalytics,
+    staleTime: STALE_TIME,
+    refetchInterval: SLOW_INTERVAL,
+    retry: 2,
+  });
+
+  // ── 9. Trackers Analytics (Upload metadata, excludes drafts) ──
+  const {
+    data: trackersAnalytics = null,
+    isLoading: trackersLoading,
+    isError: trackersError,
+    refetch: refetchTrackers,
+  } = useQuery({
+    queryKey: ['ah_trackersAnalytics'],
+    queryFn: getTrackersAnalytics,
+    staleTime: STALE_TIME,
+    refetchInterval: SLOW_INTERVAL,
+    retry: 2,
+  });
+
+  // ── 10. Workforce Enriched (employees + allocations) ──
+  const {
+    data: workforceData = null,
+    isLoading: workforceLoading,
+    isError: workforceError,
+    refetch: refetchWorkforce,
+  } = useQuery({
+    queryKey: ['ah_workforceEnriched'],
+    queryFn: getWorkforceEnriched,
+    staleTime: STALE_TIME,
+    refetchInterval: SLOW_INTERVAL,
     retry: 2,
   });
 
   // ── WebSocket push invalidation ──
-  // Listens to the same custom events dispatched by App.jsx's WebSocket handler
   useEffect(() => {
     const handleIssueSync = () => {
       queryClient.invalidateQueries({ queryKey: ['ah_allIssues'] });
       queryClient.invalidateQueries({ queryKey: ['ah_projectsSummary'] });
       queryClient.invalidateQueries({ queryKey: ['ah_summaryAnalytics'] });
+      queryClient.invalidateQueries({ queryKey: ['ah_overviewKpis'] });
     };
     const handleMomSaved = () => {
       queryClient.invalidateQueries({ queryKey: ['ah_allIssues'] });
+      queryClient.invalidateQueries({ queryKey: ['ah_overviewKpis'] });
     };
 
     window.addEventListener('ISSUE_SYNCED', handleIssueSync);
@@ -130,7 +193,7 @@ export function useRealtimeAnalytics() {
     };
   }, [queryClient]);
 
-  // ── Master refresh helper (used by the refresh button in the UI) ──
+  // ── Master refresh helper ──
   const refetchAll = () => {
     refetchSummary();
     refetchAnalytics();
@@ -138,6 +201,10 @@ export function useRealtimeAnalytics() {
     refetchIssues();
     refetchEmployees();
     refetchBudget();
+    refetchOverviewKpis();
+    refetchSupplyChain();
+    refetchTrackers();
+    refetchWorkforce();
   };
 
   const isLoading = summaryLoading || analyticsLoading || structuresLoading;
@@ -145,7 +212,7 @@ export function useRealtimeAnalytics() {
   const lastUpdated = summaryUpdatedAt ? new Date(summaryUpdatedAt) : null;
 
   return {
-    // Data
+    // Original data
     projectsSummary,
     analyticsData,
     structures,
@@ -153,13 +220,23 @@ export function useRealtimeAnalytics() {
     allIssues,
     budgetRevisions,
 
-    // Loading states (per-slice for granular skeletons)
+    // New enriched data
+    overviewKpis,
+    supplyChainData,
+    trackersAnalytics,
+    workforceData,
+
+    // Loading states
     summaryLoading,
     analyticsLoading,
     structuresLoading,
     employeesLoading,
     issuesLoading,
     budgetLoading,
+    overviewKpisLoading,
+    supplyChainLoading,
+    trackersLoading,
+    workforceLoading,
 
     // Convenience
     isLoading,
@@ -174,5 +251,9 @@ export function useRealtimeAnalytics() {
     refetchIssues,
     refetchEmployees,
     refetchBudget,
+    refetchOverviewKpis,
+    refetchSupplyChain,
+    refetchTrackers,
+    refetchWorkforce,
   };
 }
