@@ -44,6 +44,7 @@ import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
 import ResourceLoads from '../components/dashboard/ResourceLoads';
 import ProjectTimelinePanel from '../components/dashboard/ProjectTimelinePanel';
 import OperationalActivityStream from '../components/dashboard/OperationalActivityStream';
+import CriticalIssuesCharts from '../components/dashboard/CriticalIssuesCharts';
 
 
 
@@ -838,6 +839,15 @@ const ProjectTitleDashboard = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: summaryAnalyticsData, refetch: refetchSummaryAnalytics } = useQuery({
+    queryKey: ['summaryAnalytics'],
+    queryFn: async () => {
+      const { getDashboardSummaryAnalytics } = await import('../api/dashboard');
+      return getDashboardSummaryAnalytics();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: commodityPricesData, refetch: refetchCommodityPrices } = useQuery({
     queryKey: ['commodityPrices'],
     queryFn: async () => {
@@ -874,6 +884,7 @@ const ProjectTitleDashboard = () => {
     refetchAllIssues();
     refetchCommodityPrices();
     refetchMeetings();
+    refetchSummaryAnalytics();
   };
 
   const handleMatrixAction = (action, payload) => {
@@ -5000,6 +5011,8 @@ const ProjectTitleDashboard = () => {
                           issuesMap={issuesMap}
                           budgetsMap={budgetsMap}
                           onActionClick={handleMatrixAction}
+                          analyticsData={summaryAnalyticsData}
+                          isPM={false}
                         />
                       </div>
                       <div className="sketch-cell" id="budget-governance-workspace">
@@ -5019,17 +5032,15 @@ const ProjectTitleDashboard = () => {
                       />
                     </div>
 
-                    {/* Row 3 — Resource Loads (narrow) | Supply Chain Risk Center (wide) */}
+                    {/* Row 3 — Resource Loads (narrow) | Critical Issues Charts (wide) */}
                     <div className="sketch-row-bottom">
                       <div className="sketch-cell" id="resource-loads">
                         <ResourceLoads employees={employeesData || allEmployees || []} />
                       </div>
                       <div className="sketch-cell" id="supply-chain-risk-center">
-                        <SupplyChainRiskCenter
-                          commodityPrices={commodityPricesData || {}}
-                          projects={mergedProjectsSummary}
-                          structures={structuresData || []}
-                          onRefresh={handleHomepageRefresh}
+                        <CriticalIssuesCharts
+                          issues={allIssuesData || []}
+                          projects={projects}
                         />
                       </div>
                     </div>
@@ -5061,6 +5072,7 @@ const ProjectTitleDashboard = () => {
                           issuesMap={issuesMap}
                           budgetsMap={budgetsMap}
                           onActionClick={handleMatrixAction}
+                          isPM={true}
                         />
                       </div>
                     </div>

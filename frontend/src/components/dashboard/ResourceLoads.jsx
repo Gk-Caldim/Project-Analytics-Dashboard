@@ -295,6 +295,7 @@ const ResourceLoads = ({ employees = [] }) => {
                   style={{
                     position: 'sticky',
                     top: 0,
+                    zIndex: 10,
                     background: 'var(--surface)',
                     padding: '8px 10px',
                     fontWeight: 700,
