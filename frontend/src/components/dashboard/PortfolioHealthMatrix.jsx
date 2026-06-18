@@ -8,7 +8,9 @@ const PortfolioHealthMatrix = ({
   onProjectSelect = () => {},
   issuesMap = {},            // Maps project_id to its list of issues
   budgetsMap = {},           // Maps project_name to its budget summaries
-  onActionClick = () => {}   // Custom callbacks for inline actions
+  onActionClick = () => {},  // Custom callbacks for inline actions
+  analyticsData = null,
+  isPM = false
 }) => {
   const [expandedRows, setExpandedRows] = useState({});
   const [viewMode, setViewMode] = useState('analytics'); // 'table' | 'cards' | 'analytics'
@@ -166,6 +168,176 @@ const PortfolioHealthMatrix = ({
     };
   }, [projectsSummary]);
 
+  // --- New Non-PM Analytics Options ---
+
+  const totalProjectsForStatus = useMemo(() => {
+    if (!analyticsData || !analyticsData.project_status_summary) return 0;
+    return analyticsData.project_status_summary.reduce((sum, item) => sum + item.count, 0);
+  }, [analyticsData]);
+
+  const statusPieOption = useMemo(() => {
+    if (!analyticsData || !analyticsData.project_status_summary) return {};
+    const list = analyticsData.project_status_summary;
+    const statusColors = {
+      'In Progress': '#3b82f6',
+      'Planning': '#64748b',
+      'Completed': '#10b981',
+      'Delayed': '#ef4444',
+      'On Hold': '#f59e0b',
+      'Cancelled': '#94a3b8'
+    };
+
+    const chartData = list.map(item => ({
+      value: item.count,
+      name: item.status,
+      itemStyle: { color: statusColors[item.status] || '#94a3b8' }
+    }));
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} projects ({d}%)',
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11, fontFamily: 'Inter, sans-serif' }
+      },
+      legend: { show: false },
+      series: [{
+        type: 'pie',
+        radius: ['52%', '78%'],
+        center: ['50%', '48%'],
+        avoidLabelOverlap: true,
+        label: {
+          show: true,
+          position: 'inside',
+          formatter: (params) => params.percent > 10 ? `${params.percent.toFixed(0)}%` : '',
+          fontSize: 10,
+          fontWeight: 700,
+          color: '#ffffff',
+          fontFamily: 'Inter, sans-serif'
+        },
+        labelLine: { show: false },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 12,
+            fontWeight: 'bold',
+            fontFamily: 'Inter, sans-serif',
+            color: 'var(--text-primary)'
+          }
+        },
+        data: chartData.filter(d => d.value > 0)
+      }]
+    };
+  }, [analyticsData]);
+
+  const deptBreakdownOption = useMemo(() => {
+    if (!analyticsData || !analyticsData.department_breakdown) return {};
+    const db = analyticsData.department_breakdown;
+    const depts = Object.keys(db);
+    const statuses = ['Completed', 'In Progress', 'Delayed', 'Not Started', 'Pending', 'Open'];
+    const statusColors = {
+      'Completed': '#10b981',
+      'In Progress': '#3b82f6',
+      'Delayed': '#ef4444',
+      'Not Started': '#64748b',
+      'Pending': '#f59e0b',
+      'Open': '#a855f7'
+    };
+
+    const series = statuses.map(status => ({
+      name: status,
+      type: 'bar',
+      stack: 'status',
+      barMaxWidth: 18,
+      itemStyle: { color: statusColors[status] || '#94a3b8' },
+      data: depts.map(d => db[d][status] || 0)
+    }));
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11, fontFamily: 'Inter, sans-serif' }
+      },
+      legend: {
+        data: statuses,
+        bottom: 0,
+        textStyle: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        itemWidth: 8,
+        itemHeight: 8,
+        itemGap: 6
+      },
+      grid: { left: 8, right: 8, top: 12, bottom: 32, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: depts.map(d => d.split(' ').slice(0, 2).join(' ')),
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, rotate: 15, fontFamily: 'Inter, sans-serif', interval: 0 },
+        axisLine: { show: false },
+        axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        minInterval: 1,
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } },
+        axisLine: { show: false }
+      },
+      series
+    };
+  }, [analyticsData]);
+
+  const resourceUtilOption = useMemo(() => {
+    if (!analyticsData || !analyticsData.resource_utilization) return {};
+    const list = analyticsData.resource_utilization;
+    const names = list.map(r => r.name);
+    const avail = list.map(r => r.availability);
+    const util = list.map(r => r.utilization);
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11, fontFamily: 'Inter, sans-serif' }
+      },
+      legend: {
+        data: ['Availability', 'Utilization'],
+        bottom: 0,
+        textStyle: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        itemWidth: 8,
+        itemHeight: 8,
+        itemGap: 10
+      },
+      grid: { left: 8, right: 8, top: 12, bottom: 32, containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: names.map(n => n.split(' ').slice(0, 2).join(' ')),
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, rotate: 20, fontFamily: 'Inter, sans-serif', interval: 0, width: 60, overflow: 'truncate' },
+        axisLine: { show: false },
+        axisTick: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        name: 'hrs/day',
+        nameTextStyle: { color: 'var(--text-muted)', fontSize: 8 },
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } },
+        axisLine: { show: false }
+      },
+      series: [
+        { name: 'Availability', type: 'bar', data: avail, itemStyle: { color: '#10b981', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 },
+        { name: 'Utilization', type: 'bar', data: util, itemStyle: { color: '#6366f1', borderRadius: [2, 2, 0, 0] }, barMaxWidth: 10 }
+      ]
+    };
+  }, [analyticsData]);
+
   const renderAnalyticsMode = () => {
     const totalProjects = projectsSummary.length;
     const redCount = healthCounts.Red;
@@ -198,45 +370,95 @@ const PortfolioHealthMatrix = ({
 
         {/* Charts Row */}
         <div className="grid grid-cols-12 gap-3">
-          {/* Health Donut */}
-          <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Health Distribution</span>
-            <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 140 }}>
-              <ReactECharts option={healthDonutOption} style={{ height: 140, width: '100%' }} opts={{ renderer: 'svg' }} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xl font-black text-[var(--text-primary)]">{totalProjects}</span>
-                <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Projects</span>
-              </div>
-            </div>
-            {/* Legend */}
-            <div className="flex flex-col gap-1 mt-2">
-              {[
-                { c: '#ef4444', l: 'Critical', v: redCount },
-                { c: '#f59e0b', l: 'At Risk', v: yellowCount },
-                { c: '#10b981', l: 'On Track', v: greenCount }
-              ].map(i => (
-                <div key={i.l} className="flex items-center justify-between text-[10px]">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: i.c }} />
-                    <span className="text-[var(--text-secondary)]">{i.l}</span>
-                  </span>
-                  <span className="font-bold text-[var(--text-primary)] tabular-nums">{i.v}</span>
+          {isPM ? (
+            <>
+              {/* Health Donut */}
+              <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Health Distribution</span>
+                <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 140 }}>
+                  <ReactECharts option={healthDonutOption} style={{ height: 140, width: '100%' }} opts={{ renderer: 'svg' }} />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xl font-black text-[var(--text-primary)]">{totalProjects}</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Projects</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                {/* Legend */}
+                <div className="flex flex-col gap-1 mt-2">
+                  {[
+                    { c: '#ef4444', l: 'Critical', v: redCount },
+                    { c: '#f59e0b', l: 'At Risk', v: yellowCount },
+                    { c: '#10b981', l: 'On Track', v: greenCount }
+                  ].map(i => (
+                    <div key={i.l} className="flex items-center justify-between text-[10px]">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: i.c }} />
+                        <span className="text-[var(--text-secondary)]">{i.l}</span>
+                      </span>
+                      <span className="font-bold text-[var(--text-primary)] tabular-nums">{i.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Delay Ranking Bar */}
-          <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Delayed Milestones by Project</span>
-            <ReactECharts option={delayBarOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
-          </div>
+              {/* Delay Ranking Bar */}
+              <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Delayed Milestones by Project</span>
+                <ReactECharts option={delayBarOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
+              </div>
 
-          {/* Schedule Stack */}
-          <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Schedule Status Distribution (%)</span>
-            <ReactECharts option={scheduleStackOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
-          </div>
+              {/* Schedule Stack */}
+              <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Schedule Status Distribution (%)</span>
+                <ReactECharts option={scheduleStackOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Project Status Summary Donut */}
+              <div className="col-span-3 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Project Status Summary</span>
+                <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: 140 }}>
+                  <ReactECharts option={statusPieOption} style={{ height: 140, width: '100%' }} opts={{ renderer: 'svg' }} />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xl font-black text-[var(--text-primary)]">{totalProjectsForStatus}</span>
+                    <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase">Projects</span>
+                  </div>
+                </div>
+                {/* Legend for Project Status Summary */}
+                <div className="flex flex-wrap gap-x-2 gap-y-1 mt-2 justify-center">
+                  {analyticsData?.project_status_summary?.map(item => {
+                    const statusColors = {
+                      'In Progress': '#3b82f6',
+                      'Planning': '#64748b',
+                      'Completed': '#10b981',
+                      'Delayed': '#ef4444',
+                      'On Hold': '#f59e0b',
+                      'Cancelled': '#94a3b8'
+                    };
+                    return (
+                      <div key={item.status} className="flex items-center gap-1 text-[9px]">
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColors[item.status] || '#94a3b8' }} />
+                        <span className="text-[var(--text-secondary)]">{item.status}:</span>
+                        <span className="font-bold text-[var(--text-primary)]">{item.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Department wise task breakdown of milestones */}
+              <div className="col-span-4 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Department wise task breakdown of milestones</span>
+                <ReactECharts option={deptBreakdownOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
+              </div>
+
+              {/* Resource availability Vs Utilization of milestone */}
+              <div className="col-span-5 bg-[var(--bg)] border border-[var(--border-subtle)] rounded-lg p-2 flex flex-col">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Resource availability Vs Utilization of milestone</span>
+                <ReactECharts option={resourceUtilOption} style={{ height: 165, width: '100%' }} opts={{ renderer: 'svg' }} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Quick Table — compact, below charts */}

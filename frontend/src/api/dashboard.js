@@ -12,3 +12,9 @@ export const getDashboardSummary = async () => {
     const response = await API.get('/dashboard/summary');
     return response.data;
 }
+
+export const getDashboardSummaryAnalytics = async () => {
+    const response = await API.get('/dashboard/summary/analytics');
+    return response.data;
+}
+

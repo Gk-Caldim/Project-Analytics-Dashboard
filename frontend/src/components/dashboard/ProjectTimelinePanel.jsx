@@ -209,6 +209,108 @@ const ProjectTimelinePanel = ({ projects = [], uploads = [], revisions = [] }) =
     [revisions]
   );
 
+  const trackerTimelineOption = useMemo(() => {
+    if (recentUploads.length === 0) return {};
+    const pNames = Array.from(new Set(recentUploads.map(u => u.project_name).filter(Boolean)));
+    const data = recentUploads.map(u => {
+      const pIdx = pNames.indexOf(u.project_name);
+      const date = new Date(u.uploaded_at).getTime();
+      return [date, pIdx, u.row_count || 10, u.file_name, u.status];
+    }).filter(pt => pt[1] !== -1 && !isNaN(pt[0]));
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11, fontFamily: 'Inter, sans-serif' },
+        formatter: (params) => {
+          const [dateVal, pIdx, rowCount, fileName, status] = params.value;
+          const dateStr = new Date(dateVal).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+          return `Project: <b>${pNames[pIdx]}</b><br/>File: <b>${fileName}</b><br/>Uploaded: <b>${dateStr}</b><br/>Rows: <b>${rowCount}</b><br/>Status: <b>${status}</b>`;
+        }
+      },
+      grid: { left: 8, right: 32, top: 12, bottom: 28, containLabel: true },
+      xAxis: {
+        type: 'time',
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } },
+        axisLine: { show: false }
+      },
+      yAxis: {
+        type: 'category',
+        data: pNames,
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif', width: 90, overflow: 'truncate' },
+        axisLine: { show: false },
+        axisTick: { show: false }
+      },
+      series: [{
+        name: 'Uploads',
+        type: 'scatter',
+        symbolSize: (val) => Math.min(24, Math.max(10, Math.sqrt(val[2] || 10) * 1.5)),
+        itemStyle: {
+          color: (params) => {
+            const status = params.value[4];
+            return STATUS_COLORS[status] || '#6366f1';
+          }
+        },
+        data: data
+      }]
+    };
+  }, [recentUploads]);
+
+  const budgetTimelineOption = useMemo(() => {
+    if (recentRevisions.length === 0) return {};
+    const pNames = Array.from(new Set(recentRevisions.map(r => r.project_name).filter(Boolean)));
+    const data = recentRevisions.map(r => {
+      const pIdx = pNames.indexOf(r.project_name);
+      const date = new Date(r.created_at).getTime();
+      return [date, pIdx, r.revised_budget || 0, r.previous_budget || 0, r.status];
+    }).filter(pt => pt[1] !== -1 && !isNaN(pt[0]));
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'var(--surface)',
+        borderColor: 'var(--border-strong)',
+        textStyle: { color: 'var(--text-primary)', fontSize: 11, fontFamily: 'Inter, sans-serif' },
+        formatter: (params) => {
+          const [dateVal, pIdx, revised, previous, status] = params.value;
+          const dateStr = new Date(dateVal).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
+          return `Project: <b>${pNames[pIdx]}</b><br/>Date: <b>${dateStr}</b><br/>Revised: <b>${fmtCurrency(revised)}</b><br/>Previous: <b>${fmtCurrency(previous)}</b><br/>Status: <b>${status}</b>`;
+        }
+      },
+      grid: { left: 8, right: 24, top: 12, bottom: 28, containLabel: true },
+      xAxis: {
+        type: 'time',
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif' },
+        splitLine: { lineStyle: { color: 'var(--border-subtle)', type: 'dashed' } },
+        axisLine: { show: false }
+      },
+      yAxis: {
+        type: 'category',
+        data: pNames,
+        axisLabel: { color: 'var(--text-secondary)', fontSize: 9, fontFamily: 'Inter, sans-serif', width: 90, overflow: 'truncate' },
+        axisLine: { show: false },
+        axisTick: { show: false }
+      },
+      series: [{
+        name: 'Revisions',
+        type: 'scatter',
+        symbolSize: 12,
+        itemStyle: {
+          color: (params) => {
+            const status = params.value[4];
+            return STATUS_COLORS[status] || '#6366f1';
+          }
+        },
+        data: data
+      }]
+    };
+  }, [recentRevisions]);
+
   // ── Render upload status icon ──
   const getUploadIcon = (status) => {
     if (status === 'Completed' || status === 'success') return <CheckCircle2 size={11} className="text-emerald-500 shrink-0" />;
@@ -292,80 +394,99 @@ const ProjectTimelinePanel = ({ projects = [], uploads = [], revisions = [] }) =
       <div style={{ padding: '14px 18px 18px 18px', minWidth: 0 }}>
         {/* ── Tracker Ingestion Timeline ── */}
         {active === 'tracker' && (
-          <div role="tabpanel">
-            {recentUploads.length === 0 ? (
-              <Empty label="No tracker ingestion activity yet." />
-            ) : (
-              <ol style={{ listStyle: 'none', margin: 0, padding: 0, position: 'relative' }}>
-                {/* Vertical connector line */}
-                <span
-                  aria-hidden
-                  style={{
-                    position: 'absolute',
-                    left: '7px',
-                    top: '6px',
-                    bottom: '6px',
-                    width: '2px',
-                    background: 'var(--border-subtle)',
-                  }}
+          <div
+            role="tabpanel"
+            style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}
+            className="ptl-tracker-grid"
+          >
+            <div style={{ minWidth: 0 }}>
+              <SubHead>Recent Ingestions List</SubHead>
+              {recentUploads.length === 0 ? (
+                <Empty label="No tracker ingestion activity yet." />
+              ) : (
+                <ol style={{ listStyle: 'none', margin: 0, padding: 0, position: 'relative' }}>
+                  {/* Vertical connector line */}
+                  <span
+                    aria-hidden
+                    style={{
+                      position: 'absolute',
+                      left: '7px',
+                      top: '6px',
+                      bottom: '6px',
+                      width: '2px',
+                      background: 'var(--border-subtle)',
+                    }}
+                  />
+                  {recentUploads.map((u, i) => {
+                    const projColor = projectColorMap[u.project_name] || '#6366f1';
+                    const dotColor = STATUS_COLORS[u.status] || projColor;
+                    return (
+                      <li key={u.id ?? i} style={{ position: 'relative', paddingLeft: '28px', paddingBottom: '14px' }}>
+                        {/* Colored status dot */}
+                        <span
+                          style={{
+                            position: 'absolute',
+                            left: '2px',
+                            top: '3px',
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            background: dotColor,
+                            border: '2px solid var(--surface)',
+                            boxShadow: `0 0 0 1px ${dotColor}33`,
+                          }}
+                        />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          {getUploadIcon(u.status)}
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {u.file_name || u.name || u.tracker_name || 'Tracker upload'}
+                          </span>
+                          {/* Project badge */}
+                          {u.project_name && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                color: projColor,
+                                background: `${projColor}15`,
+                                border: `1px solid ${projColor}30`,
+                                borderRadius: '4px',
+                                padding: '1px 6px',
+                              }}
+                            >
+                              {u.project_name}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                          <Clock className="h-3 w-3" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {fmtDate(u.uploaded_at)}
+                          </span>
+                          {u.row_count > 0 && (
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                              · {u.row_count.toLocaleString()} rows
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <SubHead>Tracker Ingestion Timeline Chart</SubHead>
+              {recentUploads.length === 0 ? (
+                <Empty label="No tracker data available for timeline chart." />
+              ) : (
+                <ReactECharts
+                  option={trackerTimelineOption}
+                  style={{ height: '220px', width: '100%' }}
+                  opts={{ renderer: 'svg' }}
                 />
-                {recentUploads.map((u, i) => {
-                  const projColor = projectColorMap[u.project_name] || '#6366f1';
-                  const dotColor = STATUS_COLORS[u.status] || projColor;
-                  return (
-                    <li key={u.id ?? i} style={{ position: 'relative', paddingLeft: '28px', paddingBottom: '14px' }}>
-                      {/* Colored status dot */}
-                      <span
-                        style={{
-                          position: 'absolute',
-                          left: '2px',
-                          top: '3px',
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          background: dotColor,
-                          border: '2px solid var(--surface)',
-                          boxShadow: `0 0 0 1px ${dotColor}33`,
-                        }}
-                      />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {getUploadIcon(u.status)}
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {u.file_name || u.name || u.tracker_name || 'Tracker upload'}
-                        </span>
-                        {/* Project badge */}
-                        {u.project_name && (
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              color: projColor,
-                              background: `${projColor}15`,
-                              border: `1px solid ${projColor}30`,
-                              borderRadius: '4px',
-                              padding: '1px 6px',
-                            }}
-                          >
-                            {u.project_name}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
-                        <Clock className="h-3 w-3" style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {fmtDate(u.uploaded_at)}
-                        </span>
-                        {u.row_count > 0 && (
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                            · {u.row_count.toLocaleString()} rows
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ol>
-            )}
+              )}
+            </div>
           </div>
         )}
 
@@ -388,7 +509,7 @@ const ProjectTimelinePanel = ({ projects = [], uploads = [], revisions = [] }) =
         {active === 'budget' && (
           <div
             role="tabpanel"
-            style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}
+            style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}
             className="ptl-budget-grid"
           >
             <div style={{ minWidth: 0 }}>
@@ -449,6 +570,18 @@ const ProjectTimelinePanel = ({ projects = [], uploads = [], revisions = [] }) =
               )}
             </div>
             <div style={{ minWidth: 0 }}>
+              <SubHead>Budget Timeline Chart</SubHead>
+              {recentRevisions.length === 0 ? (
+                <Empty label="No revision data for timeline chart." />
+              ) : (
+                <ReactECharts
+                  option={budgetTimelineOption}
+                  style={{ height: '220px', width: '100%' }}
+                  opts={{ renderer: 'svg' }}
+                />
+              )}
+            </div>
+            <div style={{ minWidth: 0 }}>
               <SubHead>Revisions by status</SubHead>
               {(!revisions || revisions.length === 0) ? (
                 <Empty label="No revision data." />
@@ -460,10 +593,11 @@ const ProjectTimelinePanel = ({ projects = [], uploads = [], revisions = [] }) =
         )}
       </div>
 
-      {/* Responsive two-up for budget */}
+      {/* Responsive layout formatting for timelines */}
       <style>{`
         @media (min-width: 768px) {
-          .ptl-budget-grid { grid-template-columns: 1fr 1fr !important; }
+          .ptl-tracker-grid { grid-template-columns: 1.2fr 1.8fr !important; }
+          .ptl-budget-grid { grid-template-columns: 1fr 1.5fr 1fr !important; }
         }
       `}</style>
     </section>
