@@ -9,6 +9,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        heading: ['DM Sans', 'Outfit', 'Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
@@ -25,9 +26,19 @@ export default {
           panel: 'var(--elevated-card)',
         },
         brand: {
+          DEFAULT: '#0F1B3D',
           primary: 'var(--brand-navy)',
           accent: 'var(--accent)',
-          hover: 'var(--accent-hover)',
+          hover: '#1E3460',
+          emerald: '#10B981',
+          purple: '#8B5CF6',
+          amber: '#F59E0B',
+          'amber-light': '#FEF3C7',
+        },
+        navy: {
+          DEFAULT: '#0F1B3D',
+          deep: '#0A1628',
+          light: '#1E3460',
         },
         text: {
           primary: 'var(--text-primary)',
