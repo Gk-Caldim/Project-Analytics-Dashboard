@@ -55,6 +55,14 @@ from app.models.tracker_ingestion import TrackerIngestion
 from app.models.notification import Notification # noqa: F401
 from app.models.project_milestone import ProjectMilestone, ProjectMilestoneColumn, ProjectDependency, ProjectBaseline, ProjectTaskFollowup, ProjectRelease # noqa: F401
 
+# ── Phase 1 New Models ──────────────────────────────────────────────────────
+from app.models.validation import ValidationChecklist, PPAPStage, DVResult, QualityKPI  # noqa: F401
+from app.models.defect import Defect, FailurePattern  # noqa: F401
+from app.models.customer_feedback import CustomerComplaint, SentimentAnalysis  # noqa: F401
+from app.models.cost_analysis import CostAnomaly, ShouldCostBenchmark  # noqa: F401
+from app.models.predictions import RiskScore, DelayPrediction, DefectPrediction, Risk  # noqa: F401
+from app.models.line_quality import LineQualityMetric  # noqa: F401
+
 # Import routers
 from app.api.auth import router as auth_router
 from app.api.employees import router as employee_router
@@ -271,6 +279,28 @@ app.include_router(websockets_router, prefix=API_PREFIX)
 
 from app.api.notifications import router as notifications_router
 app.include_router(notifications_router, prefix=API_PREFIX)
+
+# ── Phase 1 New Routers ─────────────────────────────────────────────────────
+from app.api.validation_api import router as validation_router
+app.include_router(validation_router, prefix=API_PREFIX, tags=["Validation"])
+
+from app.api.quality_api import router as quality_router
+app.include_router(quality_router, prefix=API_PREFIX, tags=["Quality"])
+
+from app.api.customer_feedback_api import router as customer_feedback_router
+app.include_router(customer_feedback_router, prefix=API_PREFIX, tags=["Customer Feedback"])
+
+from app.api.predictions_api import router as predictions_router
+app.include_router(predictions_router, prefix=API_PREFIX, tags=["Predictions & AI"])
+
+from app.api.risks_api import router as risks_router
+app.include_router(risks_router, prefix=API_PREFIX, tags=["Risk Management"])
+
+from app.api.anomalies_api import router as anomalies_router
+app.include_router(anomalies_router, prefix=API_PREFIX, tags=["Anomaly Detection"])
+
+from app.api.recommendations_api import router as recommendations_router
+app.include_router(recommendations_router, prefix=API_PREFIX, tags=["AI Assistant"])
 
 # Static Files
 UPLOAD_DIR = "static/uploads/logos"

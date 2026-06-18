@@ -11,10 +11,28 @@ import autoTable from 'jspdf-autotable';
 import { Send, Eye, CheckCircle2, ChevronUp, ChevronDown, TrendingUp, ArrowUpRight, ArrowDownRight, Target, Save, RefreshCw, FileDown, FileSpreadsheet, FileText, Download, Sparkles, Inbox, PieChart, ShieldAlert, History, Plus, Columns, Trash2, ClipboardList, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import useCurrency from '../../hooks/useCurrency';
+import ReactECharts from 'echarts-for-react';
 
 const MONETARY_COLS = ['Per unit cost', 'Estimated', 'Utilized', 'Commitment', 'Total utilization', 'Balance'];
 const READONLY_COLS = ['Estimated', 'Total utilization', 'Balance'];
 const NUMERIC_COLS = ['Unit count', 'Per unit cost', 'Utilized', 'Commitment'];
+
+// ─── Cost-Control Terminology Map (display only — data keys unchanged) ──────
+const COST_LABEL_MAP = {
+  'Category':          'Cost Center',
+  'Item Name':         'Commodity',
+  'Unit Type':         'Unit Type',
+  'Unit count':        'Qty',
+  'Per unit cost':     'Unit Rate',
+  'Estimated':         'Budget',
+  'Utilized':          'Actual',
+  'Commitment':        'Commitment',
+  'Total utilization': 'Forecast',
+  'Balance':           'Variance',
+  'Status':            'Budget Status',
+  'Comments':          'Remarks',
+  'Sno':               '#',
+};
 
 const initialColumns = [
   { id: 'sno', label: 'Sno', visible: true, type: 'text' },
@@ -35,17 +53,23 @@ const initialColumns = [
 const isMonetary = (label) => MONETARY_COLS.includes(label);
 const isReadonly = (label) => READONLY_COLS.includes(label);
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
+// ─── Status Badge (Fiori high-density flat bullet badges) ─────────────────────
 const StatusBadge = ({ value }) => {
-  const cfg = {
-    'In Progress': 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Completed': 'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
-    'On Hold': 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    'Cancelled': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
+  const statusMap = {
+    'Within Budget': { dot: 'text-[#107f3e]', text: 'Within Budget' },
+    'Watchlist': { dot: 'text-[#e9730c]', text: 'Watchlist' },
+    'Over Budget': { dot: 'text-[#bb0000]', text: 'Over Budget' },
+    'Closed': { dot: 'text-slate-500', text: 'Closed' },
+    'In Progress': { dot: 'text-[#0a6ed1]', text: 'In Progress' },
+    'Completed': { dot: 'text-[#107f3e]', text: 'Completed' },
+    'On Hold': { dot: 'text-[#e9730c]', text: 'On Hold' },
+    'Cancelled': { dot: 'text-[#bb0000]', text: 'Cancelled' },
   };
+  const cfg = statusMap[value] || { dot: 'text-slate-400', text: value || 'Pending' };
   return (
-    <span className={`px-3 py-1.5 rounded-md border text-[10px] font-bold ${cfg[value] || 'bg-app-bg dark:bg-slate-800/50 text-slate-700 border-slate-100 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
-      {value || 'Pending'}
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-350">
+      <span className={`${cfg.dot} text-sm leading-none`}>●</span>
+      <span>{cfg.text}</span>
     </span>
   );
 };
@@ -53,62 +77,19 @@ const StatusBadge = ({ value }) => {
 // ─── Revision Status Badge ────────────────────────────────────────────────────
 const RevisionBadge = ({ status }) => {
   const dots = {
-    'Approved': 'bg-emerald-500 dark:bg-emerald-400',
-    'Declined': 'bg-rose-500 dark:bg-rose-400',
-    'Cancelled': 'bg-slate-400 dark:bg-slate-500',
-    'In Waiting Period': 'bg-amber-500 dark:bg-amber-400',
-    'Pending Head': 'bg-blue-500 dark:bg-blue-400',
-    'Pending Finance': 'bg-violet-500 dark:bg-violet-400',
+    'Approved': 'text-[#107f3e]',
+    'Declined': 'text-[#bb0000]',
+    'Cancelled': 'text-slate-500',
+    'In Waiting Period': 'text-[#e9730c]',
+    'Pending Head': 'text-[#0a6ed1]',
+    'Pending Finance': 'text-[#0a6ed1]',
   };
+  const dotColor = dots[status] || 'text-slate-400';
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-sm">
-      <span className={`h-1.5 w-1.5 rounded-full ${dots[status] || 'bg-slate-400'}`} />
-      {status}
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-750 dark:text-slate-300">
+      <span className={`${dotColor} text-sm leading-none`}>●</span>
+      <span>{status}</span>
     </span>
-  );
-};
-
-
-// ─── Summary Card (Static Aggregate View) ───────────────────────────────────
-const SummaryCard = ({ label, value, color, format, subLabel, count, extraStat }) => {
-  return (
-    <div className="bg-app-surface dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm transition-all hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 flex justify-between items-center overflow-hidden relative">
-      {/* Decorative vertical accent */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1 ${color === 'red' ? 'bg-red-500' :
-          color === 'blue' ? 'bg-blue-500' :
-            'bg-emerald-500'
-        } opacity-20`}></div>
-
-      <div className="flex-1">
-        <div className="flex flex-col mb-6">
-          <p className="text-xs font-black text-slate-400 dark:text-slate-100 uppercase tracking-[0.2em] mb-1">{label}</p>
-          <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 italic uppercase tracking-wider">{subLabel}</p>
-        </div>
-        <p className={`text-3xl font-black tracking-tighter ${color === 'red' ? 'text-red-600 dark:text-red-400' :
-            color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-              color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' :
-                'text-slate-900 dark:text-slate-100'
-          }`}>
-          {format(value)}
-        </p>
-      </div>
-
-      {/* Right Side Metadata - Clean & Functional Context */}
-      <div className="pl-10 ml-6 border-l border-slate-100 dark:border-slate-800 dark:border-slate-800/50 flex flex-col gap-5 text-right min-w-[140px]">
-        {extraStat && (
-          <div>
-            <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">{extraStat.label}</p>
-            <p className={`text-xs font-black tracking-tight ${extraStat.color || 'text-slate-500 dark:text-slate-100'}`}>
-              {extraStat.value}
-            </p>
-          </div>
-        )}
-        <div>
-          <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Items Processed</p>
-          <p className="text-xs font-black text-slate-500 dark:text-slate-100 tracking-tight">{count} Rows</p>
-        </div>
-      </div>
-    </div>
   );
 };
 
@@ -195,6 +176,13 @@ const BudgetMaster = () => {
   const [newColumnData, setNewColumnData] = useState({ label: '', type: 'text' });
   const [showAddDropdown, setShowAddDropdown] = useState(false);
 
+  // Split-screen master-detail layout & Fiori Filters
+  const [selectedRowId, setSelectedRowId] = useState(null);
+  const [fiscalYear, setFiscalYear] = useState('2026');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [plantFilter, setPlantFilter] = useState('');
+  const [revisionFilter, setRevisionFilter] = useState('All');
+
   const user = useSelector(state => state.auth.user);
   const userRole = user?.role || 'Employee';
   const isPM = userRole === 'Project Manager';
@@ -237,10 +225,12 @@ const BudgetMaster = () => {
     if (selectedProject) {
       fetchBudgetData(selectedProject);
       fetchHistory(); // Ensure history is ready for duplicate checks
+      fetchAuditLogs(); // Fetch audits for the bottom section
       setUploadedFile(null);
     } else {
       setTableData([]);
       setHistoryData([]);
+      setAuditLogs([]);
       setUploadedFile(null);
       setAttachmentName(null);
     }
@@ -303,11 +293,36 @@ const BudgetMaster = () => {
 
   // ─── Sort / Filter ──────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {
-    if (!searchTerm) return tableData;
-    return tableData.filter(row =>
-      Object.values(row).some(v => String(v).toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [tableData, searchTerm]);
+    let result = tableData;
+    if (searchTerm) {
+      result = result.filter(row =>
+        Object.values(row).some(v => String(v).toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    if (customerFilter) {
+      result = result.filter(row =>
+        Object.values(row).some(v => String(v).toLowerCase().includes(customerFilter.toLowerCase()))
+      );
+    }
+    if (plantFilter) {
+      result = result.filter(row =>
+        Object.values(row).some(v => String(v).toLowerCase().includes(plantFilter.toLowerCase()))
+      );
+    }
+    if (revisionFilter !== 'All') {
+      result = result.filter(row => {
+        const status = String(row.Status || '').toLowerCase();
+        if (revisionFilter === 'Approved') {
+          return status === 'within budget' || status === 'completed';
+        }
+        if (revisionFilter === 'Pending') {
+          return status === 'watchlist' || status === 'in progress' || status === 'on hold';
+        }
+        return true;
+      });
+    }
+    return result;
+  }, [tableData, searchTerm, customerFilter, plantFilter, revisionFilter]);
 
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return filteredData;
@@ -974,57 +989,99 @@ const BudgetMaster = () => {
         </div>
       )}
 
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 py-8 border-b border-slate-200 dark:border-slate-700 mb-8 px-8 bg-app-surface dark:bg-slate-900">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-slate-100">Budget Master</h1>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Manage project budgets and revision workflows</p>
-          </div>
+      {/* ── Page Header (Fiori Object Header) ────────────────────────────────── */}
+      <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-4 space-y-2">
+        <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-black">
+          Masters / Budget Master
+        </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            Budget Master
+          </h1>
         </div>
 
-        {/* Breadcrumb Tab Navigation */}
-        <nav className="flex items-center space-x-4">
-          <div className="flex items-center">
-            <button onClick={() => setActiveTab('Table')}
-              className={`text-sm transition-all ${activeTab === 'Table'
-                ? 'font-black text-slate-900 dark:text-slate-100'
-                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
-              Budget Table
-            </button>
-            <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
+        {/* Object Page Header Attributes (High Density Row) */}
+        {selectedProject && (
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-505 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div>
+              <span className="font-semibold text-slate-400">Fiscal Year:</span>{' '}
+              <span className="font-bold text-slate-750 dark:text-slate-200">2026</span>
+            </div>
+            <div className="text-slate-300 dark:text-slate-700">|</div>
+            <div>
+              <span className="font-semibold text-slate-400">Revision:</span>{' '}
+              <span className="font-bold text-slate-750 dark:text-slate-200">
+                {(() => {
+                  const projRevisions = revisions.filter(r => r.project_name === selectedProject);
+                  const latestRev = projRevisions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                  return latestRev ? `Rev-${latestRev.id}` : 'Rev-01';
+                })()}
+              </span>
+            </div>
+            <div className="text-slate-300 dark:text-slate-700">|</div>
+            <div>
+              <span className="font-semibold text-slate-400">Currency:</span>{' '}
+              <span className="font-bold text-slate-750 dark:text-slate-200">{code}</span>
+            </div>
+            <div className="text-slate-300 dark:text-slate-700">|</div>
+            <div>
+              <span className="font-semibold text-slate-400">Status:</span>{' '}
+              <span className="font-bold text-[#107f3e]">
+                {(() => {
+                  const projRevisions = revisions.filter(r => r.project_name === selectedProject);
+                  const latestRev = projRevisions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                  return latestRev ? latestRev.status : 'Approved';
+                })()}
+              </span>
+            </div>
+            <div className="text-slate-300 dark:text-slate-700">|</div>
+            <div>
+              <span className="font-semibold text-slate-400">Last Updated:</span>{' '}
+              <span className="font-bold text-slate-750 dark:text-slate-200">
+                {historyData[0] ? new Date(historyData[0].updated_at).toLocaleDateString() : '17-Jun-2026'}
+              </span>
+            </div>
+            <div className="text-slate-300 dark:text-slate-700">|</div>
+            <div>
+              <span className="font-semibold text-slate-400">Programs:</span>{' '}
+              <span className="font-bold text-slate-750 dark:text-slate-200">{projects.length}</span>
+            </div>
           </div>
+        )}
+      </div>
+
+      <div className="px-8 pt-4">
+        {/* Horizontal Tab Navigation (Fiori Flat Bar style) */}
+        <nav className="flex items-center border-b border-slate-200 dark:border-slate-800 w-full mb-6 bg-app-surface dark:bg-slate-900">
+          <button onClick={() => setActiveTab('Table')}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'Table'
+              ? 'border-[#0a6ed1] text-[#0a6ed1]'
+              : 'border-transparent text-slate-500 hover:text-slate-750 dark:text-slate-400 hover:border-slate-300'}`}>
+            Budget Workspace
+          </button>
 
           {(isHead || isFinance || isPM) && (
-            <div className="flex items-center">
-              <button onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
-                className={`text-sm transition-all relative ${activeTab === 'Revisions'
-                  ? 'font-black text-slate-900 dark:text-slate-100'
-                  : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
-                Revision Budget
-              </button>
-              <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
-            </div>
+            <button onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
+              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'Revisions'
+                ? 'border-[#0a6ed1] text-[#0a6ed1]'
+                : 'border-transparent text-slate-500 hover:text-slate-750 dark:text-slate-400 hover:border-slate-300'}`}>
+              Revision Log
+            </button>
           )}
 
-          <div className="flex items-center">
-            <button onClick={() => { setActiveTab('Analytics'); fetchRevisions(); }}
-              className={`text-sm transition-all ${activeTab === 'Analytics'
-                ? 'font-black text-slate-900 dark:text-slate-100'
-                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
-              Budget Analytics
-            </button>
-            <span className="mx-4 text-slate-300 dark:text-slate-700 font-light text-xl">›</span>
-          </div>
+          <button onClick={() => { setActiveTab('Analytics'); fetchRevisions(); }}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'Analytics'
+              ? 'border-[#0a6ed1] text-[#0a6ed1]'
+              : 'border-transparent text-slate-500 hover:text-slate-750 dark:text-slate-400 hover:border-slate-300'}`}>
+            Analytical Outlook
+          </button>
 
-          <div className="flex items-center">
-            <button onClick={() => { setActiveTab('History'); fetchHistory(); }}
-              className={`text-sm transition-all ${activeTab === 'History'
-                ? 'font-black text-slate-900 dark:text-slate-100'
-                : 'font-bold text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'}`}>
-              Budget History
-            </button>
-          </div>
+          <button onClick={() => { setActiveTab('History'); fetchHistory(); }}
+            className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'History'
+              ? 'border-[#0a6ed1] text-[#0a6ed1]'
+              : 'border-transparent text-slate-500 hover:text-slate-750 dark:text-slate-400 hover:border-slate-300'}`}>
+            Snapshots & Logs
+          </button>
         </nav>
       </div>
 
@@ -1035,495 +1092,1084 @@ const BudgetMaster = () => {
           {/* ── BUDGET TABLE TAB ─────────────────────────────────────────────────── */}
           {activeTab === 'Table' && (
             <>
-              {/* Control Panel */}
-              <div className="bg-app-surface dark:bg-slate-800 rounded-sm border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
-                      Active Project
-                    </label>
+              {/* Fiori Filter Bar */}
+              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-none space-y-4 shadow-none">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+                  {/* Program Dropdown */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Program</label>
                     <SearchableDropdown
                       options={projects.map(p => {
                         const latest = latestBudgetsMap[p.name];
                         let label = p.name;
                         if (latest && latest.updated_at) {
                           const hours = Math.floor((new Date() - new Date(latest.updated_at)) / (1000 * 60 * 60));
-                          const timeStr = hours < 1 ? 'Just now' : `${hours} hours ago`;
-                          label = `${p.name} (updated ${timeStr})`;
+                          const timeStr = hours < 1 ? 'Just now' : `${hours}h ago`;
+                          label = `${p.name} (${timeStr})`;
                         }
                         return { value: p.name, label };
                       })}
                       value={selectedProject}
                       onChange={handleProjectChange}
-                      placeholder="Select a project..."
-                      controlClassName="px-4 text-base border-slate-200 dark:border-slate-700 bg-app-bg dark:bg-slate-900/50 hover:border-blue-400 dark:hover:border-blue-500 text-slate-900 dark:text-slate-100 font-bold rounded-md h-12 flex items-center justify-between shadow-sm"
+                      placeholder="Select Project..."
+                      controlClassName="w-full px-3 text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 text-slate-900 dark:text-slate-100 font-bold rounded-none h-9 flex items-center justify-between shadow-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
-                      Overall Budget
-                    </label>
-                    <input type="number"
-                      value={convert(overallBudget, 'USD', code)}
-                      onChange={e => setOverallBudget(convert(parseFloat(e.target.value) || 0, code, 'USD'))}
-                      placeholder="0.00"
-                      className="w-full px-4 text-base bg-app-bg dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-slate-900 dark:text-slate-100 font-bold h-12 shadow-sm" />
+
+                  {/* Customer Input */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Customer</label>
+                    <input
+                      type="text"
+                      value={customerFilter}
+                      onChange={e => setCustomerFilter(e.target.value)}
+                      placeholder="Filter customer..."
+                      className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none h-9 outline-none focus:border-blue-500 font-bold text-slate-900 dark:text-slate-100"
+                    />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">
-                      Project Manager
-                    </label>
-                    <div className="w-full px-4 text-base bg-app-bg dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-md text-slate-900 dark:text-slate-100 font-bold h-12 flex items-center shadow-sm">
-                      {managerName || '— Unassigned —'}
+
+                  {/* Plant Input */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Plant</label>
+                    <input
+                      type="text"
+                      value={plantFilter}
+                      onChange={e => setPlantFilter(e.target.value)}
+                      placeholder="Filter plant..."
+                      className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none h-9 outline-none focus:border-blue-500 font-bold text-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+
+                  {/* Fiscal Year Input */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Fiscal Year</label>
+                    <select
+                      value={fiscalYear}
+                      onChange={e => setFiscalYear(e.target.value)}
+                      className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none h-9 outline-none text-slate-900 dark:text-slate-100 font-bold"
+                    >
+                      <option value="2026">2026</option>
+                      <option value="2025">2025</option>
+                      <option value="2024">2024</option>
+                    </select>
+                  </div>
+
+                  {/* Revision Filter */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Revision</label>
+                    <select
+                      value={revisionFilter}
+                      onChange={e => setRevisionFilter(e.target.value)}
+                      className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none h-9 outline-none text-slate-900 dark:text-slate-100 font-bold"
+                    >
+                      <option value="All">All Revisions</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Pending">Pending</option>
+                    </select>
+                  </div>
+
+                  {/* Currency (Display showing Project Active Currency) */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Currency</label>
+                    <div className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 rounded-none h-9 flex items-center text-slate-700 dark:text-slate-350 font-bold">
+                      {code}
                     </div>
+                  </div>
+
+                  {/* Search Term input */}
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Search</label>
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder="Search attributes..."
+                      className="w-full px-3 text-xs border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none h-9 outline-none focus:border-blue-500 font-bold text-slate-900 dark:text-slate-100"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Over-budget Warning */}
-              {selectedProject && isOverBudget && (
-                <div className="px-8 py-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start gap-4">
-                  <div>
-                    <p className="text-base font-bold text-red-800 dark:text-red-400">Project is Over Budget</p>
-                    <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                      Total utilization <strong>{format(totalUtilization, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> exceeds budget <strong>{format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong> by <strong>{format(totalUtilization - parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Summary Cards */}
-              {(selectedProject || tableData.length > 0) && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <SummaryCard
-                    label="Estimated Budget"
-                    value={totalEstimated}
-                    color="blue"
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of Estimated Values"
-                    count={tableData.length}
-                    extraStat={{ label: 'Project Lead', value: managerName || 'Unassigned' }}
-                  />
-                  <SummaryCard
-                    label="Utilised Budget"
-                    value={totalUtilization}
-                    color={isOverBudget ? 'red' : 'emerald'}
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of (Utilized + Commitment)"
-                    count={tableData.length}
-                    extraStat={{
-                      label: 'Approved Budget',
-                      value: format(parseFloat(overallBudget), true, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
-                      color: isOverBudget ? 'text-red-500' : 'text-slate-500 dark:text-slate-300'
-                    }}
-                  />
-                  <SummaryCard
-                    label="Balance Budget"
-                    value={totalBalance}
-                    color={totalBalance < 0 ? 'red' : 'emerald'}
-                    format={(val) => format(val, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    subLabel="Summation of Balance Remaining"
-                    count={tableData.length}
-                    extraStat={{
-                      label: 'Approved Revisions',
-                      value: `${revisions.filter(r => r.project_name === selectedProject && r.status === 'Approved').length} Revisions`,
-                      color: 'text-slate-500 dark:text-slate-300 dark:text-slate-100'
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Table Toolbar */}
-              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center gap-4">
-                  {/* Add Item — needs add_row OR add_column permission */}
-                  {(hasBudgetPerm('add_row') || hasBudgetPerm('add_column')) && (
-                    <div className="relative">
-                      <button onClick={() => setShowAddDropdown(!showAddDropdown)}
-                        className="h-10 px-6 text-sm font-bold bg-slate-900 dark:bg-slate-700 text-white rounded-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-all shadow-sm flex items-center gap-2">
-                        Add Item
-                        <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
-                      </button>
-
-                      {showAddDropdown && (
-                        <>
-                          <div className="fixed inset-0 z-50" onClick={() => setShowAddDropdown(false)} />
-                          <div className="absolute top-full left-0 mt-2 w-48 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden">
-                            {hasBudgetPerm('add_row') && (
-                              <button onClick={() => { addRow(); setShowAddDropdown(false); }}
-                                className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors">
-                                <Plus className="w-4 h-4 text-blue-500" />
-                                <span>Add Row</span>
-                              </button>
-                            )}
-                            {hasBudgetPerm('add_column') && (
-                              <button onClick={() => { setShowAddColumnModal(true); setShowAddDropdown(false); }}
-                                className="w-full px-4 py-3 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-3 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
-                                <Columns className="w-4 h-4 text-emerald-500" />
-                                <span>Add Column</span>
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
+              {/* Fiori Action Toolbar */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 px-4 py-3 flex flex-wrap items-center justify-between gap-4 rounded-none shadow-none">
+                {/* Secondary Actions on Left */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Add Budget Line */}
+                  {hasBudgetPerm('add_row') && (
+                    <button
+                      onClick={addRow}
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none disabled:opacity-50"
+                    >
+                      Add Budget Line
+                    </button>
                   )}
 
-                  {/* Save — needs save_budget permission */}
-                  {hasBudgetPerm('save_budget') && (
-                    <div className="relative">
-                      <div className="flex items-stretch h-10">
-                        <button onClick={() => handleSave(false)} disabled={saving || !selectedProject}
-                          className="flex items-center gap-2 px-6 text-sm font-bold bg-blue-600 text-white rounded-l-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 border-r border-blue-500/30">
-                          <span>{saving ? 'Saving...' : 'Save'}</span>
-                        </button>
-                        <button onClick={() => setShowSaveDropdown(!showSaveDropdown)} disabled={saving || !selectedProject}
-                          className="px-4 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center">
-                          <span className="text-xs">▼</span>
-                        </button>
-                      </div>
-
-                      {showSaveDropdown && (
-                        <>
-                          <div className="fixed inset-0 z-50" onClick={() => setShowSaveDropdown(false)} />
-                          <div className="absolute top-full left-0 mt-2 w-72 bg-app-surface dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                            <button onClick={() => { handleSave(false); setShowSaveDropdown(false); }}
-                              className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors">
-                              <div className="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-600 font-bold">
-                                <Save className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="font-bold text-slate-900 dark:text-slate-100">Save Budget</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Save changes to budget master</p>
-                              </div>
-                            </button>
-                            <button onClick={() => { handleSave(true); setShowSaveDropdown(false); }}
-                              className="w-full px-6 py-4 text-left text-sm hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/50 flex items-center gap-4 text-slate-700 dark:text-slate-100 transition-colors border-t border-slate-100 dark:border-slate-800 dark:border-slate-700/50">
-                              <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-md text-emerald-600 font-bold">
-                                <RefreshCw className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <p className="font-bold text-slate-900 dark:text-slate-100">Save & Sync to Project Master</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">Updates project's budget summary</p>
-                              </div>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                  {/* Manage Fields (renamed from Add Column) */}
+                  {hasBudgetPerm('add_column') && (
+                    <button
+                      onClick={() => setShowAddColumnModal(true)}
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none disabled:opacity-50"
+                    >
+                      Manage Fields
+                    </button>
                   )}
 
-                  <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
-
-                  {/* Upload Budget — needs upload_budget permission */}
+                  {/* Upload Budget */}
                   {hasBudgetPerm('upload_budget') && (
-                    <div className="relative group">
-                      <button
-                        onClick={() => {
-                          if (!selectedProject) { toast.error('Please select a project first'); return; }
-                          setShowUploadModal(true);
-                        }}
-                        className="h-10 px-6 text-sm font-bold bg-slate-900 text-white rounded-md hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
-                      >
-                        {isParsing ? 'Parsing...' : 'Upload Budget'}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => {
+                        if (!selectedProject) { toast.error('Please select a project first'); return; }
+                        setShowUploadModal(true);
+                      }}
+                      className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none"
+                    >
+                      {isParsing ? 'Parsing...' : 'Upload Budget'}
+                    </button>
                   )}
 
+                  {/* Export Trigger */}
                   <div className="relative">
                     <button
                       onClick={() => setShowExportDropdown(!showExportDropdown)}
-                      className="h-10 px-6 text-sm font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-100 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none flex items-center gap-1 disabled:opacity-50"
                     >
-                      <FileDown className="w-4 h-4" />
-                      Export / Download
-                      <ChevronDown className={`w-4 h-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
+                      <span>Export</span>
+                      <ChevronDown className="w-3.5 h-3.5" />
                     </button>
-
-                    <AnimatePresence>
-                      {showExportDropdown && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="absolute right-0 mt-2 w-64 bg-app-surface dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 py-3 z-50 overflow-hidden"
+                    {showExportDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowExportDropdown(false)} />
+                        <div className="absolute left-0 mt-1 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none shadow-lg py-1 z-50">
+                          <button
+                            onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
+                            className="w-full px-4 py-2 text-left text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750"
                           >
-                            <div className="px-4 py-2 mb-2 border-b border-slate-50 dark:border-slate-800">
-                              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Options</p>
-                            </div>
-
-                            <button onClick={() => { handleDownloadTemplate(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
-                              <Download className="w-4 h-4 text-blue-500" />
-                              Download Template
-                            </button>
-
-                            <button onClick={() => { handleExportExcel(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
-                              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                              Export as Excel
-                            </button>
-
-                            <button onClick={() => { handleExportPDF(); setShowExportDropdown(false); }}
-                              className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4">
-                              <FileText className="w-4 h-4 text-red-500" />
-                              Export as PDF
-                            </button>
-
-                            {attachmentName && (
-                              <button onClick={() => { handleDownloadBudgetFile(selectedProject, attachmentName); setShowExportDropdown(false); }}
-                                className="w-full px-6 py-3 text-left text-sm font-bold text-slate-700 dark:text-slate-100 hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors flex items-center gap-4 border-t border-slate-50 dark:border-slate-800 mt-2">
-                                <Download className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                                Download Original
-                              </button>
-                            )}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
+                            Download Template
+                          </button>
+                          <button
+                            onClick={() => { handleExportExcel(); setShowExportDropdown(false); }}
+                            className="w-full px-4 py-2 text-left text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750"
+                          >
+                            Export as Excel
+                          </button>
+                          <button
+                            onClick={() => { handleExportPDF(); setShowExportDropdown(false); }}
+                            className="w-full px-4 py-2 text-left text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750"
+                          >
+                            Export as PDF
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  {/* Right: Search + rows info */}
-                  <div className="ml-auto flex items-center gap-4">
-                    <div className="relative">
-                      <input type="text" placeholder="Search..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="px-4 py-2 text-xs font-bold bg-app-bg dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none w-48 transition-all text-slate-900 dark:text-slate-100" />
-                    </div>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap">
-                      {sortedData.length} {sortedData.length === 1 ? 'item' : 'items'}
-                    </span>
-                  </div>
+                  {/* Refresh */}
+                  <button
+                    onClick={() => selectedProject && fetchBudgetData(selectedProject)}
+                    disabled={!selectedProject}
+                    className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none disabled:opacity-50"
+                  >
+                    Refresh
+                  </button>
+
+                  {/* Audit Logs */}
+                  {hasBudgetPerm('budget_audits') && (
+                    <button
+                      onClick={() => { setShowAuditModal(true); fetchAuditLogs(); }}
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all rounded-none disabled:opacity-50"
+                    >
+                      Audit Logs
+                    </button>
+                  )}
                 </div>
 
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                        {visibleColumns.map(col => (
-                          <th key={col.id}
-                            className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider whitespace-nowrap cursor-pointer select-none"
-                            onClick={() => handleSort(col.label)}>
-                            <div className="flex items-center gap-1">
-                              {col.label}
-                              {sortConfig.key === col.label && (
-                                sortConfig.direction === 'ascending'
-                                  ? <ChevronUp className="h-3 w-3" />
-                                  : <ChevronDown className="h-3 w-3" />
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                        <th className="py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-100 text-center whitespace-nowrap sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700 border-b">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {loading || isParsing ? (
-                        Array.from({ length: 6 }).map((_, rIdx) => (
-                          <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                            {visibleColumns.map((col, cIdx) => {
-                              const widths = ['w-8', 'w-16', 'w-24', 'w-32', 'w-20', 'w-28'];
-                              const widthClass = widths[(rIdx + cIdx) % widths.length];
+                {/* Primary Actions on Right */}
+                <div className="flex items-center gap-2">
+                  {/* Save */}
+                  {hasBudgetPerm('save_budget') && (
+                    <button
+                      onClick={() => handleSave(false)}
+                      disabled={saving || !selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-[#0a6ed1] hover:bg-[#005bb5] text-white transition-all rounded-none disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                  )}
 
-                              if (col.type === 'status') {
-                                return (
-                                  <td key={col.id} className="py-4 px-6">
-                                    <Skeleton className="h-5 w-16 rounded" />
-                                  </td>
-                                );
-                              }
+                  {/* Submit Revision */}
+                  {isPM && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('Revisions');
+                        setShowNewRevisionForm(true);
+                      }}
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-[#107f3e] hover:bg-[#0d6b33] text-white transition-all rounded-none disabled:opacity-50"
+                    >
+                      Submit Revision
+                    </button>
+                  )}
+
+                  {/* Approve Revision (if Finance/Head and revision is pending) */}
+                  {(isHead || isFinance) && (
+                    <button
+                      onClick={() => {
+                        setActiveTab('Revisions');
+                      }}
+                      disabled={!selectedProject}
+                      className="h-8 px-4 text-xs font-bold bg-[#0a6ed1] hover:bg-[#005bb5] text-white transition-all rounded-none disabled:opacity-50"
+                    >
+                      Approve Revisions
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Flex Split Workspace */}
+              <div className="flex flex-col lg:flex-row gap-4 items-start">
+                {/* Left Pane: Table */}
+                <div className={`transition-all duration-300 ${selectedRowId ? 'lg:w-[65%] w-full' : 'w-full'}`}>
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-none rounded-none overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-700">
+                            {visibleColumns.map(col => {
                               const isNum = isMonetary(col.label) || col.label === 'Unit count';
                               return (
-                                <td key={col.id} className={`py-4 px-6 ${isNum ? 'text-right flex justify-end' : ''}`}>
-                                  <Skeleton className={`h-4 ${widthClass}`} />
-                                </td>
-                              );
-                            })}
-                            <td className="py-4 px-6 text-center sticky right-0 bg-app-surface dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
-                              <Skeleton className="h-6 w-12 rounded mx-auto" />
-                            </td>
-                          </tr>
-                        ))
-                      ) : paginatedData.length === 0 ? (
-                        <tr>
-                          <td colSpan={visibleColumns.length + 1} className="py-32 text-center">
-                            <p className="text-xl font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-2">No Data Available</p>
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Select a project or import an Excel file</p>
-                          </td>
-                        </tr>
-                      ) : paginatedData.map(row => {
-                        const isEdit = editingRowId === row.id;
-                        return (
-                          <tr key={row.id}
-                            className={`transition-colors hover:bg-app-bg dark:bg-slate-800/80 dark:hover:bg-slate-700/20 ${isEdit ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
-                            {visibleColumns.map(col => {
-                              const val = isEdit ? editingData[col.label] : row[col.label];
-                              const mon = isMonetary(col.label);
-                              const ro = isReadonly(col.label);
-                              const num = mon || col.label === 'Unit count';
-
-                              if (isEdit) {
-                                return (
-                                  <td key={col.id} className="px-1 py-1">
-                                    {col.type === 'status' ? (
-                                      <select value={val || ''}
-                                        onChange={e => handleEditChange(col.label, e.target.value)}
-                                        className="w-full px-3 py-2 text-sm bg-app-surface dark:bg-slate-800 border border-blue-300 rounded-md focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
-                                        {['In Progress', 'Completed', 'On Hold', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
-                                      </select>
-                                    ) : (
-                                      <input
-                                        type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
-                                        value={col.type === 'currency' ? convert(val, 'USD', code) : (val !== undefined && val !== null ? val : '')}
-                                        readOnly={ro}
-                                        onChange={e => handleEditChange(col.label, e.target.value)}
-                                        className={`w-full px-3 py-2 text-sm border rounded-md outline-none transition-all ${ro
-                                          ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 cursor-not-allowed'
-                                          : 'bg-app-surface dark:bg-slate-800 border-blue-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900 dark:text-slate-100'
-                                          } ${num ? 'text-right font-mono' : ''}`}
-                                      />
+                                <th
+                                  key={col.id}
+                                  onClick={() => handleSort(col.label)}
+                                  className={`py-2 px-3 text-xs font-bold text-slate-500 dark:text-slate-350 select-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 ${
+                                    isNum ? 'text-right' : ''
+                                  }`}
+                                >
+                                  <div className={`flex items-center gap-1 ${isNum ? 'justify-end' : ''}`}>
+                                    <span>{COST_LABEL_MAP[col.label] || col.label}</span>
+                                    {sortConfig.key === col.label && (
+                                      sortConfig.direction === 'ascending' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
                                     )}
-                                  </td>
-                                );
-                              }
-
-                              // View mode
-                              let display = val !== undefined && val !== null && val !== '' ? val : '—';
-                              if (display !== '—' && mon) {
-                                const n = parseFloat(display);
-                                if (!isNaN(n)) display = format(n);
-                              }
-
-                              return (
-                                <td key={col.id}
-                                  className={`py-4 px-6 text-sm whitespace-nowrap transition-all duration-200 ${ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-100'
-                                    } ${num ? 'text-right font-semibold' : ''}`}>
-                                  {col.label === 'Status'
-                                    ? <StatusBadge value={val} />
-                                    : col.label === 'Balance' && parseFloat(val) < 0
-                                      ? <span className="text-red-600 dark:text-red-400 font-bold">{display}</span>
-                                      : display
-                                  }
-                                </td>
+                                  </div>
+                                </th>
                               );
                             })}
-
-                            {/* Actions col */}
-                            <td className={`py-4 px-6 text-center sticky right-0 border-l border-slate-100 dark:border-slate-800 dark:border-slate-700 whitespace-nowrap transition-all duration-200 ${isEdit ? 'bg-blue-50 dark:bg-blue-900/20' : 'bg-app-surface dark:bg-slate-800'
-                              }`}>
-                              <div className="flex items-center justify-center gap-2">
-                                {isEdit ? (
-                                  <>
-                                    <button onClick={saveEdit}
-                                      className="px-4 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition-all shadow-sm" title="Save">
-                                      Save
-                                    </button>
-                                    <button onClick={cancelEdit}
-                                      className="px-4 py-1.5 text-slate-500 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all" title="Cancel">
-                                      Cancel
-                                    </button>
-                                  </>
-                                ) : (
-                                  hasBudgetPerm('edit_row') && (
-                                    <button onClick={() => startEdit(row)}
-                                      className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md text-xs font-bold transition-all" title="Edit">
-                                      Edit
-                                    </button>
-                                  )
-                                )}
-                                {hasBudgetPerm('delete_row') && (
-                                  <button onClick={() => setShowDeletePrompt(row.id)}
-                                    className="px-4 py-1.5 text-slate-500 dark:text-slate-300 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md text-xs font-bold transition-all" title="Delete">
-                                    Delete
-                                  </button>
-                                )}
-                              </div>
-                            </td>
+                            <th className="py-2 px-3 text-center text-xs font-bold text-slate-500 dark:text-slate-350 sticky right-0 bg-slate-50 dark:bg-slate-900">
+                              Actions
+                            </th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
+                        </thead>
+                        <tbody className="divide-y divide-slate-150 dark:divide-slate-750/50">
+                          {loading || isParsing ? (
+                            Array.from({ length: 6 }).map((_, rIdx) => (
+                              <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                                {visibleColumns.map((col, cIdx) => {
+                                  const widths = ['w-8', 'w-16', 'w-24', 'w-32', 'w-20', 'w-28'];
+                                  const widthClass = widths[(rIdx + cIdx) % widths.length];
 
-                    {/* Summary footer */}
-                    {tableData.length > 0 && (
-                      <tfoot>
-                        <tr className="bg-app-bg dark:bg-slate-800/80 border-t-4 border-slate-200 dark:border-slate-700">
-                          {visibleColumns.map((col, idx) => {
-                            let cell = null;
-                            if (idx === 0) cell = <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">Total</span>;
-                            if (col.label === 'Estimated') cell = <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">{format(totalEstimated)}</span>;
-                            if (col.label === 'Total utilization') cell = <span className={`font-bold text-sm ${isOverBudget ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>;
-                            if (col.label === 'Balance') cell = <span className={`font-bold text-sm ${totalBalance < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{format(totalBalance)}</span>;
-                            const num = isMonetary(col.label) || col.label === 'Unit count';
+                                  if (col.type === 'status') {
+                                    return (
+                                      <td key={col.id} className="py-2 px-3">
+                                        <Skeleton className="h-5 w-16 rounded" />
+                                      </td>
+                                    );
+                                  }
+                                  const isNum = isMonetary(col.label) || col.label === 'Unit count';
+                                  return (
+                                    <td key={col.id} className={`py-2 px-3 ${isNum ? 'text-right flex justify-end' : ''}`}>
+                                      <Skeleton className={`h-4 ${widthClass}`} />
+                                    </td>
+                                  );
+                                })}
+                                <td className="py-2 px-3 text-center sticky right-0 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700">
+                                  <Skeleton className="h-6 w-12 rounded mx-auto" />
+                                </td>
+                              </tr>
+                            ))
+                          ) : paginatedData.length === 0 ? (
+                            <tr>
+                              <td colSpan={visibleColumns.length + 1} className="py-24 text-center">
+                                <p className="text-sm font-black text-slate-300 dark:text-slate-650 uppercase tracking-widest mb-1">No Data Available</p>
+                                <p className="text-xs font-bold text-slate-450 dark:text-slate-500 uppercase tracking-widest">Select a project or upload a budget file</p>
+                              </td>
+                            </tr>
+                          ) : paginatedData.map(row => {
+                            const isSelected = selectedRowId === row.id;
                             return (
-                              <td key={col.id} className={`py-6 px-6 ${num ? 'text-right' : ''}`}>{cell}</td>
+                              <tr
+                                key={row.id}
+                                onClick={() => {
+                                  setSelectedRowId(row.id);
+                                  setEditingRowId(row.id);
+                                  setEditingData({ ...row });
+                                }}
+                                className={`cursor-pointer transition-colors border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-850/50 ${
+                                  isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-l-[#0a6ed1]' : ''
+                                }`}
+                              >
+                                {visibleColumns.map(col => {
+                                  const val = row[col.label];
+                                  const mon = isMonetary(col.label);
+                                  const ro = isReadonly(col.label);
+                                  const num = mon || col.label === 'Unit count';
+
+                                  let display = val !== undefined && val !== null && val !== '' ? val : '—';
+                                  if (display !== '—' && mon) {
+                                    const n = parseFloat(display);
+                                    if (!isNaN(n)) display = format(n);
+                                  }
+
+                                  return (
+                                    <td
+                                      key={col.id}
+                                      className={`py-2 px-3 text-xs whitespace-nowrap ${
+                                        ro ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'
+                                      } ${num ? 'text-right font-mono font-semibold' : ''}`}
+                                    >
+                                      {col.label === 'Status' ? (
+                                        <StatusBadge value={val} />
+                                      ) : col.label === 'Balance' ? (
+                                        (() => {
+                                          const balNum = parseFloat(val);
+                                          const estNum = parseFloat(row['Estimated']) || 0;
+                                          const varPct = estNum > 0 && !isNaN(balNum) ? ((balNum / estNum) * 100).toFixed(1) : null;
+                                          const isNeg = !isNaN(balNum) && balNum < 0;
+                                          return (
+                                            <span className={`inline-flex items-center gap-1 ${isNeg ? 'text-[#bb0000]' : 'text-[#107f3e]'} font-bold`}>
+                                              {display}
+                                              {varPct !== null && (
+                                                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${isNeg ? 'bg-red-50 dark:bg-red-900/30' : 'bg-emerald-50 dark:bg-emerald-900/30'}`}>
+                                                  {isNeg ? '' : '+'}{varPct}%
+                                                </span>
+                                              )}
+                                            </span>
+                                          );
+                                        })()
+                                      ) : (
+                                        display
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                                
+                                {/* Actions cell */}
+                                <td
+                                  className="py-2 px-3 text-center sticky right-0 bg-white dark:bg-slate-800 border-l border-slate-150 dark:border-slate-700"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {hasBudgetPerm('delete_row') && (
+                                    <button
+                                      onClick={() => setShowDeletePrompt(row.id)}
+                                      className="p-1 text-slate-400 hover:text-red-650"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
                             );
                           })}
-                          <td className="py-6 px-6 sticky right-0 bg-app-bg dark:bg-slate-800/80 border-l border-slate-200 dark:border-slate-700" />
-                        </tr>
-                      </tfoot>
+                        </tbody>
+                        
+                        {/* Summary footer */}
+                        {tableData.length > 0 && (
+                          <tfoot>
+                            <tr className="bg-slate-50 dark:bg-slate-850 border-t-2 border-slate-300 dark:border-slate-700">
+                              {visibleColumns.map((col, idx) => {
+                                let cell = null;
+                                const budget = parseFloat(overallBudget) || 0;
+                                if (idx === 0) cell = (
+                                  <div>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Project Total</span>
+                                  </div>
+                                );
+                                if (col.label === 'Estimated') cell = (
+                                  <div className="text-right">
+                                    <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">{format(totalEstimated)}</span>
+                                  </div>
+                                );
+                                if (col.label === 'Total utilization') cell = (
+                                  <div className="text-right">
+                                    <span className={`font-bold text-xs ${isOverBudget ? 'text-[#bb0000]' : 'text-slate-900 dark:text-slate-100'}`}>{format(totalUtilization)}</span>
+                                  </div>
+                                );
+                                if (col.label === 'Balance') {
+                                  const varPct = totalEstimated > 0 ? ((totalBalance / totalEstimated) * 100).toFixed(1) : null;
+                                  cell = (
+                                    <div className="text-right">
+                                      <span className={`font-bold text-xs ${totalBalance < 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>{format(totalBalance)}</span>
+                                    </div>
+                                  );
+                                }
+                                const num = isMonetary(col.label) || col.label === 'Unit count';
+                                return (
+                                  <td key={col.id} className={`py-2 px-3 ${num ? 'text-right' : ''}`}>{cell}</td>
+                                );
+                              })}
+                              <td className="py-2 px-3 sticky right-0 bg-slate-50 dark:bg-slate-850 border-l border-slate-200 dark:border-slate-700" />
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {sortedData.length > 0 && (
+                      <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-slate-500">Rows:</span>
+                          <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                            className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-750 rounded-none outline-none focus:border-blue-500 text-slate-850 dark:text-slate-150">
+                            {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
+                          </select>
+                          <span className="text-xs text-slate-500">
+                            {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
+                            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-slate-500 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-900">
+                            First
+                          </button>
+                          {getPageNumbers().map(p => (
+                            <button key={p} onClick={() => setCurrentPage(p)}
+                              className={`w-7 h-7 text-xs font-bold rounded-none border transition-all ${p === currentPage
+                                ? 'bg-[#0a6ed1] text-white border-[#0a6ed1]'
+                                : 'text-slate-650 dark:text-slate-350 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
+                                }`}>
+                              {p}
+                            </button>
+                          ))}
+                          <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}
+                            className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-slate-500 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-900">
+                            Last
+                          </button>
+                        </div>
+                      </div>
                     )}
-                  </table>
+                  </div>
                 </div>
 
-                {/* Pagination */}
-                {sortedData.length > 0 && (
-                  <div className="px-8 py-6 border-t border-slate-100 dark:border-slate-800 dark:border-slate-700 flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-6">
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">Rows per page:</span>
-                      <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                        className="px-4 py-1.5 text-xs font-bold bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md outline-none transition-all focus:ring-4 focus:ring-slate-500/10 text-slate-900 dark:text-slate-100">
-                        {[5, 10, 25, 50].map(n => <option key={n}>{n}</option>)}
-                      </select>
-                      <span className="text-xs font-bold text-slate-500 dark:text-slate-300 dark:text-slate-300">
-                        {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
-                        className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                        First
+                {/* Right Pane: Detail Inspector */}
+                {selectedRowId && (
+                  <div className="lg:w-[35%] w-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 rounded-none flex flex-col h-[650px] shadow-none sticky top-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+                      <div>
+                        <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                          Detail Inspector
+                        </h3>
+                        <p className="text-xs font-bold text-[#0a6ed1] mt-1">
+                          {editingData['Item Name'] || 'New Item'}
+                        </p>
+                      </div>
+                      <button onClick={() => { setSelectedRowId(null); setEditingRowId(null); setEditingData({}); }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <X className="w-5 h-5" />
                       </button>
-                      {getPageNumbers().map(p => (
-                        <button key={p} onClick={() => setCurrentPage(p)}
-                          className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-md transition-all ${p === currentPage
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
-                            }`}>
-                          {p}
-                        </button>
+                    </div>
+
+                    {/* Body Form */}
+                    <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                      {/* Cost Center / Category */}
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Cost Center</label>
+                        <input
+                          type="text"
+                          value={editingData['Category'] || ''}
+                          onChange={e => handleEditChange('Category', e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Commodity / Item Name */}
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Commodity Name</label>
+                        <input
+                          type="text"
+                          value={editingData['Item Name'] || ''}
+                          onChange={e => handleEditChange('Item Name', e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Unit Type & Unit count */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Unit Type</label>
+                          <input
+                            type="text"
+                            value={editingData['Unit Type'] || ''}
+                            onChange={e => handleEditChange('Unit Type', e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Quantity</label>
+                          <input
+                            type="number"
+                            value={editingData['Unit count'] !== undefined ? editingData['Unit count'] : ''}
+                            onChange={e => handleEditChange('Unit count', e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 text-right font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Unit Rate & Budget */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Unit Rate ({code})</label>
+                          <input
+                            type="number"
+                            value={editingData['Per unit cost'] !== undefined && editingData['Per unit cost'] !== '' ? convert(editingData['Per unit cost'], 'USD', code) : ''}
+                            onChange={e => handleEditChange('Per unit cost', e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 text-right font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Calculated Budget</label>
+                          <div className="w-full px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none dark:text-slate-350 text-right font-mono font-bold">
+                            {format(editingData['Estimated'] || 0)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Utilized & Commitment */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Actual Spent ({code})</label>
+                          <input
+                            type="number"
+                            value={editingData['Utilized'] !== undefined && editingData['Utilized'] !== '' ? convert(editingData['Utilized'], 'USD', code) : ''}
+                            onChange={e => handleEditChange('Utilized', e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 text-right font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Commitment ({code})</label>
+                          <input
+                            type="number"
+                            value={editingData['Commitment'] !== undefined && editingData['Commitment'] !== '' ? convert(editingData['Commitment'], 'USD', code) : ''}
+                            onChange={e => handleEditChange('Commitment', e.target.value)}
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 text-right font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Forecast & Variance */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Forecast</label>
+                          <div className="w-full px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none dark:text-slate-350 text-right font-mono font-bold">
+                            {format(editingData['Total utilization'] || 0)}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Variance</label>
+                          <div className={`w-full px-3 py-2 text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none text-right font-mono font-bold ${(editingData['Balance'] || 0) < 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
+                            {format(editingData['Balance'] || 0)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Budget Status */}
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Budget Status</label>
+                        <select
+                          value={editingData['Status'] || ''}
+                          onChange={e => handleEditChange('Status', e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500"
+                        >
+                          <optgroup label="Cost Control">
+                            {['Within Budget', 'Watchlist', 'Over Budget', 'Closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </optgroup>
+                          <optgroup label="Workflow">
+                            {['In Progress', 'Completed', 'On Hold', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      {/* Custom Columns */}
+                      {columns.filter(c => c.custom).map(col => (
+                        <div key={col.id}>
+                          <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{col.label}</label>
+                          {col.type === 'status' ? (
+                            <select
+                              value={editingData[col.label] || ''}
+                              onChange={e => handleEditChange(col.label, e.target.value)}
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500"
+                            >
+                              {['Within Budget', 'Watchlist', 'Over Budget', 'Closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          ) : (
+                            <input
+                              type={col.type === 'number' || col.type === 'currency' ? 'number' : 'text'}
+                              value={col.type === 'currency' ? (editingData[col.label] !== undefined && editingData[col.label] !== '' ? convert(editingData[col.label], 'USD', code) : '') : (editingData[col.label] || '')}
+                              onChange={e => handleEditChange(col.label, e.target.value)}
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 font-mono"
+                            />
+                          )}
+                        </div>
                       ))}
-                      <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}
-                        className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-                        Last
+
+                      {/* Comments */}
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Remarks / Comments</label>
+                        <textarea
+                          rows={2}
+                          value={editingData['Comments'] || ''}
+                          onChange={e => handleEditChange('Comments', e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none outline-none dark:text-slate-100 focus:border-blue-500 resize-none font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-slate-200 dark:border-slate-800 pt-4 mt-4 flex justify-end gap-3 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedRowId(null); setEditingRowId(null); setEditingData({}); }}
+                        className="px-4 py-2 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-none text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Discard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveEdit}
+                        className="px-6 py-2 text-xs font-bold bg-[#0a6ed1] text-white rounded-none hover:bg-[#005bb5]"
+                      >
+                        Apply Changes
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Fiori Budget Summary key-value table */}
+              {selectedProject && tableData.length > 0 && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-none mt-8">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4">
+                    Budget Control Summary
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold">
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350">Metric</th>
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350 text-right">Approved Budget</th>
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350 text-right">Forecast at Completion</th>
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350 text-right">Budget Variance</th>
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350 text-right">Consumption %</th>
+                          <th className="py-2.5 px-4 text-slate-500 dark:text-slate-350 text-right">Remaining Budget</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-slate-150 dark:border-slate-800 bg-white dark:bg-slate-900">
+                          <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">Overall Cost Control</td>
+                          <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">{format(overallBudget)}</td>
+                          <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">{format(totalUtilization)}</td>
+                          <td className={`py-3 px-4 text-right font-mono font-bold ${overallBudget - totalUtilization < 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
+                            {format(overallBudget - totalUtilization)}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                            {overallBudget > 0 ? `${Math.round((totalUtilization / overallBudget) * 100)}%` : '0%'}
+                          </td>
+                          <td className={`py-3 px-4 text-right font-mono font-bold ${overallBudget - totalUtilization < 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
+                            {format(Math.max(0, overallBudget - totalUtilization))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Fiori Analytical Charts Section */}
+              {selectedProject && tableData.length > 0 && (() => {
+                const isDark = document.documentElement.classList.contains('dark');
+                const labelColor = isDark ? '#94a3b8' : '#64748b';
+                const splitLineColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)';
+
+                // 1. Group tableData by Category
+                const categorySummary = tableData.reduce((acc, r) => {
+                  const cat = r['Category'] || 'Other';
+                  if (!acc[cat]) {
+                    acc[cat] = { estimated: 0, forecast: 0, actual: 0 };
+                  }
+                  acc[cat].estimated += parseFloat(r['Estimated']) || 0;
+                  acc[cat].forecast += parseFloat(r['Total utilization']) || 0;
+                  acc[cat].actual += parseFloat(r['Utilized']) || 0;
+                  return acc;
+                }, {});
+
+                const sortedCategories = Object.entries(categorySummary)
+                  .map(([name, vals]) => ({ name, ...vals }))
+                  .sort((a, b) => b.estimated - a.estimated);
+
+                let displayedCategories = [];
+                let displayedEstimated = [];
+                let displayedForecast = [];
+                let actualVals = [];
+
+                if (sortedCategories.length > 6) {
+                  const top = sortedCategories.slice(0, 5);
+                  const rest = sortedCategories.slice(5);
+                  const restEst = rest.reduce((sum, item) => sum + item.estimated, 0);
+                  const restForecast = rest.reduce((sum, item) => sum + item.forecast, 0);
+                  const restActual = rest.reduce((sum, item) => sum + item.actual, 0);
+
+                  displayedCategories = [...top.map(t => t.name), 'Other'];
+                  displayedEstimated = [...top.map(t => t.estimated), restEst];
+                  displayedForecast = [...top.map(t => t.forecast), restForecast];
+                  actualVals = [...top.map(t => t.actual), restActual];
+                } else {
+                  displayedCategories = sortedCategories.map(t => t.name);
+                  displayedEstimated = sortedCategories.map(t => t.estimated);
+                  displayedForecast = sortedCategories.map(t => t.forecast);
+                  actualVals = sortedCategories.map(t => t.actual);
+                }
+
+                // 2. Options
+                const allocationOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' }
+                  },
+                  legend: {
+                    data: ['Approved Budget', 'Forecast at Completion'],
+                    textStyle: { color: labelColor },
+                    bottom: 0
+                  },
+                  grid: { left: '3%', right: '3%', top: '10%', bottom: '15%', containLabel: true },
+                  xAxis: {
+                    type: 'category',
+                    data: displayedCategories,
+                    axisLabel: { color: labelColor }
+                  },
+                  yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                      color: labelColor,
+                      formatter: (val) => format(val, true, { notation: 'compact' })
+                    },
+                    splitLine: { lineStyle: { color: splitLineColor, type: 'dashed' } }
+                  },
+                  series: [
+                    {
+                      name: 'Approved Budget',
+                      type: 'bar',
+                      itemStyle: { color: '#0a6ed1' },
+                      data: displayedEstimated
+                    },
+                    {
+                      name: 'Forecast at Completion',
+                      type: 'bar',
+                      itemStyle: { color: '#e9730c' },
+                      data: displayedForecast
+                    }
+                  ]
+                };
+
+                const forecastVsActualOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: { trigger: 'axis' },
+                  legend: {
+                    data: ['Approved Budget', 'Actual Spent'],
+                    textStyle: { color: labelColor },
+                    bottom: 0
+                  },
+                  grid: { left: '3%', right: '3%', top: '10%', bottom: '15%', containLabel: true },
+                  xAxis: {
+                    type: 'category',
+                    data: displayedCategories,
+                    axisLabel: { color: labelColor }
+                  },
+                  yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                      color: labelColor,
+                      formatter: (val) => format(val, true, { notation: 'compact' })
+                    },
+                    splitLine: { lineStyle: { color: splitLineColor, type: 'dashed' } }
+                  },
+                  series: [
+                    {
+                      name: 'Approved Budget',
+                      type: 'line',
+                      symbol: 'circle',
+                      symbolSize: 6,
+                      lineStyle: { width: 2, color: '#0a6ed1' },
+                      itemStyle: { color: '#0a6ed1' },
+                      data: displayedEstimated
+                    },
+                    {
+                      name: 'Actual Spent',
+                      type: 'line',
+                      symbol: 'circle',
+                      symbolSize: 6,
+                      lineStyle: { width: 2, color: '#107f3e' },
+                      itemStyle: { color: '#107f3e' },
+                      data: actualVals
+                    }
+                  ]
+                };
+
+                const utilizationPct = displayedCategories.map((cat, idx) => {
+                  const est = displayedEstimated[idx] || 0;
+                  const fore = displayedForecast[idx] || 0;
+                  return est > 0 ? Math.round((fore / est) * 105) : 0; // scaled
+                });
+
+                const utilizationBulletOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                    trigger: 'axis',
+                    formatter: '{b}: {c}% utilized'
+                  },
+                  grid: { left: '3%', right: '5%', top: '10%', bottom: '10%', containLabel: true },
+                  xAxis: {
+                    type: 'value',
+                    max: (value) => Math.max(100, value.max + 10),
+                    axisLabel: { color: labelColor, formatter: '{value}%' },
+                    splitLine: { lineStyle: { color: splitLineColor, type: 'dashed' } }
+                  },
+                  yAxis: {
+                    type: 'category',
+                    data: displayedCategories,
+                    axisLabel: { color: labelColor }
+                  },
+                  series: [
+                    {
+                      name: 'Utilization %',
+                      type: 'bar',
+                      barWidth: 14,
+                      itemStyle: {
+                        color: (params) => {
+                          const pct = params.value;
+                          if (pct > 100) return '#bb0000';
+                          if (pct > 90) return '#e9730c';
+                          return '#107f3e';
+                        }
+                      },
+                      data: utilizationPct
+                    }
+                  ]
+                };
+
+                const varianceVals = displayedCategories.map((cat, idx) => {
+                  const est = displayedEstimated[idx] || 0;
+                  const fore = displayedForecast[idx] || 0;
+                  return est - fore;
+                });
+
+                const deviationOption = {
+                  backgroundColor: 'transparent',
+                  tooltip: {
+                    trigger: 'axis',
+                    formatter: (params) => {
+                      const p = params[0];
+                      return `<b>${p.name}</b><br/>Variance: <b>${format(p.value)}</b>`;
+                    }
+                  },
+                  grid: { left: '3%', right: '3%', top: '10%', bottom: '10%', containLabel: true },
+                  xAxis: {
+                    type: 'value',
+                    axisLabel: {
+                      color: labelColor,
+                      formatter: (val) => format(val, true, { notation: 'compact' })
+                    },
+                    splitLine: { lineStyle: { color: splitLineColor, type: 'dashed' } }
+                  },
+                  yAxis: {
+                    type: 'category',
+                    data: displayedCategories,
+                    axisLabel: { color: labelColor },
+                    axisLine: { onZero: true }
+                  },
+                  series: [
+                    {
+                      name: 'Variance',
+                      type: 'bar',
+                      barWidth: 14,
+                      itemStyle: {
+                        color: (params) => {
+                          return params.value < 0 ? '#bb0000' : '#107f3e';
+                        }
+                      },
+                      data: varianceVals
+                    }
+                  ]
+                };
+
+                return (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-none mt-8">
+                    <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-6">
+                      Budget Performance Analytics
+                    </h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Chart 1: Budget Allocation */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-4 rounded-none bg-slate-50/30 dark:bg-slate-900/50">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">
+                          Budget Allocation by Cost Center
+                        </h4>
+                        <div style={{ height: '300px', width: '105%' }}>
+                          <ReactECharts option={allocationOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
+                        </div>
+                      </div>
+
+                      {/* Chart 2: Forecast vs Actual */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-4 rounded-none bg-slate-50/30 dark:bg-slate-900/50">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">
+                          Spend Trend (Forecast vs Actuals)
+                        </h4>
+                        <div style={{ height: '300px', width: '105%' }}>
+                          <ReactECharts option={forecastVsActualOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
+                        </div>
+                      </div>
+
+                      {/* Chart 3: Budget Utilization */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-4 rounded-none bg-slate-50/30 dark:bg-slate-900/50">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">
+                          Category Utilization vs Approved Budget Limit
+                        </h4>
+                        <div style={{ height: '300px', width: '105%' }}>
+                          <ReactECharts option={utilizationBulletOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
+                        </div>
+                      </div>
+
+                      {/* Chart 4: Variance Deviation Analysis */}
+                      <div className="border border-slate-200 dark:border-slate-800 p-4 rounded-none bg-slate-50/30 dark:bg-slate-900/50">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4">
+                          Variance Analysis (Deviation Bar Chart)
+                        </h4>
+                        <div style={{ height: '300px', width: '105%' }}>
+                          <ReactECharts option={deviationOption} style={{ height: '100%', width: '100%' }} notMerge={true} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* BUDGET REVISION VISIBILITY STRIP */}
+              {selectedProject && (() => {
+                const projRevisions = revisions.filter(r => r.project_name === selectedProject);
+                const pendingRevs   = projRevisions.filter(r => ['Pending Head', 'Pending Finance', 'In Waiting Period'].includes(r.status));
+                const approvedRevs  = projRevisions.filter(r => r.status === 'Approved');
+                const lastApproved  = approvedRevs.sort((a, b) => new Date(b.approved_at || b.updated_at) - new Date(a.approved_at || a.updated_at))[0];
+                const latestRev     = projRevisions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+                const revImpact = approvedRevs.length > 0
+                  ? approvedRevs.reduce((sum, r) => sum + ((r.revised_budget || 0) - (r.previous_budget || 0)), 0)
+                  : 0;
+
+                const fmt = (v) => format(v, true, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+                return (
+                  <div className="bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-800 shadow-none overflow-hidden mt-8">
+                    <div className="flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <History className="w-4 h-4 text-[#0a6ed1]" />
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">Budget Revision Status</p>
+                      </div>
+                      <button
+                        onClick={() => { setActiveTab('Revisions'); fetchRevisions(); }}
+                        className="text-[10px] font-black text-[#0a6ed1] hover:underline uppercase tracking-wider"
+                      >
+                        Manage Revisions →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-0 divide-x divide-slate-200 dark:divide-slate-850">
+                      {[
+                        { label: 'Total Revisions',    value: projRevisions.length.toString(),       sub: 'submitted' },
+                        { label: 'Pending Review',     value: pendingRevs.length.toString(),         sub: pendingRevs.length > 0 ? 'Awaiting approval' : 'None pending', highlight: pendingRevs.length > 0 },
+                        { label: 'Last Approved',      value: lastApproved ? new Date(lastApproved.approved_at || lastApproved.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—', sub: lastApproved ? `Rev #${lastApproved.id}` : 'No approvals yet' },
+                        { label: 'Cumulative Impact',  value: revImpact !== 0 ? (revImpact > 0 ? '+' : '') + fmt(revImpact) : '—', sub: 'from approved revisions', highlight: revImpact > 0 },
+                        { label: 'Approval Status',    value: latestRev ? latestRev.status : 'No Revisions', sub: latestRev ? `Rev #${latestRev.id}` : 'Submit a revision request', isStatus: true, rev: latestRev },
+                      ].map((item, i) => (
+                        <div key={i} className="px-5 py-3 flex flex-col gap-1 bg-white dark:bg-slate-900">
+                          <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{item.label}</p>
+                          {item.isStatus && item.rev ? (
+                            <RevisionBadge status={item.rev.status} />
+                          ) : (
+                            <p className={`text-sm font-black ${item.highlight ? 'text-[#e9730c]' : 'text-slate-800 dark:text-slate-100'}`}>{item.value}</p>
+                          )}
+                          <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500">{item.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Fiori Audit History Trail list */}
+              {selectedProject && auditLogs.length > 0 && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-none shadow-none mt-8">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-4">
+                    Budget Audit Log History
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 font-bold">
+                          <th className="py-2.5 px-4 text-slate-500 font-bold">Timestamp</th>
+                          <th className="py-2.5 px-4 text-slate-500 font-bold">Action</th>
+                          <th className="py-2.5 px-4 text-slate-500 font-bold">Performed By</th>
+                          <th className="py-2.5 px-4 text-slate-500 font-bold">Role</th>
+                          <th className="py-2.5 px-4 text-slate-500 text-right font-bold">Budget</th>
+                          <th className="py-2.5 px-4 text-slate-500 text-center font-bold">Synced</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-150 dark:divide-slate-850">
+                        {auditLogs.slice(0, 5).map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 bg-white dark:bg-slate-900">
+                            <td className="py-3 px-4 text-slate-600 dark:text-slate-350">
+                              {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-0.5 rounded-none text-[9px] font-bold border ${
+                                log.action === 'UPLOAD'
+                                  ? 'text-[#0a6ed1] border-[#0a6ed1]/30 bg-[#0a6ed1]/5'
+                                  : 'text-[#e9730c] border-[#e9730c]/30 bg-[#e9730c]/5'
+                              }`}>{log.action}</span>
+                            </td>
+                            <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-200">{log.user_name || log.details?.uploaded_by || '—'}</td>
+                            <td className="py-3 px-4 text-slate-650 dark:text-slate-400">{log.user_role || '—'}</td>
+                            <td className="py-3 px-4 text-right font-mono text-slate-750 dark:text-slate-300">
+                              {log.details?.overall_budget != null ? format(log.details.overall_budget) : '—'}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {log.details?.sync_to_project
+                                ? <span className="text-[#107f3e] font-bold text-[9px] uppercase">✓ Yes</span>
+                                : <span className="text-slate-400">—</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
-
           {/* ── REVISIONS TAB ────────────────────────────────────────────────────── */}
           {activeTab === 'Revisions' && (
             <div className="space-y-6">
               {isPM && selectedProject && (
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-none">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Budget Revision Management</h2>
                       <p className="text-sm font-semibold text-slate-500 dark:text-slate-300 mt-1">Submit and track revision requests for <span className="text-slate-900 dark:text-slate-100">{selectedProject}</span></p>
                     </div>
                     <button onClick={() => setShowNewRevisionForm(!showNewRevisionForm)}
-                      className={`h-12 px-8 rounded-md font-bold text-sm transition-all ${showNewRevisionForm
-                        ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-100 hover:bg-slate-200'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20'
+                      className={`h-10 px-6 rounded-none font-bold text-xs uppercase tracking-wider transition-all border ${showNewRevisionForm
+                        ? 'bg-white border-slate-350 dark:bg-slate-700 text-slate-700 dark:text-slate-100 hover:bg-slate-50'
+                        : 'bg-[#0a6ed1] text-white hover:bg-[#085caf] border-[#0a6ed1]'
                         }`}>
                       {showNewRevisionForm ? 'Cancel Request' : 'New Revision Request'}
                     </button>
@@ -1533,7 +2179,7 @@ const BudgetMaster = () => {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 dark:border-slate-700"
+                      className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700"
                     >
                       <form onSubmit={handleRevisionSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-6">
@@ -1542,7 +2188,7 @@ const BudgetMaster = () => {
                             <select
                               value={revisionIndustry}
                               onChange={e => setRevisionIndustry(e.target.value)}
-                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base font-bold text-slate-700 dark:text-slate-100"
+                              className="w-full px-3 py-2 bg-app-surface dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-sm font-bold text-slate-700 dark:text-slate-100"
                             >
                               <option value="Manufacturing">Manufacturing</option>
                               <option value="Automotive">Automotive</option>
@@ -1559,13 +2205,13 @@ const BudgetMaster = () => {
                               value={rawCategoriesInput}
                               onChange={e => setRawCategoriesInput(e.target.value)}
                               placeholder="e.g. chassis steel materials, imported ecu chips, copper transformer wiring..."
-                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base font-bold text-slate-750 dark:text-slate-100"
+                              className="w-full px-3 py-2 bg-app-surface dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-sm font-bold text-slate-750 dark:text-slate-100"
                             />
                           </div>
 
                           <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Current Project Budget</label>
-                            <div className="w-full px-4 py-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md font-bold text-lg text-slate-700 dark:text-slate-100">
+                            <div className="w-full px-3 py-2 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 border border-slate-255 dark:border-slate-700 rounded-none font-bold text-sm text-slate-700 dark:text-slate-100 font-mono">
                               {format(overallBudget)}
                             </div>
                           </div>
@@ -1579,22 +2225,20 @@ const BudgetMaster = () => {
                                 value={convert(revisionData.revised_budget, 'USD', code)}
                                 onChange={e => setRevisionData({ ...revisionData, revised_budget: convert(parseFloat(e.target.value) || 0, code, 'USD') })}
                                 placeholder="0.00"
-                                className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-lg font-bold" />
+                                className="w-full px-3 py-2 bg-app-surface dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-sm font-bold font-mono" />
 
                               <button type="button" onClick={handleFetchMarketAnalysis} disabled={fetchingMarket}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-amber-200 shadow-sm disabled:opacity-50">
-                                {fetchingMarket ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-50 text-[#e9730c] border border-[#e9730c] rounded-none text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50">
+                                {fetchingMarket ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5" />}
                                 Analyze Market
                               </button>
                             </div>
                           </div>
 
-
-
                           {revisionData.revised_budget && (
-                            <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-md border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between">
-                              <span className="text-xs font-bold text-indigo-800 dark:text-indigo-300">New Projected Total</span>
-                              <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-none flex items-center justify-between">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">New Projected Total</span>
+                              <span className="text-base font-black text-[#0a6ed1] font-mono">
                                 {format((parseFloat(overallBudget) || 0) + (parseFloat(revisionData.revised_budget) || 0))}
                               </span>
                             </div>
@@ -1610,7 +2254,7 @@ const BudgetMaster = () => {
                               value={revisionData.reasons}
                               onChange={e => setRevisionData({ ...revisionData, reasons: e.target.value })}
                               placeholder="Justification..."
-                              className="w-full px-4 py-4 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-base resize-none font-bold" />
+                              className="w-full px-3 py-2 bg-app-surface dark:bg-slate-900 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-sm resize-none font-bold" />
                           </div>
                           <div>
                             <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-2">Support Documentation</label>
@@ -1618,8 +2262,8 @@ const BudgetMaster = () => {
                               <input type="file" accept=".pdf,.xlsx,.xls"
                                 onChange={e => setRevisionData({ ...revisionData, attachment: e.target.files[0] })}
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                              <div className={`w-full px-4 py-4 border-2 border-dashed rounded-md transition-all flex items-center justify-center gap-4 ${revisionData.attachment ? 'border-indigo-500 bg-indigo-50/10 text-indigo-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
-                                <span className="text-sm font-bold">
+                              <div className={`w-full px-3 py-3 border-2 border-dashed rounded-none transition-all flex items-center justify-center gap-3 ${revisionData.attachment ? 'border-[#0a6ed1] bg-[#0a6ed1]/5 text-[#0a6ed1]' : 'border-slate-250 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                                <span className="text-xs font-bold uppercase tracking-wider">
                                   {revisionData.attachment ? revisionData.attachment.name : 'Click to attach evidence'}
                                 </span>
                               </div>
@@ -1627,9 +2271,9 @@ const BudgetMaster = () => {
                           </div>
                         </div>
 
-                        <div className="md:col-span-2 flex justify-end gap-4 pt-4">
+                        <div className="md:col-span-2 flex justify-end gap-3 pt-2">
                           <button type="submit" disabled={submittingRevision}
-                            className="h-12 px-12 text-sm font-bold bg-indigo-600 text-white rounded-md hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50">
+                            className="h-10 px-8 text-xs font-bold uppercase tracking-wider bg-[#0a6ed1] text-white border border-[#0a6ed1] hover:bg-[#085caf] transition-all disabled:opacity-50">
                             {submittingRevision ? 'Submitting...' : 'Submit Revision'}
                           </button>
                         </div>
@@ -1639,13 +2283,13 @@ const BudgetMaster = () => {
                 </div>
               )}
 
-              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-                <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 dark:border-slate-700 flex items-center justify-between bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50">
+              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-none overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Revision Request History</h2>
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">Revision Request History</h2>
                   </div>
                   <button onClick={fetchRevisions} disabled={fetchingRevisions}
-                    className="px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-all">
+                    className="px-3 py-1.5 text-xs border border-slate-350 bg-white dark:bg-slate-900 text-slate-650 hover:bg-slate-50 rounded-none font-bold transition-all">
                     {fetchingRevisions ? 'Refreshing...' : 'Refresh'}
                   </button>
                 </div>
@@ -1656,7 +2300,7 @@ const BudgetMaster = () => {
                       <tr className="bg-app-bg dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         {['Project', 'Requested By', 'Prev Budget', 'New Budget', 'Delta', 'Initiated', 'Approved', 'Status', 'Attachment', 'Actions']
                           .map(h => (
-                            <th key={h} className={`py-4 px-6 text-xs font-bold text-slate-500 dark:text-slate-350 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
+                            <th key={h} className={`py-3 px-4 text-xs font-bold text-slate-500 dark:text-slate-350 whitespace-nowrap ${['Prev Budget', 'New Budget', 'Delta'].includes(h) ? 'text-right' : ''
                               } ${h === 'Actions' ? 'text-center' : ''}`}>
                               {h}
                             </th>
@@ -1667,17 +2311,17 @@ const BudgetMaster = () => {
                       {fetchingRevisions ? (
                         <tr>
                           <td colSpan={10} className="py-24 text-center">
-                            <p className="text-base font-bold text-blue-600 animate-pulse">Fetching revisions...</p>
+                            <p className="text-xs font-bold text-[#0a6ed1] animate-pulse">Fetching revisions...</p>
                           </td>
                         </tr>
                       ) : revisions.length === 0 ? (
                         <tr>
                           <td colSpan={10} className="py-24">
                             <div className="flex flex-col items-center justify-center text-center px-4">
-                              <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800 dark:border-slate-700">
-                                <Inbox className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                              <div className="w-12 h-12 bg-app-bg dark:bg-slate-800/50 rounded-none flex items-center justify-center mb-3 border border-slate-200 dark:border-slate-700">
+                                <Inbox className="h-6 w-6 text-slate-300 dark:text-slate-600" />
                               </div>
-                              <p className="text-sm font-bold text-slate-500 dark:text-slate-300 dark:text-slate-100">No revision requests found</p>
+                              <p className="text-xs font-bold text-slate-500 dark:text-slate-300">No revision requests found</p>
                               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium max-w-[200px] mt-1">
                                 Any budget revisions you submit will appear here in the history log.
                               </p>
@@ -1688,44 +2332,44 @@ const BudgetMaster = () => {
                         const delta = (rev.revised_budget || 0) - (rev.previous_budget || 0);
                         return (
                           <tr key={rev.id} className="hover:bg-app-bg dark:bg-slate-800/80 dark:hover:bg-slate-700/20 transition-all duration-200">
-                            <td className="py-4 px-6">
-                              <p className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{rev.project_name}</p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">#{rev.id}</p>
+                            <td className="py-3 px-4">
+                              <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{rev.project_name}</p>
+                              <p className="text-[10px] text-slate-450 dark:text-slate-500 font-bold">#{rev.id}</p>
                             </td>
-                            <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{rev.pm_name || '—'}</td>
-                            <td className="py-4 px-6 text-right text-sm font-bold text-slate-600 dark:text-slate-100">{format(rev.previous_budget)}</td>
-                            <td className="py-4 px-6 text-right text-sm font-black text-blue-600">{format(rev.revised_budget)}</td>
-                            <td className="py-4 px-6 text-right">
-                              <span className={`text-xs font-black ${delta >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <td className="py-3 px-4 text-xs font-bold text-slate-650 dark:text-slate-100">{rev.pm_name || '—'}</td>
+                            <td className="py-3 px-4 text-right text-xs font-bold text-slate-650 dark:text-slate-100 font-mono">{format(rev.previous_budget)}</td>
+                            <td className="py-3 px-4 text-right text-xs font-black text-[#0a6ed1] font-mono">{format(rev.revised_budget)}</td>
+                            <td className="py-3 px-4 text-right">
+                              <span className={`text-xs font-black font-mono ${delta >= 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
                                 {delta >= 0 ? '+' : ''}{format(delta)}
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                            <td className="py-3 px-4 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
                               {rev.created_at ? new Date(rev.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                             </td>
-                            <td className="py-4 px-6 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                            <td className="py-3 px-4 text-xs text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
                               {rev.approved_at ? new Date(rev.approved_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
                             </td>
-                            <td className="py-4 px-6"><RevisionBadge status={rev.status} /></td>
-                            <td className="py-4 px-6">
+                            <td className="py-3 px-4"><RevisionBadge status={rev.status} /></td>
+                            <td className="py-3 px-4">
                               {rev.attachment_name
                                 ? <button onClick={() => handleDownloadAttachment(rev.id, rev.attachment_name)}
-                                  className="text-xs font-bold text-blue-600 hover:text-blue-700">
+                                  className="text-xs font-bold text-[#0a6ed1] hover:underline">
                                   Download
                                 </button>
                                 : <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">None</span>
                               }
                             </td>
-                            <td className="py-4 px-6">
-                              <div className="flex items-center justify-center gap-2">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center gap-1.5">
                                 {isHead && rev.status === 'Pending Head' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Pending Finance')} title="Send to Finance"
-                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
+                                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-[#0a6ed1] text-[#0a6ed1] hover:bg-slate-50 rounded-none text-[10px] font-bold transition-all shadow-none">
                                       Forward
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Cancelled')} title="Cancel"
-                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-md text-[10px] font-bold transition-all shadow-sm">
+                                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 text-slate-650 hover:bg-slate-50 rounded-none text-[10px] font-bold transition-all shadow-none">
                                       Cancel
                                     </button>
                                   </>
@@ -1733,15 +2377,15 @@ const BudgetMaster = () => {
                                 {isFinance && rev.status === 'Pending Finance' && (
                                   <>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Approved')} title="Approve"
-                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
+                                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-[#107f3e] text-[#107f3e] hover:bg-slate-50 rounded-none text-[10px] font-bold transition-all shadow-none">
                                       Approve
                                     </button>
                                     <button onClick={() => setShowWaitingModal(rev.id)} title="Set Waiting Period"
-                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
+                                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-[#e9730c] text-[#e9730c] hover:bg-slate-50 rounded-none text-[10px] font-bold transition-all shadow-none">
                                       Wait
                                     </button>
                                     <button onClick={() => handleStatusUpdate(rev.id, 'Declined')} title="Decline"
-                                      className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-md text-[10px] font-bold transition-all shadow-sm">
+                                      className="px-2 py-1 bg-white dark:bg-slate-900 border border-[#bb0000] text-[#bb0000] hover:bg-slate-50 rounded-none text-[10px] font-bold transition-all shadow-none">
                                       Decline
                                     </button>
                                   </>
@@ -1765,10 +2409,10 @@ const BudgetMaster = () => {
           {activeTab === 'Analytics' && (
             <div className="space-y-6">
               {/* Stepper Card */}
-              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                <div className="mb-8">
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Budget Revision Lifecycle</h2>
-                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-300 mt-1">Track approval stages for {selectedProject || 'Project'}</p>
+              <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-none">
+                <div className="mb-6">
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">Budget Revision Lifecycle</h2>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-300 mt-1">Track approval stages for {selectedProject || 'Project'}</p>
                 </div>
 
                 {(() => {
@@ -1909,16 +2553,8 @@ const BudgetMaster = () => {
                             initial={{ width: '0%' }}
                             animate={{ width: steps[0].done ? '100%' : '0%' }}
                             transition={{ duration: 0.9, ease: 'easeInOut' }}
-                            className="absolute inset-0 bg-blue-500 origin-left"
+                            className="absolute inset-0 bg-[#0a6ed1] origin-left"
                           />
-                          {/* Shimmer */}
-                          {steps[0].done && (
-                            <motion.div
-                              animate={{ left: ['-40%', '130%'] }}
-                              transition={{ duration: 1.8, repeat: Infinity, ease: 'linear', repeatDelay: 0.5 }}
-                              className="absolute top-[-4px] bottom-[-4px] w-[40%] rounded-full bg-gradient-to-r from-transparent via-blue-300/80 dark:via-blue-400/60 to-transparent"
-                            />
-                          )}
                         </div>
 
                         {/* Connector Line 2 (Head -> Finance) */}
@@ -1930,16 +2566,8 @@ const BudgetMaster = () => {
                             initial={{ width: '0%' }}
                             animate={{ width: steps[1].done ? '100%' : '0%' }}
                             transition={{ duration: 0.9, ease: 'easeInOut', delay: 0.25 }}
-                            className="absolute inset-0 bg-blue-500 origin-left"
+                            className="absolute inset-0 bg-[#0a6ed1] origin-left"
                           />
-                          {/* Shimmer */}
-                          {steps[1].done && (
-                            <motion.div
-                              animate={{ left: ['-40%', '130%'] }}
-                              transition={{ duration: 1.8, repeat: Infinity, ease: 'linear', repeatDelay: 0.5 }}
-                              className="absolute top-[-4px] bottom-[-4px] w-[40%] rounded-full bg-gradient-to-r from-transparent via-blue-300/80 dark:via-blue-400/60 to-transparent"
-                            />
-                          )}
                         </div>
 
                         {/* Steps flex row */}
@@ -1964,22 +2592,22 @@ const BudgetMaster = () => {
                                   {/* Pulse ring for active step */}
                                   {isActive && (
                                     <motion.div
-                                      animate={{ scale: [1, 1.6, 1], opacity: [0.4, 0, 0.4] }}
+                                      animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
                                       transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                                      className="absolute inset-0 rounded-full bg-blue-500 pointer-events-none"
+                                      className="absolute inset-0 rounded-full bg-[#0a6ed1] pointer-events-none"
                                     />
                                   )}
                                   
                                   <motion.div
                                     initial={false}
-                                    animate={{ scale: isActive || hoveredStep === step.id ? 1.15 : 1 }}
-                                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                                    animate={{ scale: isActive || hoveredStep === step.id ? 1.1 : 1 }}
+                                    transition={{ duration: 0.2, ease: 'easeOut' }}
                                     className={[
-                                      'w-14 h-14 rounded-full border-2 flex items-center justify-center shadow-sm relative z-20 transition-colors',
+                                      'w-14 h-14 rounded-full border-2 flex items-center justify-center shadow-none relative z-20 transition-colors',
                                       isDone
-                                        ? 'bg-blue-500 border-blue-500'
+                                        ? 'bg-[#0a6ed1] border-[#0a6ed1]'
                                         : isActive
-                                        ? 'bg-white dark:bg-slate-900 border-blue-500'
+                                        ? 'bg-white dark:bg-slate-900 border-[#0a6ed1]'
                                         : 'bg-slate-100 dark:bg-slate-700/60 border-slate-300 dark:border-slate-600',
                                     ].join(' ')}
                                   >
@@ -1990,8 +2618,8 @@ const BudgetMaster = () => {
                                         isDone
                                           ? 'text-white'
                                           : isActive
-                                          ? 'text-blue-500'
-                                          : 'text-slate-400 dark:text-slate-500'
+                                          ? 'text-[#0a6ed1]'
+                                          : 'text-slate-450 dark:text-slate-500'
                                       }
                                     />
                                   </motion.div>
@@ -2036,16 +2664,16 @@ const BudgetMaster = () => {
                               if (!tooltip) return null;
 
                               return (
-                                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-sm text-left mt-2 mb-2">
-                                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
+                                <div className="p-4 rounded-none bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-none text-left mt-2 mb-2">
+                                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
                                     <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-wider">{tooltip.title}</h4>
                                     <span className={[
-                                      'text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-wider',
+                                      'text-[9px] px-2 py-0.5 rounded-none border font-black uppercase tracking-wider',
                                       tooltip.status === 'Completed' || tooltip.status === 'Approved'
-                                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30'
+                                        ? 'bg-[#107f3e]/10 text-[#107f3e] border-[#107f3e]/20'
                                         : tooltip.status === 'Declined'
-                                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/30'
-                                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/30'
+                                        ? 'bg-[#bb0000]/10 text-[#bb0000] border-[#bb0000]/20'
+                                        : 'bg-[#e9730c]/10 text-[#e9730c] border-[#e9730c]/20'
                                     ].join(' ')}>
                                       {tooltip.status}
                                     </span>
@@ -2054,7 +2682,7 @@ const BudgetMaster = () => {
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3">
                                     {tooltip.details.map((det, dIdx) => (
                                       <div key={dIdx} className="flex flex-col">
-                                        <span className="text-[9px] text-slate-400 dark:text-slate-555 font-bold uppercase tracking-wider">{det.label}</span>
+                                        <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{det.label}</span>
                                         <span className="text-xs text-slate-700 dark:text-slate-200 font-black truncate mt-0.5">{det.value}</span>
                                       </div>
                                     ))}
@@ -2072,20 +2700,20 @@ const BudgetMaster = () => {
 
               {/* Quick Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-none">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Revision Count</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-350 uppercase tracking-wider">Revision Count</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100 font-mono">
                       {revisions.filter(r => r.project_name === selectedProject).length}
                     </p>
                   </div>
                   <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">Total requests submitted</p>
                 </div>
 
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-none">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Approval Rate</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-350 uppercase tracking-wider">Approval Rate</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100 font-mono">
                       {(() => {
                         const projRevs = revisions.filter(r => r.project_name === selectedProject);
                         if (projRevs.length === 0) return '0%';
@@ -2097,10 +2725,10 @@ const BudgetMaster = () => {
                   <p className="text-[10px] text-slate-400 dark:text-slate-400 font-bold">Successful final approvals</p>
                 </div>
 
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-6 shadow-none">
                   <div className="flex flex-col gap-2 mb-4">
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-300">Pending Review</p>
-                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100">
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-350 uppercase tracking-wider">Pending Review</p>
+                    <p className="text-3xl font-black text-slate-800 dark:text-slate-100 font-mono">
                       {revisions.filter(r => r.project_name === selectedProject && ['Pending Head', 'Pending Finance'].includes(r.status)).length}
                     </p>
                   </div>
@@ -2115,11 +2743,11 @@ const BudgetMaster = () => {
             <div className="space-y-8 pb-12">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Budget Distribution Chart (Simulated with CSS) */}
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-none">
                   <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Allocation</h3>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Budget Allocation</h3>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                      <span className="text-[#0a6ed1] text-xs leading-none">●</span>
                       <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest">By Category</span>
                     </div>
                   </div>
@@ -2131,16 +2759,16 @@ const BudgetMaster = () => {
                         <div key={idx} className="space-y-2">
                           <div className="flex justify-between items-end">
                             <span className="text-xs font-bold text-slate-700 dark:text-slate-100">{cat.label}</span>
-                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500">{format(cat.value)} ({Math.round(percentage)}%)</span>
+                            <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 font-mono">{format(cat.value)} ({Math.round(percentage)}%)</span>
                           </div>
-                          <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                          <div className="h-2 w-full bg-slate-100 dark:bg-slate-900 rounded-none overflow-hidden">
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${percentage}%` }}
                               transition={{ duration: 1, delay: idx * 0.1 }}
-                              className={`h-full rounded-full ${idx === 0 ? 'bg-blue-600' :
-                                  idx === 1 ? 'bg-emerald-600' :
-                                    idx === 2 ? 'bg-indigo-600' : 'bg-slate-600'
+                              className={`h-full rounded-none ${idx === 0 ? 'bg-[#0a6ed1]' :
+                                  idx === 1 ? 'bg-[#107f3e]' :
+                                    idx === 2 ? 'bg-[#e9730c]' : 'bg-slate-500'
                                 }`}
                             />
                           </div>
@@ -2149,7 +2777,7 @@ const BudgetMaster = () => {
                     })}
                     {estimatedBreakdown.length === 0 && (
                       <div className="py-16 flex flex-col items-center justify-center text-center">
-                        <div className="w-14 h-14 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                        <div className="w-12 h-12 bg-app-bg dark:bg-slate-800/50 rounded-none flex items-center justify-center mb-4">
                           <PieChart className="h-6 w-6 text-slate-300 dark:text-slate-600" />
                         </div>
                         <p className="text-xs font-bold text-slate-400 dark:text-slate-500 italic">No allocation data available</p>
@@ -2159,8 +2787,8 @@ const BudgetMaster = () => {
                 </div>
 
                 {/* Utilization Health */}
-                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-sm">
-                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-8">Utilization Health</h3>
+                <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 p-8 shadow-none">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest mb-8">Utilization Health</h3>
 
                   <div className="flex items-center justify-center py-4">
                     <div className="relative w-48 h-48 flex items-center justify-center">
@@ -2179,12 +2807,11 @@ const BudgetMaster = () => {
                           initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
                           animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - Math.min(1, totalUtilization / (parseFloat(overallBudget) || 1))) }}
                           transition={{ duration: 1.5, ease: "easeOut" }}
-                          strokeLinecap="round"
-                          className={isOverBudget ? 'text-red-500' : 'text-blue-600'}
+                          className={isOverBudget ? 'text-[#bb0000]' : 'text-[#0a6ed1]'}
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className={`text-3xl font-black ${isOverBudget ? 'text-red-600' : 'text-slate-900 dark:text-slate-100'}`}>
+                        <span className={`text-3xl font-black font-mono ${isOverBudget ? 'text-[#bb0000]' : 'text-slate-900 dark:text-slate-100'}`}>
                           {Math.round((totalUtilization / (parseFloat(overallBudget) || 1)) * 100)}%
                         </span>
                         <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Utilized</span>
@@ -2193,13 +2820,13 @@ const BudgetMaster = () => {
                   </div>
 
                   <div className="mt-8 grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Spent (Utilized)</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{format(totalUtilized)}</p>
+                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-800">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Spent (Utilized)</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">{format(totalUtilized)}</p>
                     </div>
-                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Committed</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{format(totalCommitment)}</p>
+                    <div className="p-4 bg-app-bg dark:bg-slate-800/50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-800">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-300 uppercase tracking-widest mb-1">Committed</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 font-mono">{format(totalCommitment)}</p>
                     </div>
                   </div>
                 </div>
@@ -2209,29 +2836,29 @@ const BudgetMaster = () => {
 
           {/* ── BUDGET HISTORY TAB ───────────────────────────────────────────────── */}
           {activeTab === 'History' && (
-            <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-              <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
+            <div className="bg-app-surface dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 shadow-none overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-app-bg dark:bg-slate-800/50">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">Budget History & Snapshots</h2>
+                  <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">Budget History & Snapshots</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <select
                     value={historyFilter}
                     onChange={e => { setHistoryFilter(e.target.value); setHistoryCurrentPage(1); }}
-                    className="px-3 py-1.5 text-xs font-bold bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md outline-none cursor-pointer text-slate-700 dark:text-slate-100">
+                    className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-900 border border-slate-350 dark:border-slate-750 rounded-none outline-none cursor-pointer text-slate-700 dark:text-slate-100 focus:border-[#0a6ed1]">
                     <option value="All">All Types</option>
                     <option value="Upload">Uploads</option>
                     <option value="Save">Manual Saves</option>
                   </select>
                   {(hasBudgetPerm('budget_audits')) && (
                     <button onClick={() => { setShowAuditModal(true); fetchAuditLogs(); }}
-                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all">
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-[#0a6ed1] bg-white border border-[#0a6ed1] rounded-none hover:bg-slate-50 transition-all">
                       <ClipboardList className="w-3.5 h-3.5" />
                       Budget Audits
                     </button>
                   )}
                   <button onClick={fetchHistory} disabled={fetchingHistory}
-                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-300 bg-app-surface dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md hover:text-slate-700 hover:bg-app-bg dark:bg-slate-800/50 transition-all">
+                    className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-650 bg-white border border-slate-350 rounded-none hover:bg-slate-50 transition-all">
                     <RefreshCw className={`w-3.5 h-3.5 ${fetchingHistory ? 'animate-spin' : ''}`} />
                     {fetchingHistory ? 'Refreshing...' : 'Refresh'}
                   </button>
@@ -2245,8 +2872,8 @@ const BudgetMaster = () => {
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Project Manager</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Type</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Overall Budget</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Uploaded By</th>
-                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider">Last Updated</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider font-bold">Uploaded By</th>
+                      <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider font-bold">Last Updated</th>
                       <th className="py-3 px-4 text-[11px] font-bold text-slate-500 dark:text-slate-100 uppercase tracking-wider text-center">Actions</th>
                     </tr>
                   </thead>
@@ -2254,23 +2881,23 @@ const BudgetMaster = () => {
                     {fetchingHistory ? (
                       Array.from({ length: 5 }).map((_, rIdx) => (
                         <tr key={rIdx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                          <td className="py-4 px-6"><Skeleton className="h-4 w-28" /></td>
-                          <td className="py-4 px-6"><Skeleton className="h-5 w-16 rounded" /></td>
-                          <td className="py-4 px-6"><Skeleton className="h-4 w-24" /></td>
-                          <td className="py-4 px-6"><Skeleton className="h-4 w-20" /></td>
-                          <td className="py-4 px-6"><Skeleton className="h-4 w-32" /></td>
-                          <td className="py-4 px-6 text-center"><Skeleton className="h-6 w-16 rounded mx-auto" /></td>
+                          <td className="py-3 px-4"><Skeleton className="h-4 w-28 rounded-none" /></td>
+                          <td className="py-3 px-4"><Skeleton className="h-5 w-16 rounded-none" /></td>
+                          <td className="py-3 px-4"><Skeleton className="h-4 w-24 rounded-none" /></td>
+                          <td className="py-3 px-4"><Skeleton className="h-4 w-20 rounded-none" /></td>
+                          <td className="py-3 px-4"><Skeleton className="h-4 w-32 rounded-none" /></td>
+                          <td className="py-3 px-4 text-center"><Skeleton className="h-6 w-16 rounded-none mx-auto" /></td>
                         </tr>
                       ))
                     ) : paginatedHistoryData.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-24">
                           <div className="flex flex-col items-center justify-center text-center px-4">
-                            <div className="w-16 h-16 bg-app-bg dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-100 dark:border-slate-800">
-                              <History className="h-8 w-8 text-slate-300 dark:text-slate-500" />
+                            <div className="w-12 h-12 bg-app-bg dark:bg-slate-800/50 rounded-none flex items-center justify-center mb-3 border border-slate-200 dark:border-slate-700">
+                              <History className="h-6 w-6 text-slate-300 dark:text-slate-500" />
                             </div>
-                            <p className="text-sm font-bold text-slate-500 dark:text-slate-100">No budget history found</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium max-w-[200px] mt-1">
+                            <p className="text-xs font-bold text-slate-500 dark:text-slate-100">No budget history found</p>
+                            <p className="text-[10px] text-slate-450 dark:text-slate-400 font-medium max-w-[200px] mt-1">
                               Upload an excel snapshot or save a manual revision to start building your budget history.
                             </p>
                           </div>
@@ -2278,29 +2905,29 @@ const BudgetMaster = () => {
                       </tr>
                     ) : paginatedHistoryData.map(item => (
                       <tr key={item.id} className="hover:bg-app-bg dark:bg-slate-800/50 dark:hover:bg-slate-700/20 transition-all duration-200">
-                        <td className="py-4 px-6 text-sm font-bold text-slate-700 dark:text-slate-100 tracking-tight">
+                        <td className="py-3 px-4 text-xs font-bold text-slate-700 dark:text-slate-100 tracking-tight">
                           {managerName || 'Unassigned'}
                         </td>
-                        <td className="py-4 px-6">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${item.attachment_name ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800'}`}>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-0.5 rounded-none text-[9px] font-bold border ${item.attachment_name ? 'text-[#0a6ed1] border-[#0a6ed1]/30 bg-[#0a6ed1]/5' : 'text-[#e9730c] border-[#e9730c]/30 bg-[#e9730c]/5'}`}>
                             {item.attachment_name ? 'Upload' : 'Save'}
                           </span>
                         </td>
-                        <td className="py-4 px-6 text-sm font-bold text-blue-600 dark:text-blue-400">{format(item.overall_budget)}</td>
-                        <td className="py-4 px-6 text-sm font-bold text-slate-600 dark:text-slate-100">{item.uploaded_by || 'Unknown'}</td>
-                        <td className="py-4 px-6 text-sm font-bold text-slate-500 dark:text-slate-300">
+                        <td className="py-3 px-4 text-xs font-bold text-[#0a6ed1] font-mono">{format(item.overall_budget)}</td>
+                        <td className="py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-100">{item.uploaded_by || 'Unknown'}</td>
+                        <td className="py-3 px-4 text-xs font-bold text-slate-500 dark:text-slate-300">
                           {new Date(item.updated_at).toLocaleDateString()}
                         </td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center justify-center gap-4">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-3">
                             <button onClick={() => loadVersion(item.id)}
                               title="View Snapshot"
-                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 p-1.5 rounded-md transition-all">
+                              className="text-[#0a6ed1] hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-none transition-all">
                               <Eye className="w-4 h-4" />
                             </button>
                             <button onClick={() => deleteVersion(item.id)}
                               title="Delete Snapshot"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 p-1.5 rounded-md transition-all">
+                              className="text-[#bb0000] hover:bg-slate-50 dark:hover:bg-slate-800 p-1.5 rounded-none transition-all">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -2326,20 +2953,20 @@ const BudgetMaster = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setHistoryCurrentPage(1)} disabled={historyCurrentPage === 1}
-                      className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-none text-slate-550 disabled:opacity-40 hover:bg-slate-50 transition-all">
                       First
                     </button>
                     {getHistoryPageNumbers().map(p => (
                       <button key={p} onClick={() => setHistoryCurrentPage(p)}
-                        className={`w-10 h-10 flex items-center justify-center text-xs font-black rounded-md transition-all ${p === historyCurrentPage
-                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-                          : 'text-slate-600 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700'
+                        className={`w-7 h-7 flex items-center justify-center text-xs font-bold rounded-none border transition-all ${p === historyCurrentPage
+                          ? 'bg-[#0a6ed1] text-white border-[#0a6ed1]'
+                          : 'text-slate-655 dark:text-slate-350 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 hover:bg-slate-50'
                           }`}>
                         {p}
                       </button>
                     ))}
                     <button onClick={() => setHistoryCurrentPage(totalHistoryPages)} disabled={historyCurrentPage === totalHistoryPages}
-                      className="px-4 py-2 text-xs font-bold rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                      className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-700 rounded-none text-slate-550 disabled:opacity-40 hover:bg-slate-50 transition-all">
                       Last
                     </button>
                   </div>
@@ -2482,7 +3109,7 @@ const BudgetMaster = () => {
       {/* ── Budget Template Modal ────────────────────────────────────────────── */}
       {showTemplateModal && (
         <div className="app-modal-overlay">
-          <div className="app-modal-container max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="app-modal-container !rounded-none max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-none">
             <div className="app-modal-header bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
               <div>
                 <h3 className="app-modal-title">Budget Upload Template</h3>
@@ -2495,7 +3122,7 @@ const BudgetMaster = () => {
             </div>
 
             <div className="app-modal-body flex-1 overflow-y-auto space-y-6">
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-6 border border-slate-200 dark:border-slate-700 mb-6">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-none p-6 border border-slate-200 dark:border-slate-700 mb-6">
                 <h4 className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-4">
                   Standard Column Headers
                 </h4>
@@ -2504,17 +3131,17 @@ const BudgetMaster = () => {
                     "Category", "Item Name", "Unit Type", "Unit count",
                     "Per unit cost", "Utilized", "Commitment", "Status", "Comments"
                   ].map(header => (
-                    <div key={header} className="px-4 py-3 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-md text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-100">
+                    <div key={header} className="px-3 py-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-none text-[10px] font-black uppercase tracking-widest text-slate-650 dark:text-slate-100">
                       {header}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded border border-slate-200 dark:border-slate-700">
+              <div className="overflow-x-auto rounded-none border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-black uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
+                    <tr className="bg-slate-100 dark:bg-slate-800 text-slate-550 dark:text-slate-300 font-bold uppercase tracking-widest border-b border-slate-200 dark:border-slate-700">
                       <th className="px-6 py-4">Category</th>
                       <th className="px-6 py-4">Item Name</th>
                       <th className="px-6 py-4">Unit Type</th>
@@ -2523,14 +3150,14 @@ const BudgetMaster = () => {
                       <th className="px-6 py-4">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="text-slate-600 dark:text-slate-100">
+                  <tbody className="text-slate-650 dark:text-slate-100">
                     <tr className="border-b border-slate-100 dark:border-slate-800">
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">CAPEX</td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Laptop Dell XPS</td>
                       <td className="px-6 py-4">Nos</td>
                       <td className="px-6 py-4">5</td>
                       <td className="px-6 py-4">1,20,000</td>
-                      <td className="px-6 py-4 font-black text-blue-600">IN PROGRESS</td>
+                      <td className="px-6 py-4 font-black text-[#0a6ed1]">IN PROGRESS</td>
                     </tr>
                     <tr>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">Revenue</td>
@@ -2538,7 +3165,7 @@ const BudgetMaster = () => {
                       <td className="px-6 py-4">Nos</td>
                       <td className="px-6 py-4">1</td>
                       <td className="px-6 py-4">50,000</td>
-                      <td className="px-6 py-4 font-black text-emerald-600">COMPLETED</td>
+                      <td className="px-6 py-4 font-black text-[#107f3e]">COMPLETED</td>
                     </tr>
                   </tbody>
                 </table>
@@ -2547,11 +3174,11 @@ const BudgetMaster = () => {
 
             <div className="app-modal-footer flex-shrink-0 bg-slate-50/50 dark:bg-slate-800/50 justify-end gap-4">
               <button onClick={() => setShowTemplateModal(false)}
-                className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-700 transition-colors bg-transparent border-none">
+                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-none hover:bg-slate-50">
                 Close
               </button>
               <button onClick={handleDownloadTemplate}
-                className="px-6 py-2 text-sm font-black bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors">
+                className="px-6 py-2 text-xs font-bold bg-[#107f3e] text-white border border-[#107f3e] rounded-none hover:bg-[#0e6b35] transition-colors uppercase tracking-wider">
                 Download Template
               </button>
             </div>
@@ -2562,7 +3189,7 @@ const BudgetMaster = () => {
       {/* ── Budget Date Modal ────────────────────────────────────────────────── */}
       {showDateModal && (
         <div className="app-modal-overlay">
-          <div className="app-modal-container max-w-md w-full mx-4">
+          <div className="app-modal-container !rounded-none max-w-md w-full mx-4 shadow-none">
             <div className="app-modal-header">
               <div>
                 <h3 className="app-modal-title">Budget Date</h3>
@@ -2581,18 +3208,18 @@ const BudgetMaster = () => {
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-900 dark:text-slate-100 font-bold"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-slate-900 dark:text-slate-100 font-bold"
                 />
               </div>
             </div>
 
             <div className="app-modal-footer">
               <button onClick={() => setShowDateModal(false)}
-                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+                className="px-4 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-none hover:bg-slate-50 text-slate-700 dark:text-slate-200">
                 Cancel
               </button>
               <button onClick={executeSave} disabled={saving}
-                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50">
+                className="px-6 py-2 text-xs font-bold bg-[#0a6ed1] hover:bg-[#085caf] border border-[#0a6ed1] text-white rounded-none disabled:opacity-50">
                 {saving ? 'Saving...' : 'Confirm'}
               </button>
             </div>
@@ -2602,7 +3229,7 @@ const BudgetMaster = () => {
       {/* ── Excel Upload Modal ────────────────────────────────────────────────── */}
       {showUploadModal && (
         <div className="app-modal-overlay">
-          <div className="app-modal-container max-w-md w-full mx-4">
+          <div className="app-modal-container !rounded-none max-w-md w-full mx-4 shadow-none">
             <div className="app-modal-header">
               <div>
                 <h3 className="app-modal-title">Import Budget</h3>
@@ -2616,18 +3243,18 @@ const BudgetMaster = () => {
 
             <div className="app-modal-body space-y-4">
               {/* Currency Scale Alignment Warning */}
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5">
-                <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="p-3 bg-[#e9730c]/10 border border-[#e9730c]/20 rounded-none flex items-start gap-2.5">
+                <ShieldAlert className="h-4 w-4 text-[#e9730c] shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Currency Scale Warning</p>
+                  <p className="text-[10px] font-black text-[#e9730c] uppercase tracking-widest">Currency Scale Warning</p>
                   <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed font-semibold">
-                    Ensure your Excel values are populated in the selected project currency (<span className="font-black text-amber-600 dark:text-amber-400">{code}</span>). The platform will automatically convert to the system baseline (USD) for storage.
+                    Ensure your Excel values are populated in the selected project currency (<span className="font-black text-[#e9730c]">{code}</span>). The platform will automatically convert to the system baseline (USD) for storage.
                   </p>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-widest mb-2">Project Name</label>
-                <div className="w-full px-4 py-2.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-500 dark:text-slate-350">
+                <div className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-none text-xs font-bold text-slate-500 dark:text-slate-350">
                   {selectedProject || 'NONE SELECTED'}
                 </div>
               </div>
@@ -2638,7 +3265,7 @@ const BudgetMaster = () => {
                   type="date"
                   value={budgetDate}
                   onChange={(e) => setBudgetDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold text-slate-900 dark:text-slate-100"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-250 dark:border-slate-700 rounded-none focus:border-[#0a6ed1] outline-none text-xs font-bold text-slate-900 dark:text-slate-100"
                 />
               </div>
 
@@ -2651,74 +3278,95 @@ const BudgetMaster = () => {
                     onChange={(e) => setTempFile(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className={`w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-dashed rounded-md flex items-center justify-center transition-all ${tempFile ? 'border-blue-500 bg-blue-50/10 text-blue-600' : 'border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
-                    <span className="text-xs font-bold uppercase tracking-widest">
-                      {tempFile ? tempFile.name : 'Click to select file'}
-                    </span>
+                  <div className={`w-full px-3 py-4 bg-slate-50 dark:bg-slate-850 border-2 border-dashed rounded-none flex items-center justify-center transition-all ${tempFile ? 'border-[#0a6ed1] bg-[#0a6ed1]/5 text-[#0a6ed1]' : 'border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500'}`}>
+                    <div className="text-center">
+                      <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <p className="text-xs font-bold">{tempFile ? tempFile.name : 'Drag Excel file here or click to browse'}</p>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-505 mt-1">Accepts XLSX, XLS, or CSV files</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="app-modal-footer">
-              <button onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
+              <button
+                onClick={() => {
+                  setShowUploadModal(false);
+                  setTempFile(null);
+                }}
+                className="px-4 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-none hover:bg-slate-50 text-slate-700 dark:text-slate-200"
+              >
                 Cancel
               </button>
               <button
                 onClick={() => {
-                  if (!tempFile) { toast.error('Please select a file'); return; }
-                  const targetDate = String(budgetDate || '').trim();
-                  const historyArray = Array.isArray(historyData) ? historyData : [];
-                  const exists = historyArray.some(h => String(h.budget_date || '').trim() === targetDate);
-                  if (exists) { setShowOverwriteWarning(true); } else { executeUpload(); }
+                  if (tableData.length > 0) {
+                    setShowOverwriteWarning(true);
+                  } else {
+                    executeUpload();
+                  }
                 }}
-                className="px-4 py-2 text-sm font-bold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                disabled={!tempFile}
+                className="px-6 py-2 text-xs font-bold bg-[#0a6ed1] hover:bg-[#085caf] border border-[#0a6ed1] text-white rounded-none disabled:opacity-50"
               >
-                Confirm Upload
+                Upload
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Overwrite Warning Modal ─────────────────────────────────────────── */}
+      {/* ── Overwrite Warning Modal ───────────────────────────────────────────── */}
       {showOverwriteWarning && (
-        <div className="app-modal-overlay">
-          <div className="app-modal-container max-w-md w-full mx-4">
-            <div className="p-8 text-center">
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-red-600 font-black text-xl">!</span>
+        <div className="app-modal-overlay bg-black/60 z-50">
+          <div className="app-modal-container !rounded-none max-w-md w-full mx-4 shadow-none">
+            <div className="app-modal-header border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="app-modal-title text-slate-900 dark:text-slate-100">Overwrite Existing Budget?</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">Existing table data will be overwritten</p>
               </div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 mb-2 uppercase tracking-widest">Overwrite Budget?</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-455 mb-6 leading-relaxed">
-                A budget snapshot for <span className="font-bold text-slate-900 dark:text-slate-100">{selectedProject}</span> on <span className="font-bold text-slate-900 dark:text-slate-100">{budgetDate}</span> already exists.
-                Uploading again will <span className="text-red-600 underline font-semibold">REPLACE</span> previous data.
-              </p>
+              <button onClick={() => setShowOverwriteWarning(false)}
+                className="app-modal-close-btn">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              <div className="flex gap-4 justify-center">
-                <button onClick={() => setShowOverwriteWarning(false)}
-                  className="px-4 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:bg-slate-800/80 transition-colors text-slate-700 dark:text-slate-200">
-                  Cancel
-                </button>
-                <button onClick={executeUpload}
-                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
-                  Overwrite
-                </button>
+            <div className="app-modal-body p-6 space-y-4">
+              <div className="p-3 bg-[#bb0000]/10 border border-[#bb0000]/20 rounded-none flex items-start gap-2.5">
+                <ShieldAlert className="h-4 w-4 text-[#bb0000] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[10px] font-black text-[#bb0000] uppercase tracking-widest">Warning</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-350 mt-1 leading-relaxed">
+                    Uploading a new budget file will replace all current rows in the table. This action cannot be undone unless you refresh without saving.
+                  </p>
+                </div>
               </div>
+            </div>
+
+            <div className="app-modal-footer">
+              <button onClick={() => setShowOverwriteWarning(false)}
+                className="px-4 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-none hover:bg-slate-50 text-slate-700 dark:text-slate-200">
+                Cancel
+              </button>
+              <button onClick={executeUpload}
+                className="px-6 py-2 text-xs font-bold bg-[#bb0000] hover:bg-[#a00000] border border-[#bb0000] text-white rounded-none">
+                Overwrite & Upload
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {/* ── Market Analysis Modal ─────────────────────────────────────────── */}
       {showMarketSuggestion && marketAnalysis && (
         <div className="app-modal-overlay">
-          <div className="app-modal-container max-w-5xl w-full mx-4 max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+          <div className="app-modal-container max-w-5xl w-full mx-4 max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 !rounded-none overflow-hidden shadow-none">
             {/* Header */}
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center sticky top-0 z-20">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-500/10 rounded-lg">
-                  <Sparkles className="h-5 w-5 text-indigo-500" />
+                <div className="p-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800">
+                  <Sparkles className="h-5 w-5 text-[#e9730c]" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
@@ -2730,11 +3378,11 @@ const BudgetMaster = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-750 dark:text-slate-300 border border-slate-200 dark:border-slate-700 uppercase tracking-wider">
+                <span className="inline-flex items-center px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-750 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-none uppercase tracking-wider">
                   1 USD = {marketAnalysis.exchange_rate} {marketAnalysis.currency}
                 </span>
                 <button onClick={() => setShowMarketSuggestion(false)}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                  className="p-1.5 hover:bg-slate-150 dark:hover:bg-slate-800 rounded-none text-slate-400 hover:text-slate-650 transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -2751,16 +3399,17 @@ const BudgetMaster = () => {
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Detected Categories</h4>
                   <div className="space-y-2">
                     {marketAnalysis.detected_categories && marketAnalysis.detected_categories.map((det, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div key={idx} className="flex justify-between items-center p-3 bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700">
                         <div>
                           <p className="text-xs font-bold text-slate-700 dark:text-slate-100">"{det.raw_input}"</p>
                           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-0.5">Normalized: {det.normalized.toUpperCase()}</p>
                         </div>
                         <div className="text-right">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${det.confidence >= 0.85 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' :
-                              det.confidence >= 0.70 ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400' :
-                                'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
-                            }`}>
+                          <span className={`px-2 py-0.5 rounded-none border text-[9px] font-black uppercase tracking-wider ${
+                            det.confidence >= 0.85 ? 'bg-[#107f3e]/10 text-[#107f3e] border-[#107f3e]/20' :
+                            det.confidence >= 0.70 ? 'bg-[#0a6ed1]/10 text-[#0a6ed1] border-[#0a6ed1]/20' :
+                            'bg-[#e9730c]/10 text-[#e9730c] border-[#e9730c]/20'
+                          }`}>
                             {Math.round(det.confidence * 100)}% Confidence
                           </span>
                         </div>
@@ -2780,7 +3429,7 @@ const BudgetMaster = () => {
                       const pct = data.percentage_change;
                       const isUp = pct >= 0;
                       return (
-                        <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                        <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 flex justify-between items-center">
                           <div>
                             <p className="text-xs font-bold text-slate-700 dark:text-slate-100 uppercase">{cat}</p>
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold mt-0.5">{data.source} • Volatility: {data.volatility_index}</p>
@@ -2789,7 +3438,7 @@ const BudgetMaster = () => {
                             <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-105">
                               {format(data.current_price)}
                             </p>
-                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${isUp ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${isUp ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
                               {isUp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                               {isUp ? '+' : ''}{pct}%
                             </span>
@@ -2806,14 +3455,15 @@ const BudgetMaster = () => {
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Risk Assessment Profile</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {marketAnalysis.category_results && Object.entries(marketAnalysis.category_results).map(([cat, res], idx) => (
-                    <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 space-y-3">
                       <div className="flex justify-between items-center pb-2 border-b border-slate-150 dark:border-slate-700">
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase">{cat} Risks</span>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${res.risks.risk_level === 'Critical' ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400' :
-                            res.risks.risk_level === 'High' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400' :
-                              res.risks.risk_level === 'Medium' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400' :
-                                'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                          }`}>
+                        <span className={`px-2 py-0.5 rounded-none border text-[9px] font-black uppercase tracking-wider ${
+                          res.risks.risk_level === 'Critical' ? 'bg-[#bb0000]/10 text-[#bb0000] border-[#bb0000]/20' :
+                          res.risks.risk_level === 'High' ? 'bg-[#e9730c]/10 text-[#e9730c] border-[#e9730c]/20' :
+                          res.risks.risk_level === 'Medium' ? 'bg-[#e9730c]/5 text-[#e9730c] border-[#e9730c]/10' :
+                          'bg-[#107f3e]/10 text-[#107f3e] border-[#107f3e]/20'
+                        }`}>
                           {res.risks.risk_level} Risk ({res.risks.overall_risk_score}%)
                         </span>
                       </div>
@@ -2824,8 +3474,8 @@ const BudgetMaster = () => {
                             <span>Commodity Price</span>
                             <span className="font-bold">{res.risks.commodity_escalation}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.commodity_escalation}%` }} />
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-none overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-none" style={{ width: `${res.risks.commodity_escalation}%` }} />
                           </div>
                         </div>
                         <div>
@@ -2833,8 +3483,8 @@ const BudgetMaster = () => {
                             <span>Logistics Delay</span>
                             <span className="font-bold">{res.risks.logistics_risk}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.logistics_risk}%` }} />
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-none overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-none" style={{ width: `${res.risks.logistics_risk}%` }} />
                           </div>
                         </div>
                         <div>
@@ -2842,8 +3492,8 @@ const BudgetMaster = () => {
                             <span>Supplier Sourcing</span>
                             <span className="font-bold">{res.risks.supplier_dependency}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.supplier_dependency}%` }} />
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-none overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-none" style={{ width: `${res.risks.supplier_dependency}%` }} />
                           </div>
                         </div>
                         <div>
@@ -2851,8 +3501,8 @@ const BudgetMaster = () => {
                             <span>Forex Fluctuations</span>
                             <span className="font-bold">{res.risks.forex_exposure}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-slate-500 rounded-full" style={{ width: `${res.risks.forex_exposure}%` }} />
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-none overflow-hidden">
+                            <div className="h-full bg-slate-500 rounded-none" style={{ width: `${res.risks.forex_exposure}%` }} />
                           </div>
                         </div>
                         <div>
@@ -2860,8 +3510,8 @@ const BudgetMaster = () => {
                             <span>Project Utilization</span>
                             <span className="font-bold">{res.risks.utilization_risk}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div className="h-full bg-amber-500 rounded-full" style={{ width: `${res.risks.utilization_risk}%` }} />
+                          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-700 rounded-none overflow-hidden">
+                            <div className="h-full bg-amber-500 rounded-none" style={{ width: `${res.risks.utilization_risk}%` }} />
                           </div>
                         </div>
                       </div>
@@ -2876,11 +3526,13 @@ const BudgetMaster = () => {
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Live Warning Alerts Feed</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {marketAnalysis.alerts.map((alert, idx) => (
-                      <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between text-xs font-semibold ${alert.severity === 'Critical' ? 'bg-red-50 text-red-800 border-red-250 dark:bg-red-950/20 dark:text-red-300 dark:border-red-900' :
-                          'bg-amber-50 text-amber-800 border-amber-250 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900'
-                        }`}>
+                      <div key={idx} className={`p-3 rounded-none border flex items-center justify-between text-xs font-semibold ${
+                        alert.severity === 'Critical'
+                          ? 'bg-[#bb0000]/10 text-[#bb0000] border-[#bb0000]/25'
+                          : 'bg-[#e9730c]/10 text-[#e9730c] border-[#e9730c]/25'
+                      }`}>
                         <span>{alert.message}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 px-2 py-0.5 rounded shadow-sm">
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-white dark:bg-slate-800 px-2 py-0.5 rounded-none border border-slate-200 dark:border-slate-700 shadow-none">
                           {alert.metric}
                         </span>
                       </div>
@@ -2897,7 +3549,7 @@ const BudgetMaster = () => {
                     if (!res.forecasts || !res.forecasts.forecast) return null;
                     const currentVal = res.forecasts.current_price || 100.0;
                     return (
-                      <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
+                      <div key={idx} className="p-4 bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700 space-y-4">
                         <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-slate-200">
                           <span className="uppercase">{cat} Price Outlook</span>
                           <span className="text-[10px] font-semibold text-slate-400">Baseline: {format(currentVal)}</span>
@@ -2908,12 +3560,12 @@ const BudgetMaster = () => {
                             const pctChange = ((val - currentVal) / currentVal) * 100.0;
                             const day = (fIdx + 1) * 30;
                             return (
-                              <div key={fIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700 text-center">
+                              <div key={fIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-700 text-center">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{day} Days</p>
-                                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
+                                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-105 mt-1">
                                   {format(val)}
                                 </p>
-                                <span className={`text-[9px] font-bold ${pctChange >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                <span className={`text-[9px] font-bold ${pctChange >= 0 ? 'text-[#bb0000]' : 'text-[#107f3e]'}`}>
                                   {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%
                                 </span>
                               </div>
@@ -2930,9 +3582,9 @@ const BudgetMaster = () => {
               {marketAnalysis.reconciliation && (
                 <div className="space-y-3">
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Project Budget Reconciliation</h4>
-                  <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 p-4">
+                  <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-800 p-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-700">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Current Budget</p>
                         <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
                           {format(marketAnalysis.reconciliation.current_budget / marketAnalysis.exchange_rate)}
@@ -2941,7 +3593,7 @@ const BudgetMaster = () => {
                           ({marketAnalysis.reconciliation.current_budget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
                         </p>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-700">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Total Utilization</p>
                         <p className="text-sm font-mono font-bold text-slate-700 dark:text-slate-100 mt-1">
                           {format(marketAnalysis.reconciliation.total_utilization / marketAnalysis.exchange_rate)}
@@ -2950,18 +3602,18 @@ const BudgetMaster = () => {
                           ({marketAnalysis.reconciliation.total_utilization.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
                         </p>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-700">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Project Balance</p>
-                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.balance >= 0 ? 'text-[#107f3e]' : 'text-[#bb0000]'}`}>
                           {format(marketAnalysis.reconciliation.balance / marketAnalysis.exchange_rate)}
                         </p>
                         <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
                           ({marketAnalysis.reconciliation.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {marketAnalysis.currency})
                         </p>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded border border-slate-100 dark:border-slate-700">
+                      <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-none border border-slate-200 dark:border-slate-700">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Difference (Deficit)</p>
-                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.difference > 0 ? 'text-rose-600 font-black' : 'text-slate-500'}`}>
+                        <p className={`text-sm font-mono font-bold mt-1 ${marketAnalysis.reconciliation.difference > 0 ? 'text-[#bb0000]' : 'text-slate-500'}`}>
                           {marketAnalysis.reconciliation.difference > 0 ? '+' : ''}{format(marketAnalysis.reconciliation.difference / marketAnalysis.exchange_rate)}
                         </p>
                         <p className="text-[9px] text-slate-450 dark:text-slate-500 mt-0.5">
@@ -2979,13 +3631,13 @@ const BudgetMaster = () => {
                       </div>
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-500 dark:text-slate-450 font-semibold">• Mapped Material Risk & Escalation Buffers:</span>
-                        <span className="font-mono text-rose-600 font-bold">
+                        <span className="font-mono text-[#bb0000] font-bold">
                           +{format(marketAnalysis.reconciliation.raw_material_risk_buffer / marketAnalysis.exchange_rate)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-700/50">
                         <span className="font-black text-slate-800 dark:text-slate-200">Total Suggested Revision Request:</span>
-                        <span className="font-mono text-indigo-600 font-black text-sm">
+                        <span className="font-mono text-[#0a6ed1] font-black text-sm">
                           +{format(marketAnalysis.reconciliation.total_revision_requested / marketAnalysis.exchange_rate)}
                         </span>
                       </div>
@@ -2997,7 +3649,7 @@ const BudgetMaster = () => {
               {/* Section 5: Affected Items & Granular Calculations Breakdown */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-450 dark:text-slate-500">Affected Procurement Items & Calculations</h4>
-                <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+                <div className="overflow-hidden border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-800">
                   <table className="w-full text-left border-collapse text-[11px]">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold">
@@ -3013,10 +3665,10 @@ const BudgetMaster = () => {
                         <React.Fragment key={rIdx}>
                           <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-750/30">
                             <td className="py-2.5 px-4 font-bold text-slate-700 dark:text-slate-200">{row.description}</td>
-                            <td className="py-2.5 px-4 uppercase text-slate-500 dark:text-slate-400 font-semibold">{row.category} ({Math.round(row.confidence_score * 100)}%)</td>
+                            <td className="py-2.5 px-4 uppercase text-slate-550 dark:text-slate-400 font-semibold">{row.category} ({Math.round(row.confidence_score * 100)}%)</td>
                             <td className="py-2.5 px-4 text-right font-mono text-slate-600 dark:text-slate-300">{format(row.original_budget_usd)}</td>
-                            <td className="py-2.5 px-4 text-right font-mono font-bold text-blue-600">{format(row.suggested_budget_usd)}</td>
-                            <td className="py-2.5 px-4 text-right font-mono font-black text-rose-600">+{format(row.overrun_usd)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-[#0a6ed1]">{format(row.suggested_budget_usd)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-black text-[#bb0000]">+{format(row.overrun_usd)}</td>
                           </tr>
                           {row.calculations && (
                             <tr>
@@ -3043,8 +3695,8 @@ const BudgetMaster = () => {
               {/* Section 6: Suggesed Revision Overrun & Rationale */}
               <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
                 <div>
-                  <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Suggested Revision Overrun</p>
-                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight font-mono">
+                  <p className="text-[10px] font-black text-[#0a6ed1] uppercase tracking-widest mb-1">Suggested Revision Overrun</p>
+                  <p className="text-3xl font-black text-slate-900 dark:text-slate-105 tracking-tight font-mono">
                     +{format(marketAnalysis.delta)}
                   </p>
                   <p className="text-xs text-slate-450 dark:text-slate-500 font-semibold mt-1">
@@ -3052,7 +3704,7 @@ const BudgetMaster = () => {
                   </p>
                 </div>
 
-                <div className="p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="p-4 bg-white dark:bg-slate-800 rounded-none border border-slate-200 dark:border-slate-700">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">System Rationale</p>
                   <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 leading-relaxed italic">
                     "{marketAnalysis.reasoning}"
@@ -3064,11 +3716,11 @@ const BudgetMaster = () => {
             {/* Footer */}
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 z-20">
               <button type="button" onClick={() => setShowMarketSuggestion(false)}
-                className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
+                className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-550 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-none hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all">
                 Dismiss
               </button>
               <button type="button" onClick={handleAcceptSuggestion}
-                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-md transition-all active:scale-95 shadow-md shadow-indigo-500/10">
+                className="px-8 py-2.5 bg-[#0a6ed1] hover:bg-[#085caf] border border-[#0a6ed1] text-white text-[10px] font-black uppercase tracking-widest rounded-none transition-all active:scale-[0.98] shadow-none">
                 Apply Suggestion
               </button>
             </div>
