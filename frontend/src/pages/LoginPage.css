@@ -167,4 +167,45 @@
 
 .ws-success-icon {
   color: #22c55e !important;
+}dark .ws-strength-hints li {
+  color: #a8a29e !important;
+}
+.ws-strength-hints li::before {
+  content: "•" !important;
+  font-size: 12px !important;
+  color: #78716c !important;
+}
+.dark .ws-strength-hints li::before {
+  color: #a8a29e !important;
+}
+.ws-strength-hints li.valid {
+  color: #22c55e !important;
+  font-weight: 600 !important;
+}
+.ws-strength-hints li.valid::before {
+  content: "✓" !important;
+  font-size: 11px !important;
+  color: #22c55e !important;
+  font-weight: 700 !important;
+}
+
+.ws-success-state {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px 0 !important;
+}
+.ws-success-icon-container {
+  width: 54px !important;
+  height: 54px !important;
+  background-color: rgba(34, 197, 94, 0.08) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-bottom: 12px !important;
+}
+.ws-success-icon {
+  color: #22c55e !important;
 }
