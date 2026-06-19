@@ -262,6 +262,25 @@ const BudgetMaster = () => {
     }
   };
 
+  const normalizeRows = (rows) => {
+    return rows.map((row, i) => {
+      const normalized = { id: row.id || `row_db_${Date.now()}_${i}` };
+      columns.forEach(col => {
+        const possibleKeys = [
+          col.label,
+          col.label.toLowerCase(),
+          col.id,
+          col.label.charAt(0).toUpperCase() + col.label.slice(1).toLowerCase(),
+          col.label.replace(' ', '_').toLowerCase(),
+          col.id.replace('_', ' ').toLowerCase()
+        ];
+        const foundKey = possibleKeys.find(k => row[k] !== undefined && row[k] !== null);
+        normalized[col.label] = foundKey !== undefined ? row[foundKey] : '';
+      });
+      return normalized;
+    });
+  };
+
   const fetchBudgetData = async (projectName) => {
     setLoading(true);
     try {
@@ -269,7 +288,7 @@ const BudgetMaster = () => {
       setAttachmentName(res.data?.attachment_name || null);
       if (res.data?.overall_budget !== undefined) setOverallBudget(res.data.overall_budget);
       const rows = res.data?.budget_data || [];
-      setTableData(rows.map((row, i) => ({ ...row, id: row.id || `row_db_${Date.now()}_${i}` })));
+      setTableData(normalizeRows(rows));
     } catch (err) {
       console.error(err);
       setTableData([]);
@@ -675,7 +694,7 @@ const BudgetMaster = () => {
     try {
       const res = await API.get(`/budget/version/${id}`);
       // Assuming budget_data is stored as objects matching our columns
-      setTableData(res.data.budget_data.map((r, i) => ({ ...r, id: r.id || `hist_${i}` })));
+      setTableData(normalizeRows(res.data.budget_data || []));
       setOverallBudget(res.data.overall_budget || 0);
       setBudgetDate(res.data.budget_date || new Date().toISOString().split('T')[0]);
       setAttachmentName(res.data.attachment_name);
@@ -1344,7 +1363,7 @@ const BudgetMaster = () => {
                                 <th
                                   key={col.id}
                                   onClick={() => handleSort(col.label)}
-                                  className={`py-2 px-3 text-xs font-bold text-slate-500 dark:text-slate-350 select-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 ${
+                                  className={`py-2 px-3 text-xs font-bold text-slate-500 dark:text-slate-350 select-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 whitespace-nowrap ${
                                     isNum ? 'text-right' : ''
                                   }`}
                                 >

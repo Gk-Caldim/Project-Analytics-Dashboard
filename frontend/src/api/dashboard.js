@@ -51,3 +51,33 @@ export const getMeetings = async () => {
   const response = await API.get('/meetings');
   return response.data?.meetings || [];
 };
+
+// ── NEW: Overview KPIs (5 real metrics) ──────────────────────────────────────
+export const getOverviewKpis = async () => {
+  const response = await API.get('/dashboard/overview/kpis');
+  return response.data;
+};
+
+// ── NEW: Supply Chain Analytics (from budget JSONB) ──────────────────────────
+export const getSupplyChainAnalytics = async () => {
+  const response = await API.get('/dashboard/supply-chain/analytics');
+  return response.data;
+};
+
+// ── NEW: Enriched Issues (real project names via DB join) ────────────────────
+export const getEnrichedIssues = async () => {
+  const response = await API.get('/dashboard/issues/enriched');
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+// ── NEW: Trackers Analytics (metadata only, excludes drafts) ─────────────────
+export const getTrackersAnalytics = async () => {
+  const response = await API.get('/dashboard/trackers/analytics');
+  return response.data;
+};
+
+// ── NEW: Workforce Enriched (employees + allocations + milestone assignments) ─
+export const getWorkforceEnriched = async () => {
+  const response = await API.get('/dashboard/workforce/enriched');
+  return response.data;
+};

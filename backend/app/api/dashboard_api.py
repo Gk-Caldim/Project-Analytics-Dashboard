@@ -189,3 +189,105 @@ def project_dashboard(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch dashboard data: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# NEW: Overview KPIs — 5 real metrics
+# ---------------------------------------------------------------------------
+
+@router.get("/overview/kpis")
+def overview_kpis(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns 5 dashboard KPI values:
+    total_projects, delayed_milestones, open_issues,
+    pending_budget_revisions, budgets_exceeding_utilization.
+    """
+    try:
+        from app.services.dashboard_service import get_overview_kpis
+        return get_overview_kpis(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch overview KPIs: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# NEW: Supply Chain Analytics — from budget JSONB (Cost Center + Commodity)
+# ---------------------------------------------------------------------------
+
+@router.get("/supply-chain/analytics")
+def supply_chain_analytics(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns supply chain analytics derived from BudgetSummary.budget_data JSONB.
+    Groups by Cost Center and Commodity fields across all projects.
+    """
+    try:
+        from app.services.dashboard_service import get_supply_chain_analytics
+        return get_supply_chain_analytics(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch supply chain analytics: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# NEW: Enriched Issues — all issues with real project names from DB join
+# ---------------------------------------------------------------------------
+
+@router.get("/issues/enriched")
+def enriched_issues(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns all issues with project_name always populated via DB join.
+    Replaces the raw issues list for the Issues Overview tab.
+    """
+    try:
+        from app.services.dashboard_service import get_issues_enriched
+        return get_issues_enriched(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch enriched issues: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# NEW: Trackers Analytics — metadata from Upload table (no data payload)
+# ---------------------------------------------------------------------------
+
+@router.get("/trackers/analytics")
+def trackers_analytics(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns tracker analytics from Upload metadata (manual + uploaded, excludes drafts).
+    Groups by project, type (Manual/Uploaded), and status.
+    """
+    try:
+        from app.services.dashboard_service import get_trackers_analytics
+        return get_trackers_analytics(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch trackers analytics: {str(e)}")
+
+
+# ---------------------------------------------------------------------------
+# NEW: Workforce Enriched — employees + allocations + milestone assignments
+# ---------------------------------------------------------------------------
+
+@router.get("/workforce/enriched")
+def workforce_enriched(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns enriched workforce data:
+    employees + project allocations (EmployeeProjectMap) + milestone assignment counts.
+    Used by the Workforce Analytics tab.
+    """
+    try:
+        from app.services.dashboard_service import get_workforce_enriched
+        return get_workforce_enriched(db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch workforce data: {str(e)}")

@@ -127,7 +127,7 @@ def get_manual_trackers(
     db: Session = Depends(get_db)
 ):
     """List all manual trackers that are NOT drafts"""
-    uploads = db.query(Upload).filter(
+    uploads = db.query(Upload).options(defer(Upload.file_data)).filter(
         Upload.industry == "MANUAL",
         Upload.status != "Draft"
     ).order_by(Upload.uploaded_at.desc()).all()
@@ -157,7 +157,7 @@ def get_draft_manual_trackers(
     db: Session = Depends(get_db)
 ):
     """List all manual trackers in draft status"""
-    uploads = db.query(Upload).filter(
+    uploads = db.query(Upload).options(defer(Upload.file_data)).filter(
         Upload.industry == "MANUAL",
         Upload.status == "Draft"
     ).order_by(Upload.uploaded_at.desc()).all()
@@ -438,7 +438,7 @@ async def upload_tracker(
 
 @router.get("/uploads/{project_id}")
 async def get_uploads_by_project(project_id: int, db: Session = Depends(get_db)):
-    uploads = db.query(Upload).filter(
+    uploads = db.query(Upload).options(defer(Upload.file_data)).filter(
         Upload.project_id == project_id,
         or_(Upload.industry == None, Upload.industry != "MANUAL")
     ).order_by(Upload.uploaded_at.desc()).all()
@@ -463,7 +463,7 @@ async def get_uploads_by_project(project_id: int, db: Session = Depends(get_db))
 @router.get("/uploads")
 async def get_uploads(db: Session = Depends(get_db)):
     try:
-        uploads  = db.query(Upload).filter(
+        uploads  = db.query(Upload).options(defer(Upload.file_data)).filter(
             Upload.status != "Draft",
             or_(Upload.industry == None, Upload.industry != "MANUAL")
         ).order_by(Upload.uploaded_at.desc()).all()
