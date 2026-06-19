@@ -10,6 +10,7 @@ import { FAQSection } from '../components/FAQSection';
 import { CTASection } from '../components/CTASection';
 import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
+import './LandingPage.css';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -26,45 +27,45 @@ const LandingPage = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
 
   return (
-    <div className="bg-white min-h-screen text-gray-900 antialiased selection:bg-blue-500 selection:text-white">
-      <Navbar 
+    <div className="zoho-font-sans bg-white min-h-screen text-[#0F172A] antialiased selection:bg-blue-500 selection:text-white">
+      <Navbar
         onSignIn={() => navigate('/login')}
         onRequestDemo={() => openModal('demo', 'Navbar Demo Request')}
         onAccessProjects={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
       />
 
       <main className="pt-16">
-        <Hero 
+        <Hero
           onAccessWorkspace={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
           onRequestDemo={(mode, useCase) => openModal(mode || 'demo', useCase || 'Hero Request')}
         />
 
-        <FeaturesSection 
+        <FeaturesSection
           onRequestDemo={(mode, useCase) => openModal(mode || 'demo', useCase || 'Features Request')}
         />
 
-        <CustomizeSection 
+        <CustomizeSection
           onRequestDemo={(mode, useCase) => openModal(mode || 'sales', useCase || 'Customization Request')}
         />
 
-        <AISection 
+        <AISection
           onRequestDemo={(useCase) => openModal('demo', useCase || 'AI Request')}
         />
 
         <FAQSection />
 
-        <CTASection 
+        <CTASection
           onAccessProjects={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
         />
       </main>
 
-      <Footer 
+      <Footer
         onRequestDemo={(mode, useCase) => openModal(mode || 'sales', useCase || 'Footer Request')}
       />
 
-      <LeadModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         initialUseCase={modalUseCase}
         mode={modalMode}
       />

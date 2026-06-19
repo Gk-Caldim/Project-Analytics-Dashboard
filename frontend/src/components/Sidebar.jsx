@@ -435,7 +435,7 @@ const Sidebar = ({
 
     const renderOtherModules = () => {
         const allowedOtherModules = hasAccess && otherModules ? otherModules.filter(m => hasAccess(m.name)) : (otherModules || []);
-        return allowedOtherModules.filter(m => m.id !== 'upload-trackers').map((module) => {
+        return allowedOtherModules.filter(m => m.id !== 'upload-trackers' && m.id !== 'analytics-hub').map((module) => {
             const isActive = activeModule === module.id;
             return (
                 <div

@@ -126,6 +126,60 @@ def parse_txt(raw_text: str) -> List[TranscriptTurn]:
     return turns
 
 
+# ── .colon parser ("Speaker: Text" — no timestamps) ──────────────────────────
+
+def parse_colon_dialogue(raw_text: str) -> List[TranscriptTurn]:
+    """
+    Fallback parser for transcripts without timestamps.
+
+    Handles the common pattern found in chat-style or plain meeting transcripts:
+        pradeep: Let's start with the payments module.
+        goku: Core flow is nearly complete.
+
+    Design choices:
+      - Heuristic-first, fully deterministic — no LLM, no estimation.
+      - Missing timestamps → always "00:00:00". Nothing random or inaccurate.
+      - Speaker candidates are validated: ≤4 words, letters/spaces/hyphens only,
+        no digits, not a metadata field (DATE, PLATFORM, etc.).
+
+    Runs only when parse_txt() yields 0 turns.
+    """
+    COLON_RE = re.compile(r'^([A-Za-z][A-Za-z .\'-]{0,38}?):\s+(.+)$')
+    METADATA_FIELDS: frozenset = frozenset({
+        'meeting title', 'date', 'duration', 'participants',
+        'start time', 'end time', 'platform', 'location',
+        'agenda', 'attendees', 'note', 'notes', 'http', 'https',
+    })
+    turns: List[TranscriptTurn] = []
+
+    for raw_line in raw_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        m = COLON_RE.match(line)
+        if not m:
+            continue
+        speaker = m.group(1).strip()
+        text = m.group(2).strip()
+        if not text:
+            continue
+        # Reject metadata headers
+        if speaker.lower() in METADATA_FIELDS:
+            continue
+        # Reject if digits present (not a name)
+        if re.search(r'\d', speaker):
+            continue
+        # Reject if more than 4 words (not a person's name)
+        if len(speaker.split()) > 4:
+            continue
+        # Reject all-caps acronyms (5+ chars)
+        if re.match(r'^[A-Z]{5,}$', speaker):
+            continue
+        turns.append(TranscriptTurn(speaker=speaker, timestamp='00:00:00', text=text))
+
+    return turns
+
+
 # ── .json parser ──────────────────────────────────────────────────────────────
 
 def parse_json(raw_bytes: bytes) -> List[TranscriptTurn]:
@@ -275,6 +329,9 @@ async def upload_transcript(file: UploadFile = File(...)):
         except UnicodeDecodeError:
             raw_text = raw_bytes.decode("latin-1")
         turns = parse_txt(raw_text)
+        if not turns:
+            # Fallback: "Speaker: Text" format with no timestamps
+            turns = parse_colon_dialogue(raw_text)
         fmt = "txt"
 
     elif ext == ".json":
@@ -389,4 +446,96 @@ async def search_transcripts(
                 })
                 
     # Sort by meeting date if available (but meeting model has 'date' string)
-    return matches[:50] # Limit results
+    return matches[:50]  # Limit results
+
+
+# ── /validate — dry-run quality check (no DB writes) ─────────────────────────
+
+@router.post("/validate")
+async def validate_transcript(file: UploadFile = File(...)):
+    """
+    Pre-upload quality check. Parses the file without saving anything.
+    Returns quality metadata so the frontend can show appropriate warnings
+    before the user commits the upload.
+
+    Response fields:
+      can_parse          — whether any turns were extracted
+      has_timestamps     — at least one turn has a real timestamp (not 00:00:00)
+      has_named_speakers — at least one speaker that is NOT 'Speaker N'
+      unknown_speakers   — list of auto-assigned 'Speaker N' names
+      named_speakers     — list of real speaker names
+      warnings           — human-readable issue strings for the UI
+    """
+    filename = (file.filename or "").strip()
+    ext = filename[filename.rfind("."):].lower() if "." in filename else ""
+
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type '{ext}'. Accepted: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    raw_bytes = await file.read()
+    if not raw_bytes:
+        raise HTTPException(status_code=422, detail="File is empty.")
+
+    turns: List[TranscriptTurn] = []
+    fmt = ext.lstrip(".")
+
+    if ext == ".txt":
+        try:
+            raw_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raw_text = raw_bytes.decode("latin-1")
+        turns = parse_txt(raw_text)
+        if not turns:
+            turns = parse_colon_dialogue(raw_text)
+        fmt = "txt"
+    elif ext == ".json":
+        try:
+            turns = parse_json(raw_bytes)
+        except HTTPException:
+            turns = []
+        fmt = "json"
+    elif ext == ".docx":
+        try:
+            turns, fmt = parse_docx(raw_bytes)
+        except HTTPException:
+            turns = []
+
+    # ── Quality analysis ────────────────────────────────────────────────────
+    speakers = list({t.speaker for t in turns})
+    has_timestamps = any(
+        t.timestamp and t.timestamp != "00:00:00" for t in turns
+    )
+    unknown_speakers = [
+        s for s in speakers if re.match(r'^Speaker \d+$', s, re.I)
+    ]
+    named_speakers = [
+        s for s in speakers if not re.match(r'^Speaker \d+$', s, re.I)
+    ]
+
+    warnings = []
+    if not turns:
+        warnings.append("No content could be parsed from this file.")
+    else:
+        if not has_timestamps:
+            warnings.append("Timestamps missing — will default to 00:00:00.")
+        if not named_speakers:
+            warnings.append(
+                "Speaker names not detected — auto-labeled as Speaker 1, 2\u2026"
+            )
+
+    return {
+        "success": True,
+        "filename": filename,
+        "format_detected": fmt,
+        "total_turns": len(turns),
+        "can_parse": len(turns) > 0,
+        "has_timestamps": has_timestamps,
+        "has_named_speakers": bool(named_speakers),
+        "speakers": speakers,
+        "unknown_speakers": unknown_speakers,
+        "named_speakers": named_speakers,
+        "warnings": warnings,
+    }

@@ -6,6 +6,8 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "gsap": "^3.15.0"
+    "@radix-ui/react-select": "^2.3.1",
+    "gsap": "^3.15.0",
+    "recharts": "^3.8.1"
   }
 }

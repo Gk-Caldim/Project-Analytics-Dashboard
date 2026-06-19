@@ -1,4 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap');
+
 .pricing-root {
+  --brand-red: #2563EB;
+  --brand-navy: #0F172A;
+  --brand-surface: #F8FAFC;
+  --brand-border: rgba(15, 23, 42, 0.08);
+  --brand-muted: #475569;
+  --font-serif: 'Outfit', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+
   background-color: #ffffff;
   color: var(--brand-navy);
   font-family: var(--font-sans);
@@ -147,7 +157,7 @@
 
 .pricing-card.featured {
   border: 2px solid var(--brand-red);
-  box-shadow: 0 20px 25px -5px rgba(200, 52, 26, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.1);
 }
 
 .featured-badge {
@@ -262,8 +272,8 @@
 }
 
 .card-btn.primary:hover {
-  background-color: #a0280f;
-  box-shadow: 0 4px 6px -1px rgba(200, 52, 26, 0.4);
+  background-color: #1D4ED8;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4);
 }
 
 .onboarding-text {

@@ -7,32 +7,32 @@ import { cn } from "@/lib/utils";
 import AppShellMockup from "./AppShellMockup";
 
 const TABS = [
-  { id: "excel",    label: "Excel Sync",       icon: FileSpreadsheet },
-  { id: "mom",      label: "MOM Capture",       icon: Mic },
-  { id: "budget",   label: "Budget Governance", icon: Wallet },
-  { id: "calendar", label: "Team Calendar",     icon: CalendarDays },
+  { id: "excel",    label: "Spreadsheet Sync", icon: FileSpreadsheet },
+  { id: "mom",      label: "Meeting Notes",     icon: Mic },
+  { id: "budget",   label: "Budget Tracking",   icon: Wallet },
+  { id: "calendar", label: "Milestone Calendar",icon: CalendarDays },
 ];
 
 const COPY = {
   excel: {
-    title: "Excel design release sync, finally automated",
-    desc: "Connect engineering spreadsheets and CALDIM mirrors every release code in real time — no more version drift between teams.",
-    points: ["Two-way cell-level sync", "Status pills per release code", "Engineer ownership mapping"],
+    title: "Keep design releases and spreadsheet data aligned",
+    desc: "Link your engineering sheets to keep release statuses, part lists, and timelines updated without manual entry or version conflicts.",
+    points: ["Bi-directional updates", "Clear status indicators", "Owner assignments"],
   },
   mom: {
-    title: "AI voice capture for every program review",
-    desc: "Record meetings and CALDIM transcribes, sorts by speaker, and auto-assigns action tasks the moment the call ends.",
-    points: ["Speaker-sorted transcripts", "Auto-extracted action items", "Searchable meeting archive"],
+    title: "Automated notes and action items for project reviews",
+    desc: "Document your status meetings effortlessly. The platform transcribes discussion points, identifies speakers, and highlights pending tasks.",
+    points: ["Structured summaries", "Automatic task assignments", "Centralized meeting history"],
   },
   budget: {
-    title: "Govern budgets against strategic targets",
-    desc: "Map spend to master budgets and instantly see positive or negative variance on every program line.",
-    points: ["Budget masters per platform", "Live variance indicators", "Drill-down spend trails"],
+    title: "Track program budgets and cost changes",
+    desc: "Align project spend with your overall budget and monitor variations across departments in real time.",
+    points: ["Centralized budget allocations", "Real-time cost variance updates", "Detailed spend history"],
   },
   calendar: {
-    title: "Plan SOP gates on a living calendar",
-    desc: "Week and month views with colored event blocks, time-slot scheduling, and drag-and-drop rescheduling — built for program teams.",
-    points: ["Week / Month / Day views", "Color-coded event categories", "Drag-and-drop rescheduling"],
+    title: "Coordinate key milestones on a shared calendar",
+    desc: "Plan and adjust project gates, deadlines, and review sessions on a clear calendar view designed for cross-functional teams.",
+    points: ["Flexible calendar views", "Color-coded project categories", "Simple drag-and-drop adjustments"],
   },
 };
 
@@ -43,9 +43,9 @@ const COPY = {
 
 const StatusPill = ({ s }) => {
   const map = {
-    Synced: "bg-emerald-50 text-brand-emerald",
-    Review: "bg-amber-50 text-brand-amber",
-    Drift:  "bg-red-50 text-red-500",
+    Synced: "bg-emerald-50 text-emerald-600 border border-emerald-100/60",
+    Review: "bg-amber-50 text-amber-600 border border-amber-100/60",
+    Drift:  "bg-rose-50 text-rose-600 border border-rose-100/60",
   };
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold", map[s])}>
@@ -72,7 +72,7 @@ const ExcelMockup = () => {
       </div>
       {rows.map((r, i) => (
         <div key={i} className="grid grid-cols-[90px_1fr_90px_90px] border-b border-slate-100 last:border-0 text-[12.5px]">
-          <div className="px-3 py-2.5 font-mono font-semibold text-brand border-r border-slate-100">{r[0]}</div>
+          <div className="px-3 py-2.5 font-mono font-semibold text-blue-600 border-r border-slate-100">{r[0]}</div>
           <div className="px-3 py-2.5 text-slate-700 border-r border-slate-100">{r[1]}</div>
           <div className="px-3 py-2.5 border-r border-slate-100"><StatusPill s={r[2]} /></div>
           <div className="px-3 py-2.5 text-slate-500 text-[11px] font-semibold flex items-center">{r[3]}</div>
@@ -91,15 +91,15 @@ const MomMockup = () => {
     { sno: 4, fn: "Production",  disc: "Confirm tooling lead time for G4.",    who: "K. Adeyemi", status: "pending" },
   ];
   const statusMap = {
-    "pending":     { label: "Pending",     c: "bg-yellow-100 text-yellow-800" },
-    "in-progress": { label: "In Progress", c: "bg-blue-100 text-blue-800" },
-    "completed":   { label: "Completed",   c: "bg-green-100 text-green-800" },
+    "pending":     { label: "Pending",     c: "bg-amber-50 text-amber-700 border border-amber-100/60" },
+    "in-progress": { label: "In Progress", c: "bg-blue-50 text-blue-700 border border-blue-100/60" },
+    "completed":   { label: "Completed",   c: "bg-emerald-50 text-emerald-700 border border-emerald-100/60" },
   };
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
       <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Meeting Minutes — Atlas VX Review</span>
-        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-brand-purple">
+        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-purple-600">
           <Mic className="h-3 w-3" /> AI Captured
         </span>
       </div>
@@ -114,7 +114,7 @@ const MomMockup = () => {
           <div className="px-2 py-2 text-slate-600 font-semibold border-r border-slate-100 text-[10px]">{r.fn}</div>
           <div className="px-2 py-2 text-slate-700 border-r border-slate-100">{r.disc}</div>
           <div className="px-2 py-2 text-slate-500 text-[10px] font-semibold border-r border-slate-100">{r.who}</div>
-          <div className="px-2 py-2">
+          <div className="px-2 py-2 flex items-center">
             <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold", statusMap[r.status].c)}>
               {statusMap[r.status].label}
             </span>
@@ -140,15 +140,15 @@ const BudgetMockup = () => {
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[13px] font-semibold text-slate-700">{r.l}</span>
             <span className={cn(
-              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
-              r.neg ? "bg-red-50 text-red-500" : "bg-emerald-50 text-brand-emerald"
+              "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold border",
+              r.neg ? "bg-rose-50 text-rose-600 border-rose-100/60" : "bg-emerald-50 text-emerald-650 border-emerald-100/60"
             )}>
               {r.v} variance
             </span>
           </div>
           <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden">
             <div
-              className={cn("absolute inset-y-0 left-0 rounded-full", r.neg ? "bg-red-400" : "bg-brand-emerald")}
+              className={cn("absolute inset-y-0 left-0 rounded-full", r.neg ? "bg-rose-500" : "bg-emerald-500")}
               style={{ width: `${r.spent}%` }}
             />
             <div className="absolute inset-y-0 w-0.5 bg-slate-900" style={{ left: `${r.target}%` }} title="target" />
@@ -196,7 +196,7 @@ const CalendarMockup = () => {
               <span className="block text-[9px] font-bold text-slate-400 uppercase">{d}</span>
               <span className={cn(
                 "inline-block mt-0.5 text-[13px] font-bold",
-                isToday ? "bg-brand text-white h-6 w-6 rounded-full leading-6 text-center" : "text-slate-700"
+                isToday ? "bg-blue-600 text-white h-6 w-6 rounded-full leading-6 text-center" : "text-slate-700"
               )}>
                 {DATES[i]}
               </span>
@@ -250,25 +250,25 @@ const CalendarMockup = () => {
 
 const TESTIMONIALS = {
   excel: {
-    quote: "“By automating design release sync from Excel to CALDIM, we eliminated 100% of our manual tracking errors. Our engineering team and PMO are finally on the same page.”",
+    quote: "“Connecting our spreadsheets to CALDIM reduced manual tracking errors and helped align our engineering teams and PMO on release statuses.”",
     author: "Sanjay Iyer",
     role: "Lead Systems Engineer",
     company: "Mahindra Electric"
   },
   mom: {
-    quote: "“The voice capture is pure magic. It captures every action item from our SOP reviews and assigns it instantly. No more typing up minutes after meetings.”",
+    quote: "“The automated meeting notes save hours of administrative work. Action items are summarized and assigned immediately after our reviews.”",
     author: "Ravi Voss",
     role: "Program Manager",
     company: "Bosch Automotive"
   },
   budget: {
-    quote: "“CALDIM's budget variance tracking gave us clear visibility into cost overruns on body tooling. We caught a 6% deviation before it became a crisis.”",
+    quote: "“The budget tracking features give us clear visibility into project spend and help us identify cost variances before they impact the schedule.”",
     author: "Preeti Nair",
     role: "PMO Director",
     company: "Tata Motors"
   },
   calendar: {
-    quote: "“We run our entire vehicle launch schedule off the CALDIM calendar. Drag-and-drop SOP gate changes make tracking shifts easy for the team.”",
+    quote: "“We track our entire program schedule using this calendar. Making adjustments and communicating timeline shifts to the team is straightforward.”",
     author: "Kemi Adeyemi",
     role: "Operations Head",
     company: "Volvo Trucks"
@@ -318,7 +318,7 @@ export const Features = ({ onRequestDemo }) => {
   };
 
   return (
-    <section id="features" data-testid="features" className="py-24 md:py-32 bg-[#f8fafc] border-y border-slate-100">
+    <section id="features" data-testid="features" className="py-24 md:py-32 zoho-section-slate zoho-font-sans">
       <div className="max-w-7xl mx-auto px-6 md:px-12">
         <motion.div
           className="max-w-2xl mb-12"
@@ -327,9 +327,9 @@ export const Features = ({ onRequestDemo }) => {
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.5 }}
         >
-          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-brand mb-3">Platform</p>
-          <h2 className="font-heading font-extrabold tracking-tight text-slate-900 text-3xl md:text-5xl leading-tight">
-            Every program discipline in one workspace
+          <p className="text-[13px] font-bold uppercase tracking-[0.18em] text-blue-600 mb-3">Unified Workspace</p>
+          <h2 className="zoho-h2 text-3xl md:text-5xl">
+            Manage every aspect of your program in one place
           </h2>
         </motion.div>
 
@@ -348,13 +348,13 @@ export const Features = ({ onRequestDemo }) => {
                 onClick={() => handleTabClick(t.id)}
                 className={cn(
                   "relative flex flex-col items-start gap-0 rounded-xl px-4 pt-2.5 pb-1.5 text-[13.5px] font-semibold transition-colors cursor-pointer overflow-hidden",
-                  on ? "text-white" : "text-slate-600 bg-white border border-slate-200 hover:border-slate-300"
+                  on ? "text-white animate-in fade-in duration-205" : "text-slate-650 bg-white border border-slate-200 hover:border-slate-350 hover:bg-slate-50/50"
                 )}
               >
                 {on && (
                   <motion.span
                     layoutId="tab-pill"
-                    className="absolute inset-0 rounded-xl bg-brand"
+                    className="absolute inset-0 rounded-xl bg-blue-600"
                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                   />
                 )}
@@ -389,8 +389,8 @@ export const Features = ({ onRequestDemo }) => {
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="lg:sticky lg:top-28"
             >
-              <h3 className="font-heading font-bold text-slate-900 text-2xl md:text-3xl leading-snug">{copy.title}</h3>
-              <p className="mt-4 text-[15px] text-slate-500">{copy.desc}</p>
+              <h3 className="zoho-h3 text-2xl md:text-3xl leading-snug">{copy.title}</h3>
+              <p className="mt-4 zoho-body text-[15px] leading-relaxed max-w-lg font-normal">{copy.desc}</p>
               <ul className="mt-6 space-y-3">
                 {copy.points.map((p, i) => (
                   <motion.li
@@ -398,32 +398,32 @@ export const Features = ({ onRequestDemo }) => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.06, duration: 0.25 }}
-                    className="flex items-center gap-3 text-[14.5px] font-semibold text-slate-700"
+                    className="flex items-center gap-3 zoho-body-sm text-[14.5px] font-semibold text-slate-700"
                   >
-                    <CheckCircle2 className="h-5 w-5 text-brand-emerald shrink-0" /> {p}
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" /> {p}
                   </motion.li>
                 ))}
               </ul>
               <button
                 data-testid="features-learn-more"
                 onClick={() => onRequestDemo && onRequestDemo("sales", `Learn More: ${active}`)}
-                className="mt-7 inline-flex items-center gap-2 text-[14.5px] font-semibold text-brand hover:gap-3 transition-all cursor-pointer"
+                className="mt-7 inline-flex items-center gap-2 text-[14.5px] font-bold zoho-text-blue hover:gap-3 transition-all cursor-pointer"
               >
                 Learn more <ArrowRight className="h-4 w-4" />
               </button>
 
               {/* Dynamic testimonial block matching Zoho Projects pattern */}
-              <div className="mt-8 pt-6 border-t border-slate-100">
+              <div className="mt-8 p-5 rounded-xl border border-slate-200 bg-slate-50/50 relative shadow-sm">
                 <p className="text-[13.5px] italic text-slate-600 leading-relaxed font-sans">
                   {TESTIMONIALS[active].quote}
                 </p>
-                <div className="mt-3 flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-full bg-blue-50 text-brand text-[10px] font-bold grid place-items-center uppercase border border-blue-100">
+                <div className="mt-4 flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold grid place-items-center uppercase border border-blue-100">
                     {TESTIMONIALS[active].author.charAt(0)}
                   </div>
                   <div>
                     <p className="text-[11.5px] font-bold text-slate-800 leading-none">{TESTIMONIALS[active].author}</p>
-                    <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5">
+                    <p className="text-[9.5px] font-semibold text-slate-400 mt-1">
                       {TESTIMONIALS[active].role} &middot; {TESTIMONIALS[active].company}
                     </p>
                   </div>
