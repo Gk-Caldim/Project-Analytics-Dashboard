@@ -1,188 +1,352 @@
 /**
- * ComplianceTab.jsx — Compliance & Audit Management (Recharts version)
- * Beautiful clean layout with Recharts.
+ * ComplianceTab.jsx — Trackers Analytics
+ *
+ * Shows real tracker metadata from /dashboard/trackers/analytics:
+ * - Manual trackers (Upload.industry == 'MANUAL') and uploaded trackers
+ * - Grouped by project, type (Manual vs Uploaded), status
+ * - Excludes drafts
+ * - NO hardcoded data
  */
-import React, { useMemo } from 'react';
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis } from 'recharts';
+import React, { useMemo, useState } from 'react';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '../../ui/chart';
-import { Shield, AlertTriangle, FileText, Clock, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Upload, PenLine, CheckCircle2, AlertTriangle, Search, Filter } from 'lucide-react';
 
-const AUDIT_DATA = [
-  { id: 'AUD-901', area: 'Safety', site: 'MH-01', auditor: 'H. Sharma', date: '14 Jun', status: 'Passed', finding: 'Harness routing check passed' },
-  { id: 'AUD-902', area: 'Quality', site: 'LT-07', auditor: 'R. Patel', date: '10 Jun', status: 'Failed', finding: 'Shoring inspection failed' },
-  { id: 'AUD-903', area: 'Structural', site: 'TS-03', auditor: 'S. Nair', date: '08 Jun', status: 'Passed', finding: 'Piping welding certifications verified' },
-  { id: 'AUD-904', area: 'Environmental', site: 'MT-12', auditor: 'M. Ali', date: '02 Jun', status: 'Passed', finding: 'Solar runoff drainage plan approved' },
-  { id: 'AUD-905', area: 'Safety', site: 'BL-04', auditor: 'K. Das', date: '28 May', status: 'Passed', finding: 'Piling machine daily logs up to date' }
-];
-
-function getAuditStatusBadge(status) {
-  if (status === 'Passed') return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-900';
-  if (status === 'Failed') return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900';
-  return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-100 dark:bg-slate-900/20 dark:text-slate-300 dark:border-slate-800';
+// ── Badge helpers ─────────────────────────────────────────────────────────────
+function getTypeBadge(type) {
+  if (type === 'Manual')   return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100';
+  if (type === 'Uploaded') return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100';
+  return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-100';
 }
 
-export default function ComplianceTab() {
-  const radarChartData = [
-    { area: 'Safety', score: 94 },
-    { area: 'Quality', score: 82 },
-    { area: 'Process', score: 88 },
-    { area: 'Structural', score: 76 },
-    { area: 'Environmental', score: 85 }
-  ];
+function getStatusBadge(status) {
+  if (status === 'Completed')  return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100';
+  if (status === 'Processing') return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100';
+  if (status === 'Failed')     return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100';
+  return 'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-700 border border-slate-100';
+}
 
-  const standardsChartData = [
-    { standard: 'ISO 9001', passed: 92, risk: 8 },
-    { standard: 'ISO 14001', passed: 85, risk: 15 },
-    { standard: 'ISO 45001', passed: 88, risk: 12 },
-    { standard: 'APQP Gate 3', passed: 78, risk: 22 },
-    { standard: 'PPAP Valid.', passed: 94, risk: 6 }
-  ];
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function TrackerSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="ah-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        {[...Array(4)].map((_, i) => <div key={i} className="ah-skeleton ah-skeleton-kpi" />)}
+      </div>
+      <div className="ah-chart-grid ah-chart-grid-2">
+        <div className="ah-skeleton ah-skeleton-chart" />
+        <div className="ah-skeleton ah-skeleton-chart" />
+      </div>
+      <div className="ah-skeleton ah-skeleton-chart" />
+    </div>
+  );
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+function EmptyState() {
+  return (
+    <div className="ah-card" style={{ padding: 48, textAlign: 'center' }}>
+      <FileText size={48} style={{ color: 'var(--ah-text-muted)', margin: '0 auto 16px' }} />
+      <h3 style={{ color: 'var(--ah-text-secondary)', fontWeight: 700, marginBottom: 8 }}>No Trackers Found</h3>
+      <p style={{ color: 'var(--ah-text-muted)', fontSize: 13 }}>
+        No completed or published trackers exist yet.<br />
+        Upload or create trackers in any project to see analytics here.
+      </p>
+    </div>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+export default function ComplianceTab({
+  trackersAnalytics,
+  trackersLoading,
+  isError,
+  refetchTrackers,
+}) {
+  const [typeFilter, setTypeFilter] = useState('All');
+  const [search, setSearch]         = useState('');
+
+  const kpis       = trackersAnalytics?.kpis      || {};
+  const trackers   = trackersAnalytics?.trackers  || [];
+  const byProject  = trackersAnalytics?.by_project || [];
+  const byStatus   = trackersAnalytics?.by_status  || [];
+
+  // Filtered tracker list
+  const filteredTrackers = useMemo(() => {
+    return trackers.filter(t => {
+      if (typeFilter !== 'All' && t.type !== typeFilter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return (
+          (t.tracker_name || '').toLowerCase().includes(q) ||
+          (t.project_name || '').toLowerCase().includes(q) ||
+          (t.department || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [trackers, typeFilter, search]);
+
+  // Chart: Trackers by Project (Manual vs Uploaded)
+  const projectChartData = useMemo(() => {
+    return byProject.slice(0, 10).map(p => ({
+      name: p.project.length > 18 ? p.project.slice(0, 18) + '…' : p.project,
+      manual: p.manual,
+      uploaded: p.uploaded,
+    }));
+  }, [byProject]);
+
+  // Chart: Status distribution pie
+  const statusPieData = useMemo(() => {
+    const COLORS = {
+      Completed:  '#10b981',
+      Processing: '#f59e0b',
+      Failed:     '#ef4444',
+    };
+    return byStatus
+      .filter(s => s.status !== 'Draft')
+      .map(s => ({
+        name: s.status,
+        value: s.count,
+        fill: COLORS[s.status] || '#94a3b8',
+      }));
+  }, [byStatus]);
+
+  if (trackersLoading) return <TrackerSkeleton />;
+
+  if (isError) {
+    return (
+      <div className="ah-card">
+        <div className="ah-error-state">
+          <AlertTriangle size={24} color="var(--ah-warning)" />
+          <h4>Failed to load tracker analytics</h4>
+          <button className="ah-retry-btn" onClick={refetchTrackers}>Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!trackersAnalytics || trackers.length === 0) return <EmptyState />;
 
   return (
     <div className="ah-fade-up">
       {/* ── Section Header ── */}
       <div className="ah-section-header">
-        <span className="ah-section-eyebrow">REGULATORY & QUALITY</span>
-        <h2 className="ah-section-title">Compliance & Audit Management</h2>
+        <span className="ah-section-eyebrow">DATA MANAGEMENT</span>
+        <h2 className="ah-section-title">Trackers Analytics</h2>
       </div>
 
       {/* ── KPIs ── */}
-      <div className="ah-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <div className="ah-card ah-kpi-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="ah-kpi-label">Overall Compliance</span>
-            <Shield size={14} className="text-blue-500" />
+      <div className="ah-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
+        {[
+          {
+            label: 'Total Trackers',
+            value: kpis.total_trackers || 0,
+            sub: 'manual + uploaded',
+            Icon: FileText,
+            accent: '#6366f1',
+          },
+          {
+            label: 'Manual Trackers',
+            value: kpis.manual_trackers || 0,
+            sub: 'created in-app',
+            Icon: PenLine,
+            accent: '#8b5cf6',
+          },
+          {
+            label: 'Uploaded Trackers',
+            value: kpis.uploaded_trackers || 0,
+            sub: 'from Excel files',
+            Icon: Upload,
+            accent: '#3b82f6',
+          },
+          {
+            label: 'Active Projects',
+            value: kpis.active_projects || 0,
+            sub: 'with tracker data',
+            Icon: CheckCircle2,
+            accent: '#10b981',
+          },
+        ].map((k, i) => (
+          <div key={i} className="ah-card ah-kpi-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+              <span className="ah-kpi-label">{k.label}</span>
+              <k.Icon size={14} style={{ color: k.accent }} />
+            </div>
+            <span className="ah-kpi-value" style={{ color: k.accent }}>{k.value}</span>
+            <span className="ah-kpi-sub">{k.sub}</span>
           </div>
-          <span className="ah-kpi-value">82.5%</span>
-          <span className="ah-kpi-sub">weighted score</span>
-        </div>
-
-        <div className="ah-card ah-kpi-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="ah-kpi-label">Open Audit Actions</span>
-            <AlertTriangle size={14} className="text-amber-500" />
-          </div>
-          <span className="ah-kpi-value">14</span>
-          <span className="ah-kpi-sub">awaiting closure</span>
-        </div>
-
-        <div className="ah-card ah-kpi-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="ah-kpi-label">Audits This Quarter</span>
-            <FileText size={14} className="text-indigo-500" />
-          </div>
-          <span className="ah-kpi-value">31</span>
-          <span className="ah-kpi-sub">conducted</span>
-        </div>
-
-        <div className="ah-card ah-kpi-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="ah-kpi-label">Days to Next Audit</span>
-            <Clock size={14} className="text-rose-500" />
-          </div>
-          <span className="ah-kpi-value">8</span>
-          <span className="ah-kpi-sub">scheduled</span>
-        </div>
+        ))}
       </div>
 
-      {/* ── Charts Grid ── */}
+      {/* ── Charts Row ── */}
       <div className="ah-chart-grid ah-chart-grid-2" style={{ marginBottom: 16 }}>
+        {/* Trackers by Project */}
         <div className="ah-card">
           <div className="ah-card-header">
-            <h3 className="ah-card-title">Compliance Score by Area</h3>
-          </div>
-          <div className="ah-chart-body" style={{ height: 220, padding: 12, display: 'flex', justifyContent: 'center' }}>
-            <ChartContainer
-              config={{
-                score: { label: "Compliance Score", color: "#3b82f6" }
-              }}
-              className="mx-auto w-full h-[180px]"
-            >
-              <RadarChart data={radarChartData} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis dataKey="area" tick={{ fontSize: 9, fill: 'var(--ah-text-secondary)', fontWeight: 550 }} />
-                <Radar name="Compliance" dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              </RadarChart>
-            </ChartContainer>
-          </div>
-        </div>
-
-        <div className="ah-card">
-          <div className="ah-card-header">
-            <h3 className="ah-card-title">Compliance by Standard</h3>
+            <h3 className="ah-card-title">Trackers by Project</h3>
+            <span className="ah-card-meta">manual vs uploaded</span>
           </div>
           <div className="ah-chart-body" style={{ height: 220, padding: 12 }}>
-            <ChartContainer
-              config={{
-                passed: { label: "Compliant %", color: "#10b981" },
-                risk: { label: "At Risk %", color: "#fca5a5" }
-              }}
-              className="w-full h-[180px]"
-            >
-              <BarChart
-                data={standardsChartData}
-                layout="vertical"
-                margin={{ left: 10, right: 30, top: 5, bottom: 5 }}
+            {projectChartData.length > 0 ? (
+              <ChartContainer
+                config={{
+                  manual:   { label: "Manual",   color: "#8b5cf6" },
+                  uploaded: { label: "Uploaded", color: "#3b82f6" },
+                }}
+                className="w-full h-[180px]"
               >
-                <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 10 }} />
-                <YAxis
-                  dataKey="standard"
-                  type="category"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={10}
-                  width={90}
-                  tick={{ fontSize: 10, fill: "var(--ah-text-secondary)", fontWeight: 550 }}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="passed" stackId="a" fill="#10b981" barSize={12} />
-                <Bar dataKey="risk" stackId="a" fill="#fca5a5" radius={[0, 4, 4, 0]} barSize={12} />
-                <ChartLegend content={<ChartLegendContent />} />
-              </BarChart>
-            </ChartContainer>
+                <BarChart
+                  data={projectChartData}
+                  layout="vertical"
+                  margin={{ left: 10, right: 30, top: 5, bottom: 5 }}
+                  barGap={2}
+                >
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={6}
+                    width={100}
+                    tick={{ fontSize: 9, fill: "var(--ah-text-secondary)", fontWeight: 600 }}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="manual"   fill="#8b5cf6" radius={[0, 3, 3, 0]} barSize={8} />
+                  <Bar dataKey="uploaded" fill="#3b82f6" radius={[0, 3, 3, 0]} barSize={8} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <div className="ah-error-state" style={{ height: 180 }}><p>No project data.</p></div>
+            )}
+          </div>
+        </div>
+
+        {/* Status Distribution Pie */}
+        <div className="ah-card">
+          <div className="ah-card-header">
+            <h3 className="ah-card-title">Tracker Status Distribution</h3>
+          </div>
+          <div className="ah-chart-body" style={{ height: 220, padding: 12, display: 'flex', justifyContent: 'center' }}>
+            {statusPieData.length > 0 ? (
+              <ChartContainer
+                config={{
+                  Completed:  { label: "Completed",  color: "#10b981" },
+                  Processing: { label: "Processing", color: "#f59e0b" },
+                  Failed:     { label: "Failed",     color: "#ef4444" },
+                }}
+                className="mx-auto w-full h-[180px]"
+              >
+                <PieChart>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <Pie
+                    data={statusPieData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={48}
+                    outerRadius={68}
+                    paddingAngle={3}
+                  >
+                    {statusPieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent nameKey="name" />} />
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="flex items-center justify-center text-xs text-slate-400 h-[180px]">No status data</div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Table Row ── */}
+      {/* ── Filters ── */}
+      <div className="ah-filter-row" style={{ marginBottom: 14 }}>
+        <Filter size={13} color="var(--ah-text-muted)" />
+        {['All', 'Manual', 'Uploaded'].map(t => (
+          <button
+            key={t}
+            className={`ah-chip ${typeFilter === t ? 'active' : ''}`}
+            onClick={() => setTypeFilter(t)}
+          >
+            {t}
+          </button>
+        ))}
+        <div style={{ position: 'relative', marginLeft: 'auto' }}>
+          <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--ah-text-muted)' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search tracker, project..."
+            className="ah-search-input"
+            style={{ width: 200 }}
+          />
+        </div>
+      </div>
+
+      {/* ── Trackers Table ── */}
       <div className="ah-card">
         <div className="ah-card-header">
-          <h3 className="ah-card-title">Audit Trail</h3>
-          <span className="ah-card-meta">{AUDIT_DATA.length} audits logged</span>
+          <h3 className="ah-card-title">Tracker Registry</h3>
+          <span className="ah-card-meta">{filteredTrackers.length} trackers</span>
         </div>
         <div className="ah-table-wrap">
           <table className="ah-table">
             <thead>
               <tr>
-                <th>Audit ID</th>
-                <th>Area</th>
-                <th>Site</th>
-                <th>Auditor</th>
-                <th>Date</th>
+                <th>Tracker Name</th>
+                <th>Project</th>
+                <th>Type</th>
+                <th>Department</th>
+                <th style={{ textAlign: 'right' }}>Rows</th>
                 <th style={{ textAlign: 'center' }}>Status</th>
-                <th>Key Finding</th>
+                <th>Uploaded By</th>
+                <th>Date</th>
               </tr>
             </thead>
             <tbody>
-              {AUDIT_DATA.map((aud) => (
-                <tr key={aud.id}>
-                  <td style={{ fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' }}>{aud.id}</td>
-                  <td style={{ fontWeight: 600 }}>{aud.area}</td>
-                  <td style={{ color: 'var(--ah-text-secondary)', fontWeight: 600 }}>{aud.site}</td>
-                  <td style={{ color: 'var(--ah-text-secondary)' }}>{aud.auditor}</td>
-                  <td style={{ color: 'var(--ah-text-muted)', fontSize: 11 }}>{aud.date}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className={getAuditStatusBadge(aud.status)}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${aud.status === 'Passed' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                      {aud.status}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--ah-text-muted)', fontSize: 11, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={aud.finding}>
-                    {aud.finding}
+              {filteredTrackers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--ah-text-muted)', padding: 24, fontSize: 12 }}>
+                    No trackers match the current filters.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredTrackers.slice(0, 50).map(t => (
+                  <tr key={t.id}>
+                    <td style={{ fontWeight: 600, color: 'var(--ah-text-primary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.tracker_name}
+                    </td>
+                    <td style={{ color: 'var(--ah-text-secondary)', fontWeight: 600, fontSize: 11 }}>
+                      {t.project_name}
+                    </td>
+                    <td>
+                      <span className={getTypeBadge(t.type)}>
+                        {t.type === 'Manual' ? '✏️' : '📤'} {t.type}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--ah-text-muted)', fontSize: 11 }}>{t.department || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--ah-text-secondary)' }}>
+                      {(t.valid_row_count || t.row_count || 0).toLocaleString()}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={getStatusBadge(t.status)}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          t.status === 'Completed' ? 'bg-emerald-500' :
+                          t.status === 'Processing' ? 'bg-amber-500' :
+                          t.status === 'Failed' ? 'bg-rose-500' : 'bg-slate-400'
+                        }`} />
+                        {t.status}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--ah-text-secondary)', fontSize: 12 }}>{t.uploaded_by || '—'}</td>
+                    <td style={{ color: 'var(--ah-text-muted)', fontSize: 11 }}>{t.uploaded_at || '—'}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

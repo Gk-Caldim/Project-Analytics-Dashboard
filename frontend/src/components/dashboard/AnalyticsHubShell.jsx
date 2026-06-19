@@ -4,12 +4,8 @@
  * The main Analytics Hub container — lives inside the existing ProjectDashboard
  * sidebar structure as module ID 'analytics-hub'.
  *
- * Features:
- *  - Tab bar: Overview | Site Operations | Workforce | Issues & NCR | Compliance
- *  - Live-sync badge showing last updated time (from useRealtimeAnalytics hook)
- *  - Refresh button
- *  - All data from real backend (no mocks)
- *  - Isolated CSS via dashboard.css (not index.css)
+ * Tabs: Overview | Supply Chain Operations | Workforce | Issues Overview | Trackers Analytics
+ * (Procurement removed as per user request)
  */
 import React, { useState, useEffect } from 'react';
 import '../../styles/dashboard.css';
@@ -19,26 +15,23 @@ import SiteOperationsTab from './analytics/SiteOperationsTab';
 import WorkforceTab      from './analytics/WorkforceTab';
 import IssuesTab         from './analytics/IssuesTab';
 import ComplianceTab     from './analytics/ComplianceTab';
-import ProcurementTab    from './analytics/ProcurementTab';
 import {
   LayoutDashboard,
-  MapPin,
+  Package,
   Users,
   AlertCircle,
-  Shield,
+  FileText,
   RefreshCw,
-  ShoppingBag,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // ── Tabs config ──────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'overview',        label: 'Overview',        Icon: LayoutDashboard },
-  { id: 'site-operations', label: 'Site Operations',  Icon: MapPin },
-  { id: 'procurement',     label: 'Procurement',      Icon: ShoppingBag },
-  { id: 'workforce',       label: 'Workforce',        Icon: Users },
-  { id: 'issues',          label: 'Issues & NCR',     Icon: AlertCircle },
-  { id: 'compliance',      label: 'Compliance',        Icon: Shield },
+  { id: 'overview',          label: 'Overview',                 Icon: LayoutDashboard },
+  { id: 'site-operations',   label: 'Supply Chain Operations',  Icon: Package },
+  { id: 'workforce',         label: 'Workforce',                Icon: Users },
+  { id: 'issues',            label: 'Issues Overview',          Icon: AlertCircle },
+  { id: 'compliance',        label: 'Trackers Analytics',       Icon: FileText },
 ];
 
 // ── Live Sync Badge ───────────────────────────────────────────────────────────
@@ -93,10 +86,13 @@ export default function AnalyticsHubShell({ onProjectSelect }) {
   const {
     projectsSummary, analyticsData, structures,
     employees, allIssues, budgetRevisions,
+    overviewKpis, supplyChainData, trackersAnalytics, workforceData,
     summaryLoading, analyticsLoading, structuresLoading,
     employeesLoading, issuesLoading, budgetLoading,
-    isLoading, isError, lastUpdated,
+    supplyChainLoading, trackersLoading, workforceLoading, overviewKpisLoading,
+    isLoading, isError, trackersError, lastUpdated,
     refetchAll, refetchStructures, refetchEmployees, refetchIssues,
+    refetchSupplyChain, refetchTrackers, refetchWorkforce,
   } = useRealtimeAnalytics();
 
   return (
@@ -126,7 +122,8 @@ export default function AnalyticsHubShell({ onProjectSelect }) {
             structures={structures}
             allIssues={allIssues}
             budgetRevisions={budgetRevisions}
-            summaryLoading={summaryLoading}
+            overviewKpis={overviewKpis}
+            summaryLoading={summaryLoading || overviewKpisLoading}
             analyticsLoading={analyticsLoading}
             isError={isError}
             refetchAll={refetchAll}
@@ -135,24 +132,21 @@ export default function AnalyticsHubShell({ onProjectSelect }) {
         )}
         {activeTab === 'site-operations' && (
           <SiteOperationsTab
-            structures={structures}
-            projectsSummary={projectsSummary}
-            structuresLoading={structuresLoading}
+            supplyChainData={supplyChainData}
+            supplyChainLoading={supplyChainLoading}
             isError={isError}
-            refetchStructures={refetchStructures}
+            refetchSupplyChain={refetchSupplyChain}
           />
-        )}
-        {activeTab === 'procurement' && (
-          <ProcurementTab />
         )}
         {activeTab === 'workforce' && (
           <WorkforceTab
             employees={employees}
+            workforceData={workforceData}
             analyticsData={analyticsData}
-            employeesLoading={employeesLoading}
+            employeesLoading={employeesLoading || workforceLoading}
             analyticsLoading={analyticsLoading}
             isError={isError}
-            refetchEmployees={refetchEmployees}
+            refetchEmployees={refetchWorkforce}
           />
         )}
         {activeTab === 'issues' && (
@@ -165,12 +159,10 @@ export default function AnalyticsHubShell({ onProjectSelect }) {
         )}
         {activeTab === 'compliance' && (
           <ComplianceTab
-            allIssues={allIssues}
-            structures={structures}
-            analyticsData={analyticsData}
-            issuesLoading={issuesLoading}
-            isError={isError}
-            refetchAll={refetchAll}
+            trackersAnalytics={trackersAnalytics}
+            trackersLoading={trackersLoading}
+            isError={trackersError}
+            refetchTrackers={refetchTrackers}
           />
         )}
       </div>

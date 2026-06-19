@@ -1,18 +1,74 @@
+/* ============================================================================
+   VPProjectDashboard.css — SAP Fiori Design System v1-148 (adapted)
+   Replaces all previous styles. Logic unchanged — only visual language updated.
+   ============================================================================ */
+
+/* ── SAP Fiori Design Tokens ──────────────────────────────────────────── */
 :root {
-  --primary: var(--accent);
-  --primary-hover: var(--accent-hover);
+  /* SAP Fiori Color Palette */
+  --fi-blue:          #0a6ed1;
+  --fi-blue-hover:    #085caf;
+  --fi-blue-light:    #e8f1fd;
+  --fi-success:       #1a7e44;
+  --fi-success-bg:    #f1fdf6;
+  --fi-warning:       #e9730c;
+  --fi-warning-bg:    #fef4eb;
+  --fi-error:         #bb0000;
+  --fi-error-bg:      #fff0f0;
+
+  /* SAP Fiori Neutral Palette */
+  --fi-text-1:        #1d2d3e;
+  --fi-text-2:        #52606d;
+  --fi-text-3:        #8c98a4;
+  --fi-text-inv:      #ffffff;
+
+  /* SAP Fiori Surfaces */
+  --fi-shell:         #edeff0;
+  --fi-base-bg:       #f7f7f7;
+  --fi-tile:          #ffffff;
+  --fi-tile-border:   #d9d9d9;
+  --fi-tile-shadow:   0 0 0 1px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06);
+  --fi-tile-hover-shadow: 0 0 0 1px rgba(10,110,209,0.28), 0 4px 16px rgba(0,0,0,0.10);
+
+  /* SAP Fiori Spacing */
+  --fi-space-xs:      4px;
+  --fi-space-s:       8px;
+  --fi-space-m:       16px;
+  --fi-space-l:       24px;
+  --fi-space-xl:      32px;
+
+  /* SAP Fiori Typography */
+  --fi-font:          'Inter', '72', Arial, sans-serif;
+  --fi-radius:        4px;
+  --fi-radius-m:      8px;
+  --fi-radius-l:      12px;
+
+  /* SAP Semantic Header */
+  --fi-header-bg:     #1b4f72;
+  --fi-header-text:   #ffffff;
+
+  /* Mapped to app tokens */
+  --primary: var(--fi-blue);
+  --primary-hover: var(--fi-blue-hover);
   --bg-main: var(--bg);
   --text-main: var(--text-primary);
-  --text-muted: var(--text-secondary);
   --border: var(--border-subtle);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --radius-md: 12px;
-  --radius-lg: 16px;
 }
 
-/* ── Root Wrapper ── */
+/* ── Dark mode overrides ───────────────────────────────────────────────── */
+[data-theme='dark'] {
+  --fi-tile:          #1e2836;
+  --fi-tile-border:   #2d3e50;
+  --fi-tile-shadow:   0 0 0 1px rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.3);
+  --fi-tile-hover-shadow: 0 0 0 1px rgba(10,110,209,0.4), 0 4px 16px rgba(0,0,0,0.4);
+  --fi-base-bg:       #111827;
+  --fi-shell:         #0f172a;
+  --fi-text-1:        #e8ecf0;
+  --fi-text-2:        #a0b0c0;
+  --fi-text-3:        #607080;
+}
+
+/* ── Root Wrapper ──────────────────────────────────────────────────────── */
 .vppd-root {
   display: flex;
   flex-direction: column;
@@ -21,74 +77,89 @@
   flex: 1;
   min-height: 0;
   padding: 0;
-  font-family: 'Inter', system-ui, sans-serif;
-  color: var(--text-main);
-  animation: vppdFadeIn 0.35s ease-out;
+  font-family: var(--fi-font);
+  color: var(--text-primary);
+  animation: vppdFadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  background: var(--bg);
 }
 
 @keyframes vppdFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Project Header ── */
+/* ── SAP Object Page Header ────────────────────────────────────────────── */
 .vppd-project-heading {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px 24px 0 24px;
+  gap: 16px;
+  padding: 16px 24px 0 24px;
+  position: relative;
+}
+
+.vppd-project-heading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 24px;
+  right: 24px;
+  height: 0;
 }
 
 .vppd-project-heading-badge {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #4f46e5 0%, #0891b2 100%);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--fi-radius-m);
+  background: linear-gradient(135deg, var(--fi-blue) 0%, #0066cc 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 800;
   letter-spacing: -0.03em;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 2px 8px rgba(10, 110, 209, 0.28);
 }
 
 .vppd-project-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .vppd-project-subtitle {
   margin: 2px 0 0 0;
   font-size: 12px;
-  color: var(--text-muted);
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
+/* SAP Object Status chip */
 .vppd-project-health-chip {
   margin-left: auto;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 10px;
+  border-radius: var(--fi-radius);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   border: 1px solid;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-/* ── Tab Navigation ── */
+/* ── SAP Icon Tab Bar ───────────────────────────────────────────────────── */
 .vppd-tab-nav {
   display: flex;
   align-items: flex-end;
   gap: 0;
-  padding: 16px 24px 0 24px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 12px 24px 0 24px;
+  border-bottom: 2px solid var(--border-subtle);
   background: var(--surface);
   overflow-x: auto;
   scrollbar-width: none;
@@ -103,41 +174,42 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 10px 18px 11px 18px;
+  padding: 10px 16px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-secondary);
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.15s, border-color 0.15s;
   outline: none;
   position: relative;
-  margin-bottom: -1px;
-  border-radius: 0;
+  margin-bottom: -2px;
+  font-family: var(--fi-font);
 }
 
 .vppd-tab-btn:hover {
   color: var(--text-primary);
-  background: var(--elevated-card);
+}
+
+.vppd-tab-btn:hover .vppd-tab-icon {
+  opacity: 1;
 }
 
 .vppd-tab-btn.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 700;
-  background: transparent;
+  color: var(--fi-blue);
+  border-bottom-color: var(--fi-blue);
+  font-weight: 600;
 }
 
 .vppd-tab-icon {
-  opacity: 0.7;
+  opacity: 0.65;
   transition: opacity 0.15s;
 }
 
-.vppd-tab-btn.active .vppd-tab-icon,
-.vppd-tab-btn:hover .vppd-tab-icon {
+.vppd-tab-btn.active .vppd-tab-icon {
   opacity: 1;
 }
 
@@ -148,81 +220,77 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 10px;
+  border-radius: 9px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   background: var(--elevated-card);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
   transition: all 0.15s;
+  margin-left: 2px;
 }
 
 .vppd-tab-btn.active .vppd-tab-count {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
+  background: var(--fi-blue);
+  color: #fff;
+  border-color: var(--fi-blue);
 }
 
-/* ── Tab Panel ── */
+/* ── Tab Content Panel ──────────────────────────────────────────────────── */
 .vppd-tab-panel {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 24px 24px 24px;
+  padding: 20px 24px 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
 
-.vppd-tab-panel::-webkit-scrollbar {
-  width: 6px;
-}
+.vppd-tab-panel::-webkit-scrollbar { width: 5px; }
+.vppd-tab-panel::-webkit-scrollbar-track { background: transparent; }
+.vppd-tab-panel::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
-.vppd-tab-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.vppd-tab-panel::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 3px;
-}
-
-/* ── Section Cards ── */
+/* ── SAP Generic Card (Section) ─────────────────────────────────────────── */
 .vppd-section {
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  background: var(--fi-tile);
+  border: 1px solid var(--fi-tile-border);
+  border-radius: var(--fi-radius-m);
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s ease;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--fi-tile-shadow);
   overflow: hidden;
+  transition: box-shadow 0.18s, border-color 0.18s;
 }
 
 .vppd-section:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--fi-tile-hover-shadow);
+  border-color: rgba(10, 110, 209, 0.22);
 }
 
+/* SAP Card Header */
 .vppd-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: linear-gradient(90deg, rgba(var(--accent-rgb, 79, 70, 229), 0.03) 0%, transparent 100%);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--fi-tile-border);
+  background: linear-gradient(180deg, rgba(0,0,0,0.015) 0%, transparent 100%);
+  background-color: var(--elevated-card);
 }
 
+/* SAP Card Title (Object Header style) */
 .vppd-section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text-primary);
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fi-text-2);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   margin: 0;
 }
 
@@ -231,62 +299,77 @@
   flex: 1;
 }
 
-/* ── Overview Grid ── */
+/* ── SAP Analytical Card — KPI Strip ────────────────────────────────────── */
 .vppd-overview-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* ── KPI Strip ── */
 .vppd-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
 }
 
+/* SAP Analytical Card style */
 .vppd-kpi-card {
-  background: var(--bg);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  background: var(--fi-tile);
+  border: 1px solid var(--fi-tile-border);
+  border-radius: var(--fi-radius-m);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: all 0.2s;
+  gap: 3px;
+  transition: box-shadow 0.15s, transform 0.15s;
+  box-shadow: var(--fi-tile-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.vppd-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--fi-blue);
+  opacity: 0.7;
 }
 
 .vppd-kpi-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--fi-tile-hover-shadow);
+  transform: translateY(-1px);
 }
 
 .vppd-kpi-label {
   font-size: 10px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--fi-text-3);
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
 
 .vppd-kpi-value {
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1.1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
 }
 
 .vppd-kpi-sub {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--fi-text-3);
   font-weight: 500;
 }
 
-/* ── Refined Table System ── */
+/* ── SAP Table (Analytical List Page) ───────────────────────────────────── */
 .vppd-refined-table-wrapper {
   overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
+  border-radius: var(--fi-radius);
+  border: 1px solid var(--fi-tile-border);
   background: var(--surface);
 }
 
@@ -294,30 +377,40 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .vppd-refined-table thead tr {
   background: var(--elevated-card);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 2px solid var(--fi-tile-border);
 }
 
 .vppd-refined-table th {
-  padding: 11px 16px;
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--text-secondary);
+  padding: 10px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--fi-text-2);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   white-space: nowrap;
+  border-right: 1px solid var(--fi-tile-border);
+}
+
+.vppd-refined-table th:last-child {
+  border-right: none;
 }
 
 .vppd-refined-table td {
-  padding: 12px 16px;
+  padding: 11px 14px;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-subtle);
-  font-weight: 500;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-weight: 400;
   vertical-align: middle;
+  border-right: 1px solid rgba(0,0,0,0.04);
+}
+
+.vppd-refined-table td:last-child {
+  border-right: none;
 }
 
 .vppd-refined-table tbody tr:last-child td {
@@ -325,16 +418,24 @@
 }
 
 .vppd-refined-table tbody tr:hover td {
-  background: var(--table-hover);
+  background: rgba(10, 110, 209, 0.04);
 }
 
-/* ── Status Badge ── */
+/* ── SAP Phase Row (in milestone table) ─────────────────────────────────── */
+.vppd-phase-row td {
+  background: rgba(10, 110, 209, 0.04) !important;
+  font-weight: 700;
+  font-size: 12px;
+  border-left: 3px solid var(--fi-blue);
+}
+
+/* ── SAP Object Status Badge ────────────────────────────────────────────── */
 .vppd-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--fi-radius);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -342,104 +443,121 @@
   border: 1px solid;
 }
 
-/* ── Priority Badge ── */
 .vppd-priority-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--fi-radius);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border: 1px solid;
 }
 
-/* ── Gantt styles ── */
+/* ── SAP Progress Bar (Micro Chart) ─────────────────────────────────────── */
+.vppd-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0,0,0,0.09);
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.vppd-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── SAP Gantt Container ────────────────────────────────────────────────── */
 .vppd-gantt-container {
   overflow: auto;
   position: relative;
   max-height: 480px;
   min-height: 280px;
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: var(--fi-radius);
 }
 
-/* ── Chart card (Project Metrics Tab) ── */
+/* ── SAP Chart Card (Project Metrics Tab) ───────────────────────────────── */
 .vppd-chart-card {
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
+  background: var(--fi-tile);
+  border: 1px solid var(--fi-tile-border);
+  border-radius: var(--fi-radius-m);
   overflow: hidden;
-  transition: all 0.2s;
+  transition: box-shadow 0.18s, border-color 0.18s;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--fi-tile-shadow);
 }
 
 .vppd-chart-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+  box-shadow: var(--fi-tile-hover-shadow);
+  border-color: rgba(10, 110, 209, 0.22);
 }
 
 .vppd-chart-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--fi-tile-border);
   background: var(--elevated-card);
 }
 
 .vppd-chart-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-primary);
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--fi-text-2);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   margin: 0;
 }
 
+/* SAP accent bar (left border of chart title) */
 .vppd-chart-title-accent {
-  width: 4px;
-  height: 16px;
+  width: 3px;
+  height: 14px;
   border-radius: 2px;
-  background: #4f46e5;
+  background: var(--fi-blue);
   flex-shrink: 0;
 }
 
 .vppd-chart-body {
-  padding: 12px 16px;
+  padding: 12px 14px;
 }
 
+/* ── Chart bottom split (AI + freq table) ───────────────────────────────── */
 .vppd-chart-split-bottom {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--fi-tile-border);
 }
 
 .vppd-ai-panel {
-  padding: 14px 16px;
-  background: linear-gradient(135deg, rgba(79, 70, 229, 0.03) 0%, transparent 100%);
-  border-right: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  background: rgba(10, 110, 209, 0.03);
+  border-right: 1px solid var(--fi-tile-border);
 }
 
 .vppd-ai-panel-title {
   font-size: 10px;
-  font-weight: 800;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--fi-text-3);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   display: flex;
   align-items: center;
   gap: 5px;
 }
 
 .vppd-ai-panel-text {
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.6;
   color: var(--text-secondary);
   font-weight: 400;
@@ -457,44 +575,37 @@
 }
 
 .vppd-freq-table th {
-  padding: 8px 12px;
+  padding: 7px 12px;
   font-size: 10px;
-  font-weight: 800;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--fi-text-2);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   background: var(--elevated-card);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--fi-tile-border);
   text-align: left;
 }
 
 .vppd-freq-table td {
   padding: 7px 12px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(0,0,0,0.04);
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 400;
 }
 
-.vppd-freq-table tbody tr:last-child td {
-  border-bottom: none;
-}
+.vppd-freq-table tbody tr:last-child td { border-bottom: none; }
+.vppd-freq-table tbody tr:hover td { background: rgba(10,110,209,0.04); }
 
-.vppd-freq-table tbody tr:hover td {
-  background: var(--table-hover);
-}
-
-/* ── Budget Split Layout ── */
+/* ── Budget Split Layout ────────────────────────────────────────────────── */
 .vppd-budget-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
 @media (max-width: 900px) {
-  .vppd-budget-split {
-    grid-template-columns: 1fr;
-  }
+  .vppd-budget-split { grid-template-columns: 1fr; }
 }
 
 .vppd-budget-chart-grid {
@@ -503,82 +614,50 @@
   gap: 12px;
 }
 
-/* ── Issues Analytics Grid ── */
+/* ── Issues Analytics Grid ──────────────────────────────────────────────── */
 .vppd-issues-analytics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
 @media (max-width: 900px) {
-  .vppd-issues-analytics-grid {
-    grid-template-columns: 1fr;
-  }
+  .vppd-issues-analytics-grid { grid-template-columns: 1fr; }
 }
 
-/* ── Milestone phase row ── */
-.vppd-phase-row td {
-  background: var(--elevated-card) !important;
-  font-weight: 800;
-  font-size: 12px;
-}
-
-/* ── Progress bar inline ── */
-.vppd-progress-bar {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--border-subtle);
-  overflow: hidden;
-  min-width: 60px;
-}
-
-.vppd-progress-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.4s ease;
-}
-
-/* ── Empty state ── */
-.vppd-empty {
-  text-align: center;
-  padding: 48px 24px;
-  color: var(--text-muted);
-  font-size: 14px;
-  background: var(--bg);
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--border-subtle);
-  font-weight: 500;
-}
-
-/* ── Overview section mini title ── */
-.vppd-overview-section-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0 0 10px 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 12px;
-}
-
-/* ── Budget summary cards (Overview) ── */
+/* ── SAP Analytical Card — Budget Cards ─────────────────────────────────── */
 .vppd-budget-summary-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .vppd-budget-card {
-  border-radius: 10px;
+  border-radius: var(--fi-radius-m);
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--fi-tile-border);
+  box-shadow: var(--fi-tile-shadow);
+  transition: box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.vppd-budget-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.2;
+}
+
+.vppd-budget-card:hover {
+  box-shadow: var(--fi-tile-hover-shadow);
 }
 
 .vppd-budget-card-label {
@@ -586,103 +665,167 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
+  opacity: 0.8;
 }
 
 .vppd-budget-card-value {
   font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── Badge Button Controls ── */
+/* ── SAP Segmented Button ───────────────────────────────────────────────── */
 .vppd-ctrl-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 7px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg);
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 0;
+  border: 1px solid var(--fi-tile-border);
+  background: var(--surface);
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   outline: none;
-  transition: all 0.18s;
+  transition: background 0.12s, color 0.12s;
+  font-family: var(--fi-font);
+}
+
+.vppd-ctrl-btn:first-child {
+  border-radius: var(--fi-radius) 0 0 var(--fi-radius);
+}
+.vppd-ctrl-btn:last-child {
+  border-radius: 0 var(--fi-radius) var(--fi-radius) 0;
+  border-left: none;
+}
+.vppd-ctrl-btn:not(:first-child):not(:last-child) {
+  border-left: none;
 }
 
 .vppd-ctrl-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--elevated-card);
+  background: rgba(10, 110, 209, 0.05);
+  color: var(--fi-blue);
 }
 
 .vppd-ctrl-btn.active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
+  background: var(--fi-blue);
+  color: #fff;
+  border-color: var(--fi-blue);
+  font-weight: 700;
 }
 
 .vppd-ctrl-group {
   display: flex;
-  gap: 4px;
-  background: var(--elevated-card);
-  padding: 3px;
-  border-radius: 9px;
-  border: 1px solid var(--border-subtle);
+  background: transparent;
+  border-radius: var(--fi-radius);
+  overflow: hidden;
 }
 
-/* ── Tooltip ── */
+/* ── SAP Button Styles ──────────────────────────────────────────────────── */
+.vppd-btn-emphasized {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--fi-blue);
+  color: #fff;
+  border: 1px solid var(--fi-blue);
+  border-radius: var(--fi-radius);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: var(--fi-font);
+}
+
+.vppd-btn-emphasized:hover {
+  background: var(--fi-blue-hover);
+  border-color: var(--fi-blue-hover);
+}
+
+.vppd-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: transparent;
+  color: var(--fi-blue);
+  border: 1px solid transparent;
+  border-radius: var(--fi-radius);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-family: var(--fi-font);
+}
+
+.vppd-btn-ghost:hover {
+  background: var(--fi-blue-light);
+}
+
+/* ── SAP Tooltip ────────────────────────────────────────────────────────── */
 .vppd-tooltip {
   position: fixed;
   z-index: 9999;
   pointer-events: none;
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 10px;
-  padding: 12px 14px;
+  background: #1e2838;
+  border: 1px solid #2d3e52;
+  border-radius: var(--fi-radius-m);
+  padding: 10px 14px;
   min-width: 200px;
   max-width: 300px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   font-size: 11px;
-  color: #f8fafc;
+  color: #e8ecf0;
 }
 
-/* ── Sync History table ── */
+/* ── SAP Info Badge ─────────────────────────────────────────────────────── */
+.vppd-info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ── Sync History Table ─────────────────────────────────────────────────── */
 .vppd-sync-history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .vppd-sync-history-table th {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--fi-text-2);
+  font-weight: 700;
   padding: 9px 14px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 2px solid var(--fi-tile-border);
   text-align: left;
   background: var(--elevated-card);
+  border-right: 1px solid rgba(0,0,0,0.05);
 }
+
+.vppd-sync-history-table th:last-child { border-right: none; }
 
 .vppd-sync-history-table td {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
   color: var(--text-primary);
 }
 
-.vppd-sync-history-table tbody tr:hover td {
-  background: var(--table-hover);
-}
+.vppd-sync-history-table tbody tr:hover td { background: rgba(10,110,209,0.04); }
+.vppd-sync-history-table tbody tr:last-child td { border-bottom: none; }
 
-.vppd-sync-history-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-/* ── Old form-based MOM table (kept for compat) ── */
+/* ── MOM table (compatibility) ──────────────────────────────────────────── */
 .vppd-mom-table-container {
   padding: 12px 0;
   display: flex;
@@ -695,14 +838,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 2px solid var(--fi-blue);
   margin-bottom: 4px;
 }
 
 .vppd-mom-form-title {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--fi-text-2);
   text-transform: uppercase;
   letter-spacing: 0.15em;
   margin: 0;
@@ -711,59 +854,73 @@
 
 .vppd-mom-form-meta {
   font-size: 10px;
-  font-weight: 700;
-  color: var(--text-tertiary);
+  font-weight: 600;
+  color: var(--fi-text-3);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .vppd-mom-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
   background: var(--surface);
 }
 
 .vppd-mom-table th {
   padding: 11px 14px;
   background: var(--elevated-card);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--fi-text-2);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
+  letter-spacing: 0.06em;
+  border-bottom: 2px solid var(--fi-tile-border);
   text-align: left;
+  border-right: 1px solid rgba(0,0,0,0.05);
 }
 
-.vppd-mom-table th:last-child {
-  border-right: none;
-}
+.vppd-mom-table th:last-child { border-right: none; }
 
 .vppd-mom-table td {
-  padding: 11px 14px;
-  font-size: 12.5px;
+  padding: 12px 14px;
+  font-size: 12px;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-subtle);
-  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
   vertical-align: middle;
 }
 
-.vppd-mom-table td:last-child {
-  border-right: none;
+.vppd-mom-table tr:hover td { background: rgba(10,110,209,0.04); }
+.vppd-mom-table tr:last-child td { border-bottom: none; }
+
+/* ── Empty State ────────────────────────────────────────────────────────── */
+.vppd-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--fi-text-3);
+  font-size: 13px;
+  background: var(--bg);
+  border-radius: var(--fi-radius-m);
+  border: 1px dashed var(--fi-tile-border);
+  font-weight: 400;
 }
 
-.vppd-mom-table tr:hover td {
-  background: var(--table-hover);
+/* ── Section mini label ─────────────────────────────────────────────────── */
+.vppd-overview-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--fi-text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 0 9px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--fi-tile-border);
+  margin-bottom: 12px;
 }
 
-.vppd-mom-table tr:last-child td {
-  border-bottom: none;
-}
-
-/* ── Modal animations ── */
+/* ── Modal animation ────────────────────────────────────────────────────── */
 @keyframes vppdSlideUp {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }

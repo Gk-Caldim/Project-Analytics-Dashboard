@@ -10,5 +10,29 @@
         "measured_latency_ms": 61200.5,
         "comments": "Testing latency feedback trigger from unit tests",
         "user_email": "test-admin@industrial-analytics.com"
+    },
+    {
+        "timestamp": "2026-06-18 22:16:41",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
+    },
+    {
+        "timestamp": "2026-06-18 22:29:15",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
+    },
+    {
+        "timestamp": "2026-06-18 22:36:14",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
+    },
+    {
+        "timestamp": "2026-06-18 22:36:43",
+        "measured_latency_ms": 61200.5,
+        "comments": "Testing latency feedback trigger from unit tests",
+        "user_email": "test-admin@industrial-analytics.com"
     }
 ]
