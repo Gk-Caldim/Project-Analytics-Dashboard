@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, BarChart3, Calendar, AlertTriangle, Wallet,
   Settings, Mail, CheckCircle2, RefreshCw, FileText, X, ExternalLink,
-  Table, Filter, Building2, ListTodo, Activity, Sparkles,
+  Table as TableIcon, Filter, Building2, ListTodo, Activity, Sparkles,
   TrendingUp, TrendingDown, AlertCircle, Zap, ClipboardList, Users,
   Shield, MessageSquare, ShieldAlert
 } from 'lucide-react';
@@ -15,9 +15,8 @@ import { listIssues } from '../api/issues';
 import './VPProjectDashboard.css';
 import ResourceManagementCenter from '../components/dashboard/ResourceManagementCenter';
 import QualityHealthCenter from '../components/dashboard/QualityHealthCenter';
-import ValidationDashboard from '../components/dashboard/ValidationDashboard';
-import CustomerIssuesDashboard from '../components/dashboard/CustomerIssuesDashboard';
 import RiskManagementDashboard from '../components/dashboard/RiskManagementDashboard';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 
 /* ─────────────────────────────── helpers ──────────────────────────── */
@@ -40,16 +39,16 @@ const fmtMoney = (n) => {
 /* ─────────────────────────────── StatusBadge ──────────────────────── */
 
 const STATUS_COLORS = {
-  Completed:   { bg: 'var(--green-50)',   text: 'var(--green-900)',  border: '#86efac', dot: '#10b981' },
-  'In Progress': { bg: 'var(--blue-50)', text: 'var(--blue-900)',   border: '#93c5fd', dot: '#3b82f6' },
-  Delayed:     { bg: 'var(--red-50)',     text: 'var(--red-900)',    border: '#fca5a5', dot: '#ef4444' },
-  Upcoming:    { bg: '#ede9fe',           text: '#4c1d95',           border: '#c4b5fd', dot: '#8b5cf6' },
-  'On Hold':   { bg: '#fef3c7',           text: '#92400e',           border: '#fcd34d', dot: '#f59e0b' },
+  Completed: { bg: 'var(--green-50)', text: 'var(--green-900)', border: '#86efac', dot: '#10b981' },
+  'In Progress': { bg: 'var(--blue-50)', text: 'var(--blue-900)', border: '#93c5fd', dot: '#3b82f6' },
+  Delayed: { bg: 'var(--red-50)', text: 'var(--red-900)', border: '#fca5a5', dot: '#ef4444' },
+  Upcoming: { bg: '#ede9fe', text: '#4c1d95', border: '#c4b5fd', dot: '#8b5cf6' },
+  'On Hold': { bg: '#fef3c7', text: '#92400e', border: '#fcd34d', dot: '#f59e0b' },
   'Not Started': { bg: 'var(--elevated-card)', text: 'var(--text-secondary)', border: 'var(--border-subtle)', dot: '#94a3b8' },
-  Cancelled:   { bg: 'var(--elevated-card)', text: 'var(--text-muted)', border: 'var(--border-subtle)', dot: '#cbd5e1' },
-  Pending:     { bg: '#fef3c7',           text: '#92400e',           border: '#fcd34d', dot: '#f59e0b' },
-  Resolved:    { bg: 'var(--green-50)',   text: 'var(--green-900)',  border: '#86efac', dot: '#10b981' },
-  Open:        { bg: 'var(--red-50)',     text: 'var(--red-900)',    border: '#fca5a5', dot: '#ef4444' },
+  Cancelled: { bg: 'var(--elevated-card)', text: 'var(--text-muted)', border: 'var(--border-subtle)', dot: '#cbd5e1' },
+  Pending: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d', dot: '#f59e0b' },
+  Resolved: { bg: 'var(--green-50)', text: 'var(--green-900)', border: '#86efac', dot: '#10b981' },
+  Open: { bg: 'var(--red-50)', text: 'var(--red-900)', border: '#fca5a5', dot: '#ef4444' },
 };
 
 const StatusBadge = ({ status, size = 'sm' }) => {
@@ -72,9 +71,9 @@ const StatusBadge = ({ status, size = 'sm' }) => {
 
 const PRIORITY_COLORS = {
   Critical: { bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },
-  High:     { bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },
-  Medium:   { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
-  Low:      { bg: 'var(--green-50)', text: 'var(--green-900)', border: '#86efac' },
+  High: { bg: '#fef2f2', text: '#991b1b', border: '#fca5a5' },
+  Medium: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  Low: { bg: 'var(--green-50)', text: 'var(--green-900)', border: '#86efac' },
 };
 
 const PriorityBadge = ({ priority }) => {
@@ -102,14 +101,11 @@ const MiniProgress = ({ pct, color = '#3b82f6' }) => (
 /* ─────────────────────────────── Main Component ────────────────────── */
 
 const TABS = [
-  { id: 'overview',         label: 'Overview',                    Icon: LayoutDashboard },
-  { id: 'metrics',          label: 'Project Metrics',             Icon: BarChart3       },
-  { id: 'milestones',       label: 'Milestones & Timeline',       Icon: Calendar        },
-  { id: 'issues',           label: 'Critical Issues',             Icon: AlertTriangle   },
-  { id: 'budget',           label: 'Budget Summary',              Icon: Wallet          },
-  { id: 'validation',       label: 'Validation Gates',            Icon: Shield          },
-  { id: 'customer-issues',  label: 'Customer Issues',             Icon: MessageSquare   },
-  { id: 'risk-management',  label: 'Risk Management',             Icon: ShieldAlert     },
+  { id: 'metrics', label: 'Project Overview', Icon: BarChart3 },
+  { id: 'milestones', label: 'Milestones & Timeline', Icon: Calendar },
+  { id: 'issues', label: 'Critical Issues', Icon: AlertTriangle },
+  { id: 'budget', label: 'Budget Summary', Icon: Wallet },
+  { id: 'risk-management', label: 'Risk Management', Icon: ShieldAlert },
 ];
 
 const VPProjectDashboard = ({
@@ -122,7 +118,7 @@ const VPProjectDashboard = ({
   milestones = [],
   isDashboardLoading = false,
   isDashboardError = false,
-  onRetry = () => {},
+  onRetry = () => { },
   ganttDeptFilter = 'All',
   setGanttDeptFilter,
   ganttTypeFilter = 'All',
@@ -137,7 +133,7 @@ const VPProjectDashboard = ({
   budgetCurrencySymbol = '$',
 }) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('metrics');
 
   /* ── Milestone view (table | chart) ── */
   const [milestoneView, setMilestoneView] = useState('table');
@@ -218,7 +214,7 @@ const VPProjectDashboard = ({
         setMomIssues(
           Array.isArray(issues)
             ? issues.filter(i => (i.source || '').toUpperCase() === 'MOM')
-                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             : []
         );
         if (Array.isArray(historyRes?.data)) setSyncHistory(historyRes.data);
@@ -274,7 +270,7 @@ const VPProjectDashboard = ({
 
   const sortedMilestones = useMemo(() =>
     [...(milestones || [])].sort((a, b) => (a.row_order || 0) - (b.row_order || 0)),
-  [milestones]);
+    [milestones]);
 
   const ganttFilteredTasks = useMemo(() =>
     sortedMilestones.filter(t => {
@@ -283,7 +279,7 @@ const VPProjectDashboard = ({
       if (ganttStatusFilter !== 'All' && t.status !== ganttStatusFilter) return false;
       return true;
     }),
-  [sortedMilestones, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
+    [sortedMilestones, ganttDeptFilter, ganttTypeFilter, ganttStatusFilter]);
 
   const { timelineStart, timelineEnd, daysBetween } = useMemo(() => {
     if (!milestones?.length) {
@@ -294,7 +290,7 @@ const VPProjectDashboard = ({
     let minD = null, maxD = null;
     milestones.forEach(t => {
       if (t.start_date) { const d = new Date(t.start_date); if (!minD || d < minD) minD = d; }
-      if (t.end_date)   { const d = new Date(t.end_date);   if (!maxD || d > maxD) maxD = d; }
+      if (t.end_date) { const d = new Date(t.end_date); if (!maxD || d > maxD) maxD = d; }
     });
     if (!minD) minD = new Date();
     if (!maxD) { maxD = new Date(); maxD.setDate(maxD.getDate() + 90); }
@@ -320,11 +316,11 @@ const VPProjectDashboard = ({
       if (t?.item_type === 'Phase') { phaseName = t.activity_name; break; }
     }
     const name = phaseName.toLowerCase();
-    if (name.includes('contracts') || name.includes('proposal'))   return { fill: '#0ea5e9' };
-    if (name.includes('design') || name.includes('engineering'))   return { fill: '#3b82f6' };
-    if (name.includes('procurement'))                               return { fill: '#8b5cf6' };
+    if (name.includes('contracts') || name.includes('proposal')) return { fill: '#0ea5e9' };
+    if (name.includes('design') || name.includes('engineering')) return { fill: '#3b82f6' };
+    if (name.includes('procurement')) return { fill: '#8b5cf6' };
     if (name.includes('construction') || name.includes('manufacturing')) return { fill: '#f97316' };
-    if (name.includes('closing') || name.includes('handover'))     return { fill: '#10b981' };
+    if (name.includes('closing') || name.includes('handover')) return { fill: '#10b981' };
     return { fill: '#14b8a6' };
   }, [milestones]);
 
@@ -449,8 +445,8 @@ const VPProjectDashboard = ({
   /* ─────────── Budget data ─────────── */
   const budgetApproved = budgetSummaryData?.budgetApproved || 0;
   const budgetUtilized = budgetSummaryData?.budgetUtilized || 0;
-  const budgetBalance  = budgetSummaryData?.budgetBalance  || 0;
-  const budgetOutlook  = budgetSummaryData?.budgetOutlook  || 0;
+  const budgetBalance = budgetSummaryData?.budgetBalance || 0;
+  const budgetOutlook = budgetSummaryData?.budgetOutlook || 0;
   const utilizationPct = budgetApproved > 0 ? Math.min(100, Math.round((budgetUtilized / budgetApproved) * 100)) : 0;
 
   /* ─────────── ECharts options ─────────── */
@@ -471,9 +467,9 @@ const VPProjectDashboard = ({
       labelLine: { show: false },
       data: [
         { value: issuesByPriority.Critical, name: 'Critical', itemStyle: { color: '#ef4444' } },
-        { value: issuesByPriority.High,     name: 'High',     itemStyle: { color: '#f97316' } },
-        { value: issuesByPriority.Medium,   name: 'Medium',   itemStyle: { color: '#f59e0b' } },
-        { value: issuesByPriority.Low,      name: 'Low',      itemStyle: { color: '#10b981' } },
+        { value: issuesByPriority.High, name: 'High', itemStyle: { color: '#f97316' } },
+        { value: issuesByPriority.Medium, name: 'Medium', itemStyle: { color: '#f59e0b' } },
+        { value: issuesByPriority.Low, name: 'Low', itemStyle: { color: '#10b981' } },
       ].filter(d => d.value > 0)
     }]
   }), [issuesByPriority]);
@@ -492,7 +488,7 @@ const VPProjectDashboard = ({
     yAxis: { type: 'category', data: Object.keys(issuesByStatus), axisLabel: { color: 'var(--text-secondary)', fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
     series: [{
       type: 'bar', barMaxWidth: 16,
-      itemStyle: { color: (p) => ['#ef4444','#f97316','#f59e0b','#3b82f6','#10b981'][p.dataIndex % 5], borderRadius: [0,4,4,0] },
+      itemStyle: { color: (p) => ['#ef4444', '#f97316', '#f59e0b', '#3b82f6', '#10b981'][p.dataIndex % 5], borderRadius: [0, 4, 4, 0] },
       label: { show: true, position: 'right', fontSize: 10, color: 'var(--text-secondary)' },
       data: Object.values(issuesByStatus)
     }]
@@ -513,7 +509,7 @@ const VPProjectDashboard = ({
       avoidLabelOverlap: true,
       label: { show: false },
       data: [
-        { value: budgetUtilized, name: 'Utilized',  itemStyle: { color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#3b82f6' } },
+        { value: budgetUtilized, name: 'Utilized', itemStyle: { color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#3b82f6' } },
         { value: Math.max(0, budgetApproved - budgetUtilized), name: 'Balance', itemStyle: { color: '#e2e8f0' } },
       ].filter(d => d.value > 0)
     }]
@@ -535,7 +531,7 @@ const VPProjectDashboard = ({
       data: [
         { value: budgetApproved, itemStyle: { color: '#3b82f6' } },
         { value: budgetUtilized, itemStyle: { color: utilizationPct > 90 ? '#ef4444' : '#10b981' } },
-        { value: budgetBalance,  itemStyle: { color: '#f59e0b' } },
+        { value: budgetBalance, itemStyle: { color: '#f59e0b' } },
       ],
       label: { show: true, position: 'top', fontSize: 10, formatter: p => fmtMoney(p.value), color: 'var(--text-secondary)' }
     }]
@@ -546,10 +542,10 @@ const VPProjectDashboard = ({
   const healthStyle = health === 'Red'
     ? { backgroundColor: '#fef2f2', color: '#991b1b', borderColor: '#fca5a5' }
     : health === 'Yellow'
-    ? { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }
-    : health === 'Green'
-    ? { backgroundColor: 'var(--green-50)', color: 'var(--green-900)', borderColor: '#86efac' }
-    : { backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' };
+      ? { backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }
+      : health === 'Green'
+        ? { backgroundColor: 'var(--green-50)', color: 'var(--green-900)', borderColor: '#86efac' }
+        : { backgroundColor: 'var(--elevated-card)', color: 'var(--text-secondary)', borderColor: 'var(--border-subtle)' };
 
   const healthLabel = health === 'Red' ? 'Critical' : health === 'Yellow' ? 'At Risk' : health === 'Green' ? 'On Track' : 'Unknown';
   const projectInitials = (activeProject?.name || 'P').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -566,7 +562,7 @@ const VPProjectDashboard = ({
   /* ─────────── Optimized milestones for table ─────────── */
   const tableMilestones = useMemo(() =>
     (milestones || []).filter(t => t.item_type === 'Phase' || t.item_type === 'Milestone'),
-  [milestones]);
+    [milestones]);
 
   /* ══════════════════════════════════════════════════════════════════
      TAB: OVERVIEW
@@ -579,7 +575,7 @@ const VPProjectDashboard = ({
         <div className="vppd-section-header">
           <h3 className="vppd-section-title">
             <BarChart3 size={14} style={{ color: '#4f46e5' }} />
-            Project Metrics Summary
+            Project Overview
           </h3>
         </div>
         <div className="vppd-section-body">
@@ -635,33 +631,33 @@ const VPProjectDashboard = ({
             </div>
           ) : (
             <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="vppd-refined-table">
-                <thead>
-                  <tr>
-                    <th>Issue</th>
-                    <th>Priority</th>
-                    <th>Owner</th>
-                    <th>Due</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="vppd-refined-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Issue</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Due</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredMomIssues.slice(0, 4).map(issue => {
                     const ns = normalizeIssueStatus(issue.status);
                     return (
-                      <tr key={issue.id}>
-                        <td style={{ fontWeight: 600, maxWidth: 200 }}>
+                      <TableRow key={issue.id}>
+                        <TableCell style={{ fontWeight: 600, maxWidth: 200 }}>
                           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</div>
-                        </td>
-                        <td><PriorityBadge priority={issue.priority || 'Medium'} /></td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{issue.owner || '—'}</td>
-                        <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}</td>
-                        <td><StatusBadge status={ns} /></td>
-                      </tr>
+                        </TableCell>
+                        <TableCell><PriorityBadge priority={issue.priority || 'Medium'} /></TableCell>
+                        <TableCell style={{ color: 'var(--text-secondary)' }}>{issue.owner || '—'}</TableCell>
+                        <TableCell style={{ color: 'var(--text-muted)', fontSize: 11 }}>{issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}</TableCell>
+                        <TableCell><StatusBadge status={ns} /></TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
               {filteredMomIssues.length > 4 && (
                 <div style={{ padding: '8px 16px', textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)' }}>
                   <button onClick={() => setActiveTab('issues')} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>
@@ -688,7 +684,7 @@ const VPProjectDashboard = ({
         <div className="vppd-section-body" style={{ padding: 0 }}>
           {isDashboardLoading ? (
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[1,2,3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-8 w-full" />)}
             </div>
           ) : tableMilestones.length === 0 ? (
             <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -697,38 +693,38 @@ const VPProjectDashboard = ({
             </div>
           ) : (
             <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="vppd-refined-table">
-                <thead>
-                  <tr>
-                    <th>WBS</th>
-                    <th>Activity</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Progress</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="vppd-refined-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>WBS</TableHead>
+                    <TableHead>Activity</TableHead>
+                    <TableHead>Start</TableHead>
+                    <TableHead>End</TableHead>
+                    <TableHead>Progress</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {tableMilestones.slice(0, 6).map(task => {
                     const isPhase = task.item_type === 'Phase';
                     return (
-                      <tr key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
-                        <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</td>
-                        <td style={{ paddingLeft: `${16 + (task.indent_level || 0) * 14}px`, fontWeight: isPhase ? 700 : 500 }}>
+                      <TableRow key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
+                        <TableCell style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</TableCell>
+                        <TableCell style={{ paddingLeft: `${16 + (task.indent_level || 0) * 14}px`, fontWeight: isPhase ? 700 : 500 }}>
                           {task.item_type === 'Milestone' && <span style={{ display: 'inline-block', width: 6, height: 6, transform: 'rotate(45deg)', backgroundColor: 'var(--accent)', marginRight: 6 }} />}
                           {task.activity_name}
-                        </td>
-                        <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date, { day: '2-digit', month: 'short' })}</td>
-                        <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date, { day: '2-digit', month: 'short' })}</td>
-                        <td style={{ minWidth: 90 }}>
+                        </TableCell>
+                        <TableCell style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date, { day: '2-digit', month: 'short' })}</TableCell>
+                        <TableCell style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date, { day: '2-digit', month: 'short' })}</TableCell>
+                        <TableCell style={{ minWidth: 90 }}>
                           <MiniProgress pct={task.complete_percent} color={isPhase ? 'var(--accent)' : '#3b82f6'} />
-                        </td>
-                        <td><StatusBadge status={task.status || 'Not Started'} /></td>
-                      </tr>
+                        </TableCell>
+                        <TableCell><StatusBadge status={task.status || 'Not Started'} /></TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -749,15 +745,15 @@ const VPProjectDashboard = ({
           <div className="vppd-section-body">
             {isBudgetLoading ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-                {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
               </div>
             ) : (
               <div className="vppd-budget-summary-strip">
                 {[
                   { label: 'Approved Budget', value: budgetApproved, color: '#3b82f6', bg: 'var(--blue-50)', icon: '🏦' },
-                  { label: 'Utilized',         value: budgetUtilized, color: '#10b981', bg: 'var(--green-50)', icon: '📊' },
-                  { label: 'Balance',          value: budgetBalance,  color: '#f59e0b', bg: '#fef3c7', icon: '💰' },
-                  { label: 'Utilization',      value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : '#64748b', bg: 'var(--elevated-card)', icon: '📈', raw: true },
+                  { label: 'Utilized', value: budgetUtilized, color: '#10b981', bg: 'var(--green-50)', icon: '📊' },
+                  { label: 'Balance', value: budgetBalance, color: '#f59e0b', bg: '#fef3c7', icon: '💰' },
+                  { label: 'Utilization', value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : '#64748b', bg: 'var(--elevated-card)', icon: '📈', raw: true },
                 ].map(c => (
                   <div key={c.label} className="vppd-budget-card" style={{ background: c.bg }}>
                     <span className="vppd-budget-card-label" style={{ color: c.color }}>{c.icon} {c.label}</span>
@@ -784,7 +780,7 @@ const VPProjectDashboard = ({
       ) : (
         <div className="vppd-empty">
           <BarChart3 size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>No metrics configured</div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>No overview configured</div>
           <div style={{ fontSize: 12 }}>Configure chart axes in the dashboard settings to view analytics here.</div>
         </div>
       )}
@@ -803,7 +799,7 @@ const VPProjectDashboard = ({
           <h3 className="vppd-section-title"><Calendar size={14} style={{ color: '#0ea5e9' }} /> Milestones</h3>
           <div className="vppd-ctrl-group">
             <button className={`vppd-ctrl-btn ${milestoneView === 'table' ? 'active' : ''}`} onClick={() => setMilestoneView('table')}>
-              <Table size={11} /> Table
+              <TableIcon size={11} /> Table
             </button>
             <button className={`vppd-ctrl-btn ${milestoneView === 'chart' ? 'active' : ''}`} onClick={() => setMilestoneView('chart')}>
               <BarChart3 size={11} /> Gantt
@@ -813,7 +809,7 @@ const VPProjectDashboard = ({
         <div className="vppd-section-body" style={{ padding: 0 }}>
           {isDashboardLoading ? (
             <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+              {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
             </div>
           ) : isDashboardError ? (
             <div style={{ padding: 32, textAlign: 'center', color: '#ef4444' }}>
@@ -833,42 +829,42 @@ const VPProjectDashboard = ({
             </div>
           ) : (
             <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="vppd-refined-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 80 }}>WBS</th>
-                    <th>Activity / Milestone</th>
-                    <th style={{ width: 110 }}>Start Date</th>
-                    <th style={{ width: 110 }}>End Date</th>
-                    <th style={{ width: 110 }}>Department</th>
-                    <th style={{ width: 100 }}>Progress</th>
-                    <th style={{ width: 130, textAlign: 'center' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="vppd-refined-table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead style={{ width: 80 }}>WBS</TableHead>
+                    <TableHead>Activity / Milestone</TableHead>
+                    <TableHead style={{ width: 110 }}>Start Date</TableHead>
+                    <TableHead style={{ width: 110 }}>End Date</TableHead>
+                    <TableHead style={{ width: 110 }}>Department</TableHead>
+                    <TableHead style={{ width: 100 }}>Progress</TableHead>
+                    <TableHead style={{ width: 130, textAlign: 'center' }}>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {tableMilestones.map(task => {
                     const isPhase = task.item_type === 'Phase';
                     const isMilestone = task.item_type === 'Milestone';
                     const indent = (task.indent_level || 0) * 14;
                     return (
-                      <tr key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
-                        <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</td>
-                        <td style={{ paddingLeft: `${16 + indent}px` }}>
+                      <TableRow key={task.id} className={isPhase ? 'vppd-phase-row' : ''}>
+                        <TableCell style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>{task.wbs_code}</TableCell>
+                        <TableCell style={{ paddingLeft: `${16 + indent}px` }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             {isMilestone && <span style={{ width: 7, height: 7, transform: 'rotate(45deg)', backgroundColor: 'var(--accent)', display: 'inline-block', flexShrink: 0 }} />}
                             <span style={{ color: isMilestone ? 'var(--accent)' : 'var(--text-primary)', fontWeight: isPhase ? 700 : 500 }}>{task.activity_name}</span>
                           </div>
-                        </td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date)}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date)}</td>
-                        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{task.department || '—'}</td>
-                        <td><MiniProgress pct={task.complete_percent} color={isPhase ? 'var(--accent)' : '#3b82f6'} /></td>
-                        <td style={{ textAlign: 'center' }}><StatusBadge status={task.status || 'Not Started'} /></td>
-                      </tr>
+                        </TableCell>
+                        <TableCell style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.start_date)}</TableCell>
+                        <TableCell style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmtDate(task.end_date)}</TableCell>
+                        <TableCell style={{ fontSize: 12, color: 'var(--text-muted)' }}>{task.department || '—'}</TableCell>
+                        <TableCell><MiniProgress pct={task.complete_percent} color={isPhase ? 'var(--accent)' : '#3b82f6'} /></TableCell>
+                        <TableCell style={{ textAlign: 'center' }}><StatusBadge status={task.status || 'Not Started'} /></TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
@@ -894,7 +890,7 @@ const VPProjectDashboard = ({
                 <select value={ganttTypeFilter} onChange={e => setGanttTypeFilter(e.target.value)}
                   style={{ padding: '3px 8px', background: 'var(--bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 5, fontSize: 11, fontWeight: 600, outline: 'none' }}>
                   <option value="All">All</option>
-                  {['Phase','Task','Sub Task','Milestone','Approval Gate'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['Phase', 'Task', 'Sub Task', 'Milestone', 'Approval Gate'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
@@ -902,7 +898,7 @@ const VPProjectDashboard = ({
                 <select value={ganttStatusFilter} onChange={e => setGanttStatusFilter(e.target.value)}
                   style={{ padding: '3px 8px', background: 'var(--bg)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 5, fontSize: 11, fontWeight: 600, outline: 'none' }}>
                   <option value="All">All</option>
-                  {['Not Started','Upcoming','In Progress','Completed','Delayed','On Hold','Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
+                  {['Not Started', 'Upcoming', 'In Progress', 'Completed', 'Delayed', 'On Hold', 'Cancelled'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               {/* Zoom */}
@@ -1061,9 +1057,9 @@ const VPProjectDashboard = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
                 { c: '#ef4444', l: 'Critical', v: issuesByPriority.Critical },
-                { c: '#f97316', l: 'High',     v: issuesByPriority.High },
-                { c: '#f59e0b', l: 'Medium',   v: issuesByPriority.Medium },
-                { c: '#10b981', l: 'Low',       v: issuesByPriority.Low },
+                { c: '#f97316', l: 'High', v: issuesByPriority.High },
+                { c: '#f59e0b', l: 'Medium', v: issuesByPriority.Medium },
+                { c: '#10b981', l: 'Low', v: issuesByPriority.Low },
               ].map(i => (
                 <div key={i.l} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -1104,10 +1100,7 @@ const VPProjectDashboard = ({
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' }}>
               <ClipboardList size={11} /> Total: {filteredMomIssues.length}
             </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--green-50)', border: '1px solid #86efac', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--green-900)' }}>
-              <CheckCircle2 size={11} /> Resolved: {filteredMomIssues.filter(i => ['closed','done','resolved','complete'].includes((i.status||'').toLowerCase())).length}
-            </span>
-            <button onClick={() => { fetchingRef.current = false; fetchMomIssues(); }} disabled={loadingMom}
+                  <button onClick={() => { fetchingRef.current = false; fetchMomIssues(); }} disabled={loadingMom}
               style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '5px 12px', cursor: loadingMom ? 'default' : 'pointer' }}>
               <RefreshCw size={12} style={{ animation: loadingMom ? 'spin 1s linear infinite' : 'none' }} /> Refresh
             </button>
@@ -1137,70 +1130,57 @@ const VPProjectDashboard = ({
                 <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)' }}>FORM NO: MOM/DB/2026 | REV: 0.1</span>
               </div>
               <div className="vppd-refined-table-wrapper" style={{ border: 'none', borderRadius: 0 }}>
-                <table className="vppd-mom-table">
+                <table className="vppd-refined-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: 48 }}>S.No</th>
-                      <th style={{ width: 100 }}>Function</th>
-                      <th style={{ width: 160 }}>Project</th>
-                      <th style={{ width: 100 }}>Criticality</th>
-                      <th>Action Points</th>
-                      <th style={{ width: 150 }}>Responsibility</th>
-                      <th style={{ width: 95 }}>Target</th>
-                      <th style={{ width: 110 }}>Status</th>
-                      <th style={{ width: 180 }}>Action Taken</th>
+                      <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Issue Details</th>
+                      <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', width: 140 }}>Owner</th>
+                      <th style={{ textAlign: 'center', padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', width: 100 }}>Due Date</th>
+                      <th style={{ textAlign: 'center', padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', width: 100 }}>Status</th>
+                      <th style={{ textAlign: 'left', padding: '12px 20px', fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', width: 200 }}>Latest Update</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {loadingMom
-                      ? Array.from({ length: 5 }).map((_, i) => (
-                          <tr key={i}>{Array.from({ length: 9 }).map((_, j) => <td key={j}><Skeleton className="h-4 w-full" /></td>)}</tr>
-                        ))
-                      : displayIssues.map((issue, idx) => {
-                          const priority = issue.priority || 'Medium';
-                          const crit = { Critical: { bg: '#fef2f2', c: '#991b1b', b: '#fca5a5' }, High: { bg: '#fef2f2', c: '#991b1b', b: '#fca5a5' }, Medium: { bg: '#fef3c7', c: '#92400e', b: '#fcd34d' }, Low: { bg: 'var(--green-50)', c: 'var(--green-900)', b: '#86efac' } }[priority] || { bg: 'var(--elevated-card)', c: 'var(--text-secondary)', b: 'var(--border-subtle)' };
-                          const ns = normalizeIssueStatus(issue.status);
-                          const isClosed = ['closed','done','resolved','complete'].includes((issue.status||'').toLowerCase());
-                          return (
-                            <tr key={issue.id}>
-                              <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{idx + 1}</td>
-                              <td style={{ textAlign: 'center', fontSize: 12 }}>{issue.department || 'General'}</td>
-                              <td style={{ fontWeight: 500 }}>{activeProject?.name}</td>
-                              <td>
-                                <div style={{ background: crit.bg, color: crit.c, border: `1px solid ${crit.b}`, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, textAlign: 'center', textTransform: 'uppercase' }}>{priority}</div>
-                              </td>
-                              <td>
-                                <div style={{ fontWeight: 600, marginBottom: 2 }}>{issue.title}</div>
-                                {issue.description && issue.description !== issue.title && (
-                                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{issue.description}</div>
-                                )}
-                              </td>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--elevated-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: 'var(--text-secondary)', flexShrink: 0 }}>
-                                    {issue.owner?.charAt(0)?.toUpperCase() || '?'}
-                                  </div>
-                                  <span style={{ fontSize: 12 }}>{issue.owner || 'Unassigned'}</span>
+                    {displayIssues.map(issue => {
+                      const ns = normalizeIssueStatus(issue.status);
+                      const isClosed = ns === 'Resolved';
+                      return (
+                        <tr key={issue.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td style={{ padding: '12px 20px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 13 }}>{issue.title || 'Untitled Issue'}</span>
+                                <PriorityBadge priority={issue.priority || 'Medium'} />
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ID: {issue.id ? issue.id.substring(0, 8) : '—'}</div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--elevated-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: 'var(--text-secondary)', flexShrink: 0 }}>
+                                {issue.owner?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
-                              </td>
-                              <td style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
-                                {issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}
-                              </td>
-                              <td>
-                                <div style={{ background: isClosed ? 'var(--green-50)' : '#fef3c7', color: isClosed ? 'var(--green-900)' : '#92400e', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 4, textAlign: 'center', textTransform: 'uppercase' }}>
-                                  {isClosed ? 'Resolved' : ns}
-                                </div>
-                              </td>
-                              <td style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                {(() => {
-                                  if (!issue.comments?.length) return '—';
-                                  const sorted = [...issue.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                                  return sorted[0].comment_text;
-                                })()}
-                              </td>
-                            </tr>
-                          );
-                        })}
+                                <span style={{ fontSize: 12 }}>{issue.owner || 'Unassigned'}</span>
+                              </div>
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>
+                              {issue.due_date ? fmtDate(issue.due_date, { day: '2-digit', month: 'short' }) : '—'}
+                            </td>
+                            <td>
+                              <div style={{ background: isClosed ? 'var(--green-50)' : '#fef3c7', color: isClosed ? 'var(--green-900)' : '#92400e', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 4, textAlign: 'center', textTransform: 'uppercase' }}>
+                                {isClosed ? 'Resolved' : ns}
+                              </div>
+                            </td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              {(() => {
+                                if (!issue.comments?.length) return '—';
+                                const sorted = [...issue.comments].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                                return sorted[0].comment_text;
+                              })()}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -1220,18 +1200,18 @@ const VPProjectDashboard = ({
         {syncHistory.length > 0 && (
           <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '16px 20px' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12 }}>Sync History</div>
-            <table className="vppd-sync-history-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}>#</th>
-                  <th>Meeting</th>
-                  <th style={{ width: 110 }}>Date</th>
-                  <th style={{ width: 130 }}>Synced At</th>
-                  <th style={{ width: 80 }}>Issues</th>
-                  <th style={{ width: 80 }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="vppd-sync-history-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={{ width: 40 }}>#</TableHead>
+                  <TableHead>Meeting</TableHead>
+                  <TableHead style={{ width: 110 }}>Date</TableHead>
+                  <TableHead style={{ width: 130 }}>Synced At</TableHead>
+                  <TableHead style={{ width: 80 }}>Issues</TableHead>
+                  <TableHead style={{ width: 80 }}>Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {syncHistory.map((h, idx) => {
                   const pd = h.date ? fmtDate(h.date) : '—';
                   let sa = '—';
@@ -1240,28 +1220,28 @@ const VPProjectDashboard = ({
                     sa = `${fmtDate(sd, { day: '2-digit', month: 'short' })} · ${sd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}`;
                   }
                   return (
-                    <tr key={h.history_id || idx} style={{ background: idx === 0 ? 'var(--blue-50)' : 'transparent' }}>
-                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                      <td>
+                    <TableRow key={h.history_id || idx} style={{ background: idx === 0 ? 'var(--blue-50)' : 'transparent' }}>
+                      <TableCell style={{ color: 'var(--text-muted)' }}>{idx + 1}</TableCell>
+                      <TableCell>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontWeight: idx === 0 ? 600 : 400 }}>{h.meeting_name || 'Untitled Meeting'}</span>
                           {idx === 0 && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--green-50)', color: 'var(--green-900)', border: '1px solid #86efac', borderRadius: 99, padding: '1px 6px' }}>latest</span>}
                         </div>
-                      </td>
-                      <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{pd}</td>
-                      <td style={{ color: 'var(--text-muted)', fontSize: 11 }}>{sa}</td>
-                      <td style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>{h.sync_id ? `${h.row_count} issues` : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
-                      <td>
+                      </TableCell>
+                      <TableCell style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{pd}</TableCell>
+                      <TableCell style={{ color: 'var(--text-muted)', fontSize: 11 }}>{sa}</TableCell>
+                      <TableCell style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>{h.sync_id ? `${h.row_count} issues` : <span style={{ color: 'var(--text-muted)' }}>—</span>}</TableCell>
+                      <TableCell>
                         <button onClick={() => h.sync_id ? navigate(`/dashboard/saved-moms?highlight=${h.sync_id}`) : toast.error('History not found')}
                           style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--elevated-card)', border: '1px solid var(--border-subtle)', borderRadius: 5, cursor: 'pointer', padding: '3px 10px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <ExternalLink size={10} /> View
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -1277,10 +1257,10 @@ const VPProjectDashboard = ({
       <div className="vppd-kpi-strip">
         {[
           { label: 'Approved Budget', value: `${budgetCurrencySymbol}${fmtMoney(budgetApproved)}`, color: '#3b82f6', icon: '🏦' },
-          { label: 'Utilized',        value: `${budgetCurrencySymbol}${fmtMoney(budgetUtilized)}`, color: utilizationPct > 90 ? '#ef4444' : '#10b981', icon: '📊' },
-          { label: 'Balance',         value: `${budgetCurrencySymbol}${fmtMoney(budgetBalance)}`,  color: '#f59e0b', icon: '💰' },
-          { label: 'Utilization %',   value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#10b981', icon: '📈' },
-          { label: 'Outlook',         value: `${budgetOutlook}%`,  color: '#8b5cf6', icon: '🔮' },
+          { label: 'Utilized', value: `${budgetCurrencySymbol}${fmtMoney(budgetUtilized)}`, color: utilizationPct > 90 ? '#ef4444' : '#10b981', icon: '📊' },
+          { label: 'Balance', value: `${budgetCurrencySymbol}${fmtMoney(budgetBalance)}`, color: '#f59e0b', icon: '💰' },
+          { label: 'Utilization %', value: `${utilizationPct}%`, color: utilizationPct > 90 ? '#ef4444' : utilizationPct > 70 ? '#f59e0b' : '#10b981', icon: '📈' },
+          { label: 'Outlook', value: `${budgetOutlook}%`, color: '#8b5cf6', icon: '🔮' },
         ].map(c => (
           <div key={c.label} className="vppd-kpi-card">
             <span className="vppd-kpi-label">{c.icon} {c.label}</span>
@@ -1299,7 +1279,7 @@ const VPProjectDashboard = ({
           <div style={{ padding: 0 }}>
             {isBudgetLoading ? (
               <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
+                {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-8 w-full" />)}
               </div>
             ) : renderBudgetTableContent ? (
               renderBudgetTableContent()
@@ -1404,22 +1384,10 @@ const VPProjectDashboard = ({
 
       {/* ── Tab Content ── */}
       <div className="vppd-tab-panel" role="tabpanel">
-        {activeTab === 'overview'   && renderOverviewTab()}
-        {activeTab === 'metrics'    && renderMetricsTab()}
+        {activeTab === 'metrics' && renderMetricsTab()}
         {activeTab === 'milestones' && renderMilestonesTab()}
-        {activeTab === 'issues'     && renderIssuesTab()}
-        {activeTab === 'budget'     && renderBudgetTab()}
-        {activeTab === 'validation' && (
-          <ValidationDashboard
-            projectId={activeProject?.dbProjectId || activeProject?.id}
-            projectName={activeProject?.name}
-          />
-        )}
-        {activeTab === 'customer-issues' && (
-          <CustomerIssuesDashboard
-            projectId={activeProject?.dbProjectId || activeProject?.id}
-          />
-        )}
+        {activeTab === 'issues' && renderIssuesTab()}
+        {activeTab === 'budget' && renderBudgetTab()}
         {activeTab === 'risk-management' && (
           <RiskManagementDashboard
             projectId={activeProject?.dbProjectId || activeProject?.id}
@@ -1427,7 +1395,7 @@ const VPProjectDashboard = ({
         )}
 
         {/* Resource & Quality — appended at bottom of metrics/overview */}
-        {(activeTab === 'overview' || activeTab === 'metrics') && (
+        {(activeTab === 'metrics') && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 20 }}>
             {visibleSections.resource && (
               <ResourceManagementCenter
