@@ -112,11 +112,11 @@ const PricingPage = () => {
       <section className="pricing-hero">
         <div className="pricing-hero-inner" style={{ paddingTop: '80px' }}>
           <div className="pricing-badge-wrapper text-center">
-            <span className="pricing-badge">Simple, transparent pricing</span>
+            <span className="pricing-badge">Transparent pricing</span>
           </div>
-          <h1 className="pricing-h1 text-center">The right plan for every stage of growth.</h1>
+          <h1 className="pricing-h1 text-center">Plans designed for scalable engineering.</h1>
           <p className="pricing-subtext text-center">
-            Start lean. Scale to enterprise. No hidden fees, no lock-in surprises.
+            From early-stage startups to enterprise teams. Clear pricing, no hidden fees.
           </p>
 
           <div className="pricing-toggle-row">
@@ -151,12 +151,12 @@ const PricingPage = () => {
                 {isAnnual && (
                   <div className="strikethrough">₹{pricingData.starter.monthly.toLocaleString()}</div>
                 )}
-                <p className="plan-desc">For growing teams getting serious about operations</p>
+                <p className="plan-desc">For growing teams optimizing their operations</p>
               </div>
               <div className="card-features">
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Up to 25 users</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Analytics module (read-only)</div>
-                <div className="feat-item"><Check size={16} className="text-blue-600" /> Minutes & Meetings (50/mo)</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Meeting Summaries (50/mo)</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Email support</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> 5GB data storage</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Standard integrations</div>
@@ -179,13 +179,13 @@ const PricingPage = () => {
                 {isAnnual && (
                   <div className="strikethrough">₹{pricingData.business.monthly.toLocaleString()}</div>
                 )}
-                <p className="plan-desc">For organizations running serious portfolio operations</p>
+                <p className="plan-desc">For organizations scaling project portfolios</p>
               </div>
               <div className="card-features">
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Up to 200 users</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Full Analytics with drill-down</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Unlimited meetings + auto tracking</div>
-                <div className="feat-item"><Check size={16} className="text-blue-600" /> Budget Intelligence module</div>
+                <div className="feat-item"><Check size={16} className="text-blue-600" /> Resource Analytics module</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Priority email + chat support</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> 50GB data storage</div>
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Advanced integrations + API</div>
@@ -201,7 +201,7 @@ const PricingPage = () => {
                 <div className="price-row">
                   <span className="price-val">Custom pricing</span>
                 </div>
-                <p className="plan-desc">For conglomerates, listed companies, and regulated industries</p>
+                <p className="plan-desc">For enterprise-grade security and compliance</p>
               </div>
               <div className="card-features">
                 <div className="feat-item"><Check size={16} className="text-blue-600" /> Unlimited users</div>

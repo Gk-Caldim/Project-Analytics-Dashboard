@@ -142,14 +142,7 @@ const MeetingsPage = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial">
-        <div className="mod-test-inner">
-          <h2 className="mod-test-quote">"Our follow-through rate went from 60% to 94% in one quarter."</h2>
-          <div className="mod-test-author">Priya Nair</div>
-          <div className="mod-test-role">COO, Tata Advanced Systems</div>
-        </div>
-      </section>
+
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">

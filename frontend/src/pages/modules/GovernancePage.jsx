@@ -134,14 +134,7 @@ const GovernancePage = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial">
-        <div className="mod-test-inner">
-          <h2 className="mod-test-quote">"Our security audit passed with zero findings for the first time."</h2>
-          <div className="mod-test-author">Anand Kumar</div>
-          <div className="mod-test-role">CISO, Airbus India</div>
-        </div>
-      </section>
+
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">

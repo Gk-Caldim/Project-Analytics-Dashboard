@@ -57,11 +57,11 @@ const StatusPill = ({ s }) => {
 /* ── Excel Design Release Table (mirrors ExcelTableViewer) ── */
 const ExcelMockup = () => {
   const rows = [
-    ["DR-1042", "Front Subframe",   "Synced", "A. Mehta"],
-    ["DR-1043", "Battery Tray",     "Review", "L. Ortega"],
-    ["DR-1044", "Cooling Duct",     "Synced", "S. Iyer"],
-    ["DR-1045", "Wiring Harness",   "Drift",  "R. Voss"],
-    ["DR-1046", "Door Module",      "Synced", "K. Adeyemi"],
+    ["ENG-1042", "API Gateway",        "Synced", "A. Mehta"],
+    ["ENG-1043", "Auth Middleware",     "Review", "L. Ortega"],
+    ["ENG-1044", "User Service",        "Synced", "S. Iyer"],
+    ["ENG-1045", "Message Broker",      "Drift",  "R. Voss"],
+    ["ENG-1046", "Notification Worker", "Synced", "K. Adeyemi"],
   ];
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
@@ -82,13 +82,13 @@ const ExcelMockup = () => {
   );
 };
 
-/* ── MOM Table (mirrors actual MOM table — S.No, Function, Discussion, Status columns) ── */
+/* ── MOM Table (mirrors actual MOM table ── */
 const MomMockup = () => {
   const rows = [
-    { sno: 1, fn: "Engineering", disc: "Freeze cooling spec before G3 gate.", who: "S. Iyer",    status: "pending" },
-    { sno: 2, fn: "Quality",     disc: "Validate harness routing — DR-1045.",  who: "R. Voss",    status: "in-progress" },
-    { sno: 3, fn: "PMO",         disc: "Update timeline for SOP validation.",  who: "P. Nair",    status: "completed" },
-    { sno: 4, fn: "Production",  disc: "Confirm tooling lead time for G4.",    who: "K. Adeyemi", status: "pending" },
+    { sno: 1, fn: "Backend",   disc: "Freeze API Gateway spec before release milestone.", who: "S. Iyer",    status: "pending" },
+    { sno: 2, fn: "DevOps",    disc: "Validate message broker routing — ENG-1045.",      who: "R. Voss",    status: "in-progress" },
+    { sno: 3, fn: "Product",   disc: "Update timeline for production deployment.",       who: "P. Nair",    status: "completed" },
+    { sno: 4, fn: "Infra",     disc: "Confirm cloud resource provisioning for scale-out.",who: "K. Adeyemi", status: "pending" },
   ];
   const statusMap = {
     "pending":     { label: "Pending",     c: "bg-amber-50 text-amber-700 border border-amber-100/60" },
@@ -98,7 +98,7 @@ const MomMockup = () => {
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
       <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Meeting Minutes — Atlas VX Review</span>
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Meeting Minutes — Release 2.4 Review</span>
         <span className="flex items-center gap-1.5 text-[10px] font-semibold text-purple-600">
           <Mic className="h-3 w-3" /> AI Captured
         </span>
@@ -128,10 +128,10 @@ const MomMockup = () => {
 /* ── Budget Variance View (mirrors BudgetSummaryView) ── */
 const BudgetMockup = () => {
   const rows = [
-    { l: "Body & Trim",  spent: 78, target: 70, v: "+8%",  neg: true },
-    { l: "Powertrain",   spent: 54, target: 65, v: "-11%", neg: false },
-    { l: "Electrical",   spent: 91, target: 85, v: "+6%",  neg: true },
-    { l: "Tooling",      spent: 40, target: 60, v: "-20%", neg: false },
+    { l: "Cloud Infrastructure",spent: 78, target: 70, v: "+8%",  neg: true },
+    { l: "Backend Compute",     spent: 54, target: 65, v: "-11%", neg: false },
+    { l: "Data Pipelines",      spent: 91, target: 85, v: "+6%",  neg: true },
+    { l: "SaaS Licenses",       spent: 40, target: 60, v: "-20%", neg: false },
   ];
   return (
     <div className="space-y-4">
@@ -141,7 +141,7 @@ const BudgetMockup = () => {
             <span className="text-[13px] font-semibold text-slate-700">{r.l}</span>
             <span className={cn(
               "flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold border",
-              r.neg ? "bg-rose-50 text-rose-600 border-rose-100/60" : "bg-emerald-50 text-emerald-650 border-emerald-100/60"
+              r.neg ? "bg-rose-50 text-rose-600 border-rose-100/60" : "bg-emerald-50 text-emerald-655 border-emerald-100/60"
             )}>
               {r.v} variance
             </span>
@@ -165,26 +165,24 @@ const BudgetMockup = () => {
   );
 };
 
-/* ── Week Calendar (mirrors actual CalendarGrid week view) ── */
+/* ── Week Calendar ── */
 const CalendarMockup = () => {
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
   const DATES = [16, 17, 18, 19, 20];
   const HOURS = ["9 am", "10 am", "11 am", "12 pm", "1 pm", "2 pm"];
 
-  /* Events positioned in the grid — mirrors actual CalendarGrid colored blocks */
   const events = [
-    { day: 0, start: 0, span: 1.5, title: "Atlas VX Sync",     color: "#2563EB" },
+    { day: 0, start: 0, span: 1.5, title: "Release 2.4 Sync",   color: "#2563EB" },
     { day: 1, start: 1, span: 1,   title: "Budget Review",     color: "#F59E0B" },
-    { day: 2, start: 0, span: 2,   title: "G3 Gate Review",    color: "#8B5CF6" },
-    { day: 2, start: 3, span: 1,   title: "Harness Routing",   color: "#EF4444" },
-    { day: 3, start: 2, span: 1.5, title: "Design Freeze",     color: "#10B981" },
+    { day: 2, start: 0, span: 2,   title: "Sprint Gate Review",color: "#8B5CF6" },
+    { day: 2, start: 3, span: 1,   title: "Routing Integration",color: "#EF4444" },
+    { day: 3, start: 2, span: 1.5, title: "Code Freeze",       color: "#10B981" },
     { day: 4, start: 0, span: 1,   title: "Sprint Planning",   color: "#06B6D4" },
-    { day: 4, start: 3, span: 2,   title: "SOP Validation",    color: "#2563EB" },
+    { day: 4, start: 3, span: 2,   title: "Production Deploy", color: "#2563EB" },
   ];
 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-      {/* Day header — mirrors CalendarGrid .day-column-header */}
       <div className="grid grid-cols-[48px_repeat(5,1fr)] border-b border-slate-200 bg-slate-50">
         <div className="px-1 py-2 text-[8px] font-bold text-slate-400 uppercase text-center border-r border-slate-200">
           GMT+5:30
@@ -205,15 +203,12 @@ const CalendarMockup = () => {
         })}
       </div>
 
-      {/* Time grid — mirrors CalendarGrid scrollable time body */}
       <div className="grid grid-cols-[48px_repeat(5,1fr)]">
         {HOURS.map((h, hourIdx) => (
           <div key={h} className="contents">
-            {/* Time gutter label */}
             <div className="px-1 py-0 border-r border-b border-slate-100 flex items-start justify-end pr-2 pt-0.5">
               <span className="text-[9px] font-medium text-slate-400">{h}</span>
             </div>
-            {/* Day columns */}
             {DAYS.map((d, dayIdx) => {
               const evt = events.find((e) => e.day === dayIdx && e.start === hourIdx);
               return (
@@ -248,30 +243,22 @@ const CalendarMockup = () => {
   );
 };
 
-const TESTIMONIALS = {
+const BENEFITS = {
   excel: {
-    quote: "“Connecting our spreadsheets to CALDIM reduced manual tracking errors and helped align our engineering teams and PMO on release statuses.”",
-    author: "Sanjay Iyer",
-    role: "Lead Systems Engineer",
-    company: "Mahindra Electric"
+    title: "VCS-Style spreadsheet tracking",
+    text: "Review cell-level history with clear timestamped diffs. Eliminate version conflicts when syncing local engineering worksheets with the master project database.",
   },
   mom: {
-    quote: "“The automated meeting notes save hours of administrative work. Action items are summarized and assigned immediately after our reviews.”",
-    author: "Ravi Voss",
-    role: "Program Manager",
-    company: "Bosch Automotive"
+    title: "Action-oriented transcript parsing",
+    text: "Convert live technical reviews into structured documentation. The system automatically maps discussed tasks directly to owners and populates your project board.",
   },
   budget: {
-    quote: "“The budget tracking features give us clear visibility into project spend and help us identify cost variances before they impact the schedule.”",
-    author: "Preeti Nair",
-    role: "PMO Director",
-    company: "Tata Motors"
+    title: "Proactive burn-rate governance",
+    text: "Compare actual cloud infrastructure and SaaS expenditures against allocations. Flag variance spikes automatically before milestone dates approach.",
   },
   calendar: {
-    quote: "“We track our entire program schedule using this calendar. Making adjustments and communicating timeline shifts to the team is straightforward.”",
-    author: "Kemi Adeyemi",
-    role: "Operations Head",
-    company: "Volvo Trucks"
+    title: "Milestone-driven roadmap views",
+    text: "Visualize code freezes, sprint boundaries, and deployment windows. Communicate timeline adjustments clearly to cross-functional engineering teams.",
   }
 };
 
@@ -412,22 +399,14 @@ export const Features = ({ onRequestDemo }) => {
                 Learn more <ArrowRight className="h-4 w-4" />
               </button>
 
-              {/* Dynamic testimonial block matching Zoho Projects pattern */}
+              {/* Feature benefit block — highly readable, accessible, and professional */}
               <div className="mt-8 p-5 rounded-xl border border-slate-200 bg-slate-50/50 relative shadow-sm">
-                <p className="text-[13.5px] italic text-slate-600 leading-relaxed font-sans">
-                  {TESTIMONIALS[active].quote}
+                <h4 className="text-[13.5px] font-bold text-slate-900 leading-tight uppercase tracking-wider font-mono">
+                  {BENEFITS[active].title}
+                </h4>
+                <p className="mt-2 text-[13.5px] text-slate-650 leading-relaxed font-sans">
+                  {BENEFITS[active].text}
                 </p>
-                <div className="mt-4 flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold grid place-items-center uppercase border border-blue-100">
-                    {TESTIMONIALS[active].author.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-[11.5px] font-bold text-slate-800 leading-none">{TESTIMONIALS[active].author}</p>
-                    <p className="text-[9.5px] font-semibold text-slate-400 mt-1">
-                      {TESTIMONIALS[active].role} &middot; {TESTIMONIALS[active].company}
-                    </p>
-                  </div>
-                </div>
               </div>
             </motion.div>
           </AnimatePresence>
