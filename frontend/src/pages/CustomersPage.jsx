@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Building2, Landmark, Factory, Truck, Layers, Quote } from 'lucide-react';
+import { Users, Building2, Landmark, Factory, Truck, Layers } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { LeadModal } from '../components/LeadModal';
@@ -131,15 +131,7 @@ const CustomersPage = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial" style={{ backgroundColor: '#fff' }}>
-        <div className="mod-test-inner">
-          <Quote size={48} className="mod-feat-icon" style={{ opacity: 0.2, margin: '0 auto 32px' }} />
-          <p className="mod-test-quote">"The level of transparency we have now across our APAC portfolio is unprecedented. It's not just a dashboard; it's a strategic advantage."</p>
-          <div className="mod-test-author">Your name</div>
-          <div className="mod-test-role">Managing Director, Global Operations</div>
-        </div>
-      </section>
+
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">

@@ -13,7 +13,7 @@ const CHAT = [
   { role: "user", text: "What are the key project risks for the Atlas program?" },
   {
     role: "ai",
-    text: "There are currently 3 items marked for attention:\n1. Cooling specification pending approval (Milestone G3 in 9 days)\n2. Electrical budget is 6% above target\n3. Wiring harness design (DR-1045) is currently in drift state.",
+    text: "There are currently 3 items marked for attention:\n1. API gateway spec pending approval (Release gate in 9 days)\n2. Cloud infrastructure budget is 6% above target\n3. Auth service routing (ENG-1045) is currently in drift state.",
   },
 ];
 

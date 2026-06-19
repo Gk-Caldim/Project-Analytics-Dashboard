@@ -35,7 +35,7 @@ const PublicNavbar = () => {
               <rect x="13" y="13" width="9" height="9" rx="2" fill="#EF4444" />
             </svg>
           </div>
-          <span className="public-logo-text">Industrial Analytics Workspace</span>
+          <span className="public-logo-text">Engineering Analytics Workspace</span>
         </div>
         
         <div className="public-nav-right">

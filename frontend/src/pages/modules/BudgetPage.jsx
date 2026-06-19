@@ -133,14 +133,7 @@ const BudgetPage = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial">
-        <div className="mod-test-inner">
-          <h2 className="mod-test-quote">"We caught a ₹2Cr budget overrun 3 weeks early. That's never happened before."</h2>
-          <div className="mod-test-author">Vikram Shah</div>
-          <div className="mod-test-role">Group CFO, L&T Infrastructure</div>
-        </div>
-      </section>
+
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">

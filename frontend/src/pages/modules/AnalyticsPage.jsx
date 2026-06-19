@@ -128,15 +128,7 @@ const AnalyticsPage = () => {
         </div>
       </section>
 
-      {/* ── TESTIMONIAL ── */}
-      <section className="mod-testimonial">
-        <div className="mod-test-inner">
-          <h2 className="mod-test-quote">"We reduced our monthly board prep from 3 days to 4 hours."</h2>
-          <div className="mod-test-author">Rajesh Menon</div>
-          <div className="mod-test-role">CFO, Mahindra Logistics</div>
-          <img className="mod-test-logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Mahindra_logo_2021.svg/300px-Mahindra_logo_2021.svg.png" alt="Mahindra Placeholder" onError={(e) => { e.target.style.display = 'none'; }} />
-        </div>
-      </section>
+
 
       {/* ── BOTTOM CTA ── */}
       <section className="mod-bottom-cta">
