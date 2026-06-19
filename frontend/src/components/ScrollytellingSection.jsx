@@ -174,42 +174,30 @@ const SECTIONS = [
   {
     id: "hero",
     tag: "CALDIM PLANNER",
-    title: "Automotive programs, fully synchronized",
-    desc: "A single cloud workspace that keeps design checklists, APQP gate approvals, and live program timelines unified.",
-    quote: "“By automating design release sync from Excel, we eliminated 100% of our manual tracking errors.”",
-    author: "Sanjay Iyer",
-    role: "Lead Systems Engineer",
-    company: "Mahindra Electric",
+    title: "Your programs, fully synchronized",
+    desc: "A single workspace that keeps design checklists, gate approvals, and live program timelines unified across your entire team.",
+    highlight: "Zero manual cross-referencing between tools.",
   },
   {
     id: "gantt",
     tag: "TIMELINE",
     title: "See the big picture with Gantt charts",
-    desc: "Build your project plan, set dependencies, and automatically track SOP gates. Immediately detect version drift between release lines.",
-    quote: "“The Gantt chart view kept our entire supply chain aware of gate delays before they impacted production.”",
-    author: "Ravi Voss",
-    role: "Program Manager",
-    company: "Bosch Automotive",
+    desc: "Build your project plan, set dependencies, and automatically track release gates. Immediately detect version drift between release lines.",
+    highlight: "Dependencies, owners, and gate status in one view.",
   },
   {
     id: "calendar",
     tag: "CALENDAR",
-    title: "Plan SOP gates on a living calendar",
-    desc: "Dynamic weekly view with color-coded event categories and drag-and-drop rescheduling built specifically for PMO teams.",
-    quote: "“We run our weekly gate approval schedule off the CALDIM calendar. Tracking shifts is finally easy.”",
-    author: "Kemi Adeyemi",
-    role: "Operations Head",
-    company: "Volvo Trucks",
+    title: "Plan milestones on a shared calendar",
+    desc: "Dynamic weekly view with color-coded event categories and drag-and-drop rescheduling built specifically for cross-functional teams.",
+    highlight: "Gate scheduling that the whole team stays in sync with.",
   },
   {
     id: "budget",
     tag: "BUDGETS",
     title: "Govern budgets against strategic targets",
-    desc: "Track program variance, body trim spend, and parts release costs in real time. Flag risk alerts before gates close.",
-    quote: "“CALDIM's variance indicator flagged a 6% body tooling overrun nine days before kickoff.”",
-    author: "Preeti Nair",
-    role: "PMO Director",
-    company: "Tata Motors",
+    desc: "Track program variance, department spend, and parts release costs in real time. Flag risk alerts before gates close.",
+    highlight: "Variance detected early — before it hits your schedule.",
   },
 ];
 
@@ -373,23 +361,13 @@ export const ScrollytellingSection = ({ onRequestDemo }) => {
                   {SECTIONS[activeSec].desc}
                 </p>
 
-                {/* Zoho-style testimonial embedded under text */}
-                <div className="pt-6 border-t border-slate-100 space-y-3">
-                  <p className="text-[13.5px] italic text-slate-600 leading-relaxed font-sans">
-                    {SECTIONS[activeSec].quote}
-                  </p>
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-7 w-7 rounded-full bg-blue-50 text-brand text-[10px] font-bold grid place-items-center uppercase border border-blue-100">
-                      {SECTIONS[activeSec].author.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-[11.5px] font-bold text-slate-800 leading-none">
-                        {SECTIONS[activeSec].author}
-                      </p>
-                      <p className="text-[9.5px] font-semibold text-slate-400 mt-0.5 font-sans">
-                        {SECTIONS[activeSec].role} &middot; {SECTIONS[activeSec].company}
-                      </p>
-                    </div>
+                {/* Feature highlight block — replaces fake testimonials */}
+                <div className="pt-6 border-t border-slate-100">
+                  <div className="flex items-start gap-3 rounded-xl bg-blue-50/60 border border-blue-100/60 p-4">
+                    <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[10px] font-bold grid place-items-center shrink-0 mt-0.5">→</span>
+                    <p className="text-[13.5px] font-semibold text-slate-700 leading-snug">
+                      {SECTIONS[activeSec].highlight}
+                    </p>
                   </div>
                 </div>
 

@@ -6,12 +6,12 @@ const footerColumns = [
     heading: "Features",
     links: [
       "Task Management",
-      "Excel Analytics",
-      "Minutes of Meeting (MOM)",
-      "Time Sheets",
+      "Data Analytics",
+      "Meeting Summaries",
+      "Time Tracking",
       "Team Collaboration",
       "Goal Tracking",
-      "Portfolio View",
+      "Project Portfolio",
       "Dashboards",
     ],
   },
@@ -95,7 +95,7 @@ export function Footer({ onRequestDemo }) {
               <div className="text-sm font-extrabold text-slate-900 -mt-0.5">Project Dashboard</div>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed mt-2.5 mb-4 font-medium font-sans">
-              Project governance and analytics built for engineering excellence.
+              Project management and analytics built for software engineering teams.
             </p>
             <div className="flex gap-3">
               {[Linkedin, Twitter, Youtube].map((Icon, i) => (

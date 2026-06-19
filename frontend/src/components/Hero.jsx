@@ -5,16 +5,16 @@ import AppShellMockup from "./AppShellMockup";
 
 /* ── Rotating headline phrases (Zoho pattern) ── */
 const HERO_PHRASES = [
-  "engineering programs",
+  "software engineering",
   "product development",
-  "cross-functional teams",
-  "milestone tracking",
+  "agile teams",
+  "release management",
 ];
 
 const VALUE_PROPS = [
-  "Automated spreadsheet sync",
-  "AI-assisted meeting summaries",
-  "Real-time budget tracking",
+  "Automated data synchronization",
+  "AI-driven action items",
+  "Resource allocation tracking",
 ];
 
 const fadeUp = {
@@ -31,11 +31,11 @@ const fadeUp = {
    colored phase bars, same ID+phase columns. No embellishments.
 ── */
 const GANTT_TASKS = [
-  { id: "ZS-T102", name: "Project Planning", color: "#8B5CF6", start: 0,  width: 32, phase: "G0" },
-  { id: "ZS-T103", name: "Design Release",   color: "#2563EB", start: 20, width: 38, phase: "G1" },
-  { id: "ZS-T104", name: "Proto Build",      color: "#10B981", start: 42, width: 30, phase: "G2" },
-  { id: "ZS-T105", name: "SOP Validation",   color: "#F59E0B", start: 62, width: 28, phase: "G3" },
-  { id: "ZS-T106", name: "Job-One Launch",   color: "#06B6D4", start: 78, width: 20, phase: "G4" },
+  { id: "ENG-01", name: "Requirements Analysis", color: "#8B5CF6", start: 0,  width: 32, phase: "Phase 1" },
+  { id: "ENG-02", name: "Architecture Design",   color: "#2563EB", start: 20, width: 38, phase: "Phase 2" },
+  { id: "ENG-03", name: "Active Development",      color: "#10B981", start: 42, width: 30, phase: "Phase 3" },
+  { id: "ENG-04", name: "Integration Testing",   color: "#F59E0B", start: 62, width: 28, phase: "Phase 4" },
+  { id: "ENG-05", name: "Production Release",   color: "#06B6D4", start: 78, width: 20, phase: "Phase 5" },
 ];
 
 const MONTHS = ["OCT", "NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"];
@@ -126,28 +126,22 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
       {/* Floating Gantt Bars */}
       <div className="zoho-float-bar g0 left-[10%] top-[40%] hidden xl:flex">
         <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[9px] font-bold grid place-items-center">✓</span>
-        <span>Concept Freeze</span>
+        <span>Design Freeze</span>
       </div>
       <div className="zoho-float-bar g1 right-[12%] top-[35%] hidden xl:flex" style={{ animationDelay: '1s' }}>
         <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[9px] font-bold grid place-items-center">⚡</span>
-        <span>Design Release</span>
+        <span>Architecture Approved</span>
       </div>
       <div className="zoho-float-bar g2 right-[15%] bottom-[45%] hidden xl:flex" style={{ animationDelay: '2s' }}>
         <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[9px] font-bold grid place-items-center">!</span>
-        <span>Harness Routing</span>
+        <span>CI/CD Deployed</span>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
 
         {/* ── Centered headline block ── */}
         <div className="max-w-3xl mx-auto text-center">
-          <motion.div
-            variants={fadeUp} initial="hidden" animate="show" custom={0}
-            className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50/80 px-3.5 py-1.5 text-[13px] font-semibold text-blue-600 mb-6"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
-            Project tracking and analytics for engineering programs
-          </motion.div>
+          
 
           <motion.h1
             variants={fadeUp} initial="hidden" animate="show" custom={1}
@@ -176,8 +170,8 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             variants={fadeUp} initial="hidden" animate="show" custom={2}
             className="mt-6 zoho-body text-lg leading-relaxed max-w-2xl mx-auto font-normal"
           >
-            A unified workspace that connects your spreadsheets, captures action items automatically,
-            and monitors project costs across every release gate.
+            A unified workspace that integrates your tools, captures action items automatically,
+            and monitors project health across every release cycle.
           </motion.p>
 
           <motion.ul
@@ -212,18 +206,7 @@ export const Hero = ({ onRequestDemo, onAccessProjects, onAccessWorkspace }) => 
             </button>
           </motion.div>
 
-          {/* Wreath Quote Card (Forbes citation matching Zoho Projects) */}
-          <motion.div
-            variants={fadeUp} initial="hidden" animate="show" custom={5}
-            className="zoho-quote-card"
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className="font-heading font-extrabold text-[17px] text-[#0F172A] tracking-widest uppercase mb-2">Forbes</div>
-              <p className="zoho-body text-[14.5px] italic text-slate-650 leading-relaxed font-sans max-w-xl">
-                "CALDIM provides a highly structured and accessible platform for engineering project tracking and governance."
-              </p>
-            </div>
-          </motion.div>
+
         </div>
 
         {/* ── Product screenshot — CALDIM Gantt Chart ── */}

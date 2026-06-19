@@ -7,19 +7,19 @@ import Logo from "./Logo";
 
 const MENUS = {
   Solutions: [
-    { label: "Engineering Governance", desc: "APQP / SOP phase-gate control", path: "/governance" },
-    { label: "Program Analytics", desc: "Live variance & risk telemetry", path: "/analytics" },
-    { label: "Manufacturing Programs", desc: "Built for automotive teams", path: "/enterprise" },
+    { label: "Release Governance", desc: "SDLC & milestone tracking", path: "/governance" },
+    { label: "Project Analytics", desc: "Sprint progress & risk metrics", path: "/analytics" },
+    { label: "Enterprise Platform", desc: "Built for scale and security", path: "/enterprise" },
   ],
   Features: [
-    { label: "Excel Design Sync", desc: "Release-code sync engine", path: "/analytics" },
-    { label: "AI Voice MOM", desc: "Auto-captured meeting minutes", path: "/meetings" },
-    { label: "Budget Masters", desc: "Spend vs strategic targets", path: "/budget" },
-    { label: "Team Calendar", desc: "Drag-and-drop program gates", path: "/governance" },
+    { label: "Spreadsheet Sync", desc: "Connect sheet data to database", path: "/analytics" },
+    { label: "AI Meeting Minutes", desc: "Auto-generated summaries & actions", path: "/meetings" },
+    { label: "Budget Tracking", desc: "Track project burn rates & spend", path: "/budget" },
+    { label: "Release Calendar", desc: "Visualize milestones & sprint gates", path: "/governance" },
   ],
   Resources: [
     { label: "Documentation", desc: "Guides & API reference", path: "/info/documentation" },
-    { label: "Case Studies", desc: "Atlas VX & more", path: "/customers" },
+    { label: "Success Stories", desc: "Customer case studies", path: "/customers" },
     { label: "Webinars", desc: "Live product walkthroughs", path: "/info/webinars" },
   ],
 };

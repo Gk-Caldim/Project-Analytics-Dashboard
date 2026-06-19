@@ -4,11 +4,11 @@ import { ChevronDown } from "lucide-react";
 const faqs = [
   {
     q: "What is the CALDIM Project Dashboard?",
-    a: "CALDIM is a project management and tracking platform built for engineering and manufacturing teams. It consolidates spreadsheet data, automatically summarizes meeting minutes, tracks project costs, and keeps cross-functional teams aligned.",
+    a: "CALDIM is a project management and tracking platform built for software engineering teams. It integrates data, automatically generates meeting summaries, tracks resource allocation, and keeps cross-functional teams aligned.",
   },
   {
     q: "How does CALDIM compare to general project management tools?",
-    a: "Unlike general-purpose task managers, CALDIM is designed specifically for engineering workflows. It offers direct spreadsheet synchronization, automated action-item extraction from meetings, and structured cost-tracking systems.",
+    a: "Unlike general-purpose task managers, CALDIM is designed specifically for software engineering workflows. It offers direct CI/CD and data integration, automated action-item extraction from meetings, and structured resource-tracking systems.",
   },
   {
     q: "Can I import multiple spreadsheets at once?",
@@ -23,8 +23,8 @@ const faqs = [
     a: "Yes, CALDIM uses standard security protocols including encrypted data storage, role-based access controls, and detailed audit logs to ensure your project files remain secure.",
   },
   {
-    q: "What cost-tracking features are available?",
-    a: "The platform lets you set project budget limits, log team expenses, monitor cost updates, and receive alerts when project spend nears or exceeds targets.",
+    q: "What resource-tracking features are available?",
+    a: "The platform lets you set resource allocation limits, log team expenses, monitor updates, and receive alerts when project spend nears or exceeds targets.",
   },
   {
     q: "Is there a trial available?",
